@@ -1,0 +1,47 @@
+# This file is part of Jaws
+# Copyright (c)2007 Tiphaine Turpin (Université de Rennes 1)
+# Copyright (c)2007 Laurent Hubert (CNRS)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+# 
+# You should have received a copy of the GNU Lesser General Public
+# License along with this program.  If not, see 
+# <http://www.gnu.org/licenses/>.
+
+EXTLIB_PATH		= +extlib
+CAMLZIP_PATH		= +zip
+PTREES_PATH		= +ptrees
+JAVALIB_PATH		= +javaLib
+
+INSTALL_DIR		= `ocamlc -where`/jaws
+DOCDIR			= doc
+
+OPT_FLAGS		= -noassert -ccopt -O3
+
+DEBUG			= no
+CMO			= no
+
+OCAMLC			= ocamlc.opt -w Ae -dtypes -g
+OCAMLDOC		= ocamldoc.opt
+OCAMLDEP		= ocamldep.opt
+OCAMLMKTOP		= ocamlmktop
+INCLUDE			= -I $(EXTLIB_PATH) -I $(CAMLZIP_PATH) -I $(PTREES_PATH) -I $(JAVALIB_PATH)
+PP			= -pp camlp4o.opt
+
+ifeq ($(DEBUG),yes)
+OCAMLOPT		= ocamlopt.opt -g
+else
+ifeq ($(DEBUG),prof)
+OCAMLOPT		= ocamlopt.opt -p $(OPT_FLAGS)
+else
+OCAMLOPT		= ocamlopt.opt $(OPT_FLAGS)
+endif
+endif
