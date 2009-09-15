@@ -27,7 +27,7 @@
     directories and [.jar] files separated with ':'). [other_classes]
     is set to [default_classes] if not given. *)
 val parse_program :
-  ?other_classes:string list -> string -> string list -> JOpcodes.lazy_code JProgram.program
+  ?other_classes:string list -> string -> string list -> JOpcodes.jvm_opcodes JProgram.program
 
 (** classes always loaded (natively) by the JVM. *)
 val default_classes : string list

@@ -1,5 +1,5 @@
 (*
- * This file is part of JavaLib
+ * This file is part of Jaws
  * Copyright (c)2007, 2008 Tiphaine Turpin (Université de Rennes 1)
  * Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
  * Copyright (c)2009 Nicolas Barre (INRIA)
@@ -22,16 +22,15 @@
 (** Defines high level Ocaml representation of a java byte-code program. *)
 
 open JBasics
-open JClass
-open JClassIndexation
+open Javalib
 
 (** {2 Maps and Sets.} *)
 
-module ClassSet : Set.S with type elt = class_signature
+module ClassSet : Set.S with type elt = class_name
 module MethodSet : Set.S with type elt = method_signature
   
-module ClassMethSet : Set.S with type elt = class_signature * method_signature
-module ClassMethMap : Map.S with type key = class_signature * method_signature
+module ClassMethSet : Set.S with type elt = class_name * method_signature
+module ClassMethMap : Map.S with type key = class_name * method_signature
 
 (** {2 Navigable hierarchy.} *)
 
@@ -60,7 +59,7 @@ and 'a interface_or_class = [ `Interface of 'a interface_file | `Class of 'a cla
 
 (** {2 The [program] structure.} *)
 
-type 'a static_lookup_method = class_signature -> method_signature -> int ->
+type 'a static_lookup_method = class_name -> method_signature -> int ->
   ('a class_file * 'a concrete_method) ClassMethodMap.t
 
 (** A program is a record containing a map of class files identified by
@@ -89,9 +88,9 @@ val fold : ('b -> 'a interface_or_class -> 'b) -> 'b -> 'a program -> 'b
     program [p], if any.
     @raise Not_found if [p] does not contain a class named [cn].
 *)
-val get_interface_or_class : 'a program -> class_signature -> 'a interface_or_class
+val get_interface_or_class : 'a program -> class_name -> 'a interface_or_class
 
-val get_signature : 'a interface_or_class -> class_signature
+val get_signature : 'a interface_or_class -> class_name
 val get_name : 'a interface_or_class -> class_name
 val get_interfaces : 'a interface_or_class -> 'a interface_file ClassMap.t
 
@@ -160,10 +159,10 @@ val firstCommonSuperClass : 'a class_file -> 'a class_file -> 'a class_file
 
 (** {2 Callgraph.} *)
 
-type callgraph = ((class_signature * method_signature * int)
-		  * (class_signature * method_signature)) list
+type callgraph = ((class_name * method_signature * int)
+		  * (class_name * method_signature)) list
 
-val get_callgraph : JOpcodes.lazy_code program -> callgraph
+val get_callgraph : JOpcodes.jvm_opcodes program -> callgraph
 
 val store_callgraph : callgraph -> string -> unit
 
@@ -187,5 +186,5 @@ exception AbstractMethodError
 (** @see <http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html> The JVM Specification *)
 exception IllegalAccessError
 
-exception Invoke_not_found of (class_signature * method_signature
-			       * class_signature * method_signature)
+exception Invoke_not_found of (class_name * method_signature
+			       * class_name * method_signature)

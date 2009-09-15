@@ -20,8 +20,7 @@
 
 open JBasics
 open JOpcodes
-open JClass
-open JClassIndexation
+open Javalib
 open JProgram
 
 module Dllist =
@@ -148,20 +147,20 @@ end
 module Program =
 struct
   type rta_method = { mutable has_been_parsed : bool;
-		      c_method : JOpcodes.lazy_code jmethod }
+		      c_method : JOpcodes.jvm_opcodes jmethod }
   type class_info =
-      { class_data : JOpcodes.lazy_code JProgram.interface_or_class;
+      { class_data : JOpcodes.jvm_opcodes JProgram.interface_or_class;
 	mutable is_instantiated : bool;
-	mutable instantiated_subclasses : JOpcodes.lazy_code class_file ClassMap.t;
-	super_classes : class_signature list;
+	mutable instantiated_subclasses : JOpcodes.jvm_opcodes class_file ClassMap.t;
+	super_classes : class_name list;
 	super_interfaces : ClassSet.t;
 	methods : rta_method MethodMap.t;
-	mutable children_classes : JOpcodes.lazy_code class_file list;
-	mutable children_interfaces : JOpcodes.lazy_code interface_file list;
+	mutable children_classes : JOpcodes.jvm_opcodes class_file list;
+	mutable children_interfaces : JOpcodes.jvm_opcodes interface_file list;
 	mutable memorized_virtual_calls : MethodSet.t;
 	mutable memorized_interface_calls : MethodSet.t }
 	
-  type class_method = JOpcodes.lazy_code class_file * JOpcodes.lazy_code concrete_method
+  type class_method = JOpcodes.jvm_opcodes class_file * JOpcodes.jvm_opcodes concrete_method
 
   type program_cache =
       { mutable classes : class_info ClassMap.t;
@@ -175,7 +174,7 @@ struct
 	(* the clinits fields contains a set of class indexes whose clinit
 	   methods have already been added to the workset *)
 	mutable clinits : ClassSet.t;
-	workset : (class_signature * JOpcodes.lazy_code concrete_method) Dllist.dllist;
+	workset : (class_name * JOpcodes.jvm_opcodes concrete_method) Dllist.dllist;
 	classpath : JFile.class_path;
 	mutable native_methods : ClassMethSet.t;
 	parse_natives : bool;
@@ -215,14 +214,14 @@ struct
 		(match c.JClass.c_super_class with
 		   | None -> None
 		   | Some cn ->
-		       let cs = make_class_signature cn in
+		       let cs = make_class_name cn in
 			 Some(to_class_file
 				(get_class_info p cs).class_data));
 	      c_interfaces =
 		(let c_interfaces = ref ClassMap.empty in
 		   List.iter
 		     (fun x ->
-			let cs = make_class_signature x in
+			let cs = make_class_name x in
 			  c_interfaces := ClassMap.add cs
 			    (to_interface_file
 			       (get_class_info p cs).class_data)
@@ -246,7 +245,7 @@ struct
 		(let i_interfaces = ref ClassMap.empty in
 		   List.iter
 		     (fun x ->
-			let cs = make_class_signature x in
+			let cs = make_class_name x in
 			  i_interfaces := ClassMap.add cs
 			    (to_interface_file
 			       (get_class_info p cs).class_data)
@@ -263,7 +262,7 @@ struct
       ClassMap.find cs p.classes
     with
       | Not_found ->
-	  let cn = class_signature2class_name cs in
+	  let cn = class_name2class_name cs in
 	    add_class p cn;
 	    try
 	      ClassMap.find cs p.classes
@@ -275,7 +274,7 @@ struct
     (* We assume that a call to add_class is done only when a class has never *)
     (* been loaded in the program. Loading a class implies loading all its *)
     (* superclasses recursively. *)
-    let ioc_sig = make_class_signature cn in
+    let ioc_sig = make_class_name cn in
     let ioc = JFile.get_class p.classpath (String.concat "." cn) in
     let rta_methods = methods2rta_methods ioc in
       match ioc with
@@ -284,13 +283,13 @@ struct
 	      (match c.JClass.c_super_class with
 		 | None -> []
 		 | Some sc ->
-		     let sc_sig = make_class_signature sc in
+		     let sc_sig = make_class_name sc in
 		     let sc_info = get_class_info p sc_sig in
 		       sc_sig :: sc_info.super_classes)
 	    and implemented_interfaces =
 	      let s = ref ClassSet.empty in
 		List.iter (fun iname ->
-			     let isig = make_class_signature iname in
+			     let isig = make_class_name iname in
 			       s := ClassSet.add isig !s) c.JClass.c_interfaces;
 		!s in
 
@@ -346,7 +345,7 @@ struct
 	    let super_interfaces =
 	      let s = ref ClassSet.empty in
 		List.iter (fun si ->
-			     let si_sig = make_class_signature si in
+			     let si_sig = make_class_name si in
 			     let si_info = get_class_info p si_sig in
 			       s := ClassSet.add si_sig !s;
 			       s := ClassSet.union si_info.super_interfaces !s
@@ -568,7 +567,7 @@ struct
 	  add_instantiated_class p cs;
 	  add_class_clinits p cs
       | OpConst (`Class _) ->
-	  let cs = make_class_signature ["java";"lang";"Class"] in
+	  let cs = make_class_name ["java";"lang";"Class"] in
 	    add_instantiated_class p cs;
 	    add_class_clinits p cs
       | OpGetStatic (cs,fs)
@@ -609,7 +608,7 @@ struct
 	     | TClass cn ->
 		 (* hack : why a class should not be encapsulated by L; ? *)
 		 let cn = normalize_cn cn in
-		 let cs = make_class_signature cn in
+		 let cs = make_class_name cn in
 		   add_instantiated_class p cs;
 		   add_class_clinits p cs
 	) allocated_classes;
@@ -623,7 +622,7 @@ struct
 	     JParseSignature.parse_method_descriptor m_signature in
 	   let ms = make_method_signature
 	     m_name (parameters,rettype) in
-	   let cs = make_class_signature cn in
+	   let cs = make_class_name cn in
 	     add_to_workset p (cs,ms)
 	) calls
     
@@ -640,7 +639,7 @@ struct
 		   let ms = cm.cm_signature in
 		   let m_class =
 		     "L" ^ (JUnparseSignature.unparse_objectType
-			      (TClass (class_signature2class_name cs))) ^ ";"
+			      (TClass (class_name2class_name cs))) ^ ";"
 		   and m_name = method_signature2method_name ms
 		   and m_signature = JUnparseSignature.unparse_method_descriptor
 		     (method_signature2method_descriptor ms) in
@@ -810,7 +809,7 @@ let default_entrypoints =
      make_method_signature "initializeSystemClass" ([],None))
   in
     List.map
-      (fun (cn,ms) -> (make_class_signature cn, ms))
+      (fun (cn,ms) -> (make_class_name cn, ms))
       ((["java";"lang";"Object"],clinit_signature)::
 	 (["java";"lang";"String"],clinit_signature)::
 	 (["java";"lang";"System"],clinit_signature)::

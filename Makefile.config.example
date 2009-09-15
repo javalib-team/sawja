@@ -19,7 +19,7 @@
 EXTLIB_PATH		= +extlib
 CAMLZIP_PATH		= +zip
 PTREES_PATH		= +ptrees
-JAVALIB_PATH		= +javaLib
+JAVALIB_PATH		= +javalib
 
 INSTALL_DIR		= `ocamlc -where`/jaws
 DOCDIR			= doc

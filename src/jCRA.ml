@@ -21,8 +21,7 @@
 
 open JBasics
 open JOpcodes
-open JClass
-open JClassIndexation
+open Javalib
 open JProgram
 
 type class_info = { class_data : JOpcodes.lazy_code JProgram.interface_or_class;
@@ -55,13 +54,13 @@ let rec update_interfaces classes_map ioc interfaces cs =
 	  )
 	  i.i_interfaces interfaces
 
-exception Class_not_found of class_signature
+exception Class_not_found of class_name
 
 let add_classFile c classes_map interfaces =
   let imap =
     List.fold_left
       (fun imap iname ->
-	 let isig = make_class_signature iname in
+	 let isig = make_class_name iname in
 	 let i =
 	   try
 	     match (ClassMap.find isig classes_map).class_data with
@@ -69,7 +68,7 @@ let add_classFile c classes_map interfaces =
 	       | `Class _ ->
 		   raise (Class_structure_error
 			    (JDumpBasics.class_name
-			       (class_signature2class_name c.c_signature)
+			       (class_name2class_name c.c_signature)
 			     ^" is declared to implements "
 			     ^JDumpBasics.class_name iname
 			     ^", which is a class and not an interface."))
@@ -80,7 +79,7 @@ let add_classFile c classes_map interfaces =
     match c.c_super_class with
       | None -> None
       | Some super ->
-	  let super_signature = make_class_signature super in
+	  let super_signature = make_class_name super in
 	    try
 	      let c_super_info = ClassMap.find super_signature classes_map in
 		match c_super_info.class_data with
@@ -88,7 +87,7 @@ let add_classFile c classes_map interfaces =
 		  | `Interface _ ->
 		      raise (Class_structure_error
 			       (JDumpBasics.class_name
-				  (class_signature2class_name c.c_signature)
+				  (class_name2class_name c.c_signature)
 				^" is declared to extends "
 				^JDumpBasics.class_name super
 				^", which is an interface and not a class.")
@@ -128,7 +127,7 @@ let add_interfaceFile c classes_map =
   let imap =
     List.fold_left
       (fun imap iname ->
-	 let isig = make_class_signature iname in
+	 let isig = make_class_name iname in
 	 let i =
 	   try
 	     match (ClassMap.find isig classes_map).class_data with
@@ -136,10 +135,10 @@ let add_interfaceFile c classes_map =
 	       | `Class c' ->
 		   raise (Class_structure_error
 			    ("Interface "^JDumpBasics.class_name
-			       (class_signature2class_name c.i_signature)
+			       (class_name2class_name c.i_signature)
 			     ^" is declared to extends "
 			     ^JDumpBasics.class_name
-			       (class_signature2class_name c'.c_info.c_signature)
+			       (class_name2class_name c'.c_info.c_signature)
 			     ^", which is an interface and not a class.")
 			 )
 	   with Not_found -> raise (Class_not_found isig)
@@ -186,12 +185,12 @@ let add_class_referenced c classmap to_add =
       | ConstInterfaceMethod (cn,_,_)
       | ConstField (cn,_,_)
       | ConstValue (ConstClass (TClass cn)) ->
-	  let cs = make_class_signature cn in
+	  let cs = make_class_name cn in
 	    if not (ClassMap.mem cs classmap) then to_add := cs::!to_add
       | _ -> ()) (JClass.get_consts c)
 
 let get_class class_path jclasses_map cs =
-  let cn = class_signature2class_name cs in
+  let cn = class_name2class_name cs in
     try ClassMap.find cs !jclasses_map
     with Not_found ->
       try

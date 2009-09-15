@@ -18,7 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open JClassIndexation
+open JBasics
+open Javalib
 open JProgram
 
 (** Builds high level representations of java byte-code programs using
@@ -34,18 +35,18 @@ open JProgram
     The second return parameter is the set of instantiated classes
     calculated by RTA algorithm. *)
 val parse_program :
-  ?other_entrypoints:(class_signature * method_signature) list ->
+  ?other_entrypoints:(class_name * method_signature) list ->
   ?native_stubs:string option ->
-  string -> class_signature * method_signature ->
-  JOpcodes.lazy_code program * JOpcodes.lazy_code class_file ClassMap.t
+  string -> class_name * method_signature ->
+  JOpcodes.jvm_opcodes program * JOpcodes.jvm_opcodes class_file ClassMap.t
 
 val parse_program_bench :
-  ?other_entrypoints:(class_signature * method_signature) list ->
-  string -> class_signature * method_signature -> unit
+  ?other_entrypoints:(class_name * method_signature) list ->
+  string -> class_name * method_signature -> unit
 
 (** Sun's JVM calls some methods natively during the JVM
     initialization.  We have included the list (that we suppose
     complete but without garantee). Some of the method listed may not
     exists (as <clinit> method are optionals) but there should be
     executed in this order. *)
-val default_entrypoints : (class_signature * method_signature) list
+val default_entrypoints : (class_name * method_signature) list

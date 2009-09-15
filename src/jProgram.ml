@@ -1,5 +1,5 @@
 (*
- * This file is part of JavaLib
+ * This file is part of Jaws
  * Copyright (c)2007, 2008 Tiphaine Turpin (Université de Rennes 1)
  * Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
  * Copyright (c)2009 Nicolas Barre (INRIA)
@@ -23,13 +23,12 @@
 
 open JBasics
 open JOpcodes
-open JClass
-open JClassIndexation
+open Javalib
 
 module ClassSet = Set.Make(
   struct
-    type t = class_signature
-    let compare = compare_class_signatures
+    type t = class_name
+    let compare = compare_class_names
   end)
 
 module MethodSet = Set.Make(
@@ -40,13 +39,13 @@ module MethodSet = Set.Make(
 
 module ClassMethSet = Set.Make(
   struct
-    type t = class_signature * method_signature
+    type t = class_name * method_signature
     let compare = compare
   end)
 
 module ClassMethMap = Map.Make(
   struct
-    type t = class_signature * method_signature
+    type t = class_name * method_signature
     let compare = compare
   end)
 
@@ -75,7 +74,7 @@ let get_signature = function
   | `Interface i -> i.i_info.i_signature
   | `Class c -> c.c_info.c_signature
 
-let get_name ioc = class_signature2class_name (get_signature ioc)
+let get_name ioc = class_name2class_name (get_signature ioc)
 
 let get_interfaces = function
   | `Interface i -> i.i_interfaces
@@ -88,10 +87,10 @@ let get_consts = function
 let equal c1 c2 = match c1,c2 with
   | `Class c1, `Class c2 ->
       c1 == c2
-      (* equal_class_signatures c1.c_info.c_signature c2.c_info.c_signature *)
+      (* equal_class_names c1.c_info.c_signature c2.c_info.c_signature *)
   | `Interface i1, `Interface i2 ->
       i1 == i2
-      (* equal_class_signatures i1.i_info.i_signature i2.i_info.i_signature *)
+      (* equal_class_names i1.i_info.i_signature i2.i_info.i_signature *)
   | _, _ -> false
 
 let rec get_all_children_classes c =
@@ -102,7 +101,7 @@ let rec get_all_children_classes c =
 	    List.rev_append r (get_all_children_classes c)
 	 ) direct_children [])
 
-type 'a static_lookup_method = class_signature -> method_signature -> int ->
+type 'a static_lookup_method = class_name -> method_signature -> int ->
   ('a class_file * 'a concrete_method) ClassMethodMap.t
 type 'a program = { classes : 'a interface_or_class ClassMap.t;
 		    parsed_methods : ('a interface_or_class *
@@ -184,7 +183,7 @@ let extends ioc1 ioc2 =
     | (`Class c1, `Class c2) -> extends_class c1 c2
     | (`Interface i1, `Interface i2) -> extends_interface i1 i2
     | (`Interface i, `Class c) ->
-	equal_class_signatures i.i_super.c_info.c_signature c.c_info.c_signature
+	equal_class_names i.i_super.c_info.c_signature c.c_info.c_signature
 
 let rec implements (c1:'a class_file) (i2:'a interface_file) : bool =
   if
@@ -249,8 +248,8 @@ let rec resolve_implemented_method ?(acc=[]) msi (c:'a class_file)
 	then (Some sc,resolve_interface_method ~acc msi (`Class c))
 	else resolve_implemented_method ~acc:(resolve_interface_method ~acc msi (`Class c)) msi sc
 
-exception Invoke_not_found of (class_signature * method_signature
-			       * class_signature * method_signature)
+exception Invoke_not_found of (class_name * method_signature
+			       * class_name * method_signature)
 
 let get_method_calls p cs m =
   let l = ref [] in
@@ -283,8 +282,8 @@ let get_method_calls p cs m =
     end;
     !l
 
-type callgraph = ((class_signature * method_signature * int)
-		  * (class_signature * method_signature)) list
+type callgraph = ((class_name * method_signature * int)
+		  * (class_name * method_signature)) list
 
 let get_callgraph p =
   let calls = ref [] in
@@ -308,12 +307,12 @@ let store_callgraph callgraph file =
     List.iter
       (fun ((cs,ms,pp),(ccs,cms)) ->
 	 IO.nwrite out
-	   ((JDumpBasics.class_name (class_signature2class_name cs)) ^ "."
+	   ((JDumpBasics.class_name (class_name2class_name cs)) ^ "."
 	    ^ (method_signature2method_name ms)
 	    ^ (JUnparseSignature.unparse_method_descriptor
 		 (method_signature2method_descriptor ms)) ^ ","
 	    ^ (string_of_int pp) ^ " -> "
-	    ^ (JDumpBasics.class_name (class_signature2class_name ccs)) ^ "."
+	    ^ (JDumpBasics.class_name (class_name2class_name ccs)) ^ "."
 	    ^ (method_signature2method_name cms)
 	    ^ (JUnparseSignature.unparse_method_descriptor
 		 (method_signature2method_descriptor cms)) ^ "\n")
