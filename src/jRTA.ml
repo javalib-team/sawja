@@ -149,18 +149,18 @@ struct
   type rta_method = { mutable has_been_parsed : bool;
 		      c_method : JOpcodes.jvm_opcodes jmethod }
   type class_info =
-      { class_data : JOpcodes.jvm_opcodes JProgram.interface_or_class;
+      { class_data : JOpcodes.jvm_opcodes node;
 	mutable is_instantiated : bool;
-	mutable instantiated_subclasses : JOpcodes.jvm_opcodes class_file ClassMap.t;
+	mutable instantiated_subclasses : JOpcodes.jvm_opcodes class_node ClassMap.t;
 	super_classes : class_name list;
 	super_interfaces : ClassSet.t;
 	methods : rta_method MethodMap.t;
-	mutable children_classes : JOpcodes.jvm_opcodes class_file list;
-	mutable children_interfaces : JOpcodes.jvm_opcodes interface_file list;
+	mutable children_classes : JOpcodes.jvm_opcodes class_node list;
+	mutable children_interfaces : JOpcodes.jvm_opcodes interface_node list;
 	mutable memorized_virtual_calls : MethodSet.t;
 	mutable memorized_interface_calls : MethodSet.t }
 	
-  type class_method = JOpcodes.jvm_opcodes class_file * JOpcodes.jvm_opcodes concrete_method
+  type class_method = JOpcodes.jvm_opcodes class_node * JOpcodes.jvm_opcodes concrete_method
 
   type program_cache =
       { mutable classes : class_info ClassMap.t;
@@ -175,7 +175,7 @@ struct
 	   methods have already been added to the workset *)
 	mutable clinits : ClassSet.t;
 	workset : (class_name * JOpcodes.jvm_opcodes concrete_method) Dllist.dllist;
-	classpath : JFile.class_path;
+	classpath : Javalib.class_path;
 	mutable native_methods : ClassMethSet.t;
 	parse_natives : bool;
 	native_methods_info : JNativeStubs.t }
@@ -185,8 +185,8 @@ struct
   let methods2rta_methods ioc =
     let mmap =
       match ioc with
-	| `Class c -> c.c_methods
-	| `Interface i ->
+	| JClass c -> c.c_methods
+	| JInterface i ->
 	    let mmap =
 	      MethodMap.map (fun am -> AbstractMethod am) i.i_methods in
 	      (match i.i_initializer with
@@ -196,101 +196,94 @@ struct
     in
       MethodMap.map (fun m -> { has_been_parsed = false; c_method = m }) mmap
 
-  let rec to_class_file ioc =
+  let rec to_class_node ioc =
     match ioc with
-      | `Class c -> c
-      | `Interface _ -> failwith "to_class_file applied on interface !"
-  and to_interface_file ioc =
+      | Class c -> c
+      | Interface _ -> failwith "to_class_node applied on interface !"
+  and to_interface_node ioc =
     match ioc with
-      | `Class _ -> failwith "to_interface_file applied on class !"
-      | `Interface i -> i
+      | Class _ -> failwith "to_interface_node applied on class !"
+      | Interface i -> i
 
-  and ioc2iocfile p ioc =
+  and ioc2node p ioc =
     match ioc with
-      | `Class c ->
-	  `Class
+      | JClass c ->
+	  Class
 	    { c_info = c;
 	      c_super =
-		(match c.JClass.c_super_class with
+		(match c.c_super_class with
 		   | None -> None
-		   | Some cn ->
-		       let cs = make_class_name cn in
-			 Some(to_class_file
-				(get_class_info p cs).class_data));
+		   | Some cs ->
+		       Some(to_class_node
+			      (get_class_info p cs).class_data));
 	      c_interfaces =
 		(let c_interfaces = ref ClassMap.empty in
 		   List.iter
-		     (fun x ->
-			let cs = make_class_name x in
-			  c_interfaces := ClassMap.add cs
-			    (to_interface_file
-			       (get_class_info p cs).class_data)
-			    !c_interfaces)
-		     c.JClass.c_interfaces;
+		     (fun cs ->
+			c_interfaces := ClassMap.add cs
+			  (to_interface_node
+			     (get_class_info p cs).class_data)
+			  !c_interfaces)
+		     c.Javalib.c_interfaces;
 		   !c_interfaces);
 	      get_c_children =
-		(fun () -> (get_class_info p c.c_signature).children_classes) }
+		(fun () -> (get_class_info p c.c_name).children_classes) }
 
-      | `Interface i ->
-	  `Interface
+      | JInterface i ->
+	  Interface
 	    { i_info = i;
 	      i_super =
-		(let object_file =
-		   (get_class_info p java_lang_object_signature).class_data in
-		   match object_file with
-		     | `Class c -> c
-		     | `Interface _ ->
+		(let object_node =
+		   (get_class_info p java_lang_object).class_data in
+		   match object_node with
+		     | Class c -> c
+		     | Interface _ ->
 			 failwith "java.lang.object is an interface !");
 	      i_interfaces =
 		(let i_interfaces = ref ClassMap.empty in
 		   List.iter
-		     (fun x ->
-			let cs = make_class_name x in
-			  i_interfaces := ClassMap.add cs
-			    (to_interface_file
-			       (get_class_info p cs).class_data)
-			    !i_interfaces)
-		     i.JClass.i_interfaces;
+		     (fun cs ->
+			i_interfaces := ClassMap.add cs
+			  (to_interface_node
+			     (get_class_info p cs).class_data)
+			  !i_interfaces)
+		     i.Javalib.i_interfaces;
 		   !i_interfaces);
 	      get_i_children_interfaces =
-		(fun () -> (get_class_info p i.i_signature).children_interfaces);
+		(fun () -> (get_class_info p i.i_name).children_interfaces);
 	      get_i_children_classes =
-		(fun () -> (get_class_info p i.i_signature).children_classes) }
+		(fun () -> (get_class_info p i.i_name).children_classes) }
 
   and get_class_info p cs =
     try
       ClassMap.find cs p.classes
     with
       | Not_found ->
-	  let cn = class_name2class_name cs in
-	    add_class p cn;
+	    add_class p cs;
 	    try
 	      ClassMap.find cs p.classes
 	    with _ ->
 	      failwith ("Can't load class or interface "
-			^ (JDumpBasics.class_name cn))
+			^ (cn_name cs))
 		
-  and add_class p cn =
+  and add_class p cs =
     (* We assume that a call to add_class is done only when a class has never *)
     (* been loaded in the program. Loading a class implies loading all its *)
     (* superclasses recursively. *)
-    let ioc_sig = make_class_name cn in
-    let ioc = JFile.get_class p.classpath (String.concat "." cn) in
+    let ioc = Javalib.get_class p.classpath cs in
     let rta_methods = methods2rta_methods ioc in
       match ioc with
-	| `Class c ->
+	| JClass c ->
 	    let super_classes =
-	      (match c.JClass.c_super_class with
+	      (match c.c_super_class with
 		 | None -> []
 		 | Some sc ->
-		     let sc_sig = make_class_name sc in
-		     let sc_info = get_class_info p sc_sig in
-		       sc_sig :: sc_info.super_classes)
+		     let sc_info = get_class_info p sc in
+		       sc :: sc_info.super_classes)
 	    and implemented_interfaces =
 	      let s = ref ClassSet.empty in
 		List.iter (fun iname ->
-			     let isig = make_class_name iname in
-			       s := ClassSet.add isig !s) c.JClass.c_interfaces;
+			     s := ClassSet.add iname !s) c.Javalib.c_interfaces;
 		!s in
 
 	    (* For each implemented interface and its super interfaces we add
@@ -306,15 +299,15 @@ struct
 		(fun i ->
 		   if ( ClassMap.mem i p.interfaces ) then
 		     p.interfaces <- ClassMap.add i
-		       (ClassSet.add ioc_sig (ClassMap.find i p.interfaces))
+		       (ClassSet.add cs (ClassMap.find i p.interfaces))
 		       p.interfaces
 		   else
 		     p.interfaces <- ClassMap.add i
-		       (ClassSet.add ioc_sig ClassSet.empty) p.interfaces
+		       (ClassSet.add cs ClassSet.empty) p.interfaces
 		) super_implemented_interfaces;
 	      
 	      let ioc_info =
-		{ class_data = ioc2iocfile p ioc;
+		{ class_data = ioc2node p ioc;
 		  is_instantiated = false;
 		  instantiated_subclasses = ClassMap.empty;
 		  super_classes = super_classes;
@@ -327,33 +320,32 @@ struct
 		  memorized_virtual_calls = MethodSet.empty;
 		  memorized_interface_calls = MethodSet.empty }
 	      in
-	      let c = to_class_file ioc_info.class_data in
+	      let c = to_class_node ioc_info.class_data in
 		ClassSet.iter
-		  (fun i_sig ->
-		     let i_info = get_class_info p i_sig in
+		  (fun i_name ->
+		     let i_info = get_class_info p i_name in
 		       i_info.children_classes <- c :: i_info.children_classes
 		  )
 		  implemented_interfaces;
 		List.iter
-		  (fun sc_sig ->
-		     let sc_info = (get_class_info p sc_sig) in
+		  (fun sc_name ->
+		     let sc_info = (get_class_info p sc_name) in
 		       sc_info.children_classes <- c :: sc_info.children_classes
 		  )
 		  super_classes;
-		p.classes <- ClassMap.add ioc_sig ioc_info p.classes;
-	| `Interface i ->
+		p.classes <- ClassMap.add cs ioc_info p.classes;
+	| JInterface i ->
 	    let super_interfaces =
 	      let s = ref ClassSet.empty in
 		List.iter (fun si ->
-			     let si_sig = make_class_name si in
-			     let si_info = get_class_info p si_sig in
-			       s := ClassSet.add si_sig !s;
+			     let si_info = get_class_info p si in
+			       s := ClassSet.add si !s;
 			       s := ClassSet.union si_info.super_interfaces !s
-			  ) i.JClass.i_interfaces;
+			  ) i.Javalib.i_interfaces;
 		!s in
 
 	    let ioc_info =
-	      { class_data = ioc2iocfile p ioc;
+	      { class_data = ioc2node p ioc;
 		is_instantiated = false;
 		(* An interface will never be instantiated *)
 		instantiated_subclasses = ClassMap.empty;
@@ -365,29 +357,29 @@ struct
 		memorized_virtual_calls = MethodSet.empty;
 		memorized_interface_calls = MethodSet.empty }
 	    in
-	    let i = to_interface_file ioc_info.class_data in
+	    let i = to_interface_node ioc_info.class_data in
 	      ClassSet.iter
-		(fun si_sig ->
-		   let si_info = get_class_info p si_sig in
+		(fun si_name ->
+		   let si_info = get_class_info p si_name in
 		     si_info.children_interfaces <- i :: si_info.children_interfaces
 		)
 		super_interfaces;
-	      p.classes <- ClassMap.add ioc_sig ioc_info p.classes;
+	      p.classes <- ClassMap.add cs ioc_info p.classes;
 
-  and add_clinit p ioc_sig =
-    let ioc_info = get_class_info p ioc_sig in
-      if ( not(ClassSet.mem ioc_sig p.clinits)
-	   && defines_method clinit_signature ioc_info.class_data ) then
+  and add_clinit p cs =
+    let ioc_info = get_class_info p cs in
+      if ( not(ClassSet.mem cs p.clinits)
+	   && defines_method ioc_info.class_data clinit_signature) then
 	(
-	  add_to_workset p (ioc_sig,clinit_signature);
-	  p.clinits <- ClassSet.add ioc_sig p.clinits
+	  add_to_workset p (cs,clinit_signature);
+	  p.clinits <- ClassSet.add cs p.clinits
 	)
 
-  and add_class_clinits p ioc_sig =
-    let ioc_info = get_class_info p ioc_sig in
+  and add_class_clinits p cs =
+    let ioc_info = get_class_info p cs in
       List.iter
 	(fun cs -> add_clinit p cs)
-	(ioc_sig :: ioc_info.super_classes)
+	(cs :: ioc_info.super_classes)
 	
   and get_method p cs ms =
     let cl_info = get_class_info p cs in
@@ -422,17 +414,17 @@ struct
       List.map
 	(fun rioc ->
 	   match rioc with
-	     | `Class rc -> rc.c_info.c_signature
-	     | `Interface ri -> ri.i_info.i_signature) rioc_list
+	     | Class rc -> rc.c_info.c_name
+	     | Interface ri -> ri.i_info.i_name) rioc_list
 
   let update_virtual_lookup_set p (c,ms) instantiated_subclasses =
-    let cs = c.c_info.c_signature in
+    let cs = c.c_info.c_name in
     let virtual_lookup_map =
       JControlFlow.invoke_virtual_lookup ~c:(Some c) ms
 	instantiated_subclasses in
       ClassMethodMap.iter
 	(fun _ (rc,cm) ->
-	   let rcs = rc.c_info.c_signature in
+	   let rcs = rc.c_info.c_name in
 	     add_to_workset p (rcs,ms);
 	     let s = ClassMethMap.find (cs,ms) p.static_virtual_lookup in
 	       p.static_virtual_lookup <-
@@ -454,10 +446,10 @@ struct
 	   ClassMethodMap.empty p.static_virtual_lookup;
 	 let instantiated_classes =
 	   if ( c_info.is_instantiated ) then
-	     ClassMap.add cs (to_class_file (c_info.class_data))
+	     ClassMap.add cs (to_class_node (c_info.class_data))
 	       c_info.instantiated_subclasses
 	   else c_info.instantiated_subclasses in
-	 let c = to_class_file c_info.class_data in
+	 let c = to_class_node c_info.class_data in
 	   update_virtual_lookup_set p (c,ms) instantiated_classes
 	)
 
@@ -497,7 +489,7 @@ struct
 	 (* for each virtual call that already occurred on A and *)
 	 (* its super classes. *)
 	 (let calls = cl_info.memorized_virtual_calls in
-	  let cl = to_class_file cl_info.class_data in
+	  let cl = to_class_node cl_info.class_data in
 	  let subclass_map = ClassMap.add cs cl ClassMap.empty in
 	    MethodSet.iter
 	      (fun ms ->
@@ -507,7 +499,7 @@ struct
 	    List.iter
 	      (fun scs ->
 	   	 let s_info = get_class_info p scs in
-		 let sc = to_class_file s_info.class_data in
+		 let sc = to_class_node s_info.class_data in
 		   (* We complete the list of instantiated subclasses for cn
 		      and its superclasses *)
 		   s_info.instantiated_subclasses <-
@@ -538,10 +530,10 @@ struct
 
   let rec invoke_special_lookup p current_class_sig cs ms =
     let current_class = (get_class_info p current_class_sig).class_data in
-    let called_class = to_class_file (get_class_info p cs).class_data in
+    let called_class = to_class_node (get_class_info p cs).class_data in
     let (rc,cm) =
       JControlFlow.invoke_special_lookup current_class called_class ms in
-    let rcs = rc.c_info.c_signature in
+    let rcs = rc.c_info.c_name in
     let s = ClassMethodMap.add cm.cm_class_method_signature (rc,cm)
       ClassMethodMap.empty in
       update_special_lookup_set p current_class_sig cs ms s;
@@ -549,9 +541,9 @@ struct
       add_to_workset p (rcs,ms)
 
   let rec invoke_static_lookup p cs ms =
-    let c = to_class_file (get_class_info p cs).class_data in
+    let c = to_class_node (get_class_info p cs).class_data in
     let (rc,cm) = JControlFlow.invoke_static_lookup c ms in
-    let rcs = rc.c_info.c_signature in
+    let rcs = rc.c_info.c_name in
       (if not( ClassMethMap.mem (cs,ms) p.static_static_lookup ) then
        	 let s = ClassMethodMap.add cm.cm_class_method_signature
 	   (rc,cm) ClassMethodMap.empty in
@@ -561,13 +553,13 @@ struct
       );
       rcs
 
-  let parse_instruction p current_class_sig op =
+  let parse_instruction p current_class_name op =
     match op with
       | OpNew cs ->
 	  add_instantiated_class p cs;
 	  add_class_clinits p cs
       | OpConst (`Class _) ->
-	  let cs = make_class_name ["java";"lang";"Class"] in
+	  let cs = make_cn "java.lang.Class" in
 	    add_instantiated_class p cs;
 	    add_class_clinits p cs
       | OpGetStatic (cs,fs)
@@ -577,19 +569,19 @@ struct
 	      (fun rcs ->
 		 let ioc_info = get_class_info p rcs in
 		   (match ioc_info.class_data with
-		      | `Class _ -> add_class_clinits p rcs
-		      | `Interface _ -> add_clinit p rcs
+		      | Class _ -> add_class_clinits p rcs
+		      | Interface _ -> add_clinit p rcs
 		   )
 	      ) rcs_list
-      | OpInvoke(`Virtual (`TClass cs),ms) ->
+      | OpInvoke(`Virtual (TClass cs),ms) ->
 	  invoke_virtual_lookup p cs ms
-      | OpInvoke(`Virtual (`TArray _),ms) ->
+      | OpInvoke(`Virtual (TArray _),ms) ->
 	  (* should only happen with [clone()] *)
-	  invoke_virtual_lookup p java_lang_object_signature ms
+	  invoke_virtual_lookup p java_lang_object ms
       | OpInvoke(`Interface cs,ms) ->
 	  invoke_interface_lookup p cs ms
       | OpInvoke(`Special cs,ms) ->
-      	  invoke_special_lookup p current_class_sig cs ms
+      	  invoke_special_lookup p current_class_name cs ms
       | OpInvoke(`Static cs,ms) ->
       	  let rcs = invoke_static_lookup p cs ms in
 	    add_class_clinits p rcs
@@ -602,28 +594,30 @@ struct
 	  (String.sub head 1 ((String.length head) - 1)) :: List.tl cn
       else [] in
       List.iter
-	(fun signature ->
-	   match JParseSignature.parse_objectType signature with
-	     | TArray _ -> ()
-	     | TClass cn ->
+	(* TODO *)
+	(fun signature -> ()
+	   (* match JParseSignature.parse_objectType signature with *)
+	   (*   | TArray _ -> () *)
+	   (*   | TClass cn -> () *)
 		 (* hack : why a class should not be encapsulated by L; ? *)
-		 let cn = normalize_cn cn in
-		 let cs = make_class_name cn in
-		   add_instantiated_class p cs;
-		   add_class_clinits p cs
+		 (* let cn = normalize_cn cn in *)
+		 (* let cs = make_class_name cn in *)
+		 (*   add_instantiated_class p cs; *)
+		 (*   add_class_clinits p cs *)
 	) allocated_classes;
+      (* TODO *)
       List.iter
-      	(fun (m_class,m_name,m_signature) ->
-	   let cn =
-	     match JParseSignature.parse_objectType m_class with
-	       | TArray _ -> failwith "Bad class"
-	       | TClass cn -> normalize_cn cn in
-	   let (parameters,rettype) =
-	     JParseSignature.parse_method_descriptor m_signature in
-	   let ms = make_method_signature
-	     m_name (parameters,rettype) in
-	   let cs = make_class_name cn in
-	     add_to_workset p (cs,ms)
+      	(fun (m_class,m_name,m_signature) -> ()
+	   (* let cn = *)
+	   (*   match JParseSignature.parse_objectType m_class with *)
+	   (*     | TArray _ -> failwith "Bad class" *)
+	   (*     | TClass cn -> normalize_cn cn in *)
+	   (* let (parameters,rettype) = *)
+	   (*   JParseSignature.parse_method_descriptor m_signature in *)
+	   (* let ms = make_method_signature *)
+	   (*   m_name (parameters,rettype) in *)
+	   (* let cs = make_class_name cn in *)
+	   (*   add_to_workset p (cs,ms) *)
 	) calls
     
   let iter_workset p =
@@ -635,27 +629,28 @@ struct
 	     | Native ->
 		 if not(p.parse_natives) then
 		   failwith "A Native Method shouldn't be found in the workset"
-		 else
-		   let ms = cm.cm_signature in
-		   let m_class =
-		     "L" ^ (JUnparseSignature.unparse_objectType
-			      (TClass (class_name2class_name cs))) ^ ";"
-		   and m_name = method_signature2method_name ms
-		   and m_signature = JUnparseSignature.unparse_method_descriptor
-		     (method_signature2method_descriptor ms) in
-		   let m = (m_class,m_name,m_signature) in
-		     (try
-			let (m_alloc, m_calls) =
-			  (JNativeStubs.get_native_method_allocations m
-			     p.native_methods_info,
-			   JNativeStubs.get_native_method_calls m
-			     p.native_methods_info) in
-			  parse_native_method p m_alloc m_calls
-		      with _ ->
-			prerr_endline ("warning : found native method " ^ m_class
-				       ^ "." ^ m_name ^ ":" ^ m_signature
-				       ^ " not present in the stub file.")
-		     )
+		 else 		   (* TODO *)
+		   ()
+		   (* let ms = cm.cm_signature in *)
+		   (* let m_class = *)
+		   (*   "L" ^ (JUnparseSignature.unparse_objectType *)
+		   (* 	      (TClass (class_name2class_name cs))) ^ ";" *)
+		   (* and m_name = method_signature2method_name ms *)
+		   (* and m_signature = JUnparseSignature.unparse_method_descriptor *)
+		   (*   (method_signature2method_descriptor ms) in *)
+		   (* let m = (m_class,m_name,m_signature) in *)
+		   (*   (try *)
+		   (* 	let (m_alloc, m_calls) = *)
+		   (* 	  (JNativeStubs.get_native_method_allocations m *)
+		   (* 	     p.native_methods_info, *)
+		   (* 	   JNativeStubs.get_native_method_calls m *)
+		   (* 	     p.native_methods_info) in *)
+		   (* 	  parse_native_method p m_alloc m_calls *)
+		   (*    with _ -> *)
+		   (* 	prerr_endline ("warning : found native method " ^ m_class *)
+		   (* 		       ^ "." ^ m_name ^ ":" ^ m_signature *)
+		   (* 		       ^ " not present in the stub file.") *)
+		     (* ) *)
 	     | Java t ->
 		 let code = (Lazy.force t).c_code
 		 in
@@ -685,24 +680,24 @@ struct
       List.iter
 	(fun (cs,ms) ->
 	   add_class_clinits p cs;
-	   if defines_method ms (get_class_info p cs).class_data
+	   if defines_method (get_class_info p cs).class_data ms
 	   then add_to_workset p (cs,ms))
 	entrypoints;
       p
 	
   let parse_program entrypoints native_stubs classpath =
-    let classpath = JFile.class_path classpath in
+    let classpath = Javalib.class_path classpath in
     let p = new_program_cache entrypoints native_stubs classpath in
       iter_workset p;
       if not (ClassMethSet.is_empty p.native_methods)
       then prerr_endline "The program contains native method. Beware that native methods' side effects may invalidate the result of the analysis.";
-      JFile.close_class_path classpath;
+      Javalib.close_class_path classpath;
       let instantiated_classes =
 	ClassMap.fold
 	  (fun cs info cmap ->
 	     match info.class_data with
-	       | `Interface _ -> cmap
-	       | `Class c ->
+	       | Interface _ -> cmap
+	       | Class c ->
 		   if (info.is_instantiated) then
 		     ClassMap.add cs c cmap
 		   else cmap) p.classes ClassMap.empty in
@@ -742,8 +737,8 @@ let static_special_lookup special_lookup_map cs ccs cms =
     
 let static_lookup_method virtual_lookup_map special_lookup_map static_lookup_map
     interfaces_map classes_map cs ms pp =
-  let ioc = to_class (ClassMap.find cs classes_map).Program.class_data in
-  let m = JClass.get_method ioc ms in
+  let ioc = to_jclass (ClassMap.find cs classes_map).Program.class_data in
+  let m = Javalib.get_method ioc ms in
     match m with
       | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
       | ConcreteMethod cm ->
@@ -757,12 +752,12 @@ let static_lookup_method virtual_lookup_map special_lookup_map static_lookup_map
 			 | OpInvoke(`Interface ccs,cms) ->
 			     static_interface_lookup virtual_lookup_map
 			       interfaces_map ccs cms
-			 | OpInvoke (`Virtual (`TClass ccs),cms) ->
+			 | OpInvoke (`Virtual (TClass ccs),cms) ->
 			     static_virtual_lookup virtual_lookup_map ccs cms
-			 | OpInvoke(`Virtual (`TArray _),cms) ->
+			 | OpInvoke(`Virtual (TArray _),cms) ->
 			     (* should only happen with [clone()] *)
 			     static_virtual_lookup virtual_lookup_map
-			       java_lang_object_signature cms
+			       java_lang_object cms
 			 | OpInvoke (`Static ccs,cms) ->
 			     static_static_lookup static_lookup_map ccs cms
 			 | OpInvoke (`Special ccs,cms) ->
@@ -805,29 +800,29 @@ let pcache2jprogram p =
 (* cf. openjdk6/hotspot/src/share/vm/runtime/thread.cpp *)
 let default_entrypoints =
   let initializeSystemClass =
-    (["java";"lang";"System"],
-     make_method_signature "initializeSystemClass" ([],None))
+    ("java.lang.System",
+     make_ms "initializeSystemClass" [] None)
   in
     List.map
-      (fun (cn,ms) -> (make_class_name cn, ms))
-      ((["java";"lang";"Object"],clinit_signature)::
-	 (["java";"lang";"String"],clinit_signature)::
-	 (["java";"lang";"System"],clinit_signature)::
+      (fun (cn,ms) -> (make_cn cn, ms))
+      (("java.lang.Object",clinit_signature)::
+	 ("java.lang.String",clinit_signature)::
+	 ("java.lang.System",clinit_signature)::
 	 initializeSystemClass::
-	 (["java";"lang";"ThreadGroup"],clinit_signature)::
-	 (["java";"lang";"Thread"],clinit_signature)::
-	 (["java";"lang";"reflect";"Method"],clinit_signature)::
-	 (["java";"lang";"ref";"Finalizer"],clinit_signature)::
-	 (["java";"lang";"Class"],clinit_signature)::
-	 (["java";"lang";"OutOfMemoryError"],clinit_signature)::
-	 (["java";"lang";"NullPointerException"],clinit_signature)::
-	 (["java";"lang";"ClassCastException"],clinit_signature)::
-	 (["java";"lang";"ArrayStoreException"],clinit_signature)::
-	 (["java";"lang";"ArithmeticException"],clinit_signature)::
-	 (["java";"lang";"StackOverflowError"],clinit_signature)::
-	 (["java";"lang";"IllegalMonitorStateException"],clinit_signature)::
-	 (["java";"lang";"Compiler"],clinit_signature)::
-	 (["java";"lang";"reflect";"Field"],clinit_signature)::
+	 ("java.lang.ThreadGroup",clinit_signature)::
+	 ("java.lang.Thread",clinit_signature)::
+	 ("java.lang.reflect.Method",clinit_signature)::
+	 ("java.lang.ref.Finalizer",clinit_signature)::
+	 ("java.lang.Class",clinit_signature)::
+	 ("java.lang.OutOfMemoryError",clinit_signature)::
+	 ("java.lang.NullPointerException",clinit_signature)::
+	 ("java.lang.ClassCastException",clinit_signature)::
+	 ("java.lang.ArrayStoreException",clinit_signature)::
+	 ("java.lang.ArithmeticException",clinit_signature)::
+	 ("java.lang.StackOverflowError",clinit_signature)::
+	 ("java.lang.IllegalMonitorStateException",clinit_signature)::
+	 ("java.lang.Compiler",clinit_signature)::
+	 ("java.lang.reflect.Field",clinit_signature)::
 	 []
       )
 

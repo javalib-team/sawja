@@ -40,33 +40,35 @@ module ClassMethMap : Map.S with type key = class_name * method_signature
     sub-interfaces).
 *)
 
-type 'a class_file = {
+type 'a class_node = {
   c_info : 'a jclass;
-  c_super : 'a class_file option;
-  c_interfaces : 'a interface_file ClassMap.t;
-  get_c_children : unit -> 'a class_file list;
+  c_super : 'a class_node option;
+  c_interfaces : 'a interface_node ClassMap.t;
+  get_c_children : unit -> 'a class_node list;
 }
-and 'a interface_file = {
+and 'a interface_node = {
   i_info : 'a jinterface;
-  i_super : 'a class_file;
+  i_super : 'a class_node;
   (** must be java.lang.Object. But note that interfaces are not
       considered as children of java.lang.Object.*)
-  i_interfaces : 'a interface_file ClassMap.t;
-  get_i_children_interfaces : unit -> 'a interface_file list;
-  get_i_children_classes : unit -> 'a class_file list
+  i_interfaces : 'a interface_node ClassMap.t;
+  get_i_children_interfaces : unit -> 'a interface_node list;
+  get_i_children_classes : unit -> 'a class_node list
 }
-and 'a interface_or_class = [ `Interface of 'a interface_file | `Class of 'a class_file ]
+and 'a node =
+  | Interface of 'a interface_node 
+  | Class of 'a class_node
 
 (** {2 The [program] structure.} *)
 
 type 'a static_lookup_method = class_name -> method_signature -> int ->
-  ('a class_file * 'a concrete_method) ClassMethodMap.t
+  ('a class_node * 'a concrete_method) ClassMethodMap.t
 
 (** A program is a record containing a map of class files identified by
     an id, and a dictionary containing functions to retrieve classes and
     methods ids from their names. *)
-type 'a program = { classes : 'a interface_or_class ClassMap.t;
-		    parsed_methods : ('a interface_or_class *
+type 'a program = { classes : 'a node ClassMap.t;
+		    parsed_methods : ('a node *
 					'a concrete_method) ClassMethodMap.t;
 		    static_lookup_method : 'a static_lookup_method
                       (** [static_lookup_method cni msi pc] returns the set of
@@ -79,25 +81,25 @@ val store_program : string -> 'a program -> unit
 
 (** {2 Iterators.}*)
 
-val iter : ('a interface_or_class -> unit) -> 'a program -> unit
-val fold : ('b -> 'a interface_or_class -> 'b) -> 'b -> 'a program -> 'b
+val iter : ('a node -> unit) -> 'a program -> unit
+val fold : ('b -> 'a node -> 'b) -> 'b -> 'a program -> 'b
 
 (** {2 Classes access functions.}*)
 
-(** [get_interface_or_class p cn] returns the class named [cn] in
+(** [get_node p cn] returns the class named [cn] in
     program [p], if any.
     @raise Not_found if [p] does not contain a class named [cn].
 *)
-val get_interface_or_class : 'a program -> class_name -> 'a interface_or_class
+val get_node : 'a program -> class_name -> 'a node
 
-val get_signature : 'a interface_or_class -> class_name
-val get_name : 'a interface_or_class -> class_name
-val get_interfaces : 'a interface_or_class -> 'a interface_file ClassMap.t
+val get_name : 'a node -> class_name
+val get_consts : 'a node -> constant array
+val get_interfaces : 'a node -> 'a interface_node ClassMap.t
 
-val get_all_children_classes : 'a class_file -> 'a class_file list
-val equal : 'a interface_or_class -> 'a interface_or_class -> bool
+val get_all_children_classes : 'a class_node -> 'a class_node list
+val equal : 'a node -> 'a node -> bool
 
-val to_class : 'a interface_or_class -> 'a JClass.interface_or_class
+val to_jclass : 'a node -> 'a interface_or_class
 
 (** {2 Methods access functions.}*)
 
@@ -107,10 +109,10 @@ val main_signature : method_signature
     [c], if any.
     @raise Not_found if [c] does not contain a method with signature [ms].
 *)
-val get_method : 'a interface_or_class -> method_signature -> 'a jmethod
-val get_methods : 'a interface_or_class -> 'a jmethod MethodMap.t
-val get_concrete_methods : 'a interface_or_class -> 'a concrete_method MethodMap.t
-val defines_method : method_signature -> 'a interface_or_class -> bool
+val get_method : 'a node -> method_signature -> 'a jmethod
+val get_methods : 'a node -> 'a jmethod MethodMap.t
+val get_concrete_methods : 'a node -> 'a concrete_method MethodMap.t
+val defines_method : 'a node -> method_signature -> bool
 
 (** {2 Fields access functions.}*)
 
@@ -118,44 +120,44 @@ val defines_method : method_signature -> 'a interface_or_class -> bool
     [c], if any.
     @raise Not_found if [c] does not contain a field with signature [fs].
 *)
-val get_field : 'a interface_or_class -> field_signature -> any_field
-val get_fields : 'a interface_or_class -> any_field FieldMap.t
-val defines_field : field_signature -> 'a interface_or_class -> bool
+val get_field : 'a node -> field_signature -> any_field
+val get_fields : 'a node -> any_field FieldMap.t
+val defines_field : 'a node -> field_signature -> bool
 
 (** {2 Access to the hierarchy} *)
 
 (** [extends_class c1 c2] returns [true] if [c2] is a super-class
     of [c1]. A class extends itself. *)
-val extends_class : 'a class_file -> 'a class_file -> bool
+val extends_class : 'a class_node -> 'a class_node -> bool
 
 (** [extends_interface i1 i2] returns true if [i2] is a
     super-interface of [i1]. An interface extends itself. *)
-val extends_interface : 'a interface_file -> 'a interface_file -> bool
+val extends_interface : 'a interface_node -> 'a interface_node -> bool
 
 (** [extends ioc1 ioc2] returns true if [ioc2] is a
     super-class or super-interface of [ioc1].
     This is a combination of [extends_class] and [extends_interface]
     which take into account that [java.lang.Object] is a super-class of
     any interface. *)
-val extends : 'a interface_or_class -> 'a interface_or_class -> bool
+val extends : 'a node -> 'a node -> bool
 
 (** [implements c1 i2] returns true if [i2] is a
     super-interface of [c1]. *)
-val implements : 'a class_file -> 'a interface_file -> bool
+val implements : 'a class_node -> 'a interface_node -> bool
 
 (** [super_class cn] returns the super class of cn. *)
-val super_class : 'a interface_or_class -> 'a class_file option
+val super_class : 'a node -> 'a class_node option
 
 (** [implemented_interfaces cn] returns the interfaces implemented
     by [cn], super-classes of [cn], or extended by those
     super-interfaces. *)
-val implemented_interfaces : 'a class_file -> 'a interface_file list
+val implemented_interfaces : 'a class_node -> 'a interface_node list
 
 (** [super_interfaces iname] returns the explicit and implicit
     super-interfaces of [iname].*)
-val super_interfaces : 'a interface_file -> 'a interface_file list
+val super_interfaces : 'a interface_node -> 'a interface_node list
 
-val firstCommonSuperClass : 'a class_file -> 'a class_file -> 'a class_file
+val firstCommonSuperClass : 'a class_node -> 'a class_node -> 'a class_node
 
 (** {2 Callgraph.} *)
 

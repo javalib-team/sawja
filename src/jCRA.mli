@@ -19,15 +19,16 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open JBasics
+
 (** Builds high level representations of java byte-code programs using basic
     Class Reachability Analysis. *)
 
-(** [parse_program classpath names] parses a list of [.jar] and
-    [.class] files, looking for them in the classpath (a list of
-    directories and [.jar] files separated with ':'). [other_classes]
-    is set to [default_classes] if not given. *)
+(** [parse_program classpath names] parses a list of classes,
+    looking for them in the classpath (a list of directories and [.jar] files separated with ':').
+    [other_classes] is set to [default_classes] if not given. *)
 val parse_program :
-  ?other_classes:string list -> string -> string list -> JOpcodes.jvm_opcodes JProgram.program
+  ?other_classes:class_name list -> string -> class_name list -> JOpcodes.jvm_opcodes JProgram.program
 
 (** classes always loaded (natively) by the JVM. *)
-val default_classes : string list
+val default_classes : class_name list

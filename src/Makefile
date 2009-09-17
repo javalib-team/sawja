@@ -26,8 +26,8 @@ DOCDIR:=../$(DOCDIR)
 # CSS=\"style.css\"
 
 # ------ 
-MODULES=jProgram jCRA jRTA
-MODULE_INTERFACES=jProgram jCRA jRTA
+MODULES=jProgram jControlFlow jNativeStubs jCRA jRTA
+MODULE_INTERFACES=jProgram jControlFlow jNativeStubs jCRA jRTA
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc
@@ -50,10 +50,10 @@ ifneq ($(MAKECMDGOALS),cleanall)
 endif
 endif
 
-# jNativeStubs.cmo:jNativeStubs.ml
-# 	$(OCAMLC) $(INCLUDE) $(PP) -c $<
-# jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
-# 	$(OCAMLOPT) $(INCLUDE) $(PP) -c $<
+jNativeStubs.cmo:jNativeStubs.ml
+	$(OCAMLC) $(INCLUDE) $(PP) -c $<
+jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
+	$(OCAMLOPT) $(INCLUDE) $(PP) -c $<
 
 # jPrintHtml.cmo:jPrintHtml.ml
 # 	$(OCAMLC) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
