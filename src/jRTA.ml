@@ -588,36 +588,36 @@ struct
       | _ -> ()
 
   let parse_native_method p allocated_classes calls =
-    let normalize_cn cn =
-      if (cn <> []) then
-	let head = List.hd cn in
-	  (String.sub head 1 ((String.length head) - 1)) :: List.tl cn
-      else [] in
+    let normalize_signature s =
+      (* hack : why a class should not be encapsulated by L; ? *)
+      let len = String.length s in
+	if (len > 2) then
+	  if (s.[len - 1] = ';') then
+	    if (s.[0] = 'L') then
+	      String.sub s 1 (len - 2)
+	    else failwith "Bad class signature."
+	  else s
+	else s in
       List.iter
-	(* TODO *)
-	(fun signature -> ()
-	   (* match JParseSignature.parse_objectType signature with *)
-	   (*   | TArray _ -> () *)
-	   (*   | TClass cn -> () *)
-		 (* hack : why a class should not be encapsulated by L; ? *)
-		 (* let cn = normalize_cn cn in *)
-		 (* let cs = make_class_name cn in *)
-		 (*   add_instantiated_class p cs; *)
-		 (*   add_class_clinits p cs *)
+	(fun signature ->
+	   match JParseSignature.parse_objectType
+	     (normalize_signature signature) with
+	       | TArray _ -> ()
+	       | TClass cs ->
+		   add_instantiated_class p cs;
+		   add_class_clinits p cs
 	) allocated_classes;
-      (* TODO *)
       List.iter
-      	(fun (m_class,m_name,m_signature) -> ()
-	   (* let cn = *)
-	   (*   match JParseSignature.parse_objectType m_class with *)
-	   (*     | TArray _ -> failwith "Bad class" *)
-	   (*     | TClass cn -> normalize_cn cn in *)
-	   (* let (parameters,rettype) = *)
-	   (*   JParseSignature.parse_method_descriptor m_signature in *)
-	   (* let ms = make_method_signature *)
-	   (*   m_name (parameters,rettype) in *)
-	   (* let cs = make_class_name cn in *)
-	   (*   add_to_workset p (cs,ms) *)
+      	(fun (m_class,m_name,m_signature) ->
+	   let cs =
+	     match JParseSignature.parse_objectType
+	       (normalize_signature m_class) with
+		 | TArray _ -> failwith "Bad class"
+		 | TClass cn -> cn in
+	   let (parameters,rettype) =
+	     JParseSignature.parse_method_descriptor m_signature in
+	   let ms = make_ms m_name parameters rettype in
+	     add_to_workset p (cs,ms)
 	) calls
     
   let iter_workset p =
@@ -629,28 +629,26 @@ struct
 	     | Native ->
 		 if not(p.parse_natives) then
 		   failwith "A Native Method shouldn't be found in the workset"
-		 else 		   (* TODO *)
-		   ()
-		   (* let ms = cm.cm_signature in *)
-		   (* let m_class = *)
-		   (*   "L" ^ (JUnparseSignature.unparse_objectType *)
-		   (* 	      (TClass (class_name2class_name cs))) ^ ";" *)
-		   (* and m_name = method_signature2method_name ms *)
-		   (* and m_signature = JUnparseSignature.unparse_method_descriptor *)
-		   (*   (method_signature2method_descriptor ms) in *)
-		   (* let m = (m_class,m_name,m_signature) in *)
-		   (*   (try *)
-		   (* 	let (m_alloc, m_calls) = *)
-		   (* 	  (JNativeStubs.get_native_method_allocations m *)
-		   (* 	     p.native_methods_info, *)
-		   (* 	   JNativeStubs.get_native_method_calls m *)
-		   (* 	     p.native_methods_info) in *)
-		   (* 	  parse_native_method p m_alloc m_calls *)
-		   (*    with _ -> *)
-		   (* 	prerr_endline ("warning : found native method " ^ m_class *)
-		   (* 		       ^ "." ^ m_name ^ ":" ^ m_signature *)
-		   (* 		       ^ " not present in the stub file.") *)
-		     (* ) *)
+		 else
+		   let ms = cm.cm_signature in
+		   let m_class = JPrint.class_name ~jvm:true cs
+		   and m_name = ms_name ms
+		   and m_signature =
+		     JPrint.method_descriptor ~jvm:true (ms_args ms)
+		       (ms_rtype ms) in
+		   let m = (m_class,m_name,m_signature) in
+		     (try
+		   	let (m_alloc, m_calls) =
+		   	  (JNativeStubs.get_native_method_allocations m
+		   	     p.native_methods_info,
+		   	   JNativeStubs.get_native_method_calls m
+		   	     p.native_methods_info) in
+		   	  parse_native_method p m_alloc m_calls
+		      with _ ->
+		   	prerr_endline ("warning : found native method " ^ m_class
+		   		       ^ "." ^ m_name ^ ":" ^ m_signature
+		   		       ^ " not present in the stub file.")
+		     )
 	     | Java t ->
 		 let code = (Lazy.force t).c_code
 		 in
