@@ -733,39 +733,45 @@ let static_interface_lookup virtual_lookup_map interfaces_map cs ms =
 let static_special_lookup special_lookup_map cs ccs cms =
   ClassMethMap.find (ccs,cms) (ClassMap.find cs special_lookup_map)
     
-let static_lookup_method virtual_lookup_map special_lookup_map static_lookup_map
-    interfaces_map classes_map cs ms pp =
-  let ioc = to_jclass (ClassMap.find cs classes_map).Program.class_data in
-  let m = Javalib.get_method ioc ms in
-    match m with
-      | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
-      | ConcreteMethod cm ->
-	  (match cm.cm_implementation with
-	     | Native -> failwith "Can't call static_lookup on Native methods"
-	     | Java code ->
-		 let c = (Lazy.force code).c_code in
-		   try
-		     let op = c.(pp) in
-		       match op with
-			 | OpInvoke(`Interface ccs,cms) ->
-			     static_interface_lookup virtual_lookup_map
-			       interfaces_map ccs cms
-			 | OpInvoke (`Virtual (TClass ccs),cms) ->
-			     static_virtual_lookup virtual_lookup_map ccs cms
-			 | OpInvoke(`Virtual (TArray _),cms) ->
-			     (* should only happen with [clone()] *)
-			     static_virtual_lookup virtual_lookup_map
-			       java_lang_object cms
-			 | OpInvoke (`Static ccs,cms) ->
-			     static_static_lookup static_lookup_map ccs cms
-			 | OpInvoke (`Special ccs,cms) ->
-			     static_special_lookup special_lookup_map cs ccs cms
-			 | _ ->
-			     failwith "Invalid opcode found at specified program point"
-		   with
-		     | Not_found -> failwith "Invalid program point"
-		     | e -> raise e
-	  )
+let static_lookup_method p :
+    class_name -> method_signature -> int -> Program.class_method ClassMethodMap.t =
+  let virtual_lookup_map = p.Program.static_virtual_lookup
+  and special_lookup_map = p.Program.static_special_lookup
+  and static_lookup_map = p.Program.static_static_lookup
+  and interfaces_map = p.Program.interfaces
+  and classes_map = p.Program.classes in
+    fun cs ms pp ->
+      let ioc = to_jclass (ClassMap.find cs classes_map).Program.class_data in
+      let m = Javalib.get_method ioc ms in
+	match m with
+	  | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
+	  | ConcreteMethod cm ->
+	      (match cm.cm_implementation with
+		 | Native -> failwith "Can't call static_lookup on Native methods"
+		 | Java code ->
+		     let c = (Lazy.force code).c_code in
+		       try
+			 let op = c.(pp) in
+			   match op with
+			     | OpInvoke(`Interface ccs,cms) ->
+				 static_interface_lookup virtual_lookup_map
+				   interfaces_map ccs cms
+			     | OpInvoke (`Virtual (TClass ccs),cms) ->
+				 static_virtual_lookup virtual_lookup_map ccs cms
+			     | OpInvoke(`Virtual (TArray _),cms) ->
+				 (* should only happen with [clone()] *)
+				 static_virtual_lookup virtual_lookup_map
+				   java_lang_object cms
+			     | OpInvoke (`Static ccs,cms) ->
+				 static_static_lookup static_lookup_map ccs cms
+			     | OpInvoke (`Special ccs,cms) ->
+				 static_special_lookup special_lookup_map cs ccs cms
+			     | _ ->
+				 failwith "Invalid opcode found at specified program point"
+		       with
+			 | Not_found -> failwith "Invalid program point"
+			 | e -> raise e
+	      )
 
 let pcache2jprogram p =
   { classes =
@@ -786,13 +792,7 @@ let pcache2jprogram p =
 		else cmmap
 	     ) ioc_info.Program.methods cmmap
 	) p.Program.classes ClassMethodMap.empty;
-    static_lookup_method =
-      static_lookup_method
-	p.Program.static_virtual_lookup
-	p.Program.static_special_lookup
-	p.Program.static_static_lookup
-	p.Program.interfaces
-	p.Program.classes
+    static_lookup_method = static_lookup_method p
   }
 
 (* cf. openjdk6/hotspot/src/share/vm/runtime/thread.cpp *)
