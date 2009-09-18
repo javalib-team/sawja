@@ -7,6 +7,9 @@
 {b {L High level manipulations of programs}}
 {!modules: JProgram JControlFlow JNativeStubs JCRA JRTA}
 
+{b {L Printing programs}}
+{!modules: JPrintHtml}
+
 {b {L Indexes}}
 
 {!indexlist}

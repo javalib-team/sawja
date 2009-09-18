@@ -23,11 +23,11 @@
 INCLUDE:=$(INCLUDE)
 DOCDIR:=../$(DOCDIR)
 
-# CSS=\"style.css\"
+CSS=\"style.css\"
 
 # ------ 
-MODULES=jProgram jControlFlow jNativeStubs jCRA jRTA
-MODULE_INTERFACES=jProgram jControlFlow jNativeStubs jCRA jRTA
+MODULES=jProgram jControlFlow jNativeStubs jCRA jRTA jPrintHtml
+MODULE_INTERFACES=jProgram jControlFlow jNativeStubs jCRA jRTA jPrintHtml
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc
@@ -55,11 +55,11 @@ jNativeStubs.cmo:jNativeStubs.ml
 jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
 	$(OCAMLOPT) $(INCLUDE) $(PP) -c $<
 
-# jPrintHtml.cmo:jPrintHtml.ml
-# 	$(OCAMLC) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+jPrintHtml.cmo:jPrintHtml.ml
+	$(OCAMLC) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
-# jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
-# 	$(OCAMLOPT) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
+	$(OCAMLOPT) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 .ml.cmo:
 	$(OCAMLC) $(INCLUDE) -c $<
