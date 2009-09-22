@@ -132,27 +132,19 @@ let defines_method ioc ms = Javalib.defines_method (to_jclass ioc) ms
 let defines_field ioc fs = Javalib.defines_field (to_jclass ioc) fs
 
 let get_node program cs =
-  try
-    ClassMap.find cs program.classes
-  with _ -> failwith ("Class " ^ (cn_name cs) ^ " not found.")
+  ClassMap.find cs program.classes
 
 let super_class c : 'a class_node option = super c
 
 let get_method ioc ms =
-  try
-    Javalib.get_method (to_jclass ioc) ms
-  with _ -> failwith ("Method " ^ (JPrint.method_signature ms) ^ " not found in "
-		      ^ (cn_name (get_name ioc)) ^ ".")
+  Javalib.get_method (to_jclass ioc) ms
 
 let get_methods ioc = Javalib.get_methods (to_jclass ioc)
 
 let get_concrete_methods ioc = Javalib.get_concrete_methods (to_jclass ioc)
 
 let get_field ioc fs =
-  try
-    Javalib.get_field (to_jclass ioc) fs
-  with _ -> failwith ("Field " ^ (fs_name fs) ^ " not found in "
-		      ^ (cn_name (get_name ioc)) ^ ".")
+  Javalib.get_field (to_jclass ioc) fs
 
 let get_fields ioc = Javalib.get_fields (to_jclass ioc)
 
