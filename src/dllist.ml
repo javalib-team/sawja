@@ -31,27 +31,27 @@ and 'a content = Content of 'a | Head | Tail
 and 'a cellule = { mutable prev : 'a link;
 		   content : 'a content;
 		   mutable next : 'a link }
-and 'a dllist = 'a cellule
+and 'a wlist = 'a cellule
 
-type 'a tail = 'a dllist
+type 'a tail = 'a wlist
     
 let create () =
   let rec head = { prev = tail; content = Head; next = tail }
   and tail = { prev = head; content = Tail; next = head }
   in head
-let get (l:'a dllist) =
+let get (l:'a wlist) =
   match l.content with
     | Content c -> c
     | Head -> raise HeadNode
     | Tail -> raise TailNode
-let next (l:'a dllist) : 'a dllist = l.next
-let prev (l:'a dllist) : 'a dllist = l.prev
-let tail (l:'a dllist) : 'a dllist =
+let next (l:'a wlist) : 'a wlist = l.next
+let prev (l:'a wlist) : 'a wlist = l.prev
+let tail (l:'a wlist) : 'a wlist =
   match l.content with
     | Head -> l.prev
     | _ -> raise NoHeadNode
 	
-let add (e:'a) (l:'a dllist) =
+let add (e:'a) (l:'a wlist) =
   match l.content with
     | Head ->
 	let new_elm = { prev = l;
@@ -62,7 +62,7 @@ let add (e:'a) (l:'a dllist) =
 	  l.next <- new_elm
     | _ -> raise NoHeadNode
 	
-let del (l:'a dllist) =
+let del (l:'a wlist) =
   match l.content with
     | Head -> raise HeadNode
     | Tail -> raise TailNode
@@ -70,7 +70,7 @@ let del (l:'a dllist) =
 	l.next.prev <- l.prev;
 	l.prev.next <- l.next
 	  
-let rec mem (e:'a) (l:'a dllist) =
+let rec mem (e:'a) (l:'a wlist) =
   match l.content with
     | Head ->
 	let cell = l.next in
@@ -82,7 +82,7 @@ let rec mem (e:'a) (l:'a dllist) =
 	else let cell = l.next in
 	  mem e cell
 	    
-let rec size' ?(s=0) (l:'a dllist) =
+let rec size' ?(s=0) (l:'a wlist) =
   match l.content with
     | Head ->
 	let cell = l.next in
@@ -94,7 +94,7 @@ let rec size' ?(s=0) (l:'a dllist) =
 
 let size l = size' l
 	    
-let rec iter (f:'a -> unit) (l:'a dllist) =
+let rec iter (f:'a -> unit) (l:'a wlist) =
   match l.content with
     | Head ->
 	let cell = l.next in
@@ -105,7 +105,7 @@ let rec iter (f:'a -> unit) (l:'a dllist) =
 	let cell = l.next in
 	  iter f cell
 	    
-let rec iter_until_cell (f:'a -> unit) (bound:'a dllist) (l:'a dllist) =
+let rec iter_until_cell (f:'a -> unit) (bound:'a wlist) (l:'a wlist) =
   match l.content with
     | Head ->
 	let cell = l.next in
@@ -117,7 +117,7 @@ let rec iter_until_cell (f:'a -> unit) (bound:'a dllist) (l:'a dllist) =
 	   let cell = l.next in
 	     iter_until_cell f bound cell)
 	    
-let rec iter_to_head_i (f:'a dllist -> 'a -> unit) (l:'a dllist) =
+let rec iter_to_head_i (f:'a wlist -> 'a -> unit) (l:'a wlist) =
   match l.content with
     | Head -> ()
     | Tail ->
@@ -128,10 +128,10 @@ let rec iter_to_head_i (f:'a dllist -> 'a -> unit) (l:'a dllist) =
 	let cell = l.prev in
 	  iter_to_head_i f cell
 	    
-let iter_to_head (f:'a -> unit) (l:'a dllist) =
+let iter_to_head (f:'a -> unit) (l:'a wlist) =
   iter_to_head_i (fun _ x -> f x) l
     
-let map (f:'a -> 'b) (l:'a dllist) =
+let map (f:'a -> 'b) (l:'a wlist) =
   let tail = tail l
   and lm = ref [] in
     iter_to_head (fun x -> lm := (f x) :: !lm) tail;

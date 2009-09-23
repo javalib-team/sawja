@@ -20,18 +20,18 @@
 
 (** A growable when itering list. *)
 
-type 'a dllist
+type 'a wlist
 
 type 'a tail
 
 (** {2 Basic operations.} *)
 
-val create : unit -> 'a dllist
+val create : unit -> 'a wlist
 
-val tail : 'a dllist -> 'a tail
+val tail : 'a wlist -> 'a tail
 
-val add : 'a -> 'a dllist -> unit
+val add : 'a -> 'a wlist -> unit
 
 val iter_to_head : ('a -> unit) -> 'a tail -> unit
 
-val size : 'a dllist -> int
+val size : 'a wlist -> int
