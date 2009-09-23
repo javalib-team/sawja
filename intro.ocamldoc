@@ -5,13 +5,13 @@
 {2 {L Documentation}}
 
 {b {L High level manipulations of programs}}
-{!modules: JProgram JControlFlow JNativeStubs JCRA JRTA JVTA}
+{!modules: JProgram JControlFlow JNativeStubs JCRA JRTA JRRTA}
 
 {b {L Printing programs}}
 {!modules: JPrintHtml}
 
 {b {L Other}}
-{!modules: Dllist}
+{!modules: Wlist}
 
 {b {L Indexes}}
 
