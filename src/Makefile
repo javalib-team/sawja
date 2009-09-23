@@ -27,7 +27,7 @@ CSS=\"style.css\"
 
 # ------ 
 MODULES=dllist jProgram jControlFlow jNativeStubs jCRA jRTA jVTA jPrintHtml
-MODULE_INTERFACES=dllist jProgram jControlFlow jNativeStubs jCRA jRTA jPrintHtml
+MODULE_INTERFACES=dllist jProgram jControlFlow jNativeStubs jCRA jRTA jVTA jPrintHtml
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc

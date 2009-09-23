@@ -414,4 +414,10 @@ let parse_program_from_rta prta instantiated_classes csms =
        		  static_lookup_map))
       }
 	
-	
+let default_entrypoints = JRTA.default_entrypoints
+
+let parse_program ?(other_entrypoints=default_entrypoints) classpath csms =
+  let (prta, instantiated_classes) =
+    JRTA.parse_program ~other_entrypoints:other_entrypoints classpath csms in
+  let pvta = parse_program_from_rta prta instantiated_classes csms in
+    (pvta, instantiated_classes)

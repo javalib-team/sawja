@@ -5,7 +5,7 @@
 {2 {L Documentation}}
 
 {b {L High level manipulations of programs}}
-{!modules: JProgram JControlFlow JNativeStubs JCRA JRTA}
+{!modules: JProgram JControlFlow JNativeStubs JCRA JRTA JVTA}
 
 {b {L Printing programs}}
 {!modules: JPrintHtml}
