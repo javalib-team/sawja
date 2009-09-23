@@ -22,13 +22,13 @@ open JBasics
 open JOpcodes
 open Javalib
 
-open JProgram
+include JProgram
 
-type 'a class_node = 'a JProgram.class_node
+(* type 'a class_node = 'a JProgram.class_node *)
 
-type 'a interface_node = 'a JProgram.interface_node
+(* type 'a interface_node = 'a JProgram.interface_node *)
 
-type 'a node = 'a JProgram.node
+(* type 'a node = 'a JProgram.node *)
 
 let c_info cnode = cnode.c_info
 let c_super cnode = cnode.c_super
@@ -41,10 +41,6 @@ let i_interfaces inode = inode.i_interfaces
 let i_children_interfaces inode = inode.i_children_interfaces
 let i_children_classes inode = inode.i_children_classes
 
-type 'a program = 'a JProgram.program
-
 let classes p = p.classes
 let parsed_methods p = p.parsed_methods
 
-let iter p f = JProgram.iter f p
-let fold p f e = JProgram.fold f e p

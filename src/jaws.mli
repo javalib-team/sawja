@@ -27,7 +27,11 @@ open Javalib
 
 type 'a class_node
 type 'a interface_node
-type 'a node = 'a JProgram.node
+
+type 'a node
+(* type 'a node = *)
+(*   | Class of 'a class_node *)
+(*   | Interface of 'a interface_node *)
 
 (** {2 Accessing nodes content.} *)
 
@@ -53,5 +57,5 @@ type 'a program
 val classes : 'a program -> 'a node ClassMap.t
 val parsed_methods : 'a program -> ('a node * 'a concrete_method) ClassMethodMap.t
 
-val iter : 'a program -> ('a node -> unit) -> unit
-val fold : 'b program -> ('a -> 'b node -> 'a) -> 'a -> 'a
+val iter : ('a node -> unit) -> 'a program ->  unit
+val fold : ('a -> 'b node -> 'a) -> 'a -> 'b program -> 'a
