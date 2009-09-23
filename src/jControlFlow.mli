@@ -194,6 +194,7 @@ val static_lookup : JOpcodes.jvm_opcodes program -> pp
 val static_lookup' : JOpcodes.jvm_opcodes program -> pp -> pp list
 
 (** {2 Interface Implementations.}*)
+
 val implements_interface_or_subinterface : 'a node -> 'a interface_node
   -> bool
 

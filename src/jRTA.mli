@@ -18,12 +18,12 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(** Builds high level representations of java byte-code programs using
+    Rapid Type Analysis algorithm. *)
+
 open JBasics
 open Javalib
 open JProgram
-
-(** Builds high level representations of java byte-code programs using
-    Rapid Type Analysis algorithm. *)
 
 (** [parse_program ~other_entrypoints classpath (cs,ms)] first returns a
     [program] composed of all the code found in [classpath] and that

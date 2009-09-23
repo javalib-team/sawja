@@ -19,12 +19,37 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+
+(** Builds high level representations of java byte-code programs using
+    a refinement of RTA. *)
+
 open JBasics
 open Javalib
 open JProgram
 
-(** Builds high level representations of java byte-code programs using
-    a refinement of RTA. *)
+(** This analysis starts from rta instantiated classes to refine the set
+    of parsed methods by taking into account some restrictions on types
+    that occur when resolving virtual and interface calls.
+
+    Indeed, when issuing a virtual or interface call inside a calling method,
+    the dynamic type of the called class is restricted by many factors :
+
+    - the type of the parameters of the calling method
+    - the classes instantiations that occur in the calling method
+    - the classes coming from getfield and getstatic instructions
+    - the classes coming from the return types of invoked methods
+
+    It's important to notice that our algorithm is flow insensitive.
+    Indeed, we first parse all the calling method instructions to build
+    a local set of instantiated classes by applying the former
+    restrictions to the set of instantiated classes calculated by RTA.
+    It's important to say that this set will never propagate.
+
+    Then we resolve the virtual and interface calls inside the calling method
+    relying on this set. As the set of resolved methods will be smaller (or equal)
+    than the one calculated by RTA, we will potentially parse less methods and
+    get more precise on the callgraph.
+*)
 
 (** [parse_program ~other_entrypoints classpath (cs,ms)] first returns a
     [program] composed of all the code found in [classpath] and that
