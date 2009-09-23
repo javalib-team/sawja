@@ -34,8 +34,6 @@ struct
 	super_classes : class_name list;
 	super_interfaces : ClassSet.t;
 	methods : rta_method MethodMap.t;
-	mutable children_classes : JOpcodes.jvm_opcodes class_node list;
-	mutable children_interfaces : JOpcodes.jvm_opcodes interface_node list;
 	mutable memorized_virtual_calls : MethodSet.t;
 	mutable memorized_interface_calls : MethodSet.t }
 	
@@ -105,8 +103,7 @@ struct
 			  !c_interfaces)
 		     c.Javalib.c_interfaces;
 		   !c_interfaces);
-	      get_c_children =
-		(fun () -> (get_class_info p c.c_name).children_classes) }
+	      c_children = [] }
 
       | JInterface i ->
 	  Interface
@@ -128,11 +125,9 @@ struct
 			  !i_interfaces)
 		     i.Javalib.i_interfaces;
 		   !i_interfaces);
-	      get_i_children_interfaces =
-		(fun () -> (get_class_info p i.i_name).children_interfaces);
-	      get_i_children_classes =
-		(fun () -> (get_class_info p i.i_name).children_classes) }
-
+	      i_children_interfaces = [];
+	      i_children_classes = [] }
+	    
   and get_class_info p cs =
     try
       ClassMap.find cs p.classes
@@ -194,22 +189,22 @@ struct
 		     the transitively implemented interfaces *)
 		  super_interfaces = super_implemented_interfaces;
 		  methods = rta_methods;
-		  children_classes = [];
-		  children_interfaces = [];
 		  memorized_virtual_calls = MethodSet.empty;
 		  memorized_interface_calls = MethodSet.empty }
 	      in
 	      let c = to_class_node ioc_info.class_data in
 		ClassSet.iter
 		  (fun i_name ->
-		     let i_info = get_class_info p i_name in
-		       i_info.children_classes <- c :: i_info.children_classes
+		     let i =
+		       to_interface_node (get_class_info p i_name).class_data in
+		       i.i_children_classes <- c :: i.i_children_classes
 		  )
 		  implemented_interfaces;
 		List.iter
 		  (fun sc_name ->
-		     let sc_info = (get_class_info p sc_name) in
-		       sc_info.children_classes <- c :: sc_info.children_classes
+		     let sc =
+		       to_class_node (get_class_info p sc_name).class_data in
+		       sc.c_children <- c :: sc.c_children
 		  )
 		  super_classes;
 		p.classes <- ClassMap.add cs ioc_info p.classes;
@@ -231,16 +226,15 @@ struct
 		super_classes = [];
 		super_interfaces = super_interfaces;
 		methods = rta_methods;
-		children_classes = [];
-		children_interfaces = [];
 		memorized_virtual_calls = MethodSet.empty;
 		memorized_interface_calls = MethodSet.empty }
 	    in
 	    let i = to_interface_node ioc_info.class_data in
 	      ClassSet.iter
 		(fun si_name ->
-		   let si_info = get_class_info p si_name in
-		     si_info.children_interfaces <- i :: si_info.children_interfaces
+		   let si =
+		     to_interface_node (get_class_info p si_name).class_data in
+		       si.i_children_interfaces <- i :: si.i_children_interfaces
 		)
 		super_interfaces;
 	      p.classes <- ClassMap.add cs ioc_info p.classes;

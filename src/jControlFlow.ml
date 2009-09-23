@@ -292,15 +292,15 @@ let overridden_by_methods ms c : 'a class_node list=
         not_first:=true;
         List.iter
           (fun c -> overridden_by_methods' (Class c))
-          (cc.get_c_children ());
+          cc.c_children;
     | Interface i ->
         not_first:=true;
         List.iter
           (fun i -> overridden_by_methods' (Interface i))
-          (i.get_i_children_interfaces ());
+          i.i_children_interfaces;
         List.iter
           (fun c -> overridden_by_methods' (Class c))
-          (i.get_i_children_classes ())
+          i.i_children_classes
   in
     begin
       match get_method c ms with

@@ -53,7 +53,7 @@ type 'a class_node = {
   c_info : 'a jclass;
   c_super : 'a class_node option;
   c_interfaces : 'a interface_node ClassMap.t;
-  get_c_children : unit -> 'a class_node list;
+  mutable c_children : 'a class_node list;
 }
 and 'a interface_node = {
   i_info : 'a jinterface;
@@ -61,8 +61,8 @@ and 'a interface_node = {
   (** must be java.lang.Object. But note that interfaces are not
       considered as children of java.lang.Object.*)
   i_interfaces : 'a interface_node ClassMap.t;
-  get_i_children_interfaces : unit -> 'a interface_node list;
-  get_i_children_classes : unit -> 'a class_node list
+  mutable i_children_interfaces : 'a interface_node list;
+  mutable i_children_classes : 'a class_node list
 }
 and 'a node =
   | Interface of 'a interface_node
@@ -96,7 +96,7 @@ let equal c1 c2 = match c1,c2 with
   | _, _ -> false
 
 let rec get_all_children_classes c =
-  let direct_children = c.get_c_children () in
+  let direct_children = c.c_children in
     List.rev_append direct_children
       (List.fold_right
 	 (fun c r ->

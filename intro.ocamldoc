@@ -4,6 +4,9 @@
 
 {2 {L Documentation}}
 
+{b {L User interface}}
+{!modules: Jaws}
+
 {b {L High level manipulations of programs}}
 {!modules: JProgram JControlFlow JNativeStubs JCRA JRTA JRRTA}
 

@@ -24,11 +24,6 @@ open JOpcodes
 open Javalib
 open JProgram
 
-type class_info = { class_data : JOpcodes.jvm_opcodes node;
-		    children_classes : (JOpcodes.jvm_opcodes class_node list) ref;
-		    children_interfaces : (JOpcodes.jvm_opcodes interface_node list) ref
-		  }
-
 let rec update_interfaces classes_map ioc interfaces cs =
   match ioc with
     | Class c ->
@@ -62,7 +57,7 @@ let add_classFile c classes_map interfaces =
       (fun imap iname ->
 	 let i =
 	   try
-	     match (ClassMap.find iname classes_map).class_data with
+	     match (ClassMap.find iname classes_map) with
 	       | Interface i -> i
 	       | Class _ ->
 		   raise (Class_structure_error
@@ -79,7 +74,7 @@ let add_classFile c classes_map interfaces =
       | Some super ->
 	  try
 	    let c_super_info = ClassMap.find super classes_map in
-	      match c_super_info.class_data with
+	      match c_super_info with
 		| Class c -> Some c
 		| Interface _ ->
 		    raise (Class_structure_error
@@ -90,33 +85,25 @@ let add_classFile c classes_map interfaces =
 			  )
 	  with Not_found -> raise (Class_not_found super)
   in
-  let children_classes = ref [] in
   let cfile =
     {c_info = c;
      c_super = c_super;
      c_interfaces = imap;
-     get_c_children = (fun () -> !children_classes)
+     c_children = []
     }
   in
     ClassMap.iter
       (fun _ i ->
-	 let i_info = (ClassMap.find i.i_info.i_name classes_map) in
-	   i_info.children_classes := cfile :: !(i_info.children_classes)
+	 i.i_children_classes <- cfile :: i.i_children_classes
       ) cfile.c_interfaces;
     begin
       match super_class (Class cfile) with
 	| None -> ();
-	| Some parent ->
-	    let c_super_info = ClassMap.find parent.c_info.c_name
-	      classes_map in
-	      c_super_info.children_classes :=
-		cfile :: !(c_super_info.children_classes)
+	| Some sc ->
+	    sc.c_children <- cfile :: sc.c_children
     end;
-    let rec c_info = { class_data = (Class cfile);
-		       children_classes = children_classes;
-		       children_interfaces = ref [] } in
-      interfaces := update_interfaces classes_map c_info.class_data
-	!interfaces c.c_name;
+    let rec c_info = Class cfile in
+      interfaces := update_interfaces classes_map c_info !interfaces c.c_name;
       ClassMap.add c.c_name c_info classes_map
 
 let add_interfaceFile c classes_map =
@@ -125,7 +112,7 @@ let add_interfaceFile c classes_map =
       (fun imap iname ->
 	 let i =
 	   try
-	     match (ClassMap.find iname classes_map).class_data with
+	     match (ClassMap.find iname classes_map) with
 	       | Interface i -> i
 	       | Class c' ->
 		   raise (Class_structure_error
@@ -140,30 +127,25 @@ let add_interfaceFile c classes_map =
   and super =
     try
       match (ClassMap.find java_lang_object
-	       classes_map).class_data with
+	       classes_map) with
 	| Class c -> c
 	| Interface _ ->
 	    raise (Class_structure_error"java.lang.Object is declared as an interface.")
     with Not_found -> raise (Class_not_found java_lang_object)
   in
-  let children_classes = ref [] in
-  let children_interfaces = ref [] in
   let cfile =
     {i_info = c;
      i_super = super;
      i_interfaces = imap;
-     get_i_children_interfaces = (fun () -> !children_interfaces);
-     get_i_children_classes = (fun () -> !children_classes)
+     i_children_interfaces = [];
+     i_children_classes = []
     }
   in
     ClassMap.iter
       (fun _ i ->
-	 let i_info = ClassMap.find i.i_info.i_name classes_map in
-	   i_info.children_interfaces := cfile :: !(i_info.children_interfaces))
+	 i.i_children_interfaces <- cfile :: i.i_children_interfaces)
       cfile.i_interfaces;
-    let i_info = { class_data = (Interface cfile);
-		   children_classes = children_classes;
-		   children_interfaces = children_interfaces } in
+    let i_info = Interface cfile in
       ClassMap.add c.i_name i_info classes_map
 
 let add_one_node f classes_map interfaces =
@@ -265,7 +247,7 @@ let static_interface_lookup interface_lookup_map classes_map interfaces
 	    ClassSet.fold
 	      (fun cs cmap ->
 		 let ioc_info = ClassMap.find cs classes_map in
-		 let ioc = ioc_info.class_data in
+		 let ioc = ioc_info in
 		   match ioc with
 		     | Interface _ -> assert false
 		     | Class c ->
@@ -311,82 +293,87 @@ let static_special_lookup special_lookup_map current_class c ms =
 	      (ClassMethMap.add (cs,ms) cmmap ccmmap) !special_lookup_map;
 	    cmmap
 
-let static_lookup_method classes_map interfaces virtual_lookup_map interface_lookup_map
-    static_lookup_map special_lookup_map children_classes cs ms pp =
-  let m = get_method (ClassMap.find cs classes_map).class_data ms in
-    match m with
-      | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
-      | ConcreteMethod cm ->
-	  (match cm.cm_implementation with
-	     | Native -> failwith "Can't call static_lookup on Native methods"
-	     | Java code ->
-		 let c = (Lazy.force code).c_code in
-		   try
-		     let op = c.(pp) in
-		       match op with
-			 | OpInvoke(`Interface ccs, cms) ->
-			     let cc =
-			       let ioc =
-			     	 (ClassMap.find ccs
-			     	    classes_map).class_data in
-			     	 match ioc with
-			     	   | Class _ ->
-			     	       failwith "Impossible InvokeInterface"
-			     	   | Interface i -> i in
-			       static_interface_lookup interface_lookup_map
-			     	 classes_map interfaces children_classes cc cms
-			 | OpInvoke (`Virtual (TClass ccs), cms) ->
-			     let cc =
-			       let ioc =
-			     	 (ClassMap.find ccs
-			     	    classes_map).class_data in
-			     	 match ioc with
-			     	   | Interface _ ->
-			     	       failwith "Impossible InvokeVirtual"
-			     	   | Class c -> c in
-			       static_virtual_lookup virtual_lookup_map
-				 children_classes cc cms
-			 | OpInvoke (`Virtual (TArray _), cms) ->
-			     (* should only happen with [clone()] *)
-			     let cobj =
-			       let ioc =
-			     	 (ClassMap.find java_lang_object
-			     	    classes_map).class_data in
-			     	 match ioc with
-			     	   | Interface _ ->
-			     	       failwith "Impossible InvokeVirtual"
-			     	   | Class c -> c in
-			       static_virtual_lookup virtual_lookup_map
-				 children_classes cobj cms
-			 | OpInvoke (`Static ccs, cms) ->
-			     let cc =
-			       let ioc =
-				 (ClassMap.find ccs
-				    classes_map).class_data in
-				 match ioc with
-				   | Interface _ ->
-				       failwith "Impossible InvokeStatic"
-				   | Class c -> c in
-			       static_static_lookup static_lookup_map cc cms
-			 | OpInvoke (`Special ccs, cms) ->
-			     let cc =
-			       let ioc =
-				 (ClassMap.find ccs
-				    classes_map).class_data in
-				 match ioc with
-				   | Interface _ ->
-				       failwith "Impossible InvokeSpecial"
-				   | Class c -> c in
-			     let current_class =
-			       (ClassMap.find cs classes_map).class_data in
-			       static_special_lookup special_lookup_map
-				 current_class cc cms
-			 | _ ->
-			     failwith "Invalid opcode found at specified program point"
-		   with
-		     | Not_found -> failwith "Invalid program point"
-		     | e -> raise e
-	  )
+let static_lookup_method =
+  let virtual_lookup_map = ref ClassMethMap.empty
+  and interface_lookup_map = ref ClassMethMap.empty
+  and static_lookup_map = ref ClassMethMap.empty
+  and special_lookup_map = ref ClassMap.empty
+  and children_classes = ref ClassMap.empty in
+    fun classes_map interfaces cs ms pp ->
+      let m = get_method (ClassMap.find cs classes_map) ms in
+	match m with
+	  | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
+	  | ConcreteMethod cm ->
+	      (match cm.cm_implementation with
+		 | Native -> failwith "Can't call static_lookup on Native methods"
+		 | Java code ->
+		     let c = (Lazy.force code).c_code in
+		       try
+			 let op = c.(pp) in
+			   match op with
+			     | OpInvoke(`Interface ccs, cms) ->
+				 let cc =
+				   let ioc =
+			     	     (ClassMap.find ccs
+			     		classes_map) in
+			     	     match ioc with
+			     	       | Class _ ->
+			     		   failwith "Impossible InvokeInterface"
+			     	       | Interface i -> i in
+				   static_interface_lookup interface_lookup_map
+			     	     classes_map interfaces children_classes cc cms
+			     | OpInvoke (`Virtual (TClass ccs), cms) ->
+				 let cc =
+				   let ioc =
+			     	     (ClassMap.find ccs
+			     		classes_map) in
+			     	     match ioc with
+			     	       | Interface _ ->
+			     		   failwith "Impossible InvokeVirtual"
+			     	       | Class c -> c in
+				   static_virtual_lookup virtual_lookup_map
+				     children_classes cc cms
+			     | OpInvoke (`Virtual (TArray _), cms) ->
+				 (* should only happen with [clone()] *)
+				 let cobj =
+				   let ioc =
+			     	     (ClassMap.find java_lang_object
+			     		classes_map) in
+			     	     match ioc with
+			     	       | Interface _ ->
+			     		   failwith "Impossible InvokeVirtual"
+			     	       | Class c -> c in
+				   static_virtual_lookup virtual_lookup_map
+				     children_classes cobj cms
+			     | OpInvoke (`Static ccs, cms) ->
+				 let cc =
+				   let ioc =
+				     (ClassMap.find ccs
+					classes_map) in
+				     match ioc with
+				       | Interface _ ->
+					   failwith "Impossible InvokeStatic"
+				       | Class c -> c in
+				   static_static_lookup static_lookup_map cc cms
+			     | OpInvoke (`Special ccs, cms) ->
+				 let cc =
+				   let ioc =
+				     (ClassMap.find ccs
+					classes_map) in
+				     match ioc with
+				       | Interface _ ->
+					   failwith "Impossible InvokeSpecial"
+				       | Class c -> c in
+				 let current_class =
+				   (ClassMap.find cs classes_map) in
+				   static_special_lookup special_lookup_map
+				     current_class cc cms
+			     | _ ->
+				 failwith "Invalid opcode found at specified program point"
+		       with
+			 | Not_found -> failwith "Invalid program point"
+			 | e -> raise e
+	      )
 
 let default_classes = List.map make_cn
   ["java.lang.Class"; "java.lang.System"; "java.lang.String"; "java.lang.Thread";
@@ -415,26 +402,16 @@ let parse_program ?(other_classes=default_classes) class_path names =
   let parsed_methods =
     ClassMap.fold
       (fun _ ioc_info cmmap ->
-	 let ioc = ioc_info.class_data in
+	 let ioc = ioc_info in
 	   MethodMap.fold
 	     (fun _ cm cmmap ->
 		ClassMethodMap.add cm.cm_class_method_signature (ioc,cm) cmmap
 	     ) (get_concrete_methods ioc) cmmap
       ) p_classes ClassMethodMap.empty in
     Javalib.close_class_path class_path;
-    let virtual_lookup_map = ref ClassMethMap.empty
-    and interface_lookup_map = ref ClassMethMap.empty
-    and static_lookup_map = ref ClassMethMap.empty
-    and special_lookup_map = ref ClassMap.empty
-    and children_classes = ref ClassMap.empty in
-      { classes = ClassMap.map
-	  (fun ioc_info ->
-	     ioc_info.class_data
-	  ) p_classes;
+      { classes = p_classes;
 	parsed_methods = parsed_methods;
 	static_lookup_method = static_lookup_method p_classes !interfaces
-	  virtual_lookup_map interface_lookup_map static_lookup_map
-	  special_lookup_map children_classes
       }
 
 let parse_program_bench ?(other_classes=default_classes) class_path names =
