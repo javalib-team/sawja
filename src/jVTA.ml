@@ -40,7 +40,7 @@ type vta_program =
     { p : jvm_opcodes program;
       rta_instantiated_classes : jvm_opcodes class_node ClassMap.t;
       mutable methods : vta_concrete_method ClassMethodMap.t;
-      workset : (jvm_opcodes node * vta_concrete_method) Dllist.dllist;
+      workset : (jvm_opcodes node * vta_concrete_method) Wlist.wlist;
       mutable pvta_parsed_methods : (jvm_opcodes node *
 				       jvm_opcodes concrete_method) ClassMethodMap.t;
       mutable rta_instantiated_subclasses : jvm_opcodes class_node ClassMap.t ClassMap.t;
@@ -137,7 +137,7 @@ let update_invoke_virtual pvta m =
 	      let mvta = get_vta_method pvta cm in
 		if not(mvta.c_has_been_parsed) then
 		  (mvta.c_has_been_parsed <- true;
-		   Dllist.add (Class c,mvta) pvta.workset)
+		   Wlist.add (Class c,mvta) pvta.workset)
 	   ) rmmap;
 	 let mmap =
 	   try Ptmap.find pp m.static_lookup
@@ -159,7 +159,7 @@ let update_invoke_interface pvta m =
 	    let mvta = get_vta_method pvta cm in
 	      if not(mvta.c_has_been_parsed) then
 		(mvta.c_has_been_parsed <- true;
-		 Dllist.add (Class c,mvta) pvta.workset)
+		 Wlist.add (Class c,mvta) pvta.workset)
 	 ) rmmap;
        let mmap =
 	 try Ptmap.find pp m.static_lookup
@@ -218,7 +218,7 @@ let add_clinit pvta ioc =
 	    let mvta = get_vta_method pvta cm in
 	      if not(mvta.c_has_been_parsed) then
 		(mvta.c_has_been_parsed <- true;
-		 Dllist.add (ioc,mvta) pvta.workset)
+		 Wlist.add (ioc,mvta) pvta.workset)
   with Not_found -> ()
     
 let rec add_class_clinits pvta c =
@@ -256,7 +256,7 @@ let parse_invoke_static pvta m pp cc cms =
     let mvta = get_vta_method pvta cm in
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
-	 Dllist.add (Class rc, mvta) pvta.workset);
+	 Wlist.add (Class rc, mvta) pvta.workset);
       rc
 	
 let parse_invoke_special pvta m pp ioc cc cms =
@@ -268,7 +268,7 @@ let parse_invoke_special pvta m pp ioc cc cms =
     let mvta = get_vta_method pvta cm in
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
-	 Dllist.add (Class rc, mvta) pvta.workset)
+	 Wlist.add (Class rc, mvta) pvta.workset)
 	  
 let parse_method_parameters pvta m prms =
   List.iter
@@ -377,15 +377,15 @@ let parse_vta_method pvta ioc m =
 	  update_invoke_interface pvta m
 	    
 let iter_workset pvta =
-  let tail = Dllist.tail pvta.workset in
-    Dllist.iter_to_head
+  let tail = Wlist.tail pvta.workset in
+    Wlist.iter_to_head
       (fun (ioc,mvta) -> parse_vta_method pvta ioc mvta) tail
       
 let parse_program_from_rta prta instantiated_classes csms =
   let pvta = { p = prta;
 	       rta_instantiated_classes = instantiated_classes;
 	       methods = ClassMethodMap.empty;
-	       workset = Dllist.create();
+	       workset = Wlist.create();
 	       pvta_parsed_methods = ClassMethodMap.empty;
 	       rta_instantiated_subclasses = ClassMap.empty;
 	       rta_implemented_interfaces = ClassMap.empty
@@ -400,7 +400,7 @@ let parse_program_from_rta prta instantiated_classes csms =
 		| AbstractMethod _ -> failwith "An entry point can't be an abstract method."
 		| ConcreteMethod cm ->
 		    let mvta = get_vta_method pvta cm in
-		      Dllist.add (Class c,mvta) pvta.workset
+		      Wlist.add (Class c,mvta) pvta.workset
 	     )
     );
     iter_workset pvta;

@@ -53,7 +53,7 @@ struct
 	(* the clinits fields contains a set of class indexes whose clinit
 	   methods have already been added to the workset *)
 	mutable clinits : ClassSet.t;
-	workset : (class_name * JOpcodes.jvm_opcodes concrete_method) Dllist.dllist;
+	workset : (class_name * JOpcodes.jvm_opcodes concrete_method) Wlist.wlist;
 	classpath : Javalib.class_path;
 	mutable native_methods : ClassMethSet.t;
 	parse_natives : bool;
@@ -279,12 +279,12 @@ struct
 		     (m.has_been_parsed <- true;
 		      p.native_methods <-
 			ClassMethSet.add (cs,ms) p.native_methods;
-		      if (p.parse_natives) then Dllist.add (cs,cm) p.workset
+		      if (p.parse_natives) then Wlist.add (cs,cm) p.workset
 		     )
 	       | Java _ ->
 		   if not(m.has_been_parsed) then
 		     (m.has_been_parsed <- true;
-		      Dllist.add (cs,cm) p.workset)
+		      Wlist.add (cs,cm) p.workset)
 	    )
 
   let resolve_field p cs fs =
@@ -500,9 +500,9 @@ struct
 	) calls
     
   let iter_workset p =
-    let tail = Dllist.tail p.workset
+    let tail = Wlist.tail p.workset
     in
-      Dllist.iter_to_head
+      Wlist.iter_to_head
 	(fun (cs,cm) ->
 	   match cm.cm_implementation with
 	     | Native ->
@@ -540,7 +540,7 @@ struct
 	| None -> (false, JNativeStubs.empty_info)
 	| Some file -> (true,
 			JNativeStubs.parse_native_info_file file) in
-    let workset = Dllist.create () in
+    let workset = Wlist.create () in
     let p =
       { classes = ClassMap.empty;
 	interfaces = ClassMap.empty;
@@ -583,7 +583,7 @@ struct
   let parse_program_bench entrypoints classpath =
     let time_start = Sys.time() in
     let (p,_) = parse_program entrypoints None classpath in
-    let s = Dllist.size p.workset in
+    let s = Wlist.size p.workset in
       Printf.printf "Workset of size %d\n" s;
       let time_stop = Sys.time() in
 	Printf.printf "program parsed in %fs.\n" (time_stop-.time_start)
