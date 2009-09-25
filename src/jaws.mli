@@ -28,10 +28,9 @@ open Javalib
 type 'a class_node
 type 'a interface_node
 
-type 'a node
-(* type 'a node = *)
-(*   | Class of 'a class_node *)
-(*   | Interface of 'a interface_node *)
+type 'a node =
+  | Interface of 'a interface_node
+  | Class of 'a class_node
 
 (** {2 Accessing nodes content.} *)
 

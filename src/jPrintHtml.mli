@@ -21,7 +21,7 @@
 (** Pretty-Html-printer for high level programs. *)
 
 open JBasics
-open JOpcodes
+open JCode
 open Javalib
 open JProgram
 
@@ -43,7 +43,7 @@ val void_info : info
     [info] given annotation functions [p_class], [p_field], [p_method] and
     [p_pp]. *)
 val get_program_info :
-  jvm_opcodes program ->
+  jvm_code program ->
   (class_name -> string list) ->
   (class_name -> field_signature -> string list) ->
   (class_name -> method_signature -> string list) ->
@@ -62,4 +62,4 @@ val js:string
     and {!js} are used when [css] or [js] is not provided.
 *)
 val pp_print_program_to_html_files :
-  ?css:string -> ?js:string -> jvm_opcodes program -> string -> info -> unit
+  ?css:string -> ?js:string -> jvm_code program -> string -> info -> unit

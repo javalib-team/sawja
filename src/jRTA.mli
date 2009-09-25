@@ -38,7 +38,7 @@ val parse_program :
   ?other_entrypoints:(class_name * method_signature) list ->
   ?native_stubs:string option ->
   string -> class_name * method_signature ->
-  JOpcodes.jvm_opcodes program * JOpcodes.jvm_opcodes class_node ClassMap.t
+  JCode.jvm_code program * JCode.jvm_code class_node ClassMap.t
 
 val parse_program_bench :
   ?other_entrypoints:(class_name * method_signature) list ->

@@ -24,13 +24,10 @@
 open JBasics
 open Javalib
 
-(** {2 Maps and Sets.} *)
+(** {2 Maps and sets.} *)
 
-module ClassSet : Set.S with type elt = class_name
-module MethodSet : Set.S with type elt = method_signature
-  
-module ClassMethSet : Set.S with type elt = class_name * method_signature
 module ClassMethMap : Map.S with type key = class_name * method_signature
+module ClassMethSet : Set.S with type elt = class_name * method_signature
 
 (** {2 Navigable hierarchy.} *)
 
@@ -164,7 +161,7 @@ val firstCommonSuperClass : 'a class_node -> 'a class_node -> 'a class_node
 type callgraph = ((class_name * method_signature * int)
 		  * (class_name * method_signature)) list
 
-val get_callgraph : JOpcodes.jvm_opcodes program -> callgraph
+val get_callgraph : JCode.jvm_code program -> callgraph
 
 val store_callgraph : callgraph -> string -> unit
 

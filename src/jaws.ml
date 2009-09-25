@@ -19,16 +19,10 @@
  *)
 
 open JBasics
-open JOpcodes
+open JCode
 open Javalib
 
 include JProgram
-
-(* type 'a class_node = 'a JProgram.class_node *)
-
-(* type 'a interface_node = 'a JProgram.interface_node *)
-
-(* type 'a node = 'a JProgram.node *)
 
 let c_info cnode = cnode.c_info
 let c_super cnode = cnode.c_super

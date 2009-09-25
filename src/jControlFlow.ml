@@ -20,7 +20,7 @@
  *)
 
 open JBasics
-open JOpcodes
+open JCode
 open Javalib
 open JProgram
   
@@ -109,14 +109,14 @@ module PP = struct
 end
   
 open PP
-type pp = JOpcodes.jvm_opcodes PP.t
+type pp = JCode.jvm_code PP.t
     
-let get_code (pp:pp) : opcodes =
+let get_code (pp:pp) : jopcodes =
   match pp.meth.cm_implementation with
     | Java c -> (Lazy.force c).c_code
     | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 	
-let get_opcode (pp:pp) : opcode = (get_code pp).(pp.pc)
+let get_opcode (pp:pp) : jopcode = (get_code pp).(pp.pc)
   
 let next_instruction pp =
   let opcodes = get_code pp

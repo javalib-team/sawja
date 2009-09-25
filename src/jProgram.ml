@@ -22,28 +22,16 @@
 (* TODO : add cache memories in lookup functions *)
 
 open JBasics
-open JOpcodes
+open JCode
 open Javalib
 
-module ClassSet = Set.Make(
-  struct
-    type t = class_name
-    let compare = cn_compare
-  end)
-
-module MethodSet = Set.Make(
-  struct
-    type t = method_signature
-    let compare = ms_compare
-  end)
-
-module ClassMethSet = Set.Make(
+module ClassMethMap = Map.Make(
   struct
     type t = class_name * method_signature
     let compare = compare
   end)
 
-module ClassMethMap = Map.Make(
+module ClassMethSet = Set.Make(
   struct
     type t = class_name * method_signature
     let compare = compare

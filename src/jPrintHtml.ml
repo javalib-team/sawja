@@ -19,7 +19,7 @@
  *)
 
 open JBasics
-open JOpcodes
+open JCode
 open Javalib
 open JProgram
 

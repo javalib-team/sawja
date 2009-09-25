@@ -63,7 +63,7 @@ open JProgram
 val parse_program :
   ?other_entrypoints:(class_name * method_signature) list ->
   string -> class_name * method_signature ->
-  JOpcodes.jvm_opcodes program * JOpcodes.jvm_opcodes class_node ClassMap.t
+  JCode.jvm_code program * JCode.jvm_code class_node ClassMap.t
 
 (** Sun's JVM calls some methods natively during the JVM
     initialization.  We have included the list (that we suppose
