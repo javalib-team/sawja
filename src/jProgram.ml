@@ -282,11 +282,11 @@ let store_callgraph callgraph file =
       (fun ((cs,ms,pp),(ccs,cms)) ->
 	 IO.nwrite out
 	   (JPrint.method_signature
-	      ~caller:(Some(TClass cs)) ms
+	      ~callee:(TClass cs) ms
 	    ^ ","
 	    ^ (string_of_int pp) ^ " -> "
 	    ^ JPrint.method_signature
-	      ~caller:(Some(TClass ccs)) cms ^ "\n")
+	      ~callee:(TClass ccs) cms ^ "\n")
       )
       callgraph;
     IO.close_out out

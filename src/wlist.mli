@@ -20,6 +20,9 @@
 
 (** A growable when itering list. *)
 
+
+(* TODO : add documentation *)
+
 type 'a wlist
 
 type 'a tail

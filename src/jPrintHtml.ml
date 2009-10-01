@@ -221,18 +221,21 @@ type info =
       p_method : class_name -> method_signature -> string list;
       (** Prints method information that is printed inside the method,
 	  along with other attributes of the method. *)
-      p_callers : class_name -> method_signature -> ClassMethSet.t;
-      (** Prints information about the possible method callers. *)
       p_pp : class_name -> method_signature -> int -> string list;
       (** Prints information associated to program points. The information is
 	  printed after the instruction. *)
     }
 
+type info_interal ={
+  p_data : info;
+  (** Prints information about the possible method callers. *)
+  p_callers : class_name -> method_signature -> ClassMethSet.t;
+}
+
 let void_info =
   { p_class = (fun _ -> []);
     p_field = (fun _ _-> []);
     p_method = (fun _ _ -> []);
-    p_callers = (fun _ _ -> ClassMethSet.empty);
     p_pp = (fun _ _ _ -> []) }
 
 let revert_callgraph program =
@@ -251,13 +254,10 @@ let get_callers rcg cs ms =
     try ClassMethodMap.find cmsig rcg
     with _ -> ClassMethSet.empty
 
-let get_program_info program p_class p_field p_method p_pp =
-  { p_class = p_class;
-    p_field = p_field;
-    p_method = p_method;
-    p_callers = get_callers (revert_callgraph program);
-    p_pp = p_pp
-  }
+let get_internal_info program info = {
+  p_data = info;
+  p_callers = get_callers (revert_callgraph program);
+}
 
 let rec get_relative_path frompackage topackage =
   match (frompackage,topackage) with
@@ -280,7 +280,7 @@ let get_relative_file fromclass toclass =
   and p2 = cn_package toclass
   and c = cn_simple_name toclass  in
     (get_relative_path p1 p2) ^ c ^ ".html"
-    
+      
 let rec valuetype2html program t currentclass =
   match t with
     | TBasic _ -> [PCData (JPrint.value_type t)]
@@ -484,7 +484,7 @@ let field2html program cs fs annots =
   gen_field (fs2anchorname cs fs) (fieldsignature2html program cs fs) annots
 
 let method2html program cs ms info insts =
-  let annots = info.p_method cs ms in
+  let annots = info.p_data.p_method cs ms in
   let method_signature = methodsignature2html program cs ms info in
   let callers = methodcallers2html cs ms info in
     gen_method (ms2anchorname cs ms) method_signature callers annots insts
@@ -581,7 +581,7 @@ let ioc2html program cs info =
   let fields =
     List.fold_left
       (fun l fs ->
-	 (field2html program cs fs (info.p_field cs fs)) :: l)
+	 (field2html program cs fs (info.p_data.p_field cs fs)) :: l)
       [] (get_fields_indexes program cs) in
   let methods =
     MethodMap.fold
@@ -604,14 +604,14 @@ let ioc2html program cs info =
 			  let instlist = List.rev !l in
 			    List.map
 			      (fun (pp,op) -> opcode2inst program cs ms pp op
-				 (info.p_pp cs ms pp)) instlist
+				 (info.p_data.p_pp cs ms pp)) instlist
 		 )
 	 in
 	   (method2html program cs ms info insts) :: l)
       (get_methods ioc) [] in
   let content = (List.rev fields) @ (List.rev methods) in
     gen_class (cn2anchorname cs)
-      (iocsignature2html program cs) (info.p_class cs) content
+      (iocsignature2html program cs) (info.p_data.p_class cs) content
 
 let gen_class_document program cs info css js =
   let ioc = get_node program cs in
@@ -672,6 +672,7 @@ let pp_print_program_to_html_files ?(css=css) ?(js=js) program outputdir info =
       close_out outchan
   and stylefile = "style.css"
   and jsfile = "actions.js"
+  and info = get_internal_info program info
   in
     copy_file css (outputdir ^ "/" ^ stylefile);
     copy_file js (outputdir ^ "/" ^ jsfile);

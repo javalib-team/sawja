@@ -64,6 +64,7 @@ type 'a static_lookup_method = class_name -> method_signature -> int ->
 (** A program is a record containing a map of class files identified by
     an id, and a dictionary containing functions to retrieve classes and
     methods ids from their names. *)
+(* TODO: update the documentation *)
 type 'a program = { classes : 'a node ClassMap.t;
 		    parsed_methods : ('a node *
 					'a concrete_method) ClassMethodMap.t;

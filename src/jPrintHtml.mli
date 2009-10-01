@@ -32,22 +32,25 @@ open JProgram
 
 (** {2 Program information.} *)
 
-(** This abstract type represents the information that will be printed. *)
-type info
+(** This type represents the information that will be printed. *)
+type info = {
+  p_class : class_name -> string list;
+  (** Prints class information that is printed inside the class, along with
+      other attributes of the class. *)
+  p_field : class_name -> field_signature -> string list;
+  (** Prints field information that is printed along with the corresponding
+      field. *)  
+  p_method : class_name -> method_signature -> string list;
+  (** Prints method information that is printed inside the method,
+      along with other attributes of the method. *)
+  p_pp : class_name -> method_signature -> int -> string list;
+  (** Prints information associated to program points. The information is
+      printed after the instruction. *)
+}
 
 (** [void_info] is an instance of [info] that does not print anything
     nor filter anything. *)
 val void_info : info
-
-(** [get_program_info p_class p_field p_method p_pp] returns an instance of
-    [info] given annotation functions [p_class], [p_field], [p_method] and
-    [p_pp]. *)
-val get_program_info :
-  jvm_code program ->
-  (class_name -> string list) ->
-  (class_name -> field_signature -> string list) ->
-  (class_name -> method_signature -> string list) ->
-  (class_name -> method_signature -> int -> string list) -> info
 
 val css:string
 val js:string

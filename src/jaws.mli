@@ -25,12 +25,12 @@ open Javalib
 
 (** {2 Definitions of node types.} *)
 
-type 'a class_node
-type 'a interface_node
+type 'a class_node = 'a JProgram.class_node
+type 'a interface_node = 'a JProgram.interface_node
 
-type 'a node =
-  | Interface of 'a interface_node
-  | Class of 'a class_node
+type 'a node = 'a JProgram.node
+
+val equal : 'a node -> 'a node -> bool
 
 (** {2 Accessing nodes content.} *)
 
