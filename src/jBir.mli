@@ -108,6 +108,7 @@ type bir = {
 (** {2 Printing functions} *)
 
 val print_instr : instr -> string
+val print_instrs : (int * instr list) -> string
 val print_bir : bir -> string list
 
 (** {2 Bytecode transformation} *)

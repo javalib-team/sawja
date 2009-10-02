@@ -63,7 +63,7 @@ let var_name = function
   | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
 
 let var_name_g = function
-  | OriginalVar (i,j,s) -> Printf.sprintf  "%s%d_%d" varname i j
+  | OriginalVar (i,j,s) -> Printf.sprintf  "%s%d" varname j
   | TempVar (i,None) -> Printf.sprintf "%s%d" tempname i
   | TempVar (i,Some j) -> Printf.sprintf "%s%d_%d" tempname i j
   | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i

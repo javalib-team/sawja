@@ -97,7 +97,7 @@ let bracket b s =
   if b then s else Printf.sprintf "(%s)" s 
 
 let rec print_expr first_level = function
-  | Var x -> var_name x
+  | Var x -> var_name_g x
   | Field (e,c,f) -> Printf.sprintf "%s.%s" (print_expr false e) (print_field c f)
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
@@ -133,7 +133,7 @@ let print_stackmap = function
 
 let print_instr = function
   | Nop -> "nop"
-  | AffectVar (x,e) -> Printf.sprintf "%s := %s" (var_name x) (print_expr true e)
+  | AffectVar (x,e) -> Printf.sprintf "%s := %s" (var_name_g x) (print_expr true e)
   | AffectStaticField (c,f,e) -> Printf.sprintf "%s.%s := %s" (JPrint.class_name c) (fs_name f) (print_expr true e)
   | AffectField (e1,c,f,e2) ->  Printf.sprintf "%s.%s := %s" (print_expr false e1) (print_field c f) (print_expr true e2)
   | AffectArray (e1,e2,e3) -> Printf.sprintf "%s[%s] := %s" (print_expr false e1) (print_expr true e2) (print_expr true e3)
@@ -142,21 +142,21 @@ let print_instr = function
   | Throw e -> Printf.sprintf "throw %s" (print_expr false e)
   | Return None -> Printf.sprintf "return"
   | Return (Some e) -> Printf.sprintf "return %s" (print_expr false e)
-  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name x) (JPrint.class_name c) (print_list_sep "," (print_expr true) le) 
-  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr true e)) le) 
+  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_expr true) le) 
+  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr true e)) le) 
   | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
+  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
   | InvokeVirtual (r,e1,_,ms,le) -> 
       Printf.sprintf "%s%s.%s(%s)"
 	(match r with
 	   | None -> ""
-	   | Some x -> Printf.sprintf "%s := "  (var_name x))
+	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
 	(print_expr false e1) (ms_name ms) (print_list_sep "," (print_expr true) le) 
   | InvokeNonVirtual (r,e1,kd,ms,le) -> 
       Printf.sprintf "%s%s.%s.%s(%s)"
 	(match r with
 	   | None -> ""
-	   | Some x -> Printf.sprintf "%s := "  (var_name x))
+	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
 	(print_expr false e1) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," (print_expr true) le) 
   | MonitorEnter e -> Printf.sprintf "monitorenter(%s)" (print_expr true e)
   | MonitorExit e -> Printf.sprintf "monitorexit(%s)" (print_expr true e)
@@ -171,6 +171,10 @@ let print_instr = function
 	  | CheckCast e -> Printf.sprintf "checkcast %s" (print_expr true e)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr true e)
       end
+
+let rec print_instrs (pc,instrs) =
+  Printf.sprintf "%3d: %s\n" pc
+    (print_list_sep "\n     " print_instr instrs)
 
 let rec print_code_intra = function
   | [] -> []
@@ -736,7 +740,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
   | OpRet _ -> raise Subroutine
   | OpTableSwitch (def,min,_,tbl) -> 
       pop s, 
-      List.rev (Array.fold_right
+      (Array.fold_right
 		  (fun (guard,i) l -> (Ifd (guard,i))::l)
 		  (Array.mapi 
 		     (fun idx j -> 
@@ -748,7 +752,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
       stats
   | OpLookupSwitch (def,pairs) -> 
       pop s, 
-      List.rev (List.fold_right
+      (List.fold_right
 		  (fun (c,j) l -> (Ifd ((`Eq,topE s,Const (`Int c)),j+i))::l)
 		  pairs
 		  [Goto (def+i)]),
@@ -1208,6 +1212,17 @@ let compute_jump_target code =
       code.c_code;
     jump_target
 
+let gen_params pp_var cm =
+  if cm.cm_static then
+    ExtList.List.mapi
+      (fun i _ -> OriginalVar (0,i,pp_var 0 i))
+      (ms_args cm.cm_signature)
+  else 
+    (OriginalVar (0,0,pp_var 0 0))::
+      (ExtList.List.mapi
+	 (fun i _ -> OriginalVar (0,i+1,pp_var 0 (i+1)))
+	 (ms_args cm.cm_signature))
+
 let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
   let signature = m.cm_signature in
   let cm_sig = m.cm_class_method_signature in 
@@ -1237,9 +1252,7 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
 	    else 
 	      (bc2ir flat pp_var jump_target code stats_opt) 
 	  in 
-	    Java { params = ExtList.List.mapi
-			      (fun i _ -> OriginalVar (i,0,pp_var i 0))
-			      (ms_args m.cm_signature);
+	    Java { params = gen_params pp_var m;
 		   code = List.rev res;
 		   exc_tbl = code.c_exc_tbl;
 		   line_number_table = code.c_line_number_table }, stats
