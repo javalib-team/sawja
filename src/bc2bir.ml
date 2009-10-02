@@ -32,6 +32,7 @@ let incr_stats stats a =
 	  |  `Nb_tempvar_putfield -> s.nb_tempvar_putfield <- s.nb_tempvar_putfield +1
 	  |  `Nb_tempvar_arraystore -> s.nb_tempvar_arraystore <- s.nb_tempvar_arraystore + 1
 	  |  `Nb_tempvar_side_effect -> s.nb_tempvar_side_effect <- s.nb_tempvar_side_effect + 1
+	  |  `Nb_tempvar_flat -> s.nb_tempvar_flat <- s.nb_tempvar_flat + 1
 	  |  `Nb_classes -> s.nb_classes <-  s.nb_classes + 1
 	  |  `Nb_methods -> s.nb_methods <-  s.nb_methods + 1
 	  |  `Nb_subroutines ->  s.nb_subroutines <- s.nb_subroutines + 1
@@ -86,9 +87,11 @@ let show_average_stat stats =
     let average_tempvar_arraystore = average stats.average_tempvar_arraystore in
     let average_tempvar_method_effect = average stats.average_tempvar_method_effect in
     let average_tempvar_side_effect = average stats.average_tempvar_side_effect in
+    let average_tempvar_flat = average stats.average_tempvar_flat in    
     let average_tempvar_after_simplification = average stats.average_tempvar_after_simplification in
     let total_average = average_tempvar_branch +. average_tempvar_putfield +. average_tempvar_arraystore +. 
-      average_tempvar_method_effect +. average_tempvar_side_effect +. average_tempvar_after_simplification in
+      average_tempvar_method_effect +. average_tempvar_side_effect +. average_tempvar_after_simplification 
+      +. average_tempvar_flat in
       Printf.printf "\n" ;
       Printf.printf "%2d\t classes (or interfaces) have been parsed\n" stats.nb_classes;
       Printf.printf "%2d\t methods have been transformed\n" stats.nb_methods;
@@ -99,6 +102,7 @@ let show_average_stat stats =
       Printf.printf "%03.2f%%\t average of local var increase because of arraystore variables\n" average_tempvar_arraystore;
       Printf.printf "%03.2f%%\t average of local var increase because of method_effect variables\n" average_tempvar_method_effect;
       Printf.printf "%03.2f%%\t average of local var increase because of side effect free expressions\n" average_tempvar_side_effect;
+      Printf.printf "%03.2f%%\t average of local var increase because of flat representation\n" average_tempvar_flat;
       Printf.printf "%03.2f%%\t average of local var that can be decrease with simplification\n" average_tempvar_after_simplification;
       Printf.printf "%03.2f%%\t of total average\n" total_average 
 

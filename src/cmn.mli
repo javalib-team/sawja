@@ -80,8 +80,10 @@ type statistics = {
   mutable nb_tempvar_putfield : int ;
   mutable nb_tempvar_arraystore : int ;
   mutable nb_tempvar_side_effect : int ;
+  mutable nb_tempvar_flat : int ;  
   mutable average_tempvar : float list  ; 
   mutable average_tempvar_side_effect : float list  ;
+  mutable average_tempvar_flat : float list  ;
   mutable average_tempvar_after_simplification : float list  ;
   mutable average_tempvar_branch : float list  ;
   mutable average_tempvar_method_effect : float list  ;

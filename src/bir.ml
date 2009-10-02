@@ -482,7 +482,7 @@ let is_var_in_expr_bir_not_var x bir =
     (fun (_,instrs) -> List.exists (is_var_in_expr_instr_not_var x) instrs)
     bir
 
-let clean count1 count2 i jj test s instrs =
+let clean count1 count2 i test s instrs =
   let rec aux j c1 c2 = function
     | [] -> [], instrs, false, c1, c2
     | e::s -> 
@@ -496,7 +496,7 @@ let clean count1 count2 i jj test s instrs =
 		end else
 		  E e::s, instrs, test_succeed, cc1,cc2
   in
-  let (s,instrs,test_succeed,c1,c2) = aux jj count1 count2 s in
+  let (s,instrs,test_succeed,c1,c2) = aux 0 count1 count2 s in
     if test_succeed then (s,instrs,c1+1,c2)
     else (s,instrs,c1,c2)
 
@@ -535,10 +535,11 @@ let incr_stats stats a =
 	  |  `Nb_tempvar_putfield -> s.nb_tempvar_putfield <- s.nb_tempvar_putfield +1
 	  |  `Nb_tempvar_arraystore -> s.nb_tempvar_arraystore <- s.nb_tempvar_arraystore + 1
 	  |  `Nb_tempvar_side_effect -> s.nb_tempvar_side_effect <- s.nb_tempvar_side_effect + 1
+	  |  `Nb_tempvar_flat -> s.nb_tempvar_flat <- s.nb_tempvar_flat + 1
 	  |  `Nb_classes -> s.nb_classes <-  s.nb_classes + 1
 	  |  `Nb_methods -> s.nb_methods <-  s.nb_methods + 1
 	  |  `Nb_subroutines ->  s.nb_subroutines <- s.nb_subroutines + 1
-
+	  | _ -> failwith "flat"
 	  
 (* Maps each opcode to a function of a stack that modifies its 
  * according to opcode, and returns grimp corresponding instructions if any 
@@ -593,7 +594,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 	(match stats with 
 	     Some s -> s.nb_putfield_is_field_in_stack, s.nb_tempvar_putfield 
 	   | None -> 0, 0 ) in 
-      let (s,instrs,count,count') = clean c1 c2 i 0 (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
+      let (s,instrs,count,count') = clean c1 c2 i (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
       in
 	(match stats with
 	     Some s -> 	(s.nb_putfield_is_field_in_stack <- count ;
@@ -603,47 +604,23 @@ let bc2bir_instr flat pp_var i tos s stats = function
   | OpArrayStore _ -> 
       incr_stats stats `Nb_arraystore ;
       let v = topE s in
-      let a = topE (pop2 s) in
-	(* TODO FLAT *)
+      let a = topE (pop2 s) in	
       let idx = topE (pop s) in
       let c1, c2 = 
 	(match stats with 
 	     Some s -> s.nb_arraystore_is_array_access_in_stack, s.nb_tempvar_arraystore
 	   | None -> 0, 0 ) in
-      let inss =
-	begin
-	  if flat then begin
-	    match  a with 
-	      | Field _ ->
-		  begin
-		    incr_stats stats `Nb_tempvar ;
-		    let x = TempVar (i,None) in
-		      add_tempvars stats x ;
-		      [ AffectVar(x,a);
-			Check (CheckNullPointer (Var x)); 
-			Check (CheckArrayBound (Var x,idx)); 
-			Check (CheckArrayStore (Var x,v));
-			AffectArray (Var x, idx, v)]
-		  end		
-	      | _ ->
-		  [Check (CheckNullPointer a); 
-		   Check (CheckArrayBound (a,idx)); 
-		   Check (CheckArrayStore (a,v)); 
-		   AffectArray (a, idx, v)]
-	  end else
-	    [Check (CheckNullPointer a); 
-	     Check (CheckArrayBound (a,idx)); 
-	     Check (CheckArrayStore (a,v)); 
-	     AffectArray (a, idx, v)]
-	end
-      in let (s,instrs,count,count') = clean  c1 c2 i 0 is_array_in_expr (pop3 s) inss	
+      let inss = [Check (CheckNullPointer a); 
+		  Check (CheckArrayBound (a,idx)); 
+		  Check (CheckArrayStore (a,v)); 
+		  AffectArray (a, idx, v)]
+      in let (s,instrs,count,count') = clean  c1 c2 i is_array_in_expr (pop3 s) inss	
       in 
 	(match stats with
 	     Some s -> 	(s.nb_arraystore_is_array_access_in_stack <- count ;
 			 s.nb_tempvar_arraystore <- count' )
 	   | None -> ());
-	(s,instrs,stats)
-	  
+	(s,instrs,stats)	  
   | OpPop -> pop s, [],stats
   | OpPop2 -> 
       (match (top tos) with
@@ -773,15 +750,14 @@ let bc2bir_instr flat pp_var i tos s stats = function
 	 | _ -> [Return (Some (topE s))]),
       stats
   | OpGetField (c, f) -> 
-      (* TODO flat *)
       let r = topE s in
 	if flat then begin
 	  match r with 
 	    | Field(_,_,_) ->
 		begin
 		  incr_stats stats `Nb_tempvar ;
+		  incr_stats stats `Nb_tempvar_flat ;
 		  let x = TempVar (i,None) in
-		    add_tempvars stats x ;
 		    E (Field ((Var x),c,f))::(pop s), 
 		  [Check (CheckNullPointer r);AffectVar(x,r)], stats 
 		end
@@ -813,7 +789,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 			(match stats with 
 			     Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
 			   | None -> 0, 0 ) in 
-		      let (s,instrs,count,count') = clean  c1 c2 i 0 is_heap_sensible_element_in_expr
+		      let (s,instrs,count,count') = clean  c1 c2 i is_heap_sensible_element_in_expr
 			(popn (List.length (ms_args ms)) s) 
 			[InvokeStatic (None,c,ms,param (List.length  (ms_args ms)) s)]
 		      in
@@ -830,7 +806,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 			  (match stats with 
 			       Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
 			     | None -> 0, 0 )
-			in let (s,instrs,count,count') = clean c1 c2 i 0 is_heap_sensible_element_in_expr (E (Var x)::(popn (List.length (ms_args ms)) s)) 
+			in let (s,instrs,count,count') = clean c1 c2 i is_heap_sensible_element_in_expr (E (Var x)::(popn (List.length (ms_args ms)) s)) 
 			    [InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
 			in
 			  (match stats with 
@@ -852,7 +828,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 				   Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
 				 | None -> 0, 0 )
 			    in 
-			    let (s,instrs,count,count') = clean c1 c2 i 0 is_heap_sensible_element_in_expr
+			    let (s,instrs,count,count') = clean c1 c2 i  is_heap_sensible_element_in_expr
 			      (List.map 
 				 (function e -> if e = Uninit (c,j) then e' else e)
 				 (pop popn_s))
@@ -864,68 +840,19 @@ let bc2bir_instr flat pp_var i tos s stats = function
 				 | None -> ());
 			      (s,instrs,stats)
 		      | E e0  ->
-			  (* TODO flat *)
 			  let nb_args = List.length (ms_args ms) in
 			  let s_next = pop popn_s in
 			  let this = topE popn_s in
 			  let ins target = 
 			    begin
-			      if flat then begin
-				match x with
-				  | `Virtual o ->
-				      begin
-					match this with 
-					  | Field _ ->
-					      begin
-						incr_stats stats `Nb_tempvar ;
-						let xvar = TempVar (i,None) in
-						  add_tempvars stats xvar ;
-						  [AffectVar(xvar,this);
-						   InvokeVirtual (target,(Var xvar),VirtualCall o,ms,param nb_args s)]
-					      end
-					  | _ ->
-					      [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
-				      end
-				  | `Interface c ->
-				      begin
-					match this with 
-					  | Field _ ->
-					      begin
-						incr_stats stats `Nb_tempvar ;
-						let xvar = TempVar (i,None) in
-						  add_tempvars stats xvar ;
-						  [AffectVar(xvar,this);
-						   InvokeVirtual (target,Var xvar,InterfaceCall c,ms,param nb_args s)]
-						    
-					  end
-				      | _ ->
-					  [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]  
-				      end
-				  | `Special c ->
-				      begin
-					match this with 
-					  | Field _ ->
-					      begin
-						incr_stats stats `Nb_tempvar ;
-						let xvar = TempVar (i,None) in
-						  add_tempvars stats xvar ;
-						  [AffectVar(xvar,this);
-						   InvokeNonVirtual (target,Var xvar,c,ms,param nb_args s)]
-					      end
-					  | _ -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
-				      end
-				  | `Static _ -> assert false (* already treated above *) 
-			      end else 
-				begin
-				  match x with
-				    | `Virtual o ->
-				        [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
-				    | `Interface c ->
-				    	[InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]  
-				    | `Special c ->
-					[InvokeNonVirtual (target,this,c,ms,param nb_args s)]
-				    | `Static _ -> assert false (* already treated above *) 
-				end
+			      match x with
+				| `Virtual o ->
+				    [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
+				| `Interface c ->
+				    [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]  
+				| `Special c ->
+				    [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
+				| `Static _ -> assert false (* already treated above *) 
 			    end
 			  in
 			    (match ms_rtype ms with
@@ -936,7 +863,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 					| None -> 0, 0 )
 				   in
 				   let (s,instrs,count,count') = 
-				     clean c1 c2 i 0 is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
+				     clean c1 c2 i is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
 				   in
 				     (match stats with 
 					  Some s -> (s.nb_method_call_with_modifiable_in_stack <- count ;
@@ -945,7 +872,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 				     (s,instrs,stats)				  
 			       | Some _ -> 
 				   incr_stats stats `Nb_tempvar ;
-				   let y = TempVar (i,Some 0) in 
+				   let y = TempVar (i,None) in 
 				     add_tempvars stats y ;
 				     let c1, c2 = 
 				       (match stats with 
@@ -953,7 +880,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 					  | None -> 0, 0 )
 				     in
 				     let (s,instrs,count,count') =
-				       clean c1 c2 i 1 is_heap_sensible_element_in_expr (E (Var y)::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
+				       clean c1 c2 i is_heap_sensible_element_in_expr (E (Var y)::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
 				     in
 				       (match stats with 
 					    Some s -> (s.nb_method_call_with_modifiable_in_stack <- count ;
@@ -1088,7 +1015,7 @@ let jump_stack count1 count2 pc' stack =
   in aux 0 count1 count2 stack
 
 (* simplify the assignts chain, if this is allowed according to out_stack *)
-let simplify_assign stats bir out_stack = 
+let simplify_assign flat stats bir out_stack = 
   match bir with
     | (pc,[AffectVar(j,Var(k))])::(pc',instrs)::q ->
 	begin (* remove useless assignt *)
@@ -1107,23 +1034,29 @@ let simplify_assign stats bir out_stack =
 		 (incr_stats stats `Nb_tempvar_removed ;
 		 (pc,[])::(pc',List.rev (NewArray (j,c,params)::l))::q , stats)
 	  | (InvokeStatic (Some x,c,ms,le))::l when var_equal x k ->
-	      if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
-		bir,stats	
-	      else 
-		 (incr_stats stats `Nb_tempvar_removed ;
-		 (pc,[])::(pc',List.rev (InvokeStatic (Some j,c,ms,le)::l))::q , stats)
+	      if flat then bir,stats
+	      else
+		if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
+		  bir,stats
+		else 
+		  (incr_stats stats `Nb_tempvar_removed ;
+		   (pc,[])::(pc',List.rev (InvokeStatic (Some j,c,ms,le)::l))::q , stats)
 	  | (InvokeVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
-	      if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
-		bir,stats
+	      if flat then bir, stats
 	      else 
-		 (incr_stats stats `Nb_tempvar_removed ;
-		 (pc,[])::(pc',List.rev (InvokeVirtual (Some j,e1,kd,ms,le)::l))::q , stats)
+		if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
+		  bir,stats
+		else 
+		  (incr_stats stats `Nb_tempvar_removed ;
+		   (pc,[])::(pc',List.rev (InvokeVirtual (Some j,e1,kd,ms,le)::l))::q , stats)
 	  | (InvokeNonVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
-	      if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
-		bir,stats
+	      if flat then bir,stats
 	      else 
-		 (incr_stats stats `Nb_tempvar_removed ;
-		 (pc,[])::(pc',List.rev (InvokeNonVirtual (Some j,e1,kd,ms,le)::l))::q ,stats)
+		if ( is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
+		  bir,stats
+		else 
+		  (incr_stats stats `Nb_tempvar_removed ;
+		   (pc,[])::(pc',List.rev (InvokeNonVirtual (Some j,e1,kd,ms,le)::l))::q ,stats)
 	  | _ -> bir,stats
 	end
     | _ -> bir,stats
@@ -1163,7 +1096,7 @@ let bc2ir flat pp_var jump_target code stats0 =
       else if jump_target.(pc) then
 	(pc,instrs@branch_assigns)::ins, stats
       else
-	simplify_assign stats ((pc,instrs@branch_assigns)::ins) as_out
+	simplify_assign flat stats ((pc,instrs@branch_assigns)::ins) as_out
     in
     let as_ts_jump =       
       List.fold_left 
@@ -1173,7 +1106,7 @@ let bc2ir flat pp_var jump_target code stats0 =
 	       (* check constraint on expr uninit and jumping forward on a non empty stack 
 		  all defined predecessor advice must match what is reached *)
 	       if (ts_jmp <> ts_out) then raise Type_constraint_on_Uninit ;
-	       let (jmp_s, count1, count2) =  jump_stack 0 0 pc' as_out in
+	       let (jmp_s, _,_ ) =  jump_stack 0 0 pc' as_out in
 		 if (as_jmp <>  jmp_s) then raise Content_constraint_on_Uninit ;
 		 as_jump
 	   with Not_found -> 
@@ -1203,6 +1136,7 @@ let bc2ir flat pp_var jump_target code stats0 =
 	    s.nb_tempvar_arraystore <- 0;
 	    s.nb_tempvar_removed <- 0;
 	    s.nb_tempvar_side_effect <- 0;
+	    s.nb_tempvar_flat <- 0;
 	    s.tempvars <- [];)
        | None -> ());    
     let res = loop MapPc.empty [] [] [] 0 stats0 in
@@ -1223,6 +1157,7 @@ let bc2ir flat pp_var jump_target code stats0 =
 		 let avg_arraystore = get_avg s.nb_tempvar_arraystore in
 		 let avg_method_effect = get_avg s.nb_tempvar_method_effect in
 		 let avg_side_effect = get_avg s.nb_tempvar_side_effect in
+		 let avg_flat = get_avg s.nb_tempvar_flat in
 		 let avg_simp = get_avg s.nb_tempvar_removed in
 		   s.average_tempvar <- avg :: s.average_tempvar;
 		   s.average_tempvar_branch <- avg_branch :: s.average_tempvar_branch;
@@ -1230,7 +1165,8 @@ let bc2ir flat pp_var jump_target code stats0 =
 		   s.average_tempvar_arraystore <- avg_arraystore :: s.average_tempvar_arraystore;
 		   s.average_tempvar_method_effect <- avg_method_effect :: s.average_tempvar_method_effect;
 		   s.average_tempvar_after_simplification <- avg_simp :: s.average_tempvar_after_simplification;
-		   s.average_tempvar_side_effect <- avg_side_effect :: s.average_tempvar_side_effect
+		   s.average_tempvar_side_effect <- avg_side_effect :: s.average_tempvar_side_effect;
+		   s.average_tempvar_flat <- avg_flat :: s.average_tempvar_flat
 	       end
 	   | None -> ())
     end;
@@ -1299,7 +1235,7 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
    	cm_final = cm_final ; cm_synchronized = cm_synch ; cm_strict = cm_strict ;
    	cm_access = cm_access ; cm_generic_signature = cm_gsig ; cm_bridge = cm_bridge ;
    	cm_varargs = cm_varargs ; cm_synthetic = cm_synt ; cm_other_flags = oth ;
-   	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = Java implem ; (*Java (lazy implem) ; *)
+   	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = Java implem ; 
   }
   in
     (method_rec, stats)
@@ -1310,6 +1246,7 @@ let stats0 =
    { nb_tempvar = 0; nb_tempvar_branch = 0; nb_tempvar_putfield = 0;
      nb_tempvar_method_effect = 0; nb_tempvar_arraystore = 0; 
      nb_tempvar_removed = 0; nb_tempvar_side_effect = 0;
+     nb_tempvar_flat = 0;
      nb_jump_with_non_empty_stacks = 0 ; nb_back_jump_with_non_empty_stacks = 0 ;
      nb_store_is_var_in_stack= 0 ; nb_incr_is_var_in_stack= 0 ;
      nb_putfield_is_field_in_stack= 0 ; nb_arraystore_is_array_access_in_stack = 0 ;
@@ -1317,6 +1254,7 @@ let stats0 =
      nb_store= 0 ; nb_incr= 0 ; nb_putfield= 0 ;
      nb_arraystore= 0 ; nb_putstatic= 0 ; nb_method_call= 0 ;
      tempvars = [];	average_tempvar= [] ; average_tempvar_side_effect = [] ;
+     average_tempvar_flat = [] ;
      average_tempvar_after_simplification= [] ; average_tempvar_branch= [] ;
      average_tempvar_method_effect= [] ; average_tempvar_putfield= [] ;
      average_tempvar_arraystore= [] ;
@@ -1328,6 +1266,7 @@ let reset_stats0 =
   stats0.nb_tempvar <- 0; stats0.nb_tempvar_branch <- 0; stats0.nb_tempvar_putfield <- 0;
   stats0.nb_tempvar_method_effect <- 0; stats0.nb_tempvar_arraystore <- 0; 
   stats0.nb_tempvar_removed <- 0; stats0.nb_tempvar_side_effect <- 0;
+  stats0.nb_tempvar_flat <- 0;
   stats0.nb_jump_with_non_empty_stacks <- 0 ; stats0.nb_back_jump_with_non_empty_stacks <- 0 ;
   stats0.nb_store_is_var_in_stack<- 0 ; stats0.nb_incr_is_var_in_stack<- 0 ;
   stats0.nb_putfield_is_field_in_stack<- 0 ; stats0.nb_arraystore_is_array_access_in_stack <- 0 ;
@@ -1335,6 +1274,7 @@ let reset_stats0 =
   stats0.nb_store<- 0 ; stats0.nb_incr<- 0 ; stats0.nb_putfield<- 0 ;
   stats0.nb_arraystore<- 0 ; stats0.nb_putstatic<- 0 ; stats0.nb_method_call<- 0 ;
   stats0.tempvars <- []; stats0.average_tempvar<- [] ; stats0.average_tempvar_side_effect <- [] ;
+  stats0.average_tempvar_flat <- [] ;
   stats0.average_tempvar_after_simplification<- [] ; stats0.average_tempvar_branch<- [] ;
   stats0.average_tempvar_method_effect<- [] ; stats0.average_tempvar_putfield<- [] ;
   stats0.average_tempvar_arraystore<- [] ;
