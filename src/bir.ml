@@ -482,7 +482,7 @@ let is_var_in_expr_bir_not_var x bir =
     (fun (_,instrs) -> List.exists (is_var_in_expr_instr_not_var x) instrs)
     bir
 
-let clean count1 count2 i test s instrs =
+let clean count1 count2 i jj test s instrs =
   let rec aux j c1 c2 = function
     | [] -> [], instrs, false, c1, c2
     | e::s -> 
@@ -496,7 +496,7 @@ let clean count1 count2 i test s instrs =
 		end else
 		  E e::s, instrs, test_succeed, cc1,cc2
   in
-  let (s,instrs,test_succeed,c1,c2) = aux 0 count1 count2 s in
+  let (s,instrs,test_succeed,c1,c2) = aux jj count1 count2 s in
     if test_succeed then (s,instrs,c1+1,c2)
     else (s,instrs,c1,c2)
 
@@ -563,7 +563,9 @@ let bc2bir_instr flat pp_var i tos s stats = function
 	then begin
 	  incr_stats stats `Nb_store_is_var_in_stack ;
 	  incr_stats stats `Nb_tempvar ;
-	  let x = TempVar (i,None) in	     
+	  let x = TempVar (i,None) in
+	   (* was missing *)
+	    add_tempvars stats x ;
 	    replace_var_in_stack y x (pop s), 
 	  [AffectVar(y,topE s); AffectVar(x,Var y)],
 	  stats
@@ -577,6 +579,8 @@ let bc2bir_instr flat pp_var i tos s stats = function
 	  incr_stats stats `Nb_incr_is_var_in_stack ;
 	  incr_stats stats `Nb_tempvar;
 	  let x = TempVar (i,None) in
+	    (* was missing *)
+	    add_tempvars stats x ;
 	    replace_var_in_stack a x s, 
 	  [AffectVar(x,Var a);
 	   AffectVar (a,Binop(Add `Int2Bool,Var a,Const (`Int (Int32.of_int b))))],
@@ -589,7 +593,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 	(match stats with 
 	     Some s -> s.nb_putfield_is_field_in_stack, s.nb_tempvar_putfield 
 	   | None -> 0, 0 ) in 
-      let (s,instrs,count,count') = clean c1 c2 i (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
+      let (s,instrs,count,count') = clean c1 c2 i 0 (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
       in
 	(match stats with
 	     Some s -> 	(s.nb_putfield_is_field_in_stack <- count ;
@@ -600,19 +604,46 @@ let bc2bir_instr flat pp_var i tos s stats = function
       incr_stats stats `Nb_arraystore ;
       let v = topE s in
       let a = topE (pop2 s) in
+	(* TODO FLAT *)
       let idx = topE (pop s) in
       let c1, c2 = 
 	(match stats with 
 	     Some s -> s.nb_arraystore_is_array_access_in_stack, s.nb_tempvar_arraystore
-	   | None -> 0, 0 ) in 
-      let (s,instrs,count,count') = clean  c1 c2 i is_array_in_expr (pop3 s) 
-	  [Check (CheckNullPointer a); Check (CheckArrayBound (a,idx)); Check (CheckArrayStore (a,v)); AffectArray (a, idx, v)]
+	   | None -> 0, 0 ) in
+      let inss =
+	begin
+	  if flat then begin
+	    match  a with 
+	      | Field _ ->
+		  begin
+		    incr_stats stats `Nb_tempvar ;
+		    let x = TempVar (i,None) in
+		      add_tempvars stats x ;
+		      [ AffectVar(x,a);
+			Check (CheckNullPointer (Var x)); 
+			Check (CheckArrayBound (Var x,idx)); 
+			Check (CheckArrayStore (Var x,v));
+			AffectArray (Var x, idx, v)]
+		  end		
+	      | _ ->
+		  [Check (CheckNullPointer a); 
+		   Check (CheckArrayBound (a,idx)); 
+		   Check (CheckArrayStore (a,v)); 
+		   AffectArray (a, idx, v)]
+	  end else
+	    [Check (CheckNullPointer a); 
+	     Check (CheckArrayBound (a,idx)); 
+	     Check (CheckArrayStore (a,v)); 
+	     AffectArray (a, idx, v)]
+	end
+      in let (s,instrs,count,count') = clean  c1 c2 i 0 is_array_in_expr (pop3 s) inss	
       in 
 	(match stats with
 	     Some s -> 	(s.nb_arraystore_is_array_access_in_stack <- count ;
 			 s.nb_tempvar_arraystore <- count' )
 	   | None -> ());
 	(s,instrs,stats)
+	  
   | OpPop -> pop s, [],stats
   | OpPop2 -> 
       (match (top tos) with
@@ -741,16 +772,30 @@ let bc2bir_instr flat pp_var i tos s stats = function
 	 | `Void -> [Return None]
 	 | _ -> [Return (Some (topE s))]),
       stats
-  | OpGetField (c, f) -> (* TODO flat *)
+  | OpGetField (c, f) -> 
+      (* TODO flat *)
       let r = topE s in
-	E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
-  | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c],stats (* TODO flat *)
-  | OpPutStatic (c, f) -> (* TODO flat *)
+	if flat then begin
+	  match r with 
+	    | Field(_,_,_) ->
+		begin
+		  incr_stats stats `Nb_tempvar ;
+		  let x = TempVar (i,None) in
+		    add_tempvars stats x ;
+		    E (Field ((Var x),c,f))::(pop s), 
+		  [Check (CheckNullPointer r);AffectVar(x,r)], stats 
+		end
+	    | _  -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats		
+	end else 
+	  E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
+  | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c],stats 
+  | OpPutStatic (c, f) -> 
       incr_stats stats `Nb_putstatic ;
       if is_static_in_stack c f (pop s) then begin
 	incr_stats stats `Nb_putstatic_is_static_in_stack ;
 	incr_stats stats `Nb_tempvar ;
 	let x = TempVar (i,None) in
+	  add_tempvars stats x ;
 	  replace_static_in_stack c f x (pop s), 
 	[MayInit c;
 	 AffectVar(x,StaticField(c,f));
@@ -760,7 +805,6 @@ let bc2bir_instr flat pp_var i tos s stats = function
   | OpInvoke (x, ms) -> 
       begin
 	incr_stats stats `Nb_method_call ;
-	(* TODO flat *)
 	(match x with
 	   | `Static c -> 
 	       (match ms_rtype ms with
@@ -769,7 +813,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 			(match stats with 
 			     Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
 			   | None -> 0, 0 ) in 
-		      let (s,instrs,count,count') = clean  c1 c2 i is_heap_sensible_element_in_expr
+		      let (s,instrs,count,count') = clean  c1 c2 i 0 is_heap_sensible_element_in_expr
 			(popn (List.length (ms_args ms)) s) 
 			[InvokeStatic (None,c,ms,param (List.length  (ms_args ms)) s)]
 		      in
@@ -786,7 +830,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 			  (match stats with 
 			       Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
 			     | None -> 0, 0 )
-			in let (s,instrs,count,count') = clean c1 c2 i is_heap_sensible_element_in_expr (E (Var x)::(popn (List.length (ms_args ms)) s)) 
+			in let (s,instrs,count,count') = clean c1 c2 i 0 is_heap_sensible_element_in_expr (E (Var x)::(popn (List.length (ms_args ms)) s)) 
 			    [InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
 			in
 			  (match stats with 
@@ -808,7 +852,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 				   Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
 				 | None -> 0, 0 )
 			    in 
-			    let (s,instrs,count,count') = clean c1 c2 i is_heap_sensible_element_in_expr
+			    let (s,instrs,count,count') = clean c1 c2 i 0 is_heap_sensible_element_in_expr
 			      (List.map 
 				 (function e -> if e = Uninit (c,j) then e' else e)
 				 (pop popn_s))
@@ -820,18 +864,69 @@ let bc2bir_instr flat pp_var i tos s stats = function
 				 | None -> ());
 			      (s,instrs,stats)
 		      | E e0  ->
+			  (* TODO flat *)
 			  let nb_args = List.length (ms_args ms) in
 			  let s_next = pop popn_s in
 			  let this = topE popn_s in
 			  let ins target = 
-			    match x with
-			      | `Virtual o -> 
-				  InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)
-			      | `Interface c ->
-				  InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)
-			      | `Special c -> 
-				  InvokeNonVirtual (target,this,c,ms,param nb_args s)
-			      | `Static _ -> assert false (* already treated above *) 
+			    begin
+			      if flat then begin
+				match x with
+				  | `Virtual o ->
+				      begin
+					match this with 
+					  | Field _ ->
+					      begin
+						incr_stats stats `Nb_tempvar ;
+						let xvar = TempVar (i,None) in
+						  add_tempvars stats xvar ;
+						  [AffectVar(xvar,this);
+						   InvokeVirtual (target,(Var xvar),VirtualCall o,ms,param nb_args s)]
+					      end
+					  | _ ->
+					      [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
+				      end
+				  | `Interface c ->
+				      begin
+					match this with 
+					  | Field _ ->
+					      begin
+						incr_stats stats `Nb_tempvar ;
+						let xvar = TempVar (i,None) in
+						  add_tempvars stats xvar ;
+						  [AffectVar(xvar,this);
+						   InvokeVirtual (target,Var xvar,InterfaceCall c,ms,param nb_args s)]
+						    
+					  end
+				      | _ ->
+					  [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]  
+				      end
+				  | `Special c ->
+				      begin
+					match this with 
+					  | Field _ ->
+					      begin
+						incr_stats stats `Nb_tempvar ;
+						let xvar = TempVar (i,None) in
+						  add_tempvars stats xvar ;
+						  [AffectVar(xvar,this);
+						   InvokeNonVirtual (target,Var xvar,c,ms,param nb_args s)]
+					      end
+					  | _ -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
+				      end
+				  | `Static _ -> assert false (* already treated above *) 
+			      end else 
+				begin
+				  match x with
+				    | `Virtual o ->
+				        [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
+				    | `Interface c ->
+				    	[InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]  
+				    | `Special c ->
+					[InvokeNonVirtual (target,this,c,ms,param nb_args s)]
+				    | `Static _ -> assert false (* already treated above *) 
+				end
+			    end
 			  in
 			    (match ms_rtype ms with
 			       | None -> 
@@ -841,7 +936,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 					| None -> 0, 0 )
 				   in
 				   let (s,instrs,count,count') = 
-				     clean c1 c2 i is_heap_sensible_element_in_expr s_next [Check (CheckNullPointer e0); ins None]
+				     clean c1 c2 i 0 is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
 				   in
 				     (match stats with 
 					  Some s -> (s.nb_method_call_with_modifiable_in_stack <- count ;
@@ -850,7 +945,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 				     (s,instrs,stats)				  
 			       | Some _ -> 
 				   incr_stats stats `Nb_tempvar ;
-				   let y = TempVar (i,None) in 
+				   let y = TempVar (i,Some 0) in 
 				     add_tempvars stats y ;
 				     let c1, c2 = 
 				       (match stats with 
@@ -858,7 +953,7 @@ let bc2bir_instr flat pp_var i tos s stats = function
 					  | None -> 0, 0 )
 				     in
 				     let (s,instrs,count,count') =
-				       clean c1 c2 i is_heap_sensible_element_in_expr (E (Var y)::s_next) [Check (CheckNullPointer e0); ins (Some y)]
+				       clean c1 c2 i 1 is_heap_sensible_element_in_expr (E (Var y)::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
 				     in
 				       (match stats with 
 					    Some s -> (s.nb_method_call_with_modifiable_in_stack <- count ;
