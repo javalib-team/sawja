@@ -97,7 +97,13 @@ type instr =
   | MayInit of JBasics.class_name
   | Check of check
 
-type bir = (int * instr list) list
+type bir = {
+  params : var list;
+  code : (int * instr list) list;
+  exc_tbl : JCode.exception_handler list;
+  line_number_table : (int * int) list option;
+}
+
 
 (** {2 Printing functions} *)
 

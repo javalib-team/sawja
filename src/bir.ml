@@ -55,8 +55,12 @@ type instr =
   | MayInit of class_name
   | Check of check 
 
-type bir = (int * instr list) list
-
+type bir = {
+  params : var list;
+  code : (int * instr list) list;
+  exc_tbl : exception_handler list;
+  line_number_table : (int * int) list option;
+}
 (* For stack type inference only *)
 type op_size = Op32 | Op64
 
@@ -168,11 +172,14 @@ let print_instr = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr true e)
       end
 
-let rec print_bir_intra = function
+let rec print_code_intra = function
   | [] -> []
-  | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (print_list_sep "\n     " print_instr instrs))::(print_bir_intra q)
+  | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
 
-let rec print_bir = function
+let print_bir_intra m = 
+  print_code_intra m.code
+
+let rec print_code = function
   | [] -> []
   | (pc,instrs)::q -> 
       let strl = (print_list_sep_list "     " print_instr instrs) in 
@@ -181,7 +188,9 @@ let rec print_bir = function
 	  | [] -> [(Printf.sprintf "%3d: " pc )]
 	  | s::m -> (Printf.sprintf "%3d: %s" pc ) s :: m
       in
-	first@(print_bir q)
+	first@(print_code q)
+
+let print_bir m = print_code m.code
 
 (******* STACK MANIPULATION **************)
 
@@ -1216,8 +1225,8 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
   let cm_att = m.cm_attributes in 
   let (implem,stats) = 
     match m.cm_implementation with
-    | Native -> ([],None)
-    | Java code -> 
+      | Native -> (Native,None)
+      | Java code -> 
 	begin 
 	  let code = (Lazy.force code) in
 	  let pp_var = search_name_localvar m.cm_static code in
@@ -1227,7 +1236,13 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
 	      (bc2ir flat pp_var jump_target code None) 
 	    else 
 	      (bc2ir flat pp_var jump_target code stats_opt) 
-	  in ((List.rev res), stats)
+	  in 
+	    Java { params = ExtList.List.mapi
+			      (fun i _ -> OriginalVar (i,0,pp_var i 0))
+			      (ms_args m.cm_signature);
+		   code = List.rev res;
+		   exc_tbl = code.c_exc_tbl;
+		   line_number_table = code.c_line_number_table }, stats
 	end
   in
   let method_rec = {
@@ -1235,7 +1250,7 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
    	cm_final = cm_final ; cm_synchronized = cm_synch ; cm_strict = cm_strict ;
    	cm_access = cm_access ; cm_generic_signature = cm_gsig ; cm_bridge = cm_bridge ;
    	cm_varargs = cm_varargs ; cm_synthetic = cm_synt ; cm_other_flags = oth ;
-   	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = Java implem ; 
+   	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = implem ; 
   }
   in
     (method_rec, stats)
