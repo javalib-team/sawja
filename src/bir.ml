@@ -567,10 +567,19 @@ let bc2bir_instr mode pp_var i tos s stats = function
   | OpLoad (_,n) -> E (Var (OriginalVar (i,n,pp_var i n)))::s, [], stats
   | OpArrayLoad _ -> 
       let a = topE (pop s) in
-      let i = topE s in
-	E (Binop(ArrayLoad,a,i))::(pop2 s), 
-      [Check (CheckNullPointer a);Check (CheckArrayBound (a,i))],
-      stats
+      let idx = topE s in begin
+	match mode with 
+	  | Addr3 ->
+	      let x = TempVar(i,None) in 
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), 
+	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad,a,idx)))],
+	      stats
+	  | _ ->
+	      E (Binop(ArrayLoad,a,idx))::(pop2 s), 
+	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))],
+	      stats
+	end
   | OpStore (_,n) ->  
       incr_stats stats `Nb_store ;
       let y = OriginalVar(i,n,pp_var i n) in
@@ -666,51 +675,363 @@ let bc2bir_instr mode pp_var i tos s stats = function
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[],stats
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[],stats))
   | OpSwap -> (top (pop s))::(top s)::(pop2 s),[],stats
-  | OpAdd k -> E (Binop (Add k,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpSub k -> E (Binop (Sub k,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpMult k -> E (Binop (Mult k,topE (pop s),topE s))::(pop2 s), [],stats
+  | OpAdd k -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (Add k,topE (pop s),topE s))],stats
+	      end
+	| _ ->  E (Binop (Add k,topE (pop s),topE s))::(pop2 s), [],stats
+      end
+  | OpSub k -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (Sub k,topE (pop s),topE s))],stats
+	      end
+	| _ -> E (Binop (Sub k,topE (pop s),topE s))::(pop2 s), [],stats
+      end 
+  | OpMult k ->
+      
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (Mult k,topE (pop s),topE s))],stats
+	      end
+	| _ ->E (Binop (Mult k,topE (pop s),topE s))::(pop2 s), [],stats
+      end 
   | OpDiv k -> 
-      let q = topE s in
-	E (Binop (Div k,topE (pop s),q))::(pop2 s), [Check (CheckArithmetic q)],stats
+      let q = topE s in begin
+	  match mode with 
+	    | Addr3 -> 
+		let x = TempVar(i,None) 
+		in begin
+		    incr_stats stats `Nb_tempvar ;
+		    E (Var x)::(pop2 s), [Check (CheckArithmetic q);AffectVar(x,Binop (Div k,topE (pop s),q))],stats
+		  end
+	    | _ ->
+		E (Binop (Div k,topE (pop s),q))::(pop2 s), [Check (CheckArithmetic q)],stats
+	end
   | OpRem k -> 
       let q = topE s in
-	E (Binop (Rem k,topE (pop s),q))::(pop2 s), [Check (CheckArithmetic q)],stats
-  | OpNeg k -> E (Unop (Neg k,topE s))::(pop s), [],stats
-  | OpIShl -> E (Binop (IShl,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpLShl -> E (Binop (LShl,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpIShr -> E (Binop (IShr,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpLShr -> E (Binop (LShr,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpIAnd -> E (Binop (IAnd,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpIOr -> E (Binop (IOr,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpIXor -> E (Binop (IXor,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpIUShr -> E (Binop (IUshr,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpLAnd -> E (Binop (LAnd,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpLOr -> E (Binop (LOr,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpLXor -> E (Binop (LXor,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpLUShr  -> E (Binop (LUshr,topE (pop s),topE s))::(pop2 s), [],stats
-  | OpI2L -> E (Unop (Conv I2L,topE s))::(pop s), [],stats
-  | OpI2F -> E (Unop (Conv I2F,topE s))::(pop s), [],stats
-  | OpI2D -> E (Unop (Conv I2D,topE s))::(pop s), [],stats
-  | OpL2I -> E (Unop (Conv L2I,topE s))::(pop s), [],stats
-  | OpL2F -> E (Unop (Conv L2F,topE s))::(pop s), [],stats
-  | OpL2D -> E (Unop (Conv L2D,topE s))::(pop s), [],stats
-  | OpF2I -> E (Unop (Conv F2I,topE s))::(pop s), [],stats
-  | OpF2L -> E (Unop (Conv F2L,topE s))::(pop s), [],stats
-  | OpF2D -> E (Unop (Conv F2D,topE s))::(pop s), [],stats
-  | OpD2I -> E (Unop (Conv D2I,topE s))::(pop s), [],stats
-  | OpD2L -> E (Unop (Conv D2L,topE s))::(pop s), [],stats
-  | OpD2F -> E (Unop (Conv D2F,topE s))::(pop s), [],stats
-  | OpI2B -> E (Unop (Conv I2B,topE s))::(pop s), [],stats
-  | OpI2C -> E (Unop (Conv I2C,topE s))::(pop s), [],stats
-  | OpI2S -> E (Unop (Conv I2S,topE s))::(pop s), [],stats
-  | OpCmp op -> 
-      (      match op with 
-	| `DG -> E (Binop (CMP DG,topE (pop s),topE s))::(pop2 s), [],stats
-	| `DL -> E (Binop (CMP DL,topE (pop s),topE s))::(pop2 s), [],stats
-	| `FG -> E (Binop (CMP FG,topE (pop s),topE s))::(pop2 s), [],stats
-	| `FL -> E (Binop (CMP FL,topE (pop s),topE s))::(pop2 s), [],stats 
-	| `L -> E (Binop (CMP L,topE (pop s),topE s))::(pop2 s), [],stats
-      )
+	begin
+	  match mode with 
+	    | Addr3 -> 
+		let x = TempVar(i,None) 
+		in begin
+		    incr_stats stats `Nb_tempvar ;
+		    E (Var x)::(pop2 s), [Check (CheckArithmetic q);AffectVar(x,Binop (Rem k,topE (pop s),q))],stats
+		  end
+	    | _ -> E (Binop (Rem k,topE (pop s),q))::(pop2 s), [Check (CheckArithmetic q)],stats 
+	end
+  | OpNeg k ->
+      begin match mode with 
+	    | Addr3 -> 
+		let x = TempVar(i,None) 
+		in begin
+		    incr_stats stats `Nb_tempvar ;
+		    E (Var x)::(pop s), [AffectVar(x,Unop (Neg k,topE s))],stats
+		  end
+	    | _ -> E (Unop (Neg k,topE s))::(pop s), [],stats
+      end
+  | OpIShl -> 
+      begin match mode with 
+	    | Addr3 -> 
+		let x = TempVar(i,None) 
+		in begin
+		    incr_stats stats `Nb_tempvar ;
+		    E (Var x)::(pop2 s), [AffectVar(x,Binop (IShl,topE (pop s),topE s))],stats
+		  end
+	    | _ -> E (Binop (IShl,topE (pop s),topE s))::(pop2 s), [],stats
+      end 	
+  | OpLShl -> 
+      begin match mode with 
+	    | Addr3 -> 
+		let x = TempVar(i,None) 
+		in begin
+		    incr_stats stats `Nb_tempvar ;
+		    E (Var x)::(pop2 s), [AffectVar(x,Binop (LShl,topE (pop s),topE s))],stats
+		  end
+	    | _ ->	E (Binop (LShl,topE (pop s),topE s))::(pop2 s), [],stats		
+      end
+  | OpIShr -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (IShr,topE (pop s),topE s))],stats
+	      end
+	| _ -> 	E (Binop (IShr,topE (pop s),topE s))::(pop2 s), [],stats
+      end 
+  | OpLShr -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (LShr,topE (pop s),topE s))],stats
+	      end
+	| _ -> 	E (Binop (LShr,topE (pop s),topE s))::(pop2 s), [],stats
+      end 
+  | OpIAnd -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (IAnd ,topE (pop s),topE s))],stats
+	      end
+	| _ ->       E (Binop (IAnd,topE (pop s),topE s))::(pop2 s), [],stats
+      end 
+  | OpIOr -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (IOr ,topE (pop s),topE s))],stats
+	      end
+	| _ -> E (Binop (IOr,topE (pop s),topE s))::(pop2 s), [],stats
+      end 
+  | OpIXor -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (IXor ,topE (pop s),topE s))],stats
+	      end
+	| _ ->E (Binop (IXor,topE (pop s),topE s))::(pop2 s), [],stats
+      end	
+  | OpIUShr -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (IUshr ,topE (pop s),topE s))],stats
+	      end
+	| _ -> E (Binop (IUshr,topE (pop s),topE s))::(pop2 s), [],stats
+      end
+  | OpLAnd -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (LAnd ,topE (pop s),topE s))],stats
+	      end
+	| _ -> E (Binop (LAnd,topE (pop s),topE s))::(pop2 s), [],stats
+      end
+  | OpLOr -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (LOr ,topE (pop s),topE s))],stats
+	      end
+	| _ ->	E (Binop (LOr,topE (pop s),topE s))::(pop2 s), [],stats
+      end
+  | OpLXor -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (LXor ,topE (pop s),topE s))],stats
+	      end
+	| _ -> 	E (Binop (LXor,topE (pop s),topE s))::(pop2 s), [],stats
+      end
+  | OpLUShr  -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop2 s), [AffectVar(x,Binop (LUshr,topE (pop s),topE s))],stats
+	      end
+	| _ ->E (Binop (LUshr,topE (pop s),topE s))::(pop2 s), [],stats
+      end	
+  | OpI2L -> 
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv I2L,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv I2L,topE s))::(pop s), [],stats
+      end 
+  | OpI2F ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv I2F,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv I2F,topE s))::(pop s), [],stats
+      end 
+  | OpI2D ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv I2D,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv I2D,topE s))::(pop s), [],stats
+      end 
+  | OpL2I ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv L2I,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv L2I,topE s))::(pop s), [],stats
+      end 
+  | OpL2F ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv L2F,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv L2F,topE s))::(pop s), [],stats
+      end 
+  | OpL2D ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv L2D,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv L2D,topE s))::(pop s), [],stats
+      end 
+  | OpF2I ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv F2I,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv F2I,topE s))::(pop s), [],stats
+      end 
+  | OpF2L ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv F2L,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv F2L,topE s))::(pop s), [],stats
+      end  
+  | OpF2D ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv F2D,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv F2D,topE s))::(pop s), [],stats
+      end 
+  | OpD2I ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv D2I,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv D2I,topE s))::(pop s), [],stats
+      end  
+  | OpD2L ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv D2L,topE s))],stats
+	      end
+	| _ -> E (Unop (Conv D2L,topE s))::(pop s), [],stats
+      end 
+  | OpD2F ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv D2F,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv D2F,topE s))::(pop s), [],stats
+      end  
+  | OpI2B ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv I2B,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv I2B,topE s))::(pop s), [],stats
+      end  
+  | OpI2C ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv I2C,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv I2C,topE s))::(pop s), [],stats
+      end  
+  | OpI2S ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		E (Var x)::(pop s), [AffectVar(x,Unop (Conv I2S,topE s))],stats
+	      end
+	| _ ->E (Unop (Conv I2S,topE s))::(pop s), [],stats
+      end  
+  | OpCmp op ->
+      begin match mode with 
+	| Addr3 -> 
+	    let x = TempVar(i,None) 
+	    in begin
+		incr_stats stats `Nb_tempvar ;
+		begin match op with 
+		  | `DG -> E (Var x)::(pop2 s), [AffectVar(x,Binop (CMP DG,topE (pop s),topE s))],stats
+		  | `DL ->  E (Var x)::(pop2 s), [AffectVar(x,Binop (CMP DL,topE (pop s),topE s))],stats
+		  | `FG ->  E (Var x)::(pop2 s), [AffectVar(x,Binop (CMP FG,topE (pop s),topE s))],stats
+		  | `FL ->  E (Var x)::(pop2 s), [AffectVar(x,Binop (CMP FL,topE (pop s),topE s))],stats
+		  | `L ->  E (Var x)::(pop2 s), [AffectVar(x,Binop (CMP L,topE (pop s),topE s))],stats
+		end
+	      end
+	| _ -> (match op with 
+		  | `DG -> E (Binop (CMP DG,topE (pop s),topE s))::(pop2 s), [],stats
+		  | `DL -> E (Binop (CMP DL,topE (pop s),topE s))::(pop2 s), [],stats
+		  | `FG -> E (Binop (CMP FG,topE (pop s),topE s))::(pop2 s), [],stats
+		  | `FL -> E (Binop (CMP FL,topE (pop s),topE s))::(pop2 s), [],stats 
+		  | `L -> E (Binop (CMP L,topE (pop s),topE s))::(pop2 s), [],stats
+	       )
+      end      
   | OpIf ( x , n) ->  
       let guard = 
 	match x with
@@ -767,13 +1088,13 @@ let bc2bir_instr mode pp_var i tos s stats = function
       let r = topE s in
 	begin
 	  match mode with 
-	    | Flat ->
+	    | Normal -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
+	    | _ ->
 		incr_stats stats `Nb_tempvar ;
 		incr_stats stats `Nb_tempvar_flat ;
-	      let x = TempVar (i,None) in
-		E (Var x)::(pop s), 
+		let x = TempVar (i,None) in
+		  E (Var x)::(pop s), 
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))], stats 
-	    | _ -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
 	end
   | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c],stats 
   | OpPutStatic (c, f) -> 
@@ -910,14 +1231,32 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	let dim = topE s in
 	  E (Var x)::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])],stats
   | OpArrayLength -> 
-      let a = topE s in
-	E (Unop (ArrayLength,a))::(pop s), 
-      [Check (CheckNullPointer a)],stats
+      let a = topE s in begin
+	match mode with 
+	  | Addr3 -> 
+	      incr_stats stats `Nb_tempvar ;
+	      let x = TempVar (i,None) in
+		E (Var x)::(pop s), 
+	      [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))],stats
+	  | _ ->
+	      E (Unop (ArrayLength,a))::(pop s), 
+	      [Check (CheckNullPointer a)],stats
+	end
   | OpThrow -> 
       let r = topE s in
 	[], [Check (CheckNullPointer r); Throw r],stats
   | OpCheckCast _ -> s, [Check (CheckCast (topE s))],stats
-  | OpInstanceOf c -> E (Unop (InstanceOf c,topE s))::(pop s), [],stats
+  | OpInstanceOf c -> 
+      begin
+	match mode with 
+	  | Addr3 -> 
+	      incr_stats stats `Nb_tempvar ;
+	      let x = TempVar (i,None) in
+		E (Var x)::(pop s), 
+	      [AffectVar(x,Unop (InstanceOf c,topE s))],
+	      stats
+	  | _ -> E (Unop (InstanceOf c,topE s))::(pop s), [],stats
+      end      
   | OpMonitorEnter -> 
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorEnter r],stats
