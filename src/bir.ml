@@ -559,6 +559,8 @@ let incr_stats stats a =
  * tos : type operand stack
  * i : current index of bytecode
  * next : progression along instruction bytecode index 
+ * stats : option statistics to compute
+ * mode : normal (O), flat (1), 3add (2)
  *)
 let bc2bir_instr flat pp_var i tos s stats = function
   | OpNop -> s, [], stats
@@ -765,17 +767,13 @@ let bc2bir_instr flat pp_var i tos s stats = function
   | OpGetField (c, f) -> 
       let r = topE s in
 	if flat then begin
-	  match r with 
-	    | Field(_,_,_) ->
-		begin
-		  incr_stats stats `Nb_tempvar ;
-		  incr_stats stats `Nb_tempvar_flat ;
-		  let x = TempVar (i,None) in
-		    E (Field ((Var x),c,f))::(pop s), 
-		  [Check (CheckNullPointer r);AffectVar(x,r)], stats 
-		end
-	    | _  -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats		
-	end else 
+	  incr_stats stats `Nb_tempvar ;
+	  incr_stats stats `Nb_tempvar_flat ;
+	  let x = TempVar (i,None) in
+	    E (Var x)::(pop s), 
+	  [Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))], stats 
+	end
+	else 
 	  E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
   | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c],stats 
   | OpPutStatic (c, f) -> 
