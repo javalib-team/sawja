@@ -1,6 +1,9 @@
 open JBasics
 open JCode
 
+
+type mode = Normal | Flat | Addr3
+
 type const =
     [ `ANull
     | `Byte of int

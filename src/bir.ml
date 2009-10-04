@@ -64,7 +64,6 @@ type bir = {
 (* For stack type inference only *)
 type op_size = Op32 | Op64
 
-
 (************* PRINT ************)      
 
 let rec print_list_sep_rec sep pp = function
@@ -560,9 +559,9 @@ let incr_stats stats a =
  * i : current index of bytecode
  * next : progression along instruction bytecode index 
  * stats : option statistics to compute
- * mode : normal (O), flat (1), 3add (2)
+ * mode : normal , flat , 3add 
  *)
-let bc2bir_instr flat pp_var i tos s stats = function
+let bc2bir_instr mode pp_var i tos s stats = function
   | OpNop -> s, [], stats
   | OpConst x -> E (Const x)::s, [], stats
   | OpLoad (_,n) -> E (Var (OriginalVar (i,n,pp_var i n)))::s, [], stats
@@ -766,15 +765,16 @@ let bc2bir_instr flat pp_var i tos s stats = function
       stats
   | OpGetField (c, f) -> 
       let r = topE s in
-	if flat then begin
-	  incr_stats stats `Nb_tempvar ;
-	  incr_stats stats `Nb_tempvar_flat ;
-	  let x = TempVar (i,None) in
-	    E (Var x)::(pop s), 
-	  [Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))], stats 
+	begin
+	  match mode with 
+	    | Flat ->
+		incr_stats stats `Nb_tempvar ;
+		incr_stats stats `Nb_tempvar_flat ;
+	      let x = TempVar (i,None) in
+		E (Var x)::(pop s), 
+		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))], stats 
+	    | _ -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
 	end
-	else 
-	  E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)],stats
   | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c],stats 
   | OpPutStatic (c, f) -> 
       incr_stats stats `Nb_putstatic ;
@@ -1026,7 +1026,7 @@ let jump_stack count1 count2 pc' stack =
   in aux 0 count1 count2 stack
 
 (* simplify the assignts chain, if this is allowed according to out_stack *)
-let simplify_assign flat stats bir out_stack = 
+let simplify_assign mode stats bir out_stack = 
   match bir with
     | (pc,[AffectVar(j,Var(k))])::(pc',instrs)::q ->
 	begin (* remove useless assignt *)
@@ -1045,29 +1045,38 @@ let simplify_assign flat stats bir out_stack =
 		 (incr_stats stats `Nb_tempvar_removed ;
 		 (pc,[])::(pc',List.rev (NewArray (j,c,params)::l))::q , stats)
 	  | (InvokeStatic (Some x,c,ms,le))::l when var_equal x k ->
-	      if flat then bir,stats
-	      else
-		if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
-		  bir,stats
-		else 
-		  (incr_stats stats `Nb_tempvar_removed ;
-		   (pc,[])::(pc',List.rev (InvokeStatic (Some j,c,ms,le)::l))::q , stats)
+	      begin
+		match mode with 
+		  | Flat ->  bir,stats
+		  | _ -> 
+		      if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
+			bir,stats
+		      else 
+			(incr_stats stats `Nb_tempvar_removed ;
+			 (pc,[])::(pc',List.rev (InvokeStatic (Some j,c,ms,le)::l))::q , stats)
+	      end
 	  | (InvokeVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
-	      if flat then bir, stats
-	      else 
-		if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
-		  bir,stats
-		else 
-		  (incr_stats stats `Nb_tempvar_removed ;
-		   (pc,[])::(pc',List.rev (InvokeVirtual (Some j,e1,kd,ms,le)::l))::q , stats)
+	      begin
+		match mode with 
+		  | Flat ->  bir,stats
+		  | _ -> 
+		      if (is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
+			bir,stats
+		      else 
+			(incr_stats stats `Nb_tempvar_removed ;
+			 (pc,[])::(pc',List.rev (InvokeVirtual (Some j,e1,kd,ms,le)::l))::q , stats)
+	      end
 	  | (InvokeNonVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
-	      if flat then bir,stats
-	      else 
-		if ( is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
-		  bir,stats
-		else 
-		  (incr_stats stats `Nb_tempvar_removed ;
-		   (pc,[])::(pc',List.rev (InvokeNonVirtual (Some j,e1,kd,ms,le)::l))::q ,stats)
+	      begin
+		match mode with 
+		  | Flat ->  bir,stats
+		  | _ -> 		
+		      if ( is_in_stack (var_equal j) (fun _ _ -> false) out_stack ) then 
+			bir,stats
+		      else 
+			(incr_stats stats `Nb_tempvar_removed ;
+			 (pc,[])::(pc',List.rev (InvokeNonVirtual (Some j,e1,kd,ms,le)::l))::q ,stats)
+	      end
 	  | _ -> bir,stats
 	end
     | _ -> bir,stats
@@ -1311,7 +1320,7 @@ let reset_stats0 =
    let _ = reset_stats0 in
    function a -> fst (transform_intra_stats flat ~stats:stats ~stats_opt:(Some stats0) a)
    
- let cm_transform = cm_transform_stats false ~stats:false
+ let cm_transform = cm_transform_stats Normal ~stats:false
 
  let jmethod_accu flat cstats  m  statsmmap =
    let  (mmap,stat) = statsmmap in 
@@ -1389,7 +1398,7 @@ let iorc_transform_stats flat ?(cstats=false) ci =
   reset_stats0 ; 
   fst (iorc_transform_intra_stats flat cstats ~stats:(Some stats0) ci)
 
-let iorc_transform = iorc_transform_stats false ~cstats:false
+let iorc_transform = iorc_transform_stats Normal ~cstats:false
 
 
 let is_dir d =
@@ -1416,6 +1425,6 @@ let cn_transform_stats flat ?(cstats=false) classfile =
   else raise (JBasics.No_class_found classfile)
 
 
-let cn_transform = cn_transform_stats false ~cstats:false 
+let cn_transform = cn_transform_stats Normal ~cstats:false 
 
 

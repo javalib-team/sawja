@@ -1,11 +1,12 @@
 
 
+type mode  = Normal | Flat | Addr3  
 
 val show_average_stat : Cmn.statistics -> unit
 val show_file :
-  bool ->
+  mode  ->
   bool ->
   bool -> Javalib.class_path -> JBasics.class_name -> Cmn.statistics option
-val run_on_class : bool -> string -> unit
-val run_on_jar : bool -> string -> unit
-val run_on_dir : bool -> string -> unit
+val run_on_class : mode -> string -> unit
+val run_on_jar : mode -> string -> unit
+val run_on_dir : mode -> string -> unit

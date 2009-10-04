@@ -94,3 +94,5 @@ type statistics = {
   mutable nb_methods : int ;
   mutable nb_subroutines : int ;
 }  
+
+type mode = Normal | Flat | Addr3
