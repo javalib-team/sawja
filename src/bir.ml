@@ -705,17 +705,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
   | OpMult k -> to_addr3_binop i mode (Mult k) s [] stats 
   | OpDiv k -> let q = topE s in to_addr3_binop i mode (Div k) s [Check (CheckArithmetic q)] stats
   | OpRem k -> let q = topE s in to_addr3_binop i mode (Rem k) s [Check (CheckArithmetic q)] stats 
-  | OpNeg k -> 
-      begin match mode with 
-	    | Addr3 -> 
-		let x = TempVar(i,None) 
-		in begin
-		    incr_stats stats `Nb_tempvar ;
-		    incr_stats stats `Nb_tempvar_3a ;
-		    E (Var x)::(pop s), [AffectVar(x,Unop (Neg k,topE s))],stats
-		  end
-	    | _ -> E (Unop (Neg k,topE s))::(pop s), [],stats
-      end
+  | OpNeg k -> to_addr3_unop i mode (Neg k) s [] stats 
   | OpIShl ->  to_addr3_binop i mode IShl s [] stats 
   | OpIShr ->  to_addr3_binop i mode IShr s [] stats 
   | OpLShl ->  to_addr3_binop i mode LShl s [] stats 
@@ -955,15 +945,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
   | OpThrow -> 
       let r = topE s in [], [Check (CheckNullPointer r); Throw r],stats
   | OpCheckCast _ -> s, [Check (CheckCast (topE s))],stats
-  | OpInstanceOf c -> 
-      begin match mode with 
-	| Addr3 -> 
-	    incr_stats stats `Nb_tempvar ;
-	    incr_stats stats `Nb_tempvar_3a ;
-	    let x = TempVar (i,None) in
-	      E (Var x)::(pop s), [AffectVar(x,Unop (InstanceOf c,topE s))], stats
-	  | _ -> E (Unop (InstanceOf c,topE s))::(pop s), [],stats
-      end      
+  | OpInstanceOf c -> to_addr3_unop i mode (InstanceOf c) s [] stats 
   | OpMonitorEnter -> 
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorEnter r],stats
