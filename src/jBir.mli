@@ -27,6 +27,9 @@ val var_equal : var -> var -> bool
 (** [var_name v] returns a string representation of the variable [v]. If the initial class was compiled using debug information, original variable names are build on this information *)
 val var_name : var -> string 
 
+(** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
+val bcvar : int -> var
+
 
 
 type conv = I2L  | I2F  | I2D  

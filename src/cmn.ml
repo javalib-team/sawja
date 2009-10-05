@@ -37,7 +37,7 @@ type binop =
   | CMP of comp
       
 type var =
-  | OriginalVar of int * int * string      (* number of line in BC, register number, name (debug or bcvar) *)
+  | OriginalVar of int * string      (* register number, name (debug or bcvar) *)
   | TempVar of int * int option
   | BranchVar of int * int
   | BranchVar2 of int * int
@@ -59,14 +59,14 @@ let branchvarname =  "$T"
 let branchvarname2 =  "$T'"
 
 let var_name = function
-  | OriginalVar (_,_,s) -> s 
+  | OriginalVar (_,s) -> s 
   | TempVar (i,None) -> Printf.sprintf "%s%d" tempname i
   | TempVar (i,Some j) -> Printf.sprintf "%s%d_%d" tempname i j
   | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
   | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
 
 let var_name_g = function
-  | OriginalVar (i,j,s) -> Printf.sprintf  "%s%d" varname j
+  | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
   | TempVar (i,None) -> Printf.sprintf "%s%d" tempname i
   | TempVar (i,Some j) -> Printf.sprintf "%s%d_%d" tempname i j
   | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
@@ -114,7 +114,7 @@ let print_binop = function
 (* todo : compare reg number then strings, true is conservative *)
 let var_equal tvar svar =
     match tvar, svar with 
-      | OriginalVar (_,n,s1), OriginalVar (_,m,s2) ->  m = n && s1 = s2
+      | OriginalVar (n,s1), OriginalVar (m,s2) ->  m = n && s1 = s2
       | x, y  -> x=y
 
 let var_orig = function 

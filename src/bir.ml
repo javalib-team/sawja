@@ -564,7 +564,7 @@ let incr_stats stats a =
 let bc2bir_instr mode pp_var i tos s stats = function
   | OpNop -> s, [], stats
   | OpConst x -> E (Const x)::s, [], stats
-  | OpLoad (_,n) -> E (Var (OriginalVar (i,n,pp_var i n)))::s, [], stats
+  | OpLoad (_,n) -> E (Var (OriginalVar (n,pp_var i n)))::s, [], stats
   | OpArrayLoad _ -> 
       let a = topE (pop s) in
       let idx = topE s in begin
@@ -582,7 +582,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	end
   | OpStore (_,n) ->  
       incr_stats stats `Nb_store ;
-      let y = OriginalVar(i,n,pp_var i n) in
+      let y = OriginalVar(n,pp_var i n) in
 	if is_var_in_stack y (pop s)
 	then begin
 	  incr_stats stats `Nb_store_is_var_in_stack ;
@@ -597,7 +597,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	   (pop s,[AffectVar (y,topE s)], stats) 
   | OpIInc (a,b) ->
       incr_stats stats `Nb_incr ; 
-      let a = OriginalVar (i,a,pp_var i a) in
+      let a = OriginalVar (a,pp_var i a) in
 	if is_var_in_stack a s
 	then begin
 	  incr_stats stats `Nb_incr_is_var_in_stack ;
@@ -1420,6 +1420,11 @@ let simplify_assign mode stats bir out_stack =
 	end
     | _ -> bir,stats
 
+let simplify_assign_flag = ref true
+let simplify_assign flat stats bir out_stack = 
+  if !simplify_assign_flag then simplify_assign flat stats bir out_stack 
+  else bir,stats
+
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
@@ -1454,7 +1459,7 @@ let bc2ir flat pp_var jump_target code stats0 =
 	(pc,branch_assigns@instrs)::ins, stats
       else if jump_target.(pc) then
 	(pc,instrs@branch_assigns)::ins, stats
-      else
+      else (* simplify_assign should not be called on a jump target *)
 	simplify_assign flat stats ((pc,instrs@branch_assigns)::ins) as_out
     in
     let as_ts_jump =       
@@ -1539,6 +1544,8 @@ let search_name_localvar static code i x =
     | None ->  Printf.sprintf "%s%d" varname x 
     | Some (s,_) -> s
 
+let bcvar i = OriginalVar (i,Printf.sprintf "%s%d" varname i)
+
 let compute_jump_target code =
   let jump_target = Array.make (Array.length code.c_code) false in
     List.iter (fun e -> jump_target.(e.e_handler) <- true) code.c_exc_tbl;
@@ -1561,12 +1568,12 @@ let compute_jump_target code =
 let gen_params pp_var cm =
   if cm.cm_static then
     ExtList.List.mapi
-      (fun i _ -> OriginalVar (0,i,pp_var 0 i))
+      (fun i _ -> OriginalVar (i,pp_var 0 i))
       (ms_args cm.cm_signature)
   else 
-    (OriginalVar (0,0,pp_var 0 0))::
+    (OriginalVar (0,pp_var 0 0))::
       (ExtList.List.mapi
-	 (fun i _ -> OriginalVar (0,i+1,pp_var 0 (i+1)))
+	 (fun i _ -> OriginalVar (i+1,pp_var 0 (i+1)))
 	 (ms_args cm.cm_signature))
 
 let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =

@@ -15,7 +15,7 @@ val print_const : const -> string
 val varname : string 
 
 type var =
-  | OriginalVar of int * int * string      (* number of line in BC, register number, name (debug or bcvar) *)
+  | OriginalVar of int * string      (* register number, name (debug or bcvar) *)
   | TempVar of int * int option
   | BranchVar of int * int
   | BranchVar2 of int * int
