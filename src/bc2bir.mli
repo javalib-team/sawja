@@ -2,7 +2,7 @@
 
 type mode  = Normal | Flat | Addr3  
 
-val show_average_stat : Cmn.statistics -> unit
+val show_average_stat : mode -> Cmn.statistics -> unit
 val show_file :
   mode  ->
   bool ->

@@ -33,6 +33,7 @@ let incr_stats stats a =
 	  |  `Nb_tempvar_arraystore -> s.nb_tempvar_arraystore <- s.nb_tempvar_arraystore + 1
 	  |  `Nb_tempvar_side_effect -> s.nb_tempvar_side_effect <- s.nb_tempvar_side_effect + 1
 	  |  `Nb_tempvar_flat -> s.nb_tempvar_flat <- s.nb_tempvar_flat + 1
+	  |  `Nb_tempvar_3a -> s.nb_tempvar_3a <- s.nb_tempvar_3a + 1
 	  |  `Nb_classes -> s.nb_classes <-  s.nb_classes + 1
 	  |  `Nb_methods -> s.nb_methods <-  s.nb_methods + 1
 	  |  `Nb_subroutines ->  s.nb_subroutines <- s.nb_subroutines + 1
@@ -80,18 +81,25 @@ let average l =
     List.fold_left (fun (total,size) x -> (total+.x,size+1)) (0.,0) l in
     if (size<>0) then total /. (float_of_int size)    else 0.
 
-let show_average_stat stats =
+let show_average_stat mode stats =
     let average_tempvar = average stats.average_tempvar in
     let average_tempvar_branch = average stats.average_tempvar_branch in
     let average_tempvar_putfield = average stats.average_tempvar_putfield in
     let average_tempvar_arraystore = average stats.average_tempvar_arraystore in
     let average_tempvar_method_effect = average stats.average_tempvar_method_effect in
     let average_tempvar_side_effect = average stats.average_tempvar_side_effect in
-    let average_tempvar_flat = average stats.average_tempvar_flat in    
+    let average_tempvar_flat =
+      match mode with 
+	| Normal | Addr3 -> 0.
+	| Flat -> average stats.average_tempvar_flat in    
+    let average_tempvar_3a = 
+      match mode with 
+	| Normal | Flat -> 0.
+	| Addr3 -> average stats.average_tempvar_3a in    
     let average_tempvar_after_simplification = average stats.average_tempvar_after_simplification in
     let total_average = average_tempvar_branch +. average_tempvar_putfield +. average_tempvar_arraystore +. 
       average_tempvar_method_effect +. average_tempvar_side_effect +. average_tempvar_after_simplification 
-      +. average_tempvar_flat in
+      +. average_tempvar_flat +. average_tempvar_3a in
       Printf.printf "\n" ;
       Printf.printf "%2d\t classes (or interfaces) have been parsed\n" stats.nb_classes;
       Printf.printf "%2d\t methods have been transformed\n" stats.nb_methods;
@@ -103,6 +111,7 @@ let show_average_stat stats =
       Printf.printf "%03.2f%%\t average of local var increase because of method_effect variables\n" average_tempvar_method_effect;
       Printf.printf "%03.2f%%\t average of local var increase because of side effect free expressions\n" average_tempvar_side_effect;
       Printf.printf "%03.2f%%\t average of local var increase because of flat representation\n" average_tempvar_flat;
+      Printf.printf "%03.2f%%\t average of local var increase because of 3a representation\n" average_tempvar_3a;
       Printf.printf "%03.2f%%\t average of local var that can be decrease with simplification\n" average_tempvar_after_simplification;
       Printf.printf "%03.2f%%\t of total average\n" total_average 
 
@@ -111,15 +120,15 @@ let show_file flat verbose cstats cp name =
   reset_stats0 ; show_iorc flat verbose cstats ~stats:(Some stats0) (get_class cp name) 
 
 
-let run_on_class flat classfile =
+let run_on_class mode classfile =
   if is_file classfile && Filename.check_suffix classfile ".class" then 
     begin
       let cp = class_path (Filename.dirname classfile) in
       let file = Filename.chop_suffix (Filename.basename classfile) ".class" in
-      let stats = show_file flat true true cp (JBasics.make_cn file) in
+      let stats = show_file mode true true cp (JBasics.make_cn file) in
 	close_class_path cp;
 	match stats with 
-	  | Some s -> show_average_stat s
+	  | Some s -> show_average_stat mode s
 	  | None -> Printf.printf "No statistics was could be computed"
     end 
   else begin
@@ -128,16 +137,16 @@ let run_on_class flat classfile =
   end
 
 
-let run_on_jar flat jarfile =
+let run_on_jar mode jarfile =
   if is_file jarfile && Filename.check_suffix jarfile ".jar" then
     begin
       let cp = Filename.dirname jarfile in
       let jarfile = Filename.basename jarfile in
 	reset_stats0 ; 
-	let stats = read (Javalib.make_directories cp) (fun stats -> show_iorc flat false true ~stats:stats) (Some stats0) [jarfile]
+	let stats = read (Javalib.make_directories cp) (fun stats -> show_iorc mode false true ~stats:stats) (Some stats0) [jarfile]
 	in 
 	  match stats with 
-	    | Some s -> show_average_stat s
+	    | Some s -> show_average_stat mode s
 	    | _ -> Printf.printf "No statistics could be computed"
     end
   else begin
@@ -152,7 +161,7 @@ let make_dir_absolute dir =
 
 
 
-let run_on_dir flat dir =
+let run_on_dir mode dir =
   if is_dir dir then
     let cp = dir in
     let jar_files = ref [] in
@@ -165,9 +174,9 @@ let run_on_dir flat dir =
 	done 
       with End_of_file -> 
 	( Unix.closedir dir;
-	  let stats = read (Javalib.make_directories cp) (fun stats -> show_iorc flat false true ~stats:stats) (Some stats0) !jar_files	    in
+	  let stats = read (Javalib.make_directories cp) (fun stats -> show_iorc mode false true ~stats:stats) (Some stats0) !jar_files	    in
 	    match stats with 
-	      | Some s -> show_average_stat s
+	      | Some s -> show_average_stat mode s
 	      | None -> Printf.printf "No statistics could be computed")
   else begin
     Printf.printf "%s is not a valid directory\n" dir;
