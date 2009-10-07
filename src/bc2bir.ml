@@ -85,8 +85,8 @@ let show_average_stat mode stats =
     let average_tempvar = average stats.average_tempvar in
     let average_tempvar_branch = average stats.average_tempvar_branch in
     let average_tempvar_putfield = average stats.average_tempvar_putfield in
-    let average_tempvar_arraystore = average stats.average_tempvar_arraystore in
     let average_tempvar_method_effect = average stats.average_tempvar_method_effect in
+    let average_tempvar_arraystore = average stats.average_tempvar_arraystore in
     let average_tempvar_side_effect = average stats.average_tempvar_side_effect in
     let average_tempvar_flat =
       match mode with 

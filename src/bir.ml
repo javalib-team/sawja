@@ -66,6 +66,9 @@ type op_size = Op32 | Op64
 
 (************* PRINT ************)      
 
+(*let jimpleMap = ref (MethodMap.empty)*)
+
+
 let rec print_list_sep_rec sep pp = function
   | [] -> ""
   | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
@@ -1072,20 +1075,20 @@ let simplify_assign mode stats bir out_stack =
 		      if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
 			bir,stats
 		      else
-			(incr_stats stats `Nb_tempvar_removed ;
+			(incr_stats stats `Nb_tempvar_removed ; 
 			 (pc,[])::(pc',List.rev (New (j,c,types,params)::l))::q , stats)
 		  | (NewArray(i,c,params))::l when  (var_equal i k) ->
 		      if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
 			bir,stats
 		      else 
-			(incr_stats stats `Nb_tempvar_removed ;
+			(incr_stats stats `Nb_tempvar_removed ; 
 			 (pc,[])::(pc',List.rev (NewArray (j,c,params)::l))::q , stats)
 		  | (InvokeStatic (Some x,c,ms,le))::l when var_equal x k ->
 		      begin match mode with 
 			  | Flat ->  bir,stats
 			  | _ -> (if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then bir,stats
 				  else 
-				    (incr_stats stats `Nb_tempvar_removed ;
+				    (incr_stats stats `Nb_tempvar_removed ; 
 				     (pc,[])::(pc',List.rev (InvokeStatic (Some j,c,ms,le)::l))::q , stats))
 		      end
 		  | (InvokeVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
@@ -1094,7 +1097,7 @@ let simplify_assign mode stats bir out_stack =
 			| _ -> (if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
 				  bir,stats
 				else 
-				  (incr_stats stats `Nb_tempvar_removed ;
+				  (incr_stats stats `Nb_tempvar_removed ; 
 				   (pc,[])::(pc',List.rev (InvokeVirtual (Some j,e1,kd,ms,le)::l))::q , stats))
 		      end
 		  | (InvokeNonVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
@@ -1104,7 +1107,7 @@ let simplify_assign mode stats bir out_stack =
 			  | _ -> (if ( is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
 				    bir,stats
 				  else 
-				    (incr_stats stats `Nb_tempvar_removed ;
+				    (incr_stats stats `Nb_tempvar_removed ; 
 				     (pc,[])::(pc',List.rev (InvokeNonVirtual (Some j,e1,kd,ms,le)::l))::q ,stats))
 		      end
 		  | _ -> bir,stats
@@ -1121,6 +1124,8 @@ let simplify_assign flat stats bir out_stack =
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
+
+(*let jvars = ref 0 *)
 
 let bc2ir flat pp_var jump_target code stats0 =
   let rec loop as_ts_jump ins ts_in as_in pc stats =
@@ -1182,11 +1187,11 @@ let bc2ir flat pp_var jump_target code stats0 =
 	jump_succs in
       try
 	loop as_ts_jump ins ts_out as_out (next code.c_code pc) stats
-      with End_of_method -> ins
+      with End_of_method ->  ins
   in 
-    (match stats0 with 
-	 Some s ->
-	   (s.nb_tempvar <- 0;
+    ( match stats0 with 
+	  Some s ->	   
+	    (s.nb_tempvar <- 0;
 	    s.nb_tempvar_branch <- 0;
 	    s.nb_tempvar_putfield <- 0;
 	    s.nb_tempvar_method_effect <- 0;
@@ -1199,16 +1204,17 @@ let bc2ir flat pp_var jump_target code stats0 =
        | None -> ());    
     let res = loop MapPc.empty [] [] [] 0 stats0 in
       List.iter 
-      (fun x -> if is_var_in_expr_bir_not_var x res then 
-	 incr_stats stats0 `Nb_tempvar_side_effect)
-      (match stats0 with 
-	   Some s ->  s.tempvars
-	 | None -> []);
-    if code.c_max_locals>0 then begin
-      let get_avg x = (float_of_int (100 * x))/.(float_of_int code.c_max_locals) in
+	(fun x -> if is_var_in_expr_bir_not_var x res then 
+	   incr_stats stats0 `Nb_tempvar_side_effect)
 	(match stats0 with 
-	   | Some s -> 
+	     Some s ->  s.tempvars
+	   | None -> []);
+      if code.c_max_locals>0 then begin
+	let get_avg x = (float_of_int (100 * x))/.(float_of_int code.c_max_locals) in
+	  (match stats0 with 
+	     | Some s -> 
 	       begin 
+		 (*let _ = jvars := code.c_max_locals + s.nb_tempvar -  s.nb_tempvar_removed in *)
 		 let avg = get_avg s.nb_tempvar in
 		 let avg_branch = get_avg s.nb_tempvar_branch in
 		 let avg_putfield = get_avg s.nb_tempvar_putfield in
@@ -1315,6 +1321,8 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
    	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = implem ; 
   }
   in
+    (* let incrval =  if m.cm_static then 0 else 1 in *)
+    (*     jimpleMap := MethodMap.add signature (!jvars + incrval) !jimpleMap ; *)
     (method_rec, stats)
 
 let transform_intra = transform_intra_stats ~stats:false
@@ -1340,27 +1348,30 @@ let stats0 =
     
 let reset_stats0 = 
   begin
-  stats0.nb_tempvar <- 0; stats0.nb_tempvar_branch <- 0; stats0.nb_tempvar_putfield <- 0;
-  stats0.nb_tempvar_method_effect <- 0; stats0.nb_tempvar_arraystore <- 0; 
-  stats0.nb_tempvar_removed <- 0; stats0.nb_tempvar_side_effect <- 0;
-  stats0.nb_tempvar_flat <- 0;  stats0.nb_tempvar_3a <- 0;
-  stats0.nb_jump_with_non_empty_stacks <- 0 ; stats0.nb_back_jump_with_non_empty_stacks <- 0 ;
-  stats0.nb_store_is_var_in_stack<- 0 ; stats0.nb_incr_is_var_in_stack<- 0 ;
-  stats0.nb_putfield_is_field_in_stack<- 0 ; stats0.nb_arraystore_is_array_access_in_stack <- 0 ;
-  stats0.nb_putstatic_is_static_in_stack<- 0 ; stats0.nb_method_call_with_modifiable_in_stack<- 0 ;
-  stats0.nb_store<- 0 ; stats0.nb_incr<- 0 ; stats0.nb_putfield<- 0 ;
-  stats0.nb_arraystore<- 0 ; stats0.nb_putstatic<- 0 ; stats0.nb_method_call<- 0 ;
-  stats0.tempvars <- []; stats0.average_tempvar<- [] ; stats0.average_tempvar_side_effect <- [] ;
-  stats0.average_tempvar_flat <- [] ;  stats0.average_tempvar_3a <- [] ;
-  stats0.average_tempvar_after_simplification<- [] ; stats0.average_tempvar_branch<- [] ;
-  stats0.average_tempvar_method_effect<- [] ; stats0.average_tempvar_putfield<- [] ;
-  stats0.average_tempvar_arraystore<- [] ;
-  stats0.nb_classes <- 0 ; stats0.nb_methods <- 0 ; stats0.nb_subroutines <- 0 
+    stats0.nb_tempvar <- 0; stats0.nb_tempvar_branch <- 0; stats0.nb_tempvar_putfield <- 0;
+    stats0.nb_tempvar_method_effect <- 0; stats0.nb_tempvar_arraystore <- 0; 
+    stats0.nb_tempvar_removed <- 0; stats0.nb_tempvar_side_effect <- 0;
+    stats0.nb_tempvar_flat <- 0;  stats0.nb_tempvar_3a <- 0;
+    stats0.nb_jump_with_non_empty_stacks <- 0 ; stats0.nb_back_jump_with_non_empty_stacks <- 0 ;
+    stats0.nb_store_is_var_in_stack<- 0 ; stats0.nb_incr_is_var_in_stack<- 0 ;
+    stats0.nb_putfield_is_field_in_stack<- 0 ; stats0.nb_arraystore_is_array_access_in_stack <- 0 ;
+    stats0.nb_putstatic_is_static_in_stack<- 0 ; stats0.nb_method_call_with_modifiable_in_stack<- 0 ;
+    stats0.nb_store<- 0 ; stats0.nb_incr<- 0 ; stats0.nb_putfield<- 0 ;
+    stats0.nb_arraystore<- 0 ; stats0.nb_putstatic<- 0 ; stats0.nb_method_call<- 0 ;
+    stats0.tempvars <- []; stats0.average_tempvar<- [] ; stats0.average_tempvar_side_effect <- [] ;
+    stats0.average_tempvar_flat <- [] ;  stats0.average_tempvar_3a <- [] ;
+    stats0.average_tempvar_after_simplification<- [] ; stats0.average_tempvar_branch<- [] ;
+    stats0.average_tempvar_method_effect<- [] ; stats0.average_tempvar_putfield<- [] ;
+    stats0.average_tempvar_arraystore<- [] ;
+    stats0.nb_classes <- 0 ; stats0.nb_methods <- 0 ; stats0.nb_subroutines <- 0 
   end
 
  let cm_transform_stats flat ?(stats=false) = 
    let _ = reset_stats0 in
-   function a -> fst (transform_intra_stats flat ~stats:stats ~stats_opt:(Some stats0) a)
+   function a -> 
+     fst (transform_intra_stats flat ~stats:stats ~stats_opt:(Some stats0) a)
+   
+
    
  let cm_transform = cm_transform_stats Normal ~stats:false
 
@@ -1432,13 +1443,24 @@ let reset_stats0 =
 	  end
 
 
- let iorc_transform_intra flat = iorc_transform_intra_stats flat false ~stats:None
+ let iorc_transform_intra flat cstats = iorc_transform_intra_stats flat cstats ~stats:(Some stats0)
    
  let iorc_transform_stats flat ?(cstats=false) ci =
   reset_stats0 ; 
   fst (iorc_transform_intra_stats flat cstats ~stats:(Some stats0) ci)
 
 let iorc_transform = iorc_transform_stats Normal ~cstats:false
+
+let printVars msig i =
+  Printf.printf "%s\n" 
+    ((JPrint.method_signature msig)^" : "^(Printf.sprintf "%d" i))
+
+(* let printMap map =  *)
+(*   MethodMap.iter printVars map *)
+
+(* let parse_vars ci = *)
+(*   let _ = iorc_transform_stats Addr3 ~cstats:true ci in *)
+(*     printMap !jimpleMap *)
 
 
 let is_dir d =
@@ -1464,7 +1486,7 @@ let cn_transform_stats flat ?(cstats=false) classfile =
     end 
   else raise (JBasics.No_class_found classfile)
 
-
+let cn_transform = cn_transform_stats Addr3 ~cstats:true 
 let cn_transform = cn_transform_stats Normal ~cstats:false 
 
 
