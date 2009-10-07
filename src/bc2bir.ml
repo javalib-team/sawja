@@ -2,6 +2,41 @@ open Cmn
 open Javalib
 include Bir
 
+let out_statistics = ref stdout
+
+let set_out_statistics filename = 
+  if not (is_file filename)
+  then begin
+    out_statistics := open_out filename;
+    Printf.fprintf !out_statistics "bc_size ";
+    Printf.fprintf !out_statistics "nb_bcvars ";
+    Printf.fprintf !out_statistics "nb_total_tempvars ";
+    Printf.fprintf !out_statistics "nb_branchvar ";
+    Printf.fprintf !out_statistics "nb_may_alias_var ";
+    Printf.fprintf !out_statistics "nb_must_alias_var ";
+    Printf.fprintf !out_statistics "nb_side_effect_var \n"
+  end
+  else out_statistics := open_out_gen [Open_wronly; Open_creat; Open_append; Open_text] 0 filename
+
+let close_out_statistics () = 
+  close_out !out_statistics
+
+let add_stat implem stats =
+  match implem with
+    | Java code -> 
+	let code = Lazy.force code in
+	let size = Array.fold_left (fun n ins -> if ins<>JCode.OpInvalid then n+1 else n) 0 (code.JCode.c_code) in
+	let nb_bcvars = code.JCode.c_max_locals in
+	  Printf.fprintf !out_statistics "%d " size;
+	  Printf.fprintf !out_statistics "%d " nb_bcvars;
+	  Printf.fprintf !out_statistics "%d " stats.stat_nb_total;
+	  Printf.fprintf !out_statistics "%d " stats.stat_nb_branchvar;
+	  Printf.fprintf !out_statistics "%d " stats.stat_nb_tempvar_may_alias;
+	  Printf.fprintf !out_statistics "%d " stats.stat_nb_tempvar_must_alias;
+	  Printf.fprintf !out_statistics "%d \n" stats.stat_nb_tempvar_side_effect
+    | _ -> assert false
+      
+
 
 let incr_stats stats a = 
   match stats with 
@@ -34,46 +69,43 @@ let incr_stats stats a =
 	  |  `Nb_tempvar_side_effect -> s.nb_tempvar_side_effect <- s.nb_tempvar_side_effect + 1
 	  |  `Nb_tempvar_flat -> s.nb_tempvar_flat <- s.nb_tempvar_flat + 1
 	  |  `Nb_tempvar_3a -> s.nb_tempvar_3a <- s.nb_tempvar_3a + 1
-	  |  `Nb_classes -> s.nb_classes <-  s.nb_classes + 1
-	  |  `Nb_methods -> s.nb_methods <-  s.nb_methods + 1
-	  |  `Nb_subroutines ->  s.nb_subroutines <- s.nb_subroutines + 1
 
-let show flat verbose cstats m stat  = 
+let show flat verbose cstats m  = 
    match m with 
    | ConcreteMethod cm ->
        begin
 	 if verbose then Printf.printf "\n%s\n" (JPrint.method_signature cm.cm_signature) ;
-	 incr_stats stat `Nb_methods ;
 	 try
-	   let (ir,stats) = transform_intra_stats flat ~stats:cstats ~stats_opt:stat cm in 
+	   let (ir,stats) = transform_intra_stats flat ~stats:cstats cm in 
 	     begin 
 	       match ir.cm_implementation with 
-		 | Java m -> if verbose then List.iter (fun s -> Printf.printf "%s" s) (print_bir_intra m) ; stats
-		     (*(print_bir (Lazy.force m)) ; stats*)
-		 | _ -> if verbose then Printf.printf "" ; stats
+		 | Java m -> begin
+		     if verbose then List.iter (fun s -> Printf.printf "%s" s) (print_bir_intra m);
+		     if cstats then
+		       match stats with
+			 | Some stats -> add_stat cm.cm_implementation stats 
+			 | None -> assert false
+		   end
+		 | _ -> if verbose then Printf.printf "" 
 	     end
 	 with 
-	   | Subroutine -> if verbose then Printf.printf " SUBROUTINE !"; 
-	       incr_stats stat `Nb_subroutines ;
-	       None
+	   | Subroutine -> if verbose then Printf.printf " SUBROUTINE !"
        end
-   | AbstractMethod am -> if verbose then Printf.printf "%s\nABSTRACT\n\n" (JPrint.method_signature am.am_signature) ; stat
+   | AbstractMethod am -> if verbose then Printf.printf "%s\nABSTRACT\n\n" (JPrint.method_signature am.am_signature)
 
- let show_iorc flat verbose cstats ~stats ci = 
+ let show_iorc flat verbose cstats ci = 
    match ci with 
      | JInterface(i) ->
-	 incr_stats stats `Nb_classes ;
 	 if verbose then 	Printf.printf "\ninterface %s\n\n" (JPrint.class_name i.i_name);
 	 begin
 	   match i.i_initializer with
-	     | None -> stats
-	     | Some cm -> show flat verbose cstats  (ConcreteMethod cm) stats
+	     | None -> ()
+	     | Some cm -> show flat verbose cstats  (ConcreteMethod cm) 
 	 end
      |  JClass (cl) -> 
 	  begin
-	    incr_stats stats `Nb_classes ;
 	    if verbose then Printf.printf "\nclass %s\n\n"(JPrint.class_name cl.c_name);
-	    JBasics.MethodMap.fold (fun _ -> show flat verbose cstats) cl.c_methods stats
+	    JBasics.MethodMap.iter (fun _ -> show flat verbose cstats) cl.c_methods 
 	  end
 
 let average l =
@@ -81,43 +113,8 @@ let average l =
     List.fold_left (fun (total,size) x -> (total+.x,size+1)) (0.,0) l in
     if (size<>0) then total /. (float_of_int size)    else 0.
 
-let show_average_stat mode stats =
-    let average_tempvar = average stats.average_tempvar in
-    let average_tempvar_branch = average stats.average_tempvar_branch in
-    let average_tempvar_putfield = average stats.average_tempvar_putfield in
-    let average_tempvar_method_effect = average stats.average_tempvar_method_effect in
-    let average_tempvar_arraystore = average stats.average_tempvar_arraystore in
-    let average_tempvar_side_effect = average stats.average_tempvar_side_effect in
-    let average_tempvar_flat =
-      match mode with 
-	| Normal | Addr3 -> 0.
-	| Flat -> average stats.average_tempvar_flat in    
-    let average_tempvar_3a = 
-      match mode with 
-	| Normal | Flat -> 0.
-	| Addr3 -> average stats.average_tempvar_3a in    
-    let average_tempvar_after_simplification = average stats.average_tempvar_after_simplification in
-    let total_average = average_tempvar_branch +. average_tempvar_putfield +. average_tempvar_arraystore +. 
-      average_tempvar_method_effect +. average_tempvar_side_effect +. average_tempvar_after_simplification 
-      +. average_tempvar_flat +. average_tempvar_3a in
-      Printf.printf "\n" ;
-      Printf.printf "%2d\t classes (or interfaces) have been parsed\n" stats.nb_classes;
-      Printf.printf "%2d\t methods have been transformed\n" stats.nb_methods;
-      Printf.printf "%2d\t transformations have failed because of subroutines\n\n" stats.nb_subroutines;
-      Printf.printf "%03.2f%%\t average of local var increase\n" average_tempvar;
-      Printf.printf "%03.2f%%\t average of local var increase because of branch variables\n" average_tempvar_branch;
-      Printf.printf "%03.2f%%\t average of local var increase because of putfield variables\n" average_tempvar_putfield;
-      Printf.printf "%03.2f%%\t average of local var increase because of arraystore variables\n" average_tempvar_arraystore;
-      Printf.printf "%03.2f%%\t average of local var increase because of method_effect variables\n" average_tempvar_method_effect;
-      Printf.printf "%03.2f%%\t average of local var increase because of side effect free expressions\n" average_tempvar_side_effect;
-      Printf.printf "%03.2f%%\t average of local var increase because of flat representation\n" average_tempvar_flat;
-      Printf.printf "%03.2f%%\t average of local var increase because of 3a representation\n" average_tempvar_3a;
-      Printf.printf "%03.2f%%\t average of local var that can be decrease with simplification\n" average_tempvar_after_simplification;
-      Printf.printf "%03.2f%%\t of total average\n" total_average 
-
-
 let show_file flat verbose cstats cp name =
-  reset_stats0 ; show_iorc flat verbose cstats ~stats:(Some stats0) (get_class cp name) 
+  show_iorc flat verbose cstats (get_class cp name) 
 
 
 let run_on_class mode classfile =
@@ -125,11 +122,8 @@ let run_on_class mode classfile =
     begin
       let cp = class_path (Filename.dirname classfile) in
       let file = Filename.chop_suffix (Filename.basename classfile) ".class" in
-      let stats = show_file mode true true cp (JBasics.make_cn file) in
-	close_class_path cp;
-	match stats with 
-	  | Some s -> show_average_stat mode s
-	  | None -> Printf.printf "No statistics was could be computed"
+      let _ = show_file mode true true cp (JBasics.make_cn file) in
+	close_class_path cp
     end 
   else begin
     Printf.printf "%s is not a valid class file\n" classfile;
@@ -142,12 +136,8 @@ let run_on_jar mode jarfile =
     begin
       let cp = Filename.dirname jarfile in
       let jarfile = Filename.basename jarfile in
-	reset_stats0 ; 
-	let stats = read (Javalib.make_directories cp) (fun stats -> show_iorc mode false true ~stats:stats) (Some stats0) [jarfile]
-	in 
-	  match stats with 
-	    | Some s -> show_average_stat mode s
-	    | _ -> Printf.printf "No statistics could be computed"
+	let _ = read (Javalib.make_directories cp) (fun _ -> show_iorc mode false true) () [jarfile]
+	in ()
     end
   else begin
     Printf.printf "%s is not a valid jar file\n" jarfile;
@@ -166,7 +156,6 @@ let run_on_dir mode dir =
     let cp = dir in
     let jar_files = ref [] in
     let dir = Unix.opendir (make_dir_absolute dir) in
-      reset_stats0 ; 
       try 
 	while true do
 	  let next = Unix.readdir dir in
@@ -174,10 +163,8 @@ let run_on_dir mode dir =
 	done 
       with End_of_file -> 
 	( Unix.closedir dir;
-	  let stats = read (Javalib.make_directories cp) (fun stats -> show_iorc mode false true ~stats:stats) (Some stats0) !jar_files	    in
-	    match stats with 
-	      | Some s -> show_average_stat mode s
-	      | None -> Printf.printf "No statistics could be computed")
+	  let _ = read (Javalib.make_directories cp) (fun _ -> show_iorc mode false true) () !jar_files	    
+	  in () )
   else begin
     Printf.printf "%s is not a valid directory\n" dir;
     exit 0

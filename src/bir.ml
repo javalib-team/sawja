@@ -515,13 +515,6 @@ let clean count1 count2 i test s instrs =
     if test_succeed then (s,instrs,c1+1,c2)
     else (s,instrs,c1,c2)
 
-
-let add_tempvars stats x = 
-  match stats with 
-      Some s ->  s.tempvars <- x :: s.tempvars 
-    | None -> ()
-
-
 let incr_stats stats a = 
   match stats with 
     | None -> ()
@@ -553,9 +546,6 @@ let incr_stats stats a =
 	  |  `Nb_tempvar_side_effect -> s.nb_tempvar_side_effect <- s.nb_tempvar_side_effect + 1
 	  |  `Nb_tempvar_flat -> s.nb_tempvar_flat <- s.nb_tempvar_flat + 1
 	  |  `Nb_tempvar_3a -> s.nb_tempvar_3a <- s.nb_tempvar_3a + 1
-	  |  `Nb_classes -> s.nb_classes <-  s.nb_classes + 1
-	  |  `Nb_methods -> s.nb_methods <-  s.nb_methods + 1
-	  |  `Nb_subroutines ->  s.nb_subroutines <- s.nb_subroutines + 1
 	  | _ -> failwith "flat"
 
 	  
@@ -617,7 +607,6 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	  incr_stats stats `Nb_tempvar ;
 	  let x = TempVar (i,None) in
 	   (* was missing *)
-	    add_tempvars stats x ;
 	    replace_var_in_stack y x (pop s), 
 	  [AffectVar(y,topE s); AffectVar(x,Var y)],
 	  stats
@@ -631,8 +620,6 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	  incr_stats stats `Nb_incr_is_var_in_stack ;
 	  incr_stats stats `Nb_tempvar;
 	  let x = TempVar (i,None) in
-	    (* was missing *)
-	    add_tempvars stats x ;
 	    replace_var_in_stack a x s, 
 	  [AffectVar(x,Var a);
 	   AffectVar (a,Binop(Add `Int2Bool,Var a,Const (`Int (Int32.of_int b))))],
@@ -816,7 +803,6 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	incr_stats stats `Nb_putstatic_is_static_in_stack ;
 	incr_stats stats `Nb_tempvar ;
 	let x = TempVar (i,None) in
-	  add_tempvars stats x ;
 	  replace_static_in_stack c f x (pop s), 
 	[MayInit c;
 	 AffectVar(x,StaticField(c,f));
@@ -844,9 +830,9 @@ let bc2bir_instr mode pp_var i tos s stats = function
 			   | None -> ());
 			(s,instrs,stats)
 		  | Some _ ->
+		      incr_stats stats `Nb_tempvar_side_effect ;
 		      incr_stats stats `Nb_tempvar ;
 		      let x = TempVar (i,None) in
-			add_tempvars stats x ;
 			let c1, c2 = 
 			  (match stats with 
 			       Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
@@ -865,9 +851,9 @@ let bc2bir_instr mode pp_var i tos s stats = function
 		   (match top popn_s  with
 		      | Uninit (c,j) ->
 			  incr_stats stats `Nb_tempvar ;
+			  incr_stats stats `Nb_tempvar_side_effect ;
 			  let x = TempVar (i,None) in
 			  let e' = E (Var x) in
-			    add_tempvars stats x ;
 			    let c1, c2 = 
 			      (match stats with 
 				   Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
@@ -911,8 +897,8 @@ let bc2bir_instr mode pp_var i tos s stats = function
 				     (s,instrs,stats)				  
 			       | Some _ -> 
 				   incr_stats stats `Nb_tempvar ;
+				   incr_stats stats `Nb_tempvar_side_effect ;
 				   let y = TempVar (i,None) in 
-				     add_tempvars stats y ;
 				     let c1, c2 = 
 				       (match stats with 
 					    Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
@@ -930,8 +916,8 @@ let bc2bir_instr mode pp_var i tos s stats = function
   | OpNew c -> (Uninit (c,i))::s, [MayInit c], stats
   | OpNewArray t -> 
       incr_stats stats `Nb_tempvar ;
+      incr_stats stats `Nb_tempvar_side_effect ;
       let x = TempVar (i,None) in
-	add_tempvars stats x ;
 	let dim = topE s in
 	  E (Var x)::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])],stats
   | OpArrayLength -> 
@@ -956,9 +942,9 @@ let bc2bir_instr mode pp_var i tos s stats = function
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorExit r],stats
   | OpAMultiNewArray (cn,dim) -> 
+      incr_stats stats `Nb_tempvar_side_effect ;
       incr_stats stats `Nb_tempvar ; 
       let x = TempVar (i,None) in
-	add_tempvars stats x ;
 	let params = param dim s in
 	  E (Var x)::(popn dim s), 
       (List.map (fun e -> Check (CheckNegativeArraySize e)) params)
@@ -1121,13 +1107,67 @@ let simplify_assign flat stats bir out_stack =
   if !simplify_assign_flag then simplify_assign flat stats bir out_stack 
   else bir,stats
 
+type tempvar_stats = {
+  stat_nb_total : int;
+  stat_nb_branchvar : int;
+  stat_nb_tempvar_may_alias : int;
+  stat_nb_tempvar_must_alias : int;
+  stat_nb_tempvar_side_effect : int;
+}
+
+let make_tempvar_stats = function
+  | Some stat ->
+      Some { stat_nb_total = stat.nb_tempvar - stat.nb_tempvar_removed;
+	     stat_nb_branchvar = stat.nb_tempvar_branch;
+	     stat_nb_tempvar_may_alias = 
+    	  stat.nb_tempvar_putfield 
+	  + stat.nb_tempvar_arraystore
+	  + stat.nb_tempvar_method_effect;
+	     stat_nb_tempvar_must_alias = 
+	  stat.nb_store_is_var_in_stack
+	  + stat.nb_putstatic_is_static_in_stack
+	  + stat.nb_incr_is_var_in_stack;
+	     stat_nb_tempvar_side_effect = stat.nb_tempvar_side_effect
+	     - stat.nb_tempvar_removed
+	   }
+  | None -> None
+
+let stats0 =  
+   { nb_tempvar = 0; nb_tempvar_branch = 0; nb_tempvar_putfield = 0;
+     nb_tempvar_method_effect = 0; nb_tempvar_arraystore = 0; 
+     nb_tempvar_removed = 0; nb_tempvar_side_effect = 0;
+     nb_tempvar_flat = 0;      nb_tempvar_3a = 0;
+     nb_jump_with_non_empty_stacks = 0 ; nb_back_jump_with_non_empty_stacks = 0 ;
+     nb_store_is_var_in_stack= 0 ; nb_incr_is_var_in_stack= 0 ;
+     nb_putfield_is_field_in_stack= 0 ; nb_arraystore_is_array_access_in_stack = 0 ;
+     nb_putstatic_is_static_in_stack= 0 ; nb_method_call_with_modifiable_in_stack= 0 ;
+     nb_store= 0 ; nb_incr= 0 ; nb_putfield= 0 ;
+     nb_arraystore= 0 ; nb_putstatic= 0 ; nb_method_call= 0 ;
+   }
+    
+let reset_stats0 () = 
+  begin
+    stats0.nb_tempvar <- 0; stats0.nb_tempvar_branch <- 0; stats0.nb_tempvar_putfield <- 0;
+    stats0.nb_tempvar_method_effect <- 0; stats0.nb_tempvar_arraystore <- 0; 
+    stats0.nb_tempvar_removed <- 0; stats0.nb_tempvar_side_effect <- 0;
+    stats0.nb_tempvar_flat <- 0;  stats0.nb_tempvar_3a <- 0;
+    stats0.nb_jump_with_non_empty_stacks <- 0 ; stats0.nb_back_jump_with_non_empty_stacks <- 0 ;
+    stats0.nb_store_is_var_in_stack<- 0 ; stats0.nb_incr_is_var_in_stack<- 0 ;
+    stats0.nb_putfield_is_field_in_stack<- 0 ; stats0.nb_arraystore_is_array_access_in_stack <- 0 ;
+    stats0.nb_putstatic_is_static_in_stack<- 0 ; stats0.nb_method_call_with_modifiable_in_stack<- 0 ;
+    stats0.nb_store<- 0 ; stats0.nb_incr<- 0 ; stats0.nb_putfield<- 0 ;
+    stats0.nb_arraystore<- 0 ; stats0.nb_putstatic<- 0 ; stats0.nb_method_call<- 0 ;
+  end
+
+
+
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
 
 (*let jvars = ref 0 *)
 
-let bc2ir flat pp_var jump_target code stats0 =
+let bc2ir flat pp_var jump_target code make_stats =
   let rec loop as_ts_jump ins ts_in as_in pc stats =
     let succs = normal_next code pc in
     let (ts_in,as_in) =
@@ -1189,54 +1229,16 @@ let bc2ir flat pp_var jump_target code stats0 =
 	loop as_ts_jump ins ts_out as_out (next code.c_code pc) stats
       with End_of_method ->  ins
   in 
-    ( match stats0 with 
-	  Some s ->	   
-	    (s.nb_tempvar <- 0;
-	    s.nb_tempvar_branch <- 0;
-	    s.nb_tempvar_putfield <- 0;
-	    s.nb_tempvar_method_effect <- 0;
-	    s.nb_tempvar_arraystore <- 0;
-	    s.nb_tempvar_removed <- 0;
-	    s.nb_tempvar_side_effect <- 0;
-	    s.nb_tempvar_flat <- 0;
-	    s.nb_tempvar_3a <- 0;
-	    s.tempvars <- [];)
-       | None -> ());    
-    let res = loop MapPc.empty [] [] [] 0 stats0 in
-      List.iter 
-	(fun x -> if is_var_in_expr_bir_not_var x res then 
-	   incr_stats stats0 `Nb_tempvar_side_effect)
-	(match stats0 with 
-	     Some s ->  s.tempvars
-	   | None -> []);
-      if code.c_max_locals>0 then begin
-	let get_avg x = (float_of_int (100 * x))/.(float_of_int code.c_max_locals) in
-	  (match stats0 with 
-	     | Some s -> 
-	       begin 
-		 (*let _ = jvars := code.c_max_locals + s.nb_tempvar -  s.nb_tempvar_removed in *)
-		 let avg = get_avg s.nb_tempvar in
-		 let avg_branch = get_avg s.nb_tempvar_branch in
-		 let avg_putfield = get_avg s.nb_tempvar_putfield in
-		 let avg_arraystore = get_avg s.nb_tempvar_arraystore in
-		 let avg_method_effect = get_avg s.nb_tempvar_method_effect in
-		 let avg_side_effect = get_avg s.nb_tempvar_side_effect in
-		 let avg_flat = get_avg s.nb_tempvar_flat in
-		 let avg_3a = get_avg s.nb_tempvar_3a in
-		 let avg_simp = get_avg s.nb_tempvar_removed in
-		   s.average_tempvar <- avg :: s.average_tempvar;
-		   s.average_tempvar_branch <- avg_branch :: s.average_tempvar_branch;
-		   s.average_tempvar_putfield <- avg_putfield :: s.average_tempvar_putfield;
-		   s.average_tempvar_arraystore <- avg_arraystore :: s.average_tempvar_arraystore;
-		   s.average_tempvar_method_effect <- avg_method_effect :: s.average_tempvar_method_effect;
-		   s.average_tempvar_after_simplification <- avg_simp :: s.average_tempvar_after_simplification;
-		   s.average_tempvar_side_effect <- avg_side_effect :: s.average_tempvar_side_effect;
-		   s.average_tempvar_flat <- avg_flat :: s.average_tempvar_flat;
-		   s.average_tempvar_3a <- avg_3a :: s.average_tempvar_3a
-	       end
-	   | None -> ())
-    end;
-    (res, stats0)
+    if make_stats then
+      begin
+	reset_stats0 ();
+	let res = loop MapPc.empty [] [] [] 0 (Some stats0) in
+	  (res, make_tempvar_stats (Some stats0))
+      end
+    else 
+      let res = loop MapPc.empty [] [] [] 0 None in
+	(res, None)
+
       
 let varname = Cmn.varname
 
@@ -1278,7 +1280,7 @@ let gen_params pp_var cm =
 	 (fun i _ -> OriginalVar (i+1,pp_var 0 (i+1)))
 	 (ms_args cm.cm_signature))
 
-let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
+let transform_intra_stats flat ?(stats=false) m =
   let signature = m.cm_signature in
   let cm_sig = m.cm_class_method_signature in 
   let cm_stat = m.cm_static in 
@@ -1302,10 +1304,7 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
 	  let pp_var = search_name_localvar m.cm_static code in
 	  let jump_target = compute_jump_target code in
 	  let (res,stats) =
-	    if not stats then
-	      (bc2ir flat pp_var jump_target code None) 
-	    else 
-	      (bc2ir flat pp_var jump_target code stats_opt) 
+	    bc2ir flat pp_var jump_target code stats
 	  in 
 	    Java { params = gen_params pp_var m;
 		   code = List.rev res;
@@ -1323,85 +1322,41 @@ let transform_intra_stats flat ?(stats=false) ?(stats_opt=None) m =
   in
     (* let incrval =  if m.cm_static then 0 else 1 in *)
     (*     jimpleMap := MethodMap.add signature (!jvars + incrval) !jimpleMap ; *)
-    (method_rec, stats)
+    method_rec, stats
 
 let transform_intra = transform_intra_stats ~stats:false
 
-let stats0 =  
-   { nb_tempvar = 0; nb_tempvar_branch = 0; nb_tempvar_putfield = 0;
-     nb_tempvar_method_effect = 0; nb_tempvar_arraystore = 0; 
-     nb_tempvar_removed = 0; nb_tempvar_side_effect = 0;
-     nb_tempvar_flat = 0;      nb_tempvar_3a = 0;
-     nb_jump_with_non_empty_stacks = 0 ; nb_back_jump_with_non_empty_stacks = 0 ;
-     nb_store_is_var_in_stack= 0 ; nb_incr_is_var_in_stack= 0 ;
-     nb_putfield_is_field_in_stack= 0 ; nb_arraystore_is_array_access_in_stack = 0 ;
-     nb_putstatic_is_static_in_stack= 0 ; nb_method_call_with_modifiable_in_stack= 0 ;
-     nb_store= 0 ; nb_incr= 0 ; nb_putfield= 0 ;
-     nb_arraystore= 0 ; nb_putstatic= 0 ; nb_method_call= 0 ;
-     tempvars = [];	average_tempvar= [] ; average_tempvar_side_effect = [] ;
-     average_tempvar_flat = [] ;     average_tempvar_3a = [] ;
-     average_tempvar_after_simplification= [] ; average_tempvar_branch= [] ;
-     average_tempvar_method_effect= [] ; average_tempvar_putfield= [] ;
-     average_tempvar_arraystore= [] ;
-     nb_classes = 0 ; nb_methods = 0 ; nb_subroutines = 0 ;
-   }
-    
-let reset_stats0 = 
-  begin
-    stats0.nb_tempvar <- 0; stats0.nb_tempvar_branch <- 0; stats0.nb_tempvar_putfield <- 0;
-    stats0.nb_tempvar_method_effect <- 0; stats0.nb_tempvar_arraystore <- 0; 
-    stats0.nb_tempvar_removed <- 0; stats0.nb_tempvar_side_effect <- 0;
-    stats0.nb_tempvar_flat <- 0;  stats0.nb_tempvar_3a <- 0;
-    stats0.nb_jump_with_non_empty_stacks <- 0 ; stats0.nb_back_jump_with_non_empty_stacks <- 0 ;
-    stats0.nb_store_is_var_in_stack<- 0 ; stats0.nb_incr_is_var_in_stack<- 0 ;
-    stats0.nb_putfield_is_field_in_stack<- 0 ; stats0.nb_arraystore_is_array_access_in_stack <- 0 ;
-    stats0.nb_putstatic_is_static_in_stack<- 0 ; stats0.nb_method_call_with_modifiable_in_stack<- 0 ;
-    stats0.nb_store<- 0 ; stats0.nb_incr<- 0 ; stats0.nb_putfield<- 0 ;
-    stats0.nb_arraystore<- 0 ; stats0.nb_putstatic<- 0 ; stats0.nb_method_call<- 0 ;
-    stats0.tempvars <- []; stats0.average_tempvar<- [] ; stats0.average_tempvar_side_effect <- [] ;
-    stats0.average_tempvar_flat <- [] ;  stats0.average_tempvar_3a <- [] ;
-    stats0.average_tempvar_after_simplification<- [] ; stats0.average_tempvar_branch<- [] ;
-    stats0.average_tempvar_method_effect<- [] ; stats0.average_tempvar_putfield<- [] ;
-    stats0.average_tempvar_arraystore<- [] ;
-    stats0.nb_classes <- 0 ; stats0.nb_methods <- 0 ; stats0.nb_subroutines <- 0 
-  end
-
  let cm_transform_stats flat ?(stats=false) = 
-   let _ = reset_stats0 in
    function a -> 
-     fst (transform_intra_stats flat ~stats:stats ~stats_opt:(Some stats0) a)
+     fst (transform_intra_stats flat ~stats:stats a)
    
 
    
  let cm_transform = cm_transform_stats Normal ~stats:false
 
- let jmethod_accu flat cstats  m  statsmmap =
-   let  (mmap,stat) = statsmmap in 
+ let jmethod_accu flat cstats  m mmap =
    match m with
      | ConcreteMethod cm ->
 	 begin
-	   incr_stats stat `Nb_methods ;
 	   try
-	     let (ir,stats) = transform_intra_stats flat ~stats:cstats ~stats_opt:stat cm in
+	     let (ir,_) = transform_intra_stats flat ~stats:cstats cm in
 	       begin
 		 match ir.cm_implementation with
-		   | Java _ ->  MethodMap.add (get_method_signature m) (ConcreteMethod ir) mmap , stats
-		   | _ -> mmap, stats
+		   | Java _ ->  MethodMap.add (get_method_signature m) (ConcreteMethod ir) mmap
+		   | _ -> mmap
 	       end
 	   with
 	     | Subroutine ->
-		 incr_stats stat `Nb_subroutines ;
-		 mmap, None
+		 mmap
 	 end
      | AbstractMethod am ->
-	 MethodMap.add (get_method_signature m) (AbstractMethod am) mmap , stat
+	 MethodMap.add (get_method_signature m) (AbstractMethod am) mmap 
 
  
 
- let iorc_transform_intra_stats flat cstats ~stats ci = 
+ let iorc_transform_intra_stats flat cstats ci = 
    match ci with 
      | JInterface(i) ->
-	 incr_stats stats `Nb_classes ;
 	 begin
 	   match i.i_initializer with
 	     | None -> JInterface(
@@ -1413,9 +1368,9 @@ let reset_stats0 =
 		   i_other_attributes = i.i_other_attributes ; i_annotation = i.i_annotation ;
 		   i_other_flags = i.i_other_flags ; i_fields = i.i_fields ;
 		   i_methods = i.i_methods ;  i_initializer = None
-		   }) , stats
+		   }) 
 	       | Some cm -> 
-		   let (ir,stats) = transform_intra_stats flat ~stats:cstats cm ~stats_opt:stats
+		   let (ir,_) = transform_intra flat cm
 		   in
 		     JInterface( 
 		       { i_name = i.i_name ; i_version = i.i_version ; i_access = i.i_access ;
@@ -1425,12 +1380,11 @@ let reset_stats0 =
 			 i_inner_classes = i.i_inner_classes ; i_other_attributes = i.i_other_attributes ;
 			 i_annotation = i.i_annotation ; i_other_flags = i.i_other_flags ;
 			 i_fields = i.i_fields ; i_methods = i.i_methods ;  i_initializer = Some ir ;
-		       }), stats
+		       })
 	 end
      |  JClass (cl) -> 
 	  begin
-	    incr_stats stats `Nb_classes ;
-	    let a, b = MethodMap.fold (fun _ -> jmethod_accu flat cstats )  cl.c_methods (MethodMap.empty,stats) 
+	    let a = MethodMap.fold (fun _ -> jmethod_accu flat cstats )  cl.c_methods MethodMap.empty
 	    in  JClass ( {
 			   c_name = cl.c_name ; c_version = cl. c_version ; c_access = cl.c_access ; c_final = cl.c_final ;
 			   c_abstract = cl.c_abstract ; c_super_class = cl.c_super_class ; 
@@ -1439,15 +1393,15 @@ let reset_stats0 =
 			   c_enclosing_method = cl.c_enclosing_method ; c_source_debug_extention = cl.c_source_debug_extention ;
 			   c_inner_classes = cl.c_inner_classes ; c_synthetic = cl.c_synthetic ; c_enum = cl.c_enum ;
 			   c_other_flags = cl.c_other_flags ; c_other_attributes = cl.c_other_attributes ; c_methods = a ;
-			 }) , b
+			 })
 	  end
 
 
- let iorc_transform_intra flat cstats = iorc_transform_intra_stats flat cstats ~stats:(Some stats0)
+ let iorc_transform_intra flat cstats = iorc_transform_intra_stats flat cstats 
    
  let iorc_transform_stats flat ?(cstats=false) ci =
-  reset_stats0 ; 
-  fst (iorc_transform_intra_stats flat cstats ~stats:(Some stats0) ci)
+  reset_stats0 (); 
+   iorc_transform_intra_stats flat cstats ci
 
 let iorc_transform = iorc_transform_stats Normal ~cstats:false
 
