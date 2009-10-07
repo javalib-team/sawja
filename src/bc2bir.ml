@@ -3,6 +3,7 @@ open Javalib
 include Bir
 
 let out_statistics = ref stdout
+let out_nbvariables = ref stdout
 
 let set_out_statistics filename = 
   if not (is_file filename)
@@ -21,6 +22,19 @@ let set_out_statistics filename =
 let close_out_statistics () = 
   close_out !out_statistics
 
+let set_out_nbvariables filename = 
+  if not (is_file filename)
+  then begin
+    out_nbvariables := open_out filename
+  end
+  else out_nbvariables := open_out_gen [Open_wronly; Open_creat; Open_append; Open_text] 0 filename
+
+let close_out_nbvariables () = 
+  close_out !out_nbvariables
+
+let add_nbvariables nb_jimple nb_bir =
+  Printf.fprintf !out_nbvariables  "%d %d \n" nb_jimple nb_bir 
+    
 let add_stat implem stats =
   match implem with
     | Java code -> 

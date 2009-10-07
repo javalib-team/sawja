@@ -1315,7 +1315,6 @@ let transform_intra_stats flat ?(stats=false) m =
    	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = implem ; 
   }
   in
-    (*     jimpleMap := MethodMap.add signature (!jvars + incrval) !jimpleMap ; *)
     method_rec, stats
 
 let transform_intra = transform_intra_stats ~stats:false
@@ -1383,10 +1382,12 @@ let transform_intra = transform_intra_stats ~stats:false
 			   c_enclosing_method = cl.c_enclosing_method ; c_source_debug_extention = cl.c_source_debug_extention ;
 			   c_inner_classes = cl.c_inner_classes ; c_synthetic = cl.c_synthetic ; c_enum = cl.c_enum ;
 			   c_other_flags = cl.c_other_flags ; c_other_attributes = cl.c_other_attributes ; c_methods = a ;
-			 })
+			 }) 
 	  end
 
 
+
+ 
  let iorc_transform_intra flat cstats = iorc_transform_intra_stats flat cstats 
    
  let iorc_transform_stats flat ?(cstats=false) ci =
@@ -1405,11 +1406,6 @@ let is_dir d =
   try
     (Unix.stat d).Unix.st_kind = Unix.S_DIR
   with Unix.Unix_error (Unix.ENOENT, _,_) -> false
-
-(* only for tests *)
-(* let parse_vars ci = *)
-(*   let _ = iorc_transform_stats Addr3 ~cstats:true ci in *)
-(*     printMap !jimpleMap *)
  
 let cn_transform_stats flat ?(cstats=false) classfile =
   if is_file classfile && Filename.check_suffix classfile ".class" then 
@@ -1422,7 +1418,7 @@ let cn_transform_stats flat ?(cstats=false) classfile =
     end 
   else raise (JBasics.No_class_found classfile)
 
-let cn_transform = cn_transform_stats Addr3 ~cstats:true 
+let cn_transform_nbvars = cn_transform_stats Addr3 ~cstats:true 
 let cn_transform = cn_transform_stats Normal ~cstats:false 
 
 
