@@ -66,9 +66,6 @@ type op_size = Op32 | Op64
 
 (************* PRINT ************)      
 
-(*let jimpleMap = ref (MethodMap.empty)*)
-
-
 let rec print_list_sep_rec sep pp = function
   | [] -> ""
   | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
@@ -1165,8 +1162,6 @@ exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
 
-(*let jvars = ref 0 *)
-
 let bc2ir flat pp_var jump_target code make_stats =
   let rec loop as_ts_jump ins ts_in as_in pc stats =
     let succs = normal_next code pc in
@@ -1320,7 +1315,6 @@ let transform_intra_stats flat ?(stats=false) m =
    	cm_exceptions = cm_exn ; cm_attributes = cm_att ; cm_implementation = implem ; 
   }
   in
-    (* let incrval =  if m.cm_static then 0 else 1 in *)
     (*     jimpleMap := MethodMap.add signature (!jvars + incrval) !jimpleMap ; *)
     method_rec, stats
 
@@ -1329,9 +1323,7 @@ let transform_intra = transform_intra_stats ~stats:false
  let cm_transform_stats flat ?(stats=false) = 
    function a -> 
      fst (transform_intra_stats flat ~stats:stats a)
-   
-
-   
+      
  let cm_transform = cm_transform_stats Normal ~stats:false
 
  let jmethod_accu flat cstats  m mmap =
@@ -1351,8 +1343,6 @@ let transform_intra = transform_intra_stats ~stats:false
 	 end
      | AbstractMethod am ->
 	 MethodMap.add (get_method_signature m) (AbstractMethod am) mmap 
-
- 
 
  let iorc_transform_intra_stats flat cstats ci = 
    match ci with 
@@ -1405,16 +1395,10 @@ let transform_intra = transform_intra_stats ~stats:false
 
 let iorc_transform = iorc_transform_stats Normal ~cstats:false
 
-let printVars msig i =
-  Printf.printf "%s\n" 
-    ((JPrint.method_signature msig)^" : "^(Printf.sprintf "%d" i))
-
-(* let printMap map =  *)
-(*   MethodMap.iter printVars map *)
-
-(* let parse_vars ci = *)
-(*   let _ = iorc_transform_stats Addr3 ~cstats:true ci in *)
-(*     printMap !jimpleMap *)
+let is_file f =
+  try
+    (Unix.stat f).Unix.st_kind = Unix.S_REG
+  with Unix.Unix_error (Unix.ENOENT, _,_) -> false
 
 
 let is_dir d =
@@ -1422,12 +1406,10 @@ let is_dir d =
     (Unix.stat d).Unix.st_kind = Unix.S_DIR
   with Unix.Unix_error (Unix.ENOENT, _,_) -> false
 
-let is_file f =
-  try
-    (Unix.stat f).Unix.st_kind = Unix.S_REG
-  with Unix.Unix_error (Unix.ENOENT, _,_) -> false
-
-
+(* only for tests *)
+(* let parse_vars ci = *)
+(*   let _ = iorc_transform_stats Addr3 ~cstats:true ci in *)
+(*     printMap !jimpleMap *)
  
 let cn_transform_stats flat ?(cstats=false) classfile =
   if is_file classfile && Filename.check_suffix classfile ".class" then 

@@ -57,44 +57,30 @@ type binop =
 
 val print_binop : binop -> string
 
-
 type statistics = {
-  mutable nb_jump_with_non_empty_stacks : int ; 
-  mutable nb_back_jump_with_non_empty_stacks : int ;
-  mutable nb_store_is_var_in_stack : int ;
-  mutable nb_incr_is_var_in_stack : int ;
-  mutable nb_putfield_is_field_in_stack : int ;
-  mutable nb_arraystore_is_array_access_in_stack : int ;
-  mutable nb_putstatic_is_static_in_stack : int ;
-  mutable nb_method_call_with_modifiable_in_stack : int ;
-  mutable nb_store : int ;
-  mutable nb_incr : int ;
-  mutable nb_putfield : int ;
-  mutable nb_arraystore : int ;
-  mutable nb_putstatic : int ; 
-  mutable nb_method_call : int ;
-  mutable nb_tempvar : int ;
-  mutable nb_tempvar_branch : int ;
-  mutable nb_tempvar_removed : int ;
-  mutable nb_tempvar_method_effect : int ;
-  mutable nb_tempvar_putfield : int ;
-  mutable nb_tempvar_arraystore : int ;
-  mutable nb_tempvar_side_effect : int ;
-  mutable nb_tempvar_flat : int ;  
-  mutable nb_tempvar_3a : int ;  
-  mutable average_tempvar : float list  ; 
-  mutable average_tempvar_side_effect : float list  ;
-  mutable average_tempvar_flat : float list  ;
-  mutable average_tempvar_3a : float list  ;
-  mutable average_tempvar_after_simplification : float list  ;
-  mutable average_tempvar_branch : float list  ;
-  mutable average_tempvar_method_effect : float list  ;
-  mutable average_tempvar_putfield : float list  ;
-  mutable average_tempvar_arraystore : float list  ;
-  mutable tempvars : var list  ;
-  mutable nb_classes : int ;
-  mutable nb_methods : int ;
-  mutable nb_subroutines : int ;
-}  
+    mutable nb_jump_with_non_empty_stacks : int;
+    mutable nb_back_jump_with_non_empty_stacks : int;
+    mutable nb_store_is_var_in_stack : int;
+    mutable nb_incr_is_var_in_stack : int;
+    mutable nb_arraystore_is_array_access_in_stack : int;
+    mutable nb_putfield_is_field_in_stack : int;
+    mutable nb_putstatic_is_static_in_stack : int;
+    mutable nb_method_call_with_modifiable_in_stack : int;
+    mutable nb_store : int;
+    mutable nb_incr : int;
+    mutable nb_putfield : int;
+    mutable nb_arraystore : int;
+    mutable nb_putstatic : int;
+    mutable nb_method_call : int;
+    mutable nb_tempvar : int;
+    mutable nb_tempvar_branch : int;
+    mutable nb_tempvar_removed : int;
+    mutable nb_tempvar_method_effect : int;
+    mutable nb_tempvar_putfield : int;
+    mutable nb_tempvar_arraystore : int;
+    mutable nb_tempvar_side_effect : int;
+    mutable nb_tempvar_flat : int;
+    mutable nb_tempvar_3a : int;
+  }
 
 type mode = Normal | Flat | Addr3
