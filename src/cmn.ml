@@ -131,13 +131,16 @@ type statistics = {
   mutable nb_arraystore_is_array_access_in_stack : int ;
   mutable nb_putstatic_is_static_in_stack : int ;
   mutable nb_method_call_with_modifiable_in_stack : int ;
+
   mutable nb_store : int ;
   mutable nb_incr : int ;
   mutable nb_putfield : int ;
   mutable nb_arraystore : int ;
   mutable nb_putstatic : int ; 
   mutable nb_method_call : int ;
+
   mutable nb_tempvar : int ;
+
   mutable nb_tempvar_branch : int ;
   mutable nb_tempvar_removed : int ;
   mutable nb_tempvar_method_effect : int ;
@@ -146,6 +149,7 @@ type statistics = {
   mutable nb_tempvar_side_effect : int ;
   mutable nb_tempvar_flat : int ;
   mutable nb_tempvar_3a : int ;
+
   mutable average_tempvar : float list  ; 
   mutable average_tempvar_side_effect : float list  ;
   mutable average_tempvar_flat : float list  ;
