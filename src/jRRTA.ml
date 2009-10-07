@@ -48,12 +48,7 @@ type vta_program =
     }
       
 let filter_subclasses sc classes =
-  ClassMap.fold
-    (fun cs c cmap ->
-       if (extends_class c sc) then
-	 ClassMap.add cs c cmap
-       else cmap
-    ) classes ClassMap.empty
+  ClassMap.filter (fun c -> extends_class c sc) classes
     
 let get_rta_instantiated_subclasses pvta c =
   let cs = c.c_info.c_name in
@@ -95,13 +90,10 @@ let get_vta_method pvta cm =
 	m
 	  
 let filter_classes_implementing_interface i classes =
-  ClassMap.fold
-    (fun cs c cmap ->
-       if (JControlFlow.implements_interface_or_subinterface_transitively c i)
-       then
-	 ClassMap.add cs c cmap
-       else cmap
-    ) classes ClassMap.empty
+  ClassMap.filter
+    (fun c ->
+       JControlFlow.implements_interface_or_subinterface_transitively c i
+    ) classes
     
 let get_rta_implemented_interfaces pvta i =
   let cs = i.i_info.i_name in
