@@ -1170,8 +1170,7 @@ let make_tempvar_stats ir = function
 	  (0,SetInt2.empty) ir in
       Some { stat_nb_total = !nb_tempvar + nb_tempvar_branch;
 	     stat_nb_branchvar = nb_tempvar_branch;
-	     stat_nb_tempvar_may_alias = 
-    	  stat.nb_tempvar_putfield 
+	     stat_nb_tempvar_may_alias = stat.nb_tempvar_putfield 
 	  + stat.nb_tempvar_arraystore
 	  + stat.nb_tempvar_method_effect;
 	     stat_nb_tempvar_must_alias = 
