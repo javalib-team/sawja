@@ -494,6 +494,46 @@ let is_var_in_expr_bir_not_var x bir =
     (fun (_,instrs) -> List.exists (is_var_in_expr_instr_not_var x) instrs)
     bir
 
+
+
+let temp_in_expr acc expr =
+  let rec aux acc expr =
+    match expr with 
+      | Const _ 
+      | StaticField _ -> acc
+      | Field (e,_,_) -> aux acc e
+      | Var x ->
+	  (match x with
+	       TempVar (i,_) -> Ptset.add i acc
+	     | _ -> acc)
+      | Unop (_,e) -> aux acc e
+      | Binop (_,e1,e2) -> aux (aux acc e1) e2
+  in aux acc expr
+
+let temp_in_opexpr acc = function
+  | Uninit _ -> acc
+  | E e -> temp_in_expr acc e
+
+let temp_in_stack s =
+  List.fold_left temp_in_opexpr Ptset.empty s
+
+let choose_fresh_in_stack s =
+  let set = temp_in_stack s in
+  if Ptset.is_empty set then 0 
+  else (Ptset.max_elt set)  +1
+
+let nb_tempvar = ref 0
+let fresh = ref (-1)
+
+let reset_tempvar () = 
+  fresh := -1
+		   
+
+let make_tempvar (_,_) = 
+  if !fresh +1 > !nb_tempvar then incr nb_tempvar;
+  incr fresh; 
+  TempVar (!fresh,None)
+
 let clean count1 count2 i test s instrs =
   let rec aux j c1 c2 = function
     | [] -> [], instrs, false, c1, c2
@@ -503,7 +543,7 @@ let clean count1 count2 i test s instrs =
 	    | Uninit _ -> e::s, instrs, test_succeed, cc1, cc2
 	    | E e ->
 		if test e then begin
-		  let x = TempVar (i,Some j) in
+		  let x = make_tempvar  (i,Some j) in
 		    (E (Var x)::s, (AffectVar (x,e))::instrs, true, cc1,cc2+1)
 		end else
 		  E e::s, instrs, test_succeed, cc1,cc2
@@ -548,7 +588,7 @@ let incr_stats stats a =
 	  
 let to_addr3_binop i mode binop s instrs stats =
   match mode with 
-    | Addr3 -> 	let x = TempVar(i,None) 
+    | Addr3 -> 	let x = make_tempvar (i,None) 
       in begin
 	incr_stats stats `Nb_tempvar ;
 	incr_stats stats `Nb_tempvar_3a ;
@@ -559,7 +599,7 @@ let to_addr3_binop i mode binop s instrs stats =
 
 let to_addr3_unop i mode unop s instrs stats = 
   match mode with 
-    | Addr3 -> let x = TempVar(i,None) 
+    | Addr3 -> let x = make_tempvar (i,None) 
       in begin
 	incr_stats stats `Nb_tempvar ;
 	incr_stats stats `Nb_tempvar_3a ;
@@ -584,7 +624,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
       let idx = topE s in begin
 	match mode with 
 	  | Addr3 ->
-	      let x = TempVar(i,None) in 
+	      let x = make_tempvar (i,None) in 
 		incr_stats stats `Nb_tempvar ;
 		incr_stats stats `Nb_tempvar_3a ;
 		E (Var x)::(pop2 s), 
@@ -602,7 +642,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	then begin
 	  incr_stats stats `Nb_store_is_var_in_stack ;
 	  incr_stats stats `Nb_tempvar ;
-	  let x = TempVar (i,None) in
+	  let x = make_tempvar  (i,None) in
 	   (* was missing *)
 	    replace_var_in_stack y x (pop s), 
 	  [AffectVar(y,topE s); AffectVar(x,Var y)],
@@ -616,7 +656,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	then begin
 	  incr_stats stats `Nb_incr_is_var_in_stack ;
 	  incr_stats stats `Nb_tempvar;
-	  let x = TempVar (i,None) in
+	  let x = make_tempvar  (i,None) in
 	    replace_var_in_stack a x s, 
 	  [AffectVar(x,Var a);
 	   AffectVar (a,Binop(Add `Int2Bool,Var a,Const (`Int (Int32.of_int b))))],
@@ -789,7 +829,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 		incr_stats stats `Nb_tempvar ;
 		incr_stats stats `Nb_tempvar_flat ;
 		incr_stats stats `Nb_tempvar_3a ;
-		let x = TempVar (i,None) in
+		let x = make_tempvar  (i,None) in
 		  E (Var x)::(pop s), 
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))], stats 
 	end
@@ -799,7 +839,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
       if is_static_in_stack c f (pop s) then begin
 	incr_stats stats `Nb_putstatic_is_static_in_stack ;
 	incr_stats stats `Nb_tempvar ;
-	let x = TempVar (i,None) in
+	let x = make_tempvar  (i,None) in
 	  replace_static_in_stack c f x (pop s), 
 	[MayInit c;
 	 AffectVar(x,StaticField(c,f));
@@ -829,7 +869,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 		  | Some _ ->
 		      incr_stats stats `Nb_tempvar_side_effect ;
 		      incr_stats stats `Nb_tempvar ;
-		      let x = TempVar (i,None) in
+		      let x = make_tempvar  (i,None) in
 			let c1, c2 = 
 			  (match stats with 
 			       Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
@@ -849,7 +889,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 		      | Uninit (c,j) ->
 			  incr_stats stats `Nb_tempvar ;
 			  incr_stats stats `Nb_tempvar_side_effect ;
-			  let x = TempVar (i,None) in
+			  let x = make_tempvar  (i,None) in
 			  let e' = E (Var x) in
 			    let c1, c2 = 
 			      (match stats with 
@@ -895,7 +935,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 			       | Some _ -> 
 				   incr_stats stats `Nb_tempvar ;
 				   incr_stats stats `Nb_tempvar_side_effect ;
-				   let y = TempVar (i,None) in 
+				   let y = make_tempvar  (i,None) in 
 				     let c1, c2 = 
 				       (match stats with 
 					    Some s -> s.nb_method_call_with_modifiable_in_stack, s.nb_tempvar_method_effect
@@ -914,7 +954,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
   | OpNewArray t -> 
       incr_stats stats `Nb_tempvar ;
       incr_stats stats `Nb_tempvar_side_effect ;
-      let x = TempVar (i,None) in
+      let x = make_tempvar  (i,None) in
 	let dim = topE s in
 	  E (Var x)::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])],stats
   | OpArrayLength -> 
@@ -923,7 +963,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
 	  | Addr3 -> 
 	      incr_stats stats `Nb_tempvar ;
 	      incr_stats stats `Nb_tempvar_3a ;
-	      let x = TempVar (i,None) in
+	      let x = make_tempvar  (i,None) in
 		E (Var x)::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))],stats
 	  | _ ->
 	      E (Unop (ArrayLength,a))::(pop s),[Check (CheckNullPointer a)],stats
@@ -941,7 +981,7 @@ let bc2bir_instr mode pp_var i tos s stats = function
   | OpAMultiNewArray (cn,dim) -> 
       incr_stats stats `Nb_tempvar_side_effect ;
       incr_stats stats `Nb_tempvar ; 
-      let x = TempVar (i,None) in
+      let x = make_tempvar  (i,None) in
 	let params = param dim s in
 	  E (Var x)::(popn dim s), 
       (List.map (fun e -> Check (CheckNegativeArraySize e)) params)
@@ -1114,7 +1154,7 @@ type tempvar_stats = {
 
 let make_tempvar_stats = function
   | Some stat ->
-      Some { stat_nb_total = stat.nb_tempvar - stat.nb_tempvar_removed;
+      Some { stat_nb_total = !nb_tempvar;
 	     stat_nb_branchvar = stat.nb_tempvar_branch;
 	     stat_nb_tempvar_may_alias = 
     	  stat.nb_tempvar_putfield 
@@ -1164,6 +1204,7 @@ exception Content_constraint_on_Uninit
 
 let bc2ir flat pp_var jump_target code make_stats =
   let rec loop as_ts_jump ins ts_in as_in pc stats =
+    if jump_target.(pc) || as_in=[] then reset_tempvar ();
     let succs = normal_next code pc in
     let (ts_in,as_in) =
       if jump_target.(pc) then
@@ -1172,7 +1213,7 @@ let bc2ir flat pp_var jump_target code make_stats =
 	  (* no predecessor of pc have been visited before *)
 	  if List.exists (fun e -> pc = e.e_handler) code.c_exc_tbl then
 	    (* this is a handler point *)
-	    ([Op32],[E (Var (TempVar (pc,Some 0)))])
+	    ([Op32],[E (Var (make_tempvar (pc,Some 0)))])
 	  else
 	    (* this is a back jump target *)
 	    ([],[])
@@ -1224,6 +1265,8 @@ let bc2ir flat pp_var jump_target code make_stats =
 	loop as_ts_jump ins ts_out as_out (next code.c_code pc) stats
       with End_of_method ->  ins
   in 
+    reset_tempvar ();
+    nb_tempvar := 0;
     if make_stats then
       begin
 	reset_stats0 ();
