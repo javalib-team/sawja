@@ -2,6 +2,11 @@
 
 type mode  = Normal | Flat | Addr3  
 
+(** Compress empty lines *)
+val compress_ir_flag : bool ref
+(** Basic simplification of consecutive assignments *)
+val simplify_assign_flag : bool ref
+
 val show_file :
   mode  ->
   bool ->

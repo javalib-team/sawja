@@ -1138,6 +1138,7 @@ let simplify_assign mode stats bir out_stack =
 
 let simplify_assign_flag = ref true
 let simplify_assign flat stats bir out_stack = 
+  Printf.printf "simplify_assign %b\n" !simplify_assign_flag;
   if !simplify_assign_flag then simplify_assign flat stats bir out_stack 
   else bir,stats
 
@@ -1343,6 +1344,25 @@ let gen_params pp_var cm =
 	 (fun i _ -> OriginalVar (i+1,pp_var 0 (i+1)))
 	 (ms_args cm.cm_signature))
 
+let compress_ir code ir =
+  let jump_target = compute_jump_target code in
+  let rec aux0 pc0 = function
+    | [] -> [pc0,[Nop]]
+    | (pc,instrs)::q when jump_target.(pc) -> (pc0,[Nop])::(pc,instrs)::(aux q)
+    | (_,[])::q -> aux0 pc0 q
+    | (_,instrs)::q -> (pc0,instrs)::(aux q)
+  and aux = function
+    | [] -> []
+    | (pc,[])::q -> aux0 pc q
+    | (pc,instrs)::q -> (pc,instrs)::(aux q)
+  in aux ir
+
+let compress_ir_flag = ref false
+let compress_ir code ir =
+  if !compress_ir_flag 
+  then compress_ir code ir
+  else ir
+
 let transform_intra_stats flat ?(stats=false) m =
   let signature = m.cm_signature in
   let cm_sig = m.cm_class_method_signature in 
@@ -1370,7 +1390,7 @@ let transform_intra_stats flat ?(stats=false) m =
 	    bc2ir flat pp_var jump_target code stats
 	  in 
 	    Java { params = gen_params pp_var m;
-		   code = List.rev res;
+		   code = compress_ir code (List.rev res);
 		   exc_tbl = code.c_exc_tbl;
 		   line_number_table = code.c_line_number_table }, stats
 	end

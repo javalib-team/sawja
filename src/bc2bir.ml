@@ -136,7 +136,7 @@ let run_on_class mode classfile =
     begin
       let cp = class_path (Filename.dirname classfile) in
       let file = Filename.chop_suffix (Filename.basename classfile) ".class" in
-      let _ = show_file mode true true cp (JBasics.make_cn file) in
+      let _ = show_file mode true false cp (JBasics.make_cn file) in
 	close_class_path cp
     end 
   else begin
