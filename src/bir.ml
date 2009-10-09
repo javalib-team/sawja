@@ -1168,7 +1168,15 @@ let make_tempvar_stats ir = function
 	       | (AffectVar (BranchVar (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
 	       | _ -> (n,s))
 	  (0,SetInt2.empty) ir in
-      Some { stat_nb_total = !nb_tempvar + nb_tempvar_branch;
+      let (nb_tempvar_not_branch,_) = 
+	fold_ir
+	  (fun (n,s) _ ->
+	     function 
+	       | (AffectVar (TempVar (i,None),_)) 
+	       | (AffectVar (TempVar (_,Some i),_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
+	       | _ -> (n,s))
+	  (0,Ptset.empty) ir in
+      Some { stat_nb_total = nb_tempvar_not_branch + nb_tempvar_branch;
 	     stat_nb_branchvar = nb_tempvar_branch;
 	     stat_nb_tempvar_may_alias = stat.nb_tempvar_putfield 
 	  + stat.nb_tempvar_arraystore

@@ -150,8 +150,10 @@ let run_on_jar mode jarfile =
     begin
       let cp = Filename.dirname jarfile in
       let jarfile = Filename.basename jarfile in
-	let _ = read (Javalib.make_directories cp) (fun _ -> show_iorc mode false true) () [jarfile]
-	in ()
+      let nb_class = ref 0 in
+      let _ = read (Javalib.make_directories cp) (fun _ -> incr nb_class; show_iorc mode false false) () [jarfile]
+      in 
+	Printf.printf "%d classes\n" !nb_class
     end
   else begin
     Printf.printf "%s is not a valid jar file\n" jarfile;
