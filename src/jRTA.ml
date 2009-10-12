@@ -148,8 +148,9 @@ struct
     let rta_methods = methods2rta_methods ioc in
       match ioc with
 	| JClass c ->
+	    let c_super = c.c_super_class in
 	    let super_classes =
-	      (match c.c_super_class with
+	      (match c_super with
 		 | None -> []
 		 | Some sc ->
 		     let sc_info = get_class_info p sc in
@@ -200,13 +201,12 @@ struct
 		       i.i_children_classes <- c :: i.i_children_classes
 		  )
 		  implemented_interfaces;
-		List.iter
-		  (fun sc_name ->
-		     let sc =
-		       to_class_node (get_class_info p sc_name).class_data in
+		(match c_super with
+		   | None -> ()
+		   | Some sc_name ->
+		     let sc = to_class_node (get_class_info p sc_name).class_data in
 		       sc.c_children <- c :: sc.c_children
-		  )
-		  super_classes;
+		);
 		p.classes <- ClassMap.add cs ioc_info p.classes;
 	| JInterface i ->
 	    let super_interfaces =

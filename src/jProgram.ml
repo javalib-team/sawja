@@ -291,3 +291,116 @@ let store_callgraph callgraph file =
       )
       callgraph;
     IO.close_out out
+
+let to_class_node node =
+  match node with
+    | Class c -> c
+    | Interface _ -> failwith "to_class_node applied on an interface node."
+
+let to_interface_node node =
+  match node with
+    | Class _ -> failwith "to_interface_node applied on a class node."
+    | Interface i -> i
+
+let add_interface_or_class cmap c nodemap =
+  let cobject = ClassMap.find JBasics.java_lang_object cmap in
+  let rec add_interface_or_class c (nodemap : 'a node ClassMap.t) =
+    let cn = Javalib.get_name c in
+      try
+	let node = ClassMap.find cn nodemap in
+	  (nodemap, node)
+      with _ ->
+	match c with
+	  | JClass c ->
+	      let (nodemap, super_node) =
+		(match c.c_super_class with
+		   | None -> (nodemap, None)
+		   | Some sc ->
+		       let super = ClassMap.find sc cmap in
+		       let (nm, sc) = add_interface_or_class super nodemap in
+			 (nm, Some (to_class_node sc))
+		) in
+	      let interfaces =
+		List.map (fun iname ->
+			    ClassMap.find iname cmap) c.Javalib.c_interfaces in
+	      let (nodemap, interfaces_nodes) =
+		List.fold_right
+		  (fun i (nm,im) ->
+		     let (nm,node) = add_interface_or_class i nm in
+		       (nm,
+			ClassMap.add (Javalib.get_name i)
+			  (to_interface_node node) im)
+		  ) interfaces (nodemap, ClassMap.empty) in
+	      let node_info =
+		{ c_info = c;
+		  c_super = super_node;
+		  c_interfaces = interfaces_nodes;
+		  c_children = []
+		} in
+	      let node = Class node_info in
+		(match super_node with
+		   | None -> ()
+		   | Some sc -> sc.c_children <- node_info :: sc.c_children);
+		ClassMap.iter
+		  (fun _ i ->
+		     i.i_children_classes <- 
+		       node_info :: i.i_children_classes) interfaces_nodes;
+		(ClassMap.add c.c_name node nodemap, node)
+	  | JInterface i ->
+	      let (nodemap, super_node) =
+		let (nm, o) =
+		  add_interface_or_class cobject nodemap in
+		  (nm, to_class_node o) in
+	      let interfaces =
+		List.map (fun iname ->
+			    ClassMap.find iname cmap) i.Javalib.i_interfaces in
+	      let (nodemap, interfaces_nodes) =
+		List.fold_right
+		  (fun i (nm,im) ->
+		     let (nm,node) = add_interface_or_class i nm in
+		       (nm,
+			ClassMap.add (Javalib.get_name i)
+			  (to_interface_node node) im)
+		  ) interfaces (nodemap, ClassMap.empty) in
+	      let node_info =
+		{ i_info = i;
+		  i_super = super_node;
+		  i_interfaces = interfaces_nodes;
+		  i_children_classes = [];
+		  i_children_interfaces = []
+		} in
+	      let node = Interface node_info in
+		ClassMap.iter
+		  (fun _ i ->
+		     i.i_children_interfaces <- 
+		       node_info :: i.i_children_interfaces) interfaces_nodes;
+		(ClassMap.add i.i_name node nodemap, node)
+  in fst (add_interface_or_class c nodemap)
+
+let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap.t =
+  ClassMap.fold
+    (fun _ c m ->
+       add_interface_or_class cmap c m
+    ) cmap ClassMap.empty
+
+let map_program_classes f classes =
+  let jcmap = ClassMap.map
+    (fun c -> map_interface_or_class f (to_jclass c)) classes in
+    build_hierarchy jcmap
+
+let map_program f p =
+  let classes = map_program_classes f p.classes in
+    { classes = classes;
+      parsed_methods =
+	ClassMethodMap.map
+	  (fun (node,cm) ->
+	     let cn = get_name node in
+	     let ms = cm.cm_signature in
+	     let node = ClassMap.find cn classes in
+	     let m = get_method node ms in
+	       match m with
+		 | AbstractMethod _ -> assert false
+		 | ConcreteMethod cm -> (node,cm)
+	  ) p.parsed_methods;
+      static_lookup_method = fun _ _ _ -> ClassMethodMap.empty
+    }

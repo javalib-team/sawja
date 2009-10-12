@@ -157,6 +157,14 @@ val super_interfaces : 'a interface_node -> 'a interface_node list
 
 val firstCommonSuperClass : 'a class_node -> 'a class_node -> 'a class_node
 
+(** {2 Building a hierarchy from simple classes.} *)
+
+val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
+
+(** {2 Transforming code representation in a program.} *)
+
+val map_program : ('a -> 'b) -> 'a program -> 'b program
+
 (** {2 Callgraph.} *)
 
 type callgraph = ((class_name * method_signature * int)
