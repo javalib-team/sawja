@@ -378,22 +378,24 @@ let static_lookup_virtual prog iobj ms =
 		List.map
 		  (fun i -> Interface i)
 		  (resolve_interface_method' ms (Class c))
+
+let static_lookup_static program cs ms =
+  let c =
+    match resolve_class program cs with
+      | Class c -> resolve_method ms c
+      | Interface _ -> raise IncompatibleClassChangeError
+  in
+    match c with
+      | Class c' when implements_method c' ms -> c
+      | _ -> raise AbstractMethodError
+
 		    
 let static_lookup program pp =
   match get_opcode pp with
     | OpInvoke (`Virtual obj, ms) ->
         Some (static_lookup_virtual program obj ms,ms)
     | OpInvoke (`Static cs, ms) ->
-        let c =
-	  match resolve_class program cs with
-	    | Class c -> resolve_method ms c
-	    | Interface _ -> raise IncompatibleClassChangeError
-	in
-	let c =
-	  match c with
-	    | Class c' when implements_method c' ms -> c
-	    | _ -> raise AbstractMethodError
-	in Some ([c],ms)
+        Some ([static_lookup_static program cs ms],ms)
     | OpInvoke (`Special cs, ms) ->
         Some ([Class (static_lookup_special program pp cs ms ms)],ms)
     | OpInvoke (`Interface cs, ms) ->
