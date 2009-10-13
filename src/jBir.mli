@@ -1,5 +1,5 @@
-(** module decrivant une representation intermediaire sans pile pour le bytecode, 
-    et proposant des fonctions de transformation *)
+(** Stackelss intermediate representation for Java Bytecode
+*)
 
 (** {2 Language} *)
 
@@ -29,8 +29,6 @@ val var_name : var -> string
 
 (** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
 val bcvar : int -> var
-
-
 
 type conv = I2L  | I2F  | I2D  
   | L2I  | L2F  | L2D  
@@ -89,20 +87,21 @@ type instr =
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
   | Throw of expr
   | Return of expr option
-  | New of var * JBasics.class_name * JBasics.value_type list * expr list
-  | NewArray of var * JBasics.value_type * expr list
-  | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list
-  | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
-  | InvokeNonVirtual of var option * expr * JBasics.class_name *
-      JBasics.method_signature * expr list
+  | New of var * JBasics.class_name * JBasics.value_type list * expr list (** x := new C<sig>(e1,...,en) *)
+  | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)
+  | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list (** x :=  C.m<sig>(e1,...,en) or C.m<sig>(e1,...,en)  *)
+  | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list (** x := e.m<sig>(e1,...,en) or e.m<sig>(e1,...,en)  *)
+  | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list (** x := e.C.m<sig>(e1,...,en) or e.C.m<sig>(e1,...,en)  *)
   | MonitorEnter of expr
   | MonitorExit of expr
   | MayInit of JBasics.class_name
   | Check of check
 
+
 type bir = {
-  params : var list;
-  code : (int * instr list) list;
+  params : var list;  (** method parameters *)
+  code : (int * instr list) list; (** pc : \[instr1 ; ... ; instrn \] , ... , pc' : \[instr'1 ; ... ; instr'n. \] 
+				      Each pc indexes a list of [instr] instructions which all come from the same initial bytecode instruction*)
   exc_tbl : JCode.exception_handler list;
   line_number_table : (int * int) list option;
 }
@@ -116,16 +115,16 @@ val print_bir : bir -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** transformation de methode concrete en bir. 
-     stats est true, construit en plus les statistiques de la transfo *)
+(** Concrete method transformation. *)
 val cm_transform : JCode.jcode Lazy.t Javalib.concrete_method -> bir Javalib.concrete_method 
   
-(** transformation d' interface_or_class. 
-    si cstats est true, construit en plus les statistiques de la transfo  *)
+(** [interface_or_class] transformation *)
 val iorc_transform : JCode.jcode Lazy.t Javalib.interface_or_class -> bir Javalib.interface_or_class 
 
-(** transformation de l'interface_or_class correspondant au class_path. 
-    si cstats est true, construit en plus les statistiques de la transfo  *)
+(** transform the [interface_or_class] corresponding to the class_path string.
+
+    ex: [cn_transform "dir/dir2/Test.class"]
+*)
 val cn_transform : string -> bir Javalib.interface_or_class 
 
 
@@ -133,7 +132,7 @@ val cn_transform : string -> bir Javalib.interface_or_class
 (** {2 Exceptions} *)
 
 
-(** - Exceptions raised because of the restrictions on the bytecode: *)
+(** - Exceptions raised because of the restrictions on the bytecode needed by the transformation: *)
 
 exception Uninit_is_not_expr
 exception NonemptyStack_backward_jump
