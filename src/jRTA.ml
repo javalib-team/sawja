@@ -133,13 +133,13 @@ struct
       ClassMap.find cs p.classes
     with
       | Not_found ->
-	    add_class p cs;
-	    try
-	      ClassMap.find cs p.classes
-	    with _ ->
-	      failwith ("Can't load class or interface "
-			^ (cn_name cs))
-		
+	  add_class p cs;
+	  try
+	    ClassMap.find cs p.classes
+	  with _ ->
+	    failwith ("Can't load class or interface "
+		      ^ (cn_name cs))
+	      
   and add_class p cs =
     (* We assume that a call to add_class is done only when a class has never *)
     (* been loaded in the program. Loading a class implies loading all its *)
@@ -204,18 +204,19 @@ struct
 		(match c_super with
 		   | None -> ()
 		   | Some sc_name ->
-		     let sc = to_class_node (get_class_info p sc_name).class_data in
-		       sc.c_children <- c :: sc.c_children
+		       let sc = to_class_node (get_class_info p sc_name).class_data in
+			 sc.c_children <- c :: sc.c_children
 		);
 		p.classes <- ClassMap.add cs ioc_info p.classes;
 	| JInterface i ->
+	    let i_interfaces = i.Javalib.i_interfaces in
 	    let super_interfaces =
 	      let s = ref ClassSet.empty in
 		List.iter (fun si ->
 			     let si_info = get_class_info p si in
 			       s := ClassSet.add si !s;
 			       s := ClassSet.union si_info.super_interfaces !s
-			  ) i.Javalib.i_interfaces;
+			  ) i_interfaces;
 		!s in
 
 	    let ioc_info =
@@ -230,13 +231,13 @@ struct
 		memorized_interface_calls = MethodSet.empty }
 	    in
 	    let i = to_interface_node ioc_info.class_data in
-	      ClassSet.iter
-		(fun si_name ->
+	      List.iter
+		(fun iname ->
 		   let si =
-		     to_interface_node (get_class_info p si_name).class_data in
-		       si.i_children_interfaces <- i :: si.i_children_interfaces
+		     to_interface_node (get_class_info p iname).class_data in
+		     si.i_children_interfaces <- i :: si.i_children_interfaces
 		)
-		super_interfaces;
+		i_interfaces;
 	      p.classes <- ClassMap.add cs ioc_info p.classes;
 
   and add_clinit p cs =
