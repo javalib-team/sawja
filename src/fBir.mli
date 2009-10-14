@@ -1,4 +1,4 @@
-(** Stackless intermediate representation for Java Bytecode, with only flat expressions
+(** Stackless, flat intermediate representation for Java Bytecode
 *)
 
 (** {2 Language} *)
@@ -89,9 +89,7 @@ type instr =
   | Throw of expr
   | Return of expr option
   | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
-      (* var :=  class (parameters) *)
   | NewArray of var * JBasics.value_type * (expr list)
-      (* var :=  value_type[e1]...[e2] *) 
   | InvokeStatic 
       of var option * JBasics.class_name * JBasics.method_signature * expr list
   | InvokeVirtual
@@ -103,14 +101,12 @@ type instr =
   | MayInit of JBasics.class_name
   | Check of check 
 
-  
 type fbir = {
   f_params : var list; 
   f_code : (int * instr list) list; 
   f_exc_tbl : JCode.exception_handler list;
   f_line_number_table : (int * int) list option;
 }
-
 
 (** {2 Printing functions} *)
 

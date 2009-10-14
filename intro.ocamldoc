@@ -14,7 +14,7 @@
 {!modules: JPrintHtml}
 
 {b {L Other}}
-{!modules: Wlist}
+{!modules: Wlist JBir FBir}
 
 {b {L Indexes}}
 
