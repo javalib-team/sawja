@@ -404,10 +404,9 @@ let static_lookup program pp =
 	
 let static_lookup' program pp =
   match get_opcode pp with
-    | OpInvoke _ ->
+    | OpInvoke (a,b) ->
         let cs = get_name (get_class pp)
         and ms = (get_meth pp).cm_signature
-        and pc = get_pc pp
         in
           List.map
             (fun (cs,ms) -> get_first_pp program cs ms)
@@ -418,8 +417,8 @@ let static_lookup' program pp =
                     | AbstractMethod _ -> assert false;
                     | ConcreteMethod _ -> (cs,ms))
                (List.map cms_split
-		  (ClassMethodMap.key_elements
-                     (program.static_lookup_method cs ms pc))))
+		  (ClassMethodSet.elements
+                     (program.static_lookup_method cs ms (a,b)))))
     | _ -> []
 	
 let handlers program pp =
@@ -461,16 +460,15 @@ let handlers program pp =
 			  then false
 			  else
                             match get_opcode pp with
-                              | OpInvoke _ ->
+                              | OpInvoke (a,b) ->
                                   let cl =
                                     (* static_lookup program pp  (* safe, but using RTA is more precise *) *)
                                     let cs = get_name (get_class pp)
                                     and ms = (get_meth pp).cm_signature
-                                    and pc = get_pc pp
                                     in
                                       List.map cms_split
-					(ClassMethodMap.key_elements
-                                           (program.static_lookup_method cs ms pc))
+					(ClassMethodSet.elements
+                                           (program.static_lookup_method cs ms (a,b)))
 				  and throws_instance_of m exn =
 				    (* return true if the method m is
 				       declared to throw exceptions of

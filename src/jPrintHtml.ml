@@ -499,11 +499,12 @@ let get_fields_indexes program cs =
 	   FieldMap.iter (fun i _ -> l := i :: !l) i.i_info.i_fields
     ); !l
 
-let staticlookup2html program cs ms pp callcs callms =
+let staticlookup2html program cs ms invoke =
   let mlookups =
     try List.map cms_split
-      (ClassMethodMap.key_elements (program.static_lookup_method cs ms pp))
+      (ClassMethodSet.elements (program.static_lookup_method cs ms invoke))
     with _ -> [] in
+  let (callcs,callms) = invoke_cnms invoke in
   let mlookupshtml = List.map
     (fun (rcs,rms) ->
        let anchor = ms2anchorname rcs rms in
@@ -548,11 +549,13 @@ let opcodeparam2param program cs ms pp op prmstr =
 	    SimpleParam ([gen_titled_hyperlink href fname prmstr;
 			  PCData " : "] @ fieldtype)
       | OpInvoke ((`Virtual (TClass ccs)),cms) ->
-	  staticlookup2html program cs ms pp ccs cms
-      | OpInvoke ((`Interface ccs),cms)
-      | OpInvoke ((`Static ccs),cms)
+	  staticlookup2html program cs ms ((`Virtual (TClass ccs)),cms)
+      | OpInvoke ((`Interface ccs),cms) ->
+	  staticlookup2html program cs ms ((`Interface ccs),cms)
+      | OpInvoke ((`Static ccs),cms) ->
+	  staticlookup2html program cs ms ((`Static ccs),cms)
       | OpInvoke ((`Special ccs),cms) ->
-	    staticlookup2html program cs ms pp ccs cms
+	    staticlookup2html program cs ms ((`Special ccs),cms)
       | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
 	  let ioc = get_node program cs in
 	  let meth = get_method ioc ms in

@@ -58,8 +58,16 @@ and 'a node =
 
 (** {2 The [program] structure.} *)
 
-type 'a static_lookup_method = class_name -> method_signature -> int ->
-  ('a class_node * 'a concrete_method) ClassMethodMap.t
+type invoke =
+    [ `Interface of JBasics.class_name
+    | `Special of JBasics.class_name
+    | `Static of JBasics.class_name
+    | `Virtual of JBasics.object_type ] * JBasics.method_signature
+
+val invoke_cnms : invoke -> class_name * method_signature
+
+type 'a static_lookup_method = class_name -> method_signature -> invoke ->
+  ClassMethodSet.t
 
 (** A program is a record containing a map of class files identified by
     an id, and a dictionary containing functions to retrieve classes and

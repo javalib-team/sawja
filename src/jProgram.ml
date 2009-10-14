@@ -91,12 +91,28 @@ let rec get_all_children_classes c =
 	    List.rev_append r (get_all_children_classes c)
 	 ) direct_children [])
 
-type 'a static_lookup_method = class_name -> method_signature -> int ->
-  ('a class_node * 'a concrete_method) ClassMethodMap.t
+type invoke =
+    [ `Interface of JBasics.class_name
+    | `Special of JBasics.class_name
+    | `Static of JBasics.class_name
+    | `Virtual of JBasics.object_type ] * JBasics.method_signature
+
+let invoke_cnms (invoke:invoke) =
+  match invoke with
+    | (`Interface cn, ms) -> (cn,ms)
+    | (`Special cn, ms) -> (cn,ms)
+    | (`Static cn, ms) -> (cn,ms)
+    | (`Virtual (TClass cn),ms) -> (cn,ms)
+    | (`Virtual (TArray _),ms) -> (JBasics.java_lang_object,ms)
+
+type 'a static_lookup_method = class_name -> method_signature -> invoke ->
+	ClassMethodSet.t
+
 type 'a program = { classes : 'a node ClassMap.t;
 		    parsed_methods : ('a node *
 					'a concrete_method) ClassMethodMap.t;
 		    static_lookup_method : 'a static_lookup_method }
+
 type 'a t = 'a program
 
 let super = function
@@ -225,31 +241,21 @@ let rec firstCommonSuperClass (c1:'a class_node) (c2:'a class_node) : 'a class_n
 exception Invoke_not_found of (class_name * method_signature
 			       * class_name * method_signature)
 
-let get_method_calls p cs m =
-  let l = ref [] in
+let get_method_calls p cs cm =
+  let l = ref Ptmap.empty in
   let f_lookup = p.static_lookup_method in
-  let method2callsite cs ms pp (ccs,cms) =
-    ((cs,ms,pp),(ccs,cms))
-  in
     begin
-      match m with
-	| ConcreteMethod ({cm_implementation = Java code} as cm)
-	  when
-	    ClassMethodMap.mem cm.cm_class_method_signature p.parsed_methods ->
+      match cm with
+	| {cm_implementation = Java code}
+	    when
+	      ClassMethodMap.mem cm.cm_class_method_signature p.parsed_methods ->
 	    let ms = cm.cm_signature in
 	      Array.iteri
 		(fun pp op ->
 		   match op with
-		     | OpInvoke _ ->
-			 let callsites = (f_lookup cs ms pp) in
-			 let callsites_list =
-			   List.map cms_split
-			     (ClassMethodMap.key_elements callsites)
-			 in
-			   l :=
-			     List.rev_append
-			       (List.map (method2callsite cs ms pp) callsites_list)
-			       !l
+		     | OpInvoke (a,b) ->
+			 let lookup = (f_lookup cs ms (a,b)) in
+			   l := Ptmap.add pp lookup !l
 		     | _ -> ())
 		(Lazy.force code).c_code
 	| _ -> ()
@@ -260,19 +266,38 @@ type callgraph = ((class_name * method_signature * int)
 		  * (class_name * method_signature)) list
 
 let get_callgraph p =
+  let methodcalls2callsite cs ms calls =
+    let l = ref [] in
+      Ptmap.iter
+	(fun pp cmset ->
+	   ClassMethodSet.iter
+	     (fun ccms ->
+		let (ccs,cms) = cms_split ccms in
+		  l := ((cs,ms,pp),(ccs,cms)) :: !l
+	     ) cmset
+	) calls;
+      !l in
   let calls = ref [] in
     iter
       (fun ioc ->
 	 match ioc with
-	   | Interface {i_info = {i_name = cs; i_initializer = Some m}} ->
+	   | Interface {i_info = {i_name = cs; i_initializer = Some cm}} ->
                calls :=
-                 (get_method_calls p cs (ConcreteMethod m)) @ !calls
+                 (methodcalls2callsite cs cm.cm_signature
+		    (get_method_calls p cs cm)) @ !calls
            | Interface _ -> ()
 	   | Class c ->
 	       MethodMap.iter
 		 (fun _ m ->
-		    calls := (get_method_calls p c.c_info.c_name m) @ !calls)
-                 c.c_info.c_methods
+		    match m with
+		      | ConcreteMethod cm ->
+			  let cs = c.c_info.c_name in
+			    calls :=
+			      (methodcalls2callsite cs cm.cm_signature
+				 (get_method_calls p cs cm))
+			    @ !calls
+		      | AbstractMethod _ -> ()
+		 ) c.c_info.c_methods
       ) p;
     !calls
 
@@ -296,6 +321,11 @@ let to_class_node node =
   match node with
     | Class c -> c
     | Interface _ -> failwith "to_class_node applied on an interface node."
+
+let to_concrete_method m =
+  match m with
+    | ConcreteMethod cm -> cm
+    | AbstractMethod _ -> failwith "to_concrete_method applied on an abstract method."
 
 let to_interface_node node =
   match node with
@@ -402,5 +432,5 @@ let map_program f p =
 		 | AbstractMethod _ -> assert false
 		 | ConcreteMethod cm -> (node,cm)
 	  ) p.parsed_methods;
-      static_lookup_method = fun _ _ _ -> ClassMethodMap.empty
+      static_lookup_method = fun _ _ _ -> ClassMethodSet.empty
     }

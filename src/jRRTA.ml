@@ -28,10 +28,16 @@ type vta_concrete_method =
     { c_method : jvm_code concrete_method;
       mutable c_has_been_parsed : bool;
       mutable vta_instantiated_classes : jvm_code class_node ClassMap.t;
-      mutable virtual_calls : (jvm_code class_node * method_signature) Ptmap.t;
-      mutable interface_calls : (jvm_code interface_node * method_signature) Ptmap.t;
-      mutable static_lookup : (jvm_code class_node
-			       * jvm_code concrete_method) ClassMethodMap.t Ptmap.t;
+      mutable virtual_calls : (jvm_code class_node * method_signature) ClassMethodMap.t;
+      mutable interface_calls : (jvm_code interface_node * method_signature) ClassMethodMap.t;
+      mutable static_lookup_virtual : (jvm_code class_node
+				       * jvm_code concrete_method) ClassMethodMap.t ClassMethodMap.t;
+      mutable static_lookup_interface : (jvm_code class_node
+					 * jvm_code concrete_method) ClassMethodMap.t ClassMethodMap.t;
+      mutable static_lookup_static : (jvm_code class_node
+				       * jvm_code concrete_method) ClassMethodMap.t;
+      mutable static_lookup_special : (jvm_code class_node
+				      * jvm_code concrete_method) ClassMethodMap.t;
       mutable vta_instantiated_subclasses : jvm_code class_node ClassMap.t ClassMap.t;
       mutable vta_implemented_interfaces : jvm_code class_node ClassMap.t ClassMap.t
     }
@@ -80,9 +86,12 @@ let get_vta_method pvta cm =
       let m = { c_method = cm;
 		c_has_been_parsed = false;
 		vta_instantiated_classes = ClassMap.empty;
-		virtual_calls = Ptmap.empty;
-		interface_calls = Ptmap.empty;
-		static_lookup = Ptmap.empty;
+		virtual_calls = ClassMethodMap.empty;
+		interface_calls = ClassMethodMap.empty;
+		static_lookup_virtual = ClassMethodMap.empty;
+		static_lookup_interface = ClassMethodMap.empty;
+		static_lookup_static = ClassMethodMap.empty;
+		static_lookup_special = ClassMethodMap.empty;
 		vta_instantiated_subclasses = ClassMap.empty;
 		vta_implemented_interfaces = ClassMap.empty
 	      } in
@@ -118,8 +127,8 @@ let get_vta_implemented_interfaces m i =
 	classes
 	  
 let update_invoke_virtual pvta m =
-  Ptmap.iter
-    (fun pp (cc,cms) ->
+  ClassMethodMap.iter
+    (fun ccms (cc,cms) ->
        let instantiated_classes =
 	 get_vta_instantiated_subclasses m cc in
        let rmmap = JControlFlow.invoke_virtual_lookup ~c:(Some cc)
@@ -132,33 +141,35 @@ let update_invoke_virtual pvta m =
 		   Wlist.add (Class c,mvta) pvta.workset)
 	   ) rmmap;
 	 let mmap =
-	   try Ptmap.find pp m.static_lookup
+	   try ClassMethodMap.find ccms m.static_lookup_virtual
 	   with _ -> ClassMethodMap.empty in
-	   m.static_lookup <-
-	     Ptmap.add pp (ClassMethodMap.merge
-			     (fun x _ -> x) mmap rmmap) m.static_lookup
+	   m.static_lookup_virtual <-
+	     ClassMethodMap.add ccms
+	     (ClassMethodMap.merge
+		(fun x _ -> x) mmap rmmap) m.static_lookup_virtual
     ) m.virtual_calls
     
 let update_invoke_interface pvta m =
-  Ptmap.iter
-    (fun pp (ci,cms) ->
+  ClassMethodMap.iter
+    (fun ccms (ci,cms) ->
        let instantiated_classes =
 	 get_vta_implemented_interfaces m ci in
-     let rmmap = JControlFlow.invoke_interface_lookup ~i:(Some ci)
-       cms instantiated_classes in
-       ClassMethodMap.iter
-	 (fun _ (c,cm) ->
-	    let mvta = get_vta_method pvta cm in
-	      if not(mvta.c_has_been_parsed) then
-		(mvta.c_has_been_parsed <- true;
-		 Wlist.add (Class c,mvta) pvta.workset)
-	 ) rmmap;
-       let mmap =
-	 try Ptmap.find pp m.static_lookup
-	 with _ -> ClassMethodMap.empty in
-	 m.static_lookup <-
-	   Ptmap.add pp (ClassMethodMap.merge
-			   (fun x _ -> x) mmap rmmap) m.static_lookup
+       let rmmap = JControlFlow.invoke_interface_lookup ~i:(Some ci)
+	 cms instantiated_classes in
+	 ClassMethodMap.iter
+	   (fun _ (c,cm) ->
+	      let mvta = get_vta_method pvta cm in
+		if not(mvta.c_has_been_parsed) then
+		  (mvta.c_has_been_parsed <- true;
+		   Wlist.add (Class c,mvta) pvta.workset)
+	   ) rmmap;
+	 let mmap =
+	   try ClassMethodMap.find ccms m.static_lookup_interface
+	   with _ -> ClassMethodMap.empty in
+	   m.static_lookup_interface <-
+	     ClassMethodMap.add ccms
+	     (ClassMethodMap.merge
+		(fun x _ -> x) mmap rmmap) m.static_lookup_interface
     ) m.interface_calls
     
 let rec value_type2class_nodes pvta v =
@@ -191,15 +202,17 @@ let parse_invoke pvta m cms =
       ClassMap.merge
       (fun x _ -> x) instantiated_classes m.vta_instantiated_classes
       
-let parse_invoke_virtual pvta m pp cc cms =
+let parse_invoke_virtual pvta m cc cms =
   parse_invoke pvta m cms;
-  m.virtual_calls <-
-    Ptmap.add pp (cc,cms) m.virtual_calls
+  let ccms = make_cms (cc.c_info.c_name) cms in
+    m.virtual_calls <-
+      ClassMethodMap.add ccms (cc,cms) m.virtual_calls
     
-let parse_invoke_interface pvta m pp ci cms =
+let parse_invoke_interface pvta m ci cms =
   parse_invoke pvta m cms;
-  m.interface_calls <-
-    Ptmap.add pp (ci,cms) m.interface_calls
+  let ccms = make_cms (ci.i_info.i_name) cms in
+    m.interface_calls <-
+      ClassMethodMap.add ccms (ci,cms) m.interface_calls
     
 let add_clinit pvta ioc =
   try
@@ -239,24 +252,26 @@ let parse_get_put_static pvta ioc fs =
 	 )
       ) rioc_list
       
-let parse_invoke_static pvta m pp cc cms =
+let parse_invoke_static pvta m cc cms =
   parse_invoke pvta m cms;
+  let ccms = make_cms cc.c_info.c_name cms in
   let (rc,cm) = JControlFlow.invoke_static_lookup cc cms in
-    m.static_lookup <-
-      Ptmap.add pp (ClassMethodMap.add cm.cm_class_method_signature (rc,cm)
-		      ClassMethodMap.empty) m.static_lookup;
+    m.static_lookup_static <-
+      ClassMethodMap.add ccms (rc,cm)
+      m.static_lookup_static;
     let mvta = get_vta_method pvta cm in
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
 	 Wlist.add (Class rc, mvta) pvta.workset);
       rc
 	
-let parse_invoke_special pvta m pp ioc cc cms =
+let parse_invoke_special pvta m ioc cc cms =
   parse_invoke pvta m cms;
+  let ccms = make_cms cc.c_info.c_name cms in
   let (rc,cm) = JControlFlow.invoke_special_lookup ioc cc cms in
-    m.static_lookup <-
-      Ptmap.add pp (ClassMethodMap.add cm.cm_class_method_signature (rc,cm)
-		      ClassMethodMap.empty) m.static_lookup;
+    m.static_lookup_special <-
+      ClassMethodMap.add ccms (rc,cm)
+      m.static_lookup_special;
     let mvta = get_vta_method pvta cm in
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
@@ -282,7 +297,7 @@ let parse_vta_method pvta ioc m =
     | Java code ->
 	let opcodes = (Lazy.force code).c_code in
 	  Array.iteri
-	    (fun pp op ->
+	    (fun _ op ->
 	       match op with
 		 | OpNew cs ->
 		     let c =
@@ -324,7 +339,7 @@ let parse_vta_method pvta ioc m =
 			    | Interface _ -> failwith "Impossible InvokeStatic."
 			    | Class c -> c
 			 ) in
-		     let rc = parse_invoke_static pvta m pp cc cms in
+		     let rc = parse_invoke_static pvta m cc cms in
 		       add_class_clinits pvta rc
 		 | OpInvoke (`Special ccs, cms) ->
 		     let cc =
@@ -334,7 +349,7 @@ let parse_vta_method pvta ioc m =
 		 	    | Interface _ -> failwith "Impossible InvokeSpecial."
 		 	    | Class c -> c
 		 	 ) in
-		       parse_invoke_special pvta m pp ioc cc cms
+		       parse_invoke_special pvta m ioc cc cms
 		 | OpInvoke (`Virtual (TClass ccs), cms) ->
 		     let cc =
 		       let iocc =
@@ -343,7 +358,7 @@ let parse_vta_method pvta ioc m =
 			    | Interface _ -> failwith "Impossible InvokeVirtual."
 			    | Class c -> c
 			 ) in
-		       parse_invoke_virtual pvta m pp cc cms
+		       parse_invoke_virtual pvta m cc cms
 		 | OpInvoke (`Virtual (TArray _), cms) ->
 		     (* should only happen with clone(). *)
 		     let cc =
@@ -353,7 +368,7 @@ let parse_vta_method pvta ioc m =
 			    | Interface _ -> failwith "Impossible InvokeVirtual."
 			    | Class o -> o
 			 ) in
-		       parse_invoke_virtual pvta m pp cc cms
+		       parse_invoke_virtual pvta m cc cms
 		 | OpInvoke (`Interface ccs, cms) ->
 		     let ci =
 		       let iocc =
@@ -362,7 +377,7 @@ let parse_vta_method pvta ioc m =
 			    | Interface i -> i
 			    | Class _ -> failwith "Impossible InvokeInterface."
 			 ) in
-		       parse_invoke_interface pvta m pp ci cms
+		       parse_invoke_interface pvta m ci cms
 		 | _ -> ()
 	    ) opcodes;
 	  update_invoke_virtual pvta m;
@@ -373,6 +388,43 @@ let iter_workset pvta =
     Wlist.iter_to_head
       (fun (ioc,mvta) -> parse_vta_method pvta ioc mvta) tail
       
+let static_lookup_method virtual_lookup_map interface_lookup_map
+    static_lookup_map special_lookup_map cs ms invoke
+    : (jvm_code class_node
+       * jvm_code concrete_method) ClassMethodMap.t =
+  (match invoke with
+     | (`Interface ccs,cms) ->
+	 let cms = make_cms cs ms
+	 and ccms = make_cms ccs cms in
+	 let cmmap = ClassMethodMap.find cms interface_lookup_map in
+	   ClassMethodMap.find ccms cmmap
+     | (`Virtual (TClass ccs),cms) ->
+	 let cms = make_cms cs ms
+	 and ccms = make_cms ccs cms in
+	 let cmmap = ClassMethodMap.find cms virtual_lookup_map in
+	   ClassMethodMap.find ccms cmmap
+     | (`Virtual (TArray _),cms) ->
+	 (* should only happen with [clone()] *)
+	 let cms = make_cms cs ms
+	 and ccms = make_cms (JBasics.java_lang_object) cms in
+	 let cmmap = ClassMethodMap.find cms virtual_lookup_map in
+	   ClassMethodMap.find ccms cmmap
+     | (`Static ccs,cms) ->
+	 let cms = make_cms cs ms
+	 and ccms = make_cms ccs cms in
+	 let cmmap = ClassMethodMap.find cms static_lookup_map in
+	 let (c,cm) = ClassMethodMap.find ccms cmmap in
+	   ClassMethodMap.add cm.cm_class_method_signature (c,cm)
+	     ClassMethodMap.empty
+     | (`Special ccs,cms) ->
+	 let cms = make_cms cs ms
+	 and ccms = make_cms ccs cms in
+	 let cmmap = ClassMethodMap.find cms special_lookup_map in
+	 let (c,cm) = ClassMethodMap.find ccms cmmap in
+	   ClassMethodMap.add cm.cm_class_method_signature (c,cm)
+	     ClassMethodMap.empty
+  )
+
 let parse_program_from_rta prta instantiated_classes csms =
   let pvta = { p = prta;
 	       rta_instantiated_classes = instantiated_classes;
@@ -396,14 +448,25 @@ let parse_program_from_rta prta instantiated_classes csms =
 	     )
     );
     iter_workset pvta;
-    let static_lookup_map =
-      ClassMethodMap.map (fun mvta -> mvta.static_lookup) pvta.methods in
+    let static_virtual_lookup_map =
+      ClassMethodMap.map
+	(fun mvta -> mvta.static_lookup_virtual) pvta.methods in
+    let static_interface_lookup_map =
+      ClassMethodMap.map
+	(fun mvta -> mvta.static_lookup_interface) pvta.methods in
+    let static_special_lookup_map =
+      ClassMethodMap.map
+	(fun mvta -> mvta.static_lookup_special) pvta.methods in
+    let static_static_lookup_map =
+      ClassMethodMap.map
+	(fun mvta -> mvta.static_lookup_static) pvta.methods in
       { prta with parsed_methods = pvta.pvta_parsed_methods;
 	  static_lookup_method =
-	  (fun cs ms pp ->
-       	     Ptmap.find pp
-       	       (ClassMethodMap.find (make_cms cs ms)
-       		  static_lookup_map))
+	  static_lookup_method
+	    static_virtual_lookup_map
+	    static_interface_lookup_map
+	    static_static_lookup_map
+	    static_special_lookup_map
       }
 	
 let default_entrypoints = JRTA.default_entrypoints
