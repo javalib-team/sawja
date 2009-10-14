@@ -432,5 +432,5 @@ let map_program f p =
 		 | AbstractMethod _ -> assert false
 		 | ConcreteMethod cm -> (node,cm)
 	  ) p.parsed_methods;
-      static_lookup_method = fun _ _ _ -> ClassMethodSet.empty
+      static_lookup_method = p.static_lookup_method
     }
