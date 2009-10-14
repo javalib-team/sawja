@@ -1,4 +1,4 @@
-(** Stackless intermediate representation for Java Bytecode
+(** Stackless intermediate representation for Java Bytecode, with only flat expressions
 *)
 
 (** {2 Language} *)
@@ -56,17 +56,18 @@ type binop =
   | CMP of comp
 
 type expr =
-    Const of const
+  | Const of const
   | Var of var
   | Unop of unop * expr
   | Binop of binop * expr * expr
-  | Field of expr * JBasics.class_name * JBasics.field_signature
+  | Field of var * JBasics.class_name * JBasics.field_signature
   | StaticField of JBasics.class_name * JBasics.field_signature
 
 (** {3 Instructions} *)
 
+	  
 type virtual_call_kind =
-  |  VirtualCall of JBasics.object_type
+  | VirtualCall of JBasics.object_type
   | InterfaceCall of JBasics.class_name
 
 type check = 
@@ -76,34 +77,38 @@ type check =
   | CheckNegativeArraySize of expr
   | CheckCast of expr
   | CheckArithmetic of expr
-      
+
 type instr =
-    Nop
-  | AffectVar of var * expr (** x := e *)
-  | AffectArray of expr * expr * expr (** e1\[e2\] := e3 *) 
-  | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr (** e1.<C:f> := e2 *)
-  | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr  (** <C:f> := e *)
+  | Nop
+  | AffectVar of var * expr
+  | AffectArray of var * expr * expr
+  | AffectField of var * JBasics.class_name * JBasics.field_signature * expr
+  | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
   | Goto of int
-  | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
+  | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
   | Throw of expr
   | Return of expr option
-  | New of var * JBasics.class_name * JBasics.value_type list * expr list (** x := new C<sig>(e1,...,en) *)
-  | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)
-  | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list (** x :=  C.m<sig>(e1,...,en) or C.m<sig>(e1,...,en)  *)
-  | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list (** x := e.m<sig>(e1,...,en) or e.m<sig>(e1,...,en)  *)
-  | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list (** x := e.C.m<sig>(e1,...,en) or e.C.m<sig>(e1,...,en)  *)
+  | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
+      (* var :=  class (parameters) *)
+  | NewArray of var * JBasics.value_type * (expr list)
+      (* var :=  value_type[e1]...[e2] *) 
+  | InvokeStatic 
+      of var option * JBasics.class_name * JBasics.method_signature * expr list
+  | InvokeVirtual
+      of var option * var * virtual_call_kind * JBasics.method_signature * expr list
+  | InvokeNonVirtual
+      of var option * var * JBasics.class_name * JBasics.method_signature * expr list
   | MonitorEnter of expr
-  | MonitorExit of expr
+  | MonitorExit of expr 
   | MayInit of JBasics.class_name
-  | Check of check
+  | Check of check 
 
-
-type bir = {
-  params : var list;  (** method parameters *)
-  code : (int * instr list) list; (** pc : \[instr1 ; ... ; instrn \] , ... , pc' : \[instr'1 ; ... ; instr'n. \] 
-				      Each pc indexes a list of [instr] instructions which all come from the same initial bytecode instruction*)
-  exc_tbl : JCode.exception_handler list;
-  line_number_table : (int * int) list option;
+  
+type fbir = {
+  f_params : var list; 
+  f_code : (int * instr list) list; 
+  f_exc_tbl : JCode.exception_handler list;
+  f_line_number_table : (int * int) list option;
 }
 
 
@@ -111,21 +116,21 @@ type bir = {
 
 val print_instr : instr -> string
 val print_instrs : (int * instr list) -> string
-val print_bir : bir -> string list
+val print_fbir : fbir -> string list
 
 (** {2 Bytecode transformation} *)
 
 (** Concrete method transformation. *)
-val cm_transform : JCode.jcode Lazy.t Javalib.concrete_method -> bir Javalib.concrete_method 
+val cm_transform : JCode.jcode Lazy.t Javalib.concrete_method -> fbir Javalib.concrete_method 
   
 (** [interface_or_class] transformation *)
-val iorc_transform : JCode.jcode Lazy.t Javalib.interface_or_class -> bir Javalib.interface_or_class 
+val iorc_transform : JCode.jcode Lazy.t Javalib.interface_or_class -> fbir Javalib.interface_or_class 
 
 (** transform the [interface_or_class] corresponding to the class_path string.
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : string -> bir Javalib.interface_or_class 
+val cn_transform : string -> fbir Javalib.interface_or_class 
 
 
 

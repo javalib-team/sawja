@@ -1413,6 +1413,8 @@ let transform_intra = transform_intra_stats ~stats:false
       
  let cm_transform = cm_transform_stats Normal ~stats:false
 
+ let cm_transform_flat =  cm_transform_stats Flat  ~stats:false
+
  let cm_transform_addr3 = cm_transform_stats Addr3  ~stats:false
 
  let jmethod_accu flat cstats  m mmap =
@@ -1486,6 +1488,8 @@ let transform_intra = transform_intra_stats ~stats:false
 
 let iorc_transform = iorc_transform_stats Normal ~cstats:false
 
+let iorc_transform_flat = iorc_transform_stats Flat ~cstats:false
+
 let is_file f =
   try
     (Unix.stat f).Unix.st_kind = Unix.S_REG
@@ -1510,5 +1514,8 @@ let cn_transform_stats flat ?(cstats=false) classfile =
 
 let cn_transform_nbvars = cn_transform_stats Addr3 ~cstats:true 
 let cn_transform = cn_transform_stats Normal ~cstats:false 
+
+let cn_transform_flat  = cn_transform_stats Flat ~cstats:false 
+
 
 
