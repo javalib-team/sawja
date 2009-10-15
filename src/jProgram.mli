@@ -171,7 +171,7 @@ val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)
 
-val map_program : ('a -> 'b) -> 'a program -> 'b program
+val map_program : ('a, 'b) code_mapping -> 'a program -> 'b program
 
 (** {2 Callgraph.} *)
 

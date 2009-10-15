@@ -27,7 +27,6 @@ DOCDIR			= doc
 OPT_FLAGS		= -noassert -ccopt -O3
 
 DEBUG			= no
-CMO			= no
 
 OCAMLC			= ocamlc.opt -w Ae -dtypes -g
 OCAMLDOC		= ocamldoc.opt
