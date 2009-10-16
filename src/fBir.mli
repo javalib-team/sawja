@@ -117,18 +117,18 @@ val print_fbir : fbir -> string list
 (** {2 Bytecode transformation} *)
 
 (** Concrete method transformation. *)
-val cm_transform :
-  Bir.bir Javalib.interface_or_class ->
-  Bir.bir Javalib.concrete_method -> fbir Javalib.concrete_method 
-  
+val cm_transform : bool ->
+  JCode.jcode Lazy.t Javalib.concrete_method -> fbir Javalib.concrete_method
+
 (** [interface_or_class] transformation *)
-val iorc_transform : Bir.bir Javalib.interface_or_class -> fbir Javalib.interface_or_class 
+val iorc_transform : bool ->
+  JCode.jcode Lazy.t Javalib.interface_or_class -> fbir Javalib.interface_or_class
 
 (** transform the [interface_or_class] corresponding to the class_path string.
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : string -> fbir Javalib.interface_or_class 
+val cn_transform : bool -> string -> fbir Javalib.interface_or_class 
 
 
 

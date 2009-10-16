@@ -52,38 +52,6 @@ let add_stat implem stats =
       
 
 
-let incr_stats stats a = 
-  match stats with 
-    | None -> ()
-    | Some s ->
-	match a with 
-	  |  `Nb_jump_with_non_empty_stacks -> s.nb_jump_with_non_empty_stacks <- s.nb_jump_with_non_empty_stacks + 1
-	  |  `Nb_back_jump_with_non_empty_stacks -> 
-	       s.nb_back_jump_with_non_empty_stacks <- s.nb_back_jump_with_non_empty_stacks + 1
-	  |  `Nb_store_is_var_in_stack -> s.nb_store_is_var_in_stack <- s.nb_store_is_var_in_stack + 1
-	  |  `Nb_incr_is_var_in_stack -> s.nb_incr_is_var_in_stack <- s.nb_incr_is_var_in_stack + 1
-	  |  `Nb_putfield_is_field_in_stack -> s.nb_putfield_is_field_in_stack <- s.nb_putfield_is_field_in_stack + 1
-	  |  `Nb_arraystore_is_array_access_in_stack ->
-	       s.nb_arraystore_is_array_access_in_stack <- s.nb_arraystore_is_array_access_in_stack + 1
-	  |  `Nb_putstatic_is_static_in_stack -> s.nb_putstatic_is_static_in_stack <- s.nb_putstatic_is_static_in_stack + 1
-	  |  `Nb_method_call_with_modifiable_in_stack -> 
-	       s.nb_method_call_with_modifiable_in_stack <- s.nb_method_call_with_modifiable_in_stack + 1
-	  |  `Nb_store -> s.nb_store <- s.nb_store + 1
-	  |  `Nb_incr -> s.nb_incr <- s.nb_incr + 1
-	  |  `Nb_putfield -> s.nb_putfield <- s.nb_putfield +1
-	  |  `Nb_arraystore -> s.nb_arraystore <- s.nb_arraystore + 1
-	  |  `Nb_putstatic ->  s.nb_putstatic <-  s.nb_putstatic + 1
-	  |  `Nb_method_call -> s.nb_method_call <- s.nb_method_call + 1
-	  |  `Nb_tempvar -> s.nb_tempvar <- s.nb_tempvar +1
-	  |  `Nb_tempvar_branch -> s.nb_tempvar_branch <- s.nb_tempvar_branch +1 
-	  |  `Nb_tempvar_removed -> s.nb_tempvar_removed <- s.nb_tempvar_removed + 1
-	  |  `Nb_tempvar_method_effect -> s.nb_tempvar_method_effect <- s.nb_tempvar_method_effect
-	  |  `Nb_tempvar_putfield -> s.nb_tempvar_putfield <- s.nb_tempvar_putfield +1
-	  |  `Nb_tempvar_arraystore -> s.nb_tempvar_arraystore <- s.nb_tempvar_arraystore + 1
-	  |  `Nb_tempvar_side_effect -> s.nb_tempvar_side_effect <- s.nb_tempvar_side_effect + 1
-	  |  `Nb_tempvar_flat -> s.nb_tempvar_flat <- s.nb_tempvar_flat + 1
-	  |  `Nb_tempvar_3a -> s.nb_tempvar_3a <- s.nb_tempvar_3a + 1
-
 let show flat verbose cstats m  = 
    match m with 
    | ConcreteMethod cm ->

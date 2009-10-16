@@ -115,17 +115,17 @@ val print_bir : bir -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** Concrete method transformation. *)
-val cm_transform : JCode.jcode Lazy.t Javalib.concrete_method -> bir Javalib.concrete_method 
+(** Concrete method transformation, compressed or not *)
+val cm_transform : bool -> JCode.jcode Lazy.t Javalib.concrete_method -> bir Javalib.concrete_method 
   
-(** [interface_or_class] transformation *)
-val iorc_transform : JCode.jcode Lazy.t Javalib.interface_or_class -> bir Javalib.interface_or_class 
+(** [interface_or_class] transformation, compressed or not *)
+val iorc_transform : bool -> JCode.jcode Lazy.t Javalib.interface_or_class -> bir Javalib.interface_or_class 
 
-(** transform the [interface_or_class] corresponding to the class_path string.
+(** transform the [interface_or_class] corresponding to the class_path string, compressed or not
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : string -> bir Javalib.interface_or_class 
+val cn_transform : bool -> string -> bir Javalib.interface_or_class 
 
 
 

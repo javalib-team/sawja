@@ -217,29 +217,29 @@ let rec print_code = function
 
 let print_fbir m = print_code m.f_code
 
-let bir2fbir cm = 
-  { f_params = cm.params ;
-    f_code = List.map (fun (i,instrl) -> (i, List.map bir2fbir_instr instrl)) cm.code  ;
-    f_exc_tbl = cm.exc_tbl ;
-    f_line_number_table = cm.line_number_table ;
+let bir2fbir  bir = 
+  { f_params = bir.params ;
+    f_code = List.map (fun (i,instrl) -> (i, List.map bir2fbir_instr instrl)) bir.code  ;
+    f_exc_tbl = bir.exc_tbl ;
+    f_line_number_table = bir.line_number_table ;
   }
 
 (** Concrete method transformation. *) 
-let cm_transform ioc bir_m =
-  (* let bir_m = Bir.cm_transform_flat m in *)
+let cm_transform compress j_m =
+  let bir_m = Bir.cm_transform_flat compress j_m in 
     Javalib.map_concrete_method (fun code -> bir2fbir code) bir_m
       
 (** [interface_or_class] transformation *) 
-let iorc_transform bir_iorc =
-  (* let bir_iorc = Bir.iorc_transform_flat iorc in *)
+let iorc_transform compress j_iorc =
+  let bir_iorc = Bir.iorc_transform_flat compress j_iorc in 
     Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
 
 (** transform the [interface_or_class] corresponding to the class_path string.
     ex: [cn_transform "dir/dir2/Test.class"] 
     cn_transform
  *) 
-let cn_transform name =
-  let bir_iorc = Bir.cn_transform_flat name in
+let cn_transform compress name =
+  let bir_iorc = Bir.cn_transform_flat compress name in
     Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
       
   
