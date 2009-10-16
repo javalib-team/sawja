@@ -415,7 +415,7 @@ let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap
 
 let map_program_classes f classes =
   let jcmap = ClassMap.map
-    (fun c -> map_interface_or_class f (to_jclass c)) classes in
+    (fun c -> map_interface_or_class (f c) (to_jclass c)) classes in
     build_hierarchy jcmap
 
 let map_program f p =

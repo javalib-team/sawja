@@ -227,12 +227,12 @@ let bir2fbir cm =
 (** Concrete method transformation. *) 
 let cm_transform ioc bir_m =
   (* let bir_m = Bir.cm_transform_flat m in *)
-    Javalib.map_concrete_method (fun _ioc _cm code -> bir2fbir code) ioc bir_m
+    Javalib.map_concrete_method (fun code -> bir2fbir code) bir_m
       
 (** [interface_or_class] transformation *) 
 let iorc_transform bir_iorc =
   (* let bir_iorc = Bir.iorc_transform_flat iorc in *)
-    Javalib.map_interface_or_class (fun _ioc _cm code -> bir2fbir code) bir_iorc
+    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
 
 (** transform the [interface_or_class] corresponding to the class_path string.
     ex: [cn_transform "dir/dir2/Test.class"] 
@@ -240,6 +240,6 @@ let iorc_transform bir_iorc =
  *) 
 let cn_transform name =
   let bir_iorc = Bir.cn_transform_flat name in
-    Javalib.map_interface_or_class (fun _ioc _cm code -> bir2fbir code) bir_iorc
+    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
       
   
