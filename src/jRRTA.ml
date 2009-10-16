@@ -186,7 +186,9 @@ let rec value_type2class_nodes pvta v =
 	      with Not_found ->
 		(* Happen when an object is never instantiated and null
 		   is always passed as parameter. *)
-		ClassMap.empty
+		Printf.printf "Class %s not loaded." (cn_name cn);
+		assert false
+		(* ClassMap.empty *)
 		    
 let parse_invoke pvta m cms =
   let rt = ms_rtype cms in

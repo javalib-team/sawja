@@ -282,6 +282,27 @@ struct
 		      Wlist.add (cs,cm) p.workset)
 	    )
 
+  let rec value_type2class_name v =
+    match v with
+      | TBasic _ -> None
+      | TObject o ->
+	  match o with
+	    | TClass cn -> Some cn
+	    | TArray a -> value_type2class_name a
+
+  let load_value_type_class p v =
+     match (value_type2class_name v) with
+	     | None -> ()
+	     | Some cn -> ignore(get_class_info p cn)
+
+  let load_method_params_classes p ms =
+    let args = ms_args ms in
+    let rtype = ms_rtype ms in
+    let prms = match rtype with
+      | None -> args
+      | Some r -> r :: args in
+      List.iter (fun v -> load_value_type_class p v) prms
+
   let resolve_field p cs fs =
     let ioc = (get_class_info p cs).class_data in
     let rioc_list = JControlFlow.resolve_field fs ioc in
@@ -432,12 +453,18 @@ struct
       | OpNew cs ->
 	  add_instantiated_class p cs;
 	  add_class_clinits p cs
-      | OpConst (`Class _) ->
-	  let cs = make_cn "java.lang.Class" in
-	    add_instantiated_class p cs;
-	    add_class_clinits p cs
+      | OpConst (`Class o) ->
+	  load_value_type_class p (TObject o);
+	  let jlc = make_cn "java.lang.Class" in
+	    add_instantiated_class p jlc;
+	    add_class_clinits p jlc
+      | OpGetField (cs,fs)
+      | OpPutField (cs,fs) ->
+	  ignore (get_class_info p cs);
+	  load_value_type_class p (fs_type fs)
       | OpGetStatic (cs,fs)
       | OpPutStatic (cs,fs) ->
+	  load_value_type_class p (fs_type fs);
 	  let rcs_list = resolve_field p cs fs in
 	    List.iter
 	      (fun rcs ->
@@ -448,17 +475,29 @@ struct
 		   )
 	      ) rcs_list
       | OpInvoke(`Virtual (TClass cs),ms) ->
+	  load_method_params_classes p ms;
 	  invoke_virtual_lookup p cs ms
-      | OpInvoke(`Virtual (TArray _),ms) ->
+      | OpInvoke(`Virtual (TArray v),ms) ->
 	  (* should only happen with [clone()] *)
+	  load_value_type_class p v;
+	  load_method_params_classes p ms;
 	  invoke_virtual_lookup p java_lang_object ms
       | OpInvoke(`Interface cs,ms) ->
+	  load_method_params_classes p ms;
 	  invoke_interface_lookup p cs ms
       | OpInvoke(`Special cs,ms) ->
+	  load_method_params_classes p ms;
       	  invoke_special_lookup p current_class_name cs ms
       | OpInvoke(`Static cs,ms) ->
+	  load_method_params_classes p ms;
       	  let rcs = invoke_static_lookup p cs ms in
 	    add_class_clinits p rcs
+      | OpNewArray v ->
+	  load_value_type_class p v
+      | OpAMultiNewArray (o,_)
+      | OpCheckCast o
+      | OpInstanceOf o ->
+	  load_value_type_class p (TObject o)
       | _ -> ()
 
   let parse_native_method p allocated_classes calls =
