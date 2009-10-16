@@ -203,19 +203,25 @@ val implements_interface_or_subinterface_transitively : 'a class_node ->
 
 (** {2 Invokes lookup algorithms.}*)
 
-(** [invoke_virtual_lookup ?c ms instantiated_classes] returns the result of
-    the InvokeVirtual instruction on a class [c] with the method signature [ms],
+(** [invoke_virtual_lookup ?c ms instantiated_classes] returns the result of the
+    InvokeVirtual instruction on a class [c] with the method signature [ms],
     given a set of possibly instantiated classes.
-    Setting a value to [c] will only check that each class in [instantiated_classes]
-    extends [c]. *)
+
+    Setting a value to [c] will only check (assert) that each class in
+    [instantiated_classes] extends [c].  It raises an Assert_failure if the
+    assertion fails and the program has been compiled without deactivating
+    assertions. *)
 val invoke_virtual_lookup : ?c:('a class_node option) -> method_signature ->
   'a class_node ClassMap.t -> ('a class_node * 'a concrete_method) ClassMethodMap.t
 
 (** [invoke_interface_lookup ?i ms instantiated_classes] returns the result of
-    the InvokeInterface instruction on an interface [i] with the method signature
-    [ms], given a set of possibly instantiated classes.
-    Setting a value to [i] will only check that each class in [instantiated_classes]
-    implements [i] directly or indirectly. *)
+    the InvokeInterface instruction on an interface [i] with the method
+    signature [ms], given a set of possibly instantiated classes.
+
+    Setting a value to [i] will only check (assert) that each class in
+    [instantiated_classes] implements [i] directly or indirectly.  It raises an
+    Assert_failure if the assertion fails and the program has been compiled
+    without deactivating assertions. *)
 val invoke_interface_lookup : ?i:('a interface_node option) -> method_signature ->
   'a class_node ClassMap.t -> ('a class_node * 'a concrete_method) ClassMethodMap.t
 
