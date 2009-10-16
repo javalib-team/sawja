@@ -44,9 +44,9 @@ struct
 	(* for each interface, interfaces maps a list of classes
 	   that implements this interface or one of its subinterfaces *)
 	mutable interfaces : ClassSet.t ClassMap.t;
-	mutable static_virtual_lookup : class_method ClassMethodMap.t ClassMethMap.t;
-	mutable static_static_lookup : class_method ClassMethodMap.t ClassMethMap.t;
-	mutable static_special_lookup : (class_method ClassMethodMap.t
+	mutable static_virtual_lookup : ClassMethodSet.t ClassMethMap.t;
+	mutable static_static_lookup : ClassMethodSet.t ClassMethMap.t;
+	mutable static_special_lookup : (ClassMethodSet.t
 					   ClassMethMap.t) ClassMap.t;
 	(* the clinits fields contains a set of class indexes whose clinit
 	   methods have already been added to the workset *)
@@ -303,7 +303,7 @@ struct
 	     let s = ClassMethMap.find (cs,ms) p.static_virtual_lookup in
 	       p.static_virtual_lookup <-
 		 ClassMethMap.add (cs,ms)
-		 (ClassMethodMap.add cm.cm_class_method_signature (rc,cm) s)
+		 (ClassMethodSet.add cm.cm_class_method_signature s)
 		 p.static_virtual_lookup
 	) virtual_lookup_map
 	  
@@ -317,7 +317,7 @@ struct
 	   MethodSet.add ms c_info.memorized_virtual_calls;
 	 p.static_virtual_lookup <-
 	   ClassMethMap.add (cs,ms)
-	   ClassMethodMap.empty p.static_virtual_lookup;
+	   ClassMethodSet.empty p.static_virtual_lookup;
 	 let instantiated_classes =
 	   if ( c_info.is_instantiated ) then
 	     ClassMap.add cs (to_class_node (c_info.class_data))
@@ -393,13 +393,13 @@ struct
     let cmmap =
       try ClassMap.find current_class_sig p.static_special_lookup
       with _ -> ClassMethMap.empty in
-    let rmap =
+    let rset =
       try ClassMethMap.find (cs,ms) cmmap
-      with _ -> ClassMethodMap.empty in
+      with _ -> ClassMethodSet.empty in
       p.static_special_lookup <-
 	(ClassMap.add current_class_sig
 	   (ClassMethMap.add (cs,ms)
-	      (ClassMethodMap.merge (fun x _ -> x) rmap s) cmmap)
+	      (ClassMethodSet.union rset s) cmmap)
 	   p.static_special_lookup)
 
   let rec invoke_special_lookup p current_class_sig cs ms =
@@ -408,8 +408,8 @@ struct
     let (rc,cm) =
       JControlFlow.invoke_special_lookup current_class called_class ms in
     let rcs = rc.c_info.c_name in
-    let s = ClassMethodMap.add cm.cm_class_method_signature (rc,cm)
-      ClassMethodMap.empty in
+    let s = ClassMethodSet.add cm.cm_class_method_signature
+      ClassMethodSet.empty in
       update_special_lookup_set p current_class_sig cs ms s;
       (* we add (cs,ms) to the workset *)
       add_to_workset p (rcs,ms)
@@ -419,8 +419,8 @@ struct
     let (rc,cm) = JControlFlow.invoke_static_lookup c ms in
     let rcs = rc.c_info.c_name in
       (if not( ClassMethMap.mem (cs,ms) p.static_static_lookup ) then
-       	 let s = ClassMethodMap.add cm.cm_class_method_signature
-	   (rc,cm) ClassMethodMap.empty in
+       	 let s = ClassMethodSet.add cm.cm_class_method_signature
+	   ClassMethodSet.empty in
        	   p.static_static_lookup <-
 	     ClassMethMap.add (cs,ms) s p.static_static_lookup;
 	   add_to_workset p (rcs,ms)
@@ -586,17 +586,13 @@ end
 
 let static_virtual_lookup virtual_lookup_map cs ms =
   try
-    let cmmap =
-      ClassMethMap.find (cs,ms) virtual_lookup_map in
-      ClassMethodMaptoSet.to_set cmmap
+    ClassMethMap.find (cs,ms) virtual_lookup_map
   with _ ->
     (* probably dead code *)
     ClassMethodSet.empty
 
 let static_static_lookup static_lookup_map cs ms =
-  let cmmap =
-    ClassMethMap.find (cs,ms) static_lookup_map in
-    ClassMethodMaptoSet.to_set cmmap
+  ClassMethMap.find (cs,ms) static_lookup_map
 
 let static_interface_lookup virtual_lookup_map interfaces_map cs ms =
   let s = ref ClassMethodSet.empty in
@@ -609,9 +605,7 @@ let static_interface_lookup virtual_lookup_map interfaces_map cs ms =
     !s
 
 let static_special_lookup special_lookup_map cs ccs cms =
-  let cmmap =
-    ClassMethMap.find (ccs,cms) (ClassMap.find cs special_lookup_map) in
-    ClassMethodMaptoSet.to_set cmmap
+  ClassMethMap.find (ccs,cms) (ClassMap.find cs special_lookup_map)
     
 let static_lookup_method p :
     class_name -> method_signature -> invoke -> ClassMethodSet.t =

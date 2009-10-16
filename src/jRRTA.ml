@@ -30,14 +30,10 @@ type vta_concrete_method =
       mutable vta_instantiated_classes : jvm_code class_node ClassMap.t;
       mutable virtual_calls : (jvm_code class_node * method_signature) ClassMethodMap.t;
       mutable interface_calls : (jvm_code interface_node * method_signature) ClassMethodMap.t;
-      mutable static_lookup_virtual : (jvm_code class_node
-				       * jvm_code concrete_method) ClassMethodMap.t ClassMethodMap.t;
-      mutable static_lookup_interface : (jvm_code class_node
-					 * jvm_code concrete_method) ClassMethodMap.t ClassMethodMap.t;
-      mutable static_lookup_static : (jvm_code class_node
-				       * jvm_code concrete_method) ClassMethodMap.t;
-      mutable static_lookup_special : (jvm_code class_node
-				      * jvm_code concrete_method) ClassMethodMap.t;
+      mutable static_lookup_virtual : ClassMethodSet.t ClassMethodMap.t;
+      mutable static_lookup_interface : ClassMethodSet.t ClassMethodMap.t;
+      mutable static_lookup_static : jvm_code concrete_method ClassMethodMap.t;
+      mutable static_lookup_special : jvm_code concrete_method ClassMethodMap.t;
       mutable vta_instantiated_subclasses : jvm_code class_node ClassMap.t ClassMap.t;
       mutable vta_implemented_interfaces : jvm_code class_node ClassMap.t ClassMap.t
     }
@@ -140,13 +136,13 @@ let update_invoke_virtual pvta m =
 		  (mvta.c_has_been_parsed <- true;
 		   Wlist.add (Class c,mvta) pvta.workset)
 	   ) rmmap;
-	 let mmap =
+	 let rset = ClassMethodMaptoSet.to_set rmmap in
+	 let mset =
 	   try ClassMethodMap.find ccms m.static_lookup_virtual
-	   with _ -> ClassMethodMap.empty in
+	   with _ -> ClassMethodSet.empty in
 	   m.static_lookup_virtual <-
 	     ClassMethodMap.add ccms
-	     (ClassMethodMap.merge
-		(fun x _ -> x) mmap rmmap) m.static_lookup_virtual
+	     (ClassMethodSet.union mset rset) m.static_lookup_virtual
     ) m.virtual_calls
     
 let update_invoke_interface pvta m =
@@ -163,13 +159,13 @@ let update_invoke_interface pvta m =
 		  (mvta.c_has_been_parsed <- true;
 		   Wlist.add (Class c,mvta) pvta.workset)
 	   ) rmmap;
-	 let mmap =
+	 let rset = ClassMethodMaptoSet.to_set rmmap in
+	 let mset =
 	   try ClassMethodMap.find ccms m.static_lookup_interface
-	   with _ -> ClassMethodMap.empty in
+	   with _ -> ClassMethodSet.empty in
 	   m.static_lookup_interface <-
 	     ClassMethodMap.add ccms
-	     (ClassMethodMap.merge
-		(fun x _ -> x) mmap rmmap) m.static_lookup_interface
+	     (ClassMethodSet.union mset rset) m.static_lookup_interface
     ) m.interface_calls
     
 let rec value_type2class_nodes pvta v =
@@ -257,8 +253,7 @@ let parse_invoke_static pvta m cc cms =
   let ccms = make_cms cc.c_info.c_name cms in
   let (rc,cm) = JControlFlow.invoke_static_lookup cc cms in
     m.static_lookup_static <-
-      ClassMethodMap.add ccms (rc,cm)
-      m.static_lookup_static;
+      ClassMethodMap.add ccms cm m.static_lookup_static;
     let mvta = get_vta_method pvta cm in
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
@@ -270,8 +265,7 @@ let parse_invoke_special pvta m ioc cc cms =
   let ccms = make_cms cc.c_info.c_name cms in
   let (rc,cm) = JControlFlow.invoke_special_lookup ioc cc cms in
     m.static_lookup_special <-
-      ClassMethodMap.add ccms (rc,cm)
-      m.static_lookup_special;
+      ClassMethodMap.add ccms cm m.static_lookup_special;
     let mvta = get_vta_method pvta cm in
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
@@ -389,9 +383,7 @@ let iter_workset pvta =
       (fun (ioc,mvta) -> parse_vta_method pvta ioc mvta) tail
       
 let static_lookup_method virtual_lookup_map interface_lookup_map
-    static_lookup_map special_lookup_map cs ms invoke
-    : (jvm_code class_node
-       * jvm_code concrete_method) ClassMethodMap.t =
+    static_lookup_map special_lookup_map cs ms invoke =
   (match invoke with
      | (`Interface ccs,cms) ->
 	 let cms = make_cms cs ms
@@ -413,16 +405,16 @@ let static_lookup_method virtual_lookup_map interface_lookup_map
 	 let cms = make_cms cs ms
 	 and ccms = make_cms ccs cms in
 	 let cmmap = ClassMethodMap.find cms static_lookup_map in
-	 let (c,cm) = ClassMethodMap.find ccms cmmap in
-	   ClassMethodMap.add cm.cm_class_method_signature (c,cm)
-	     ClassMethodMap.empty
+	 let cm = ClassMethodMap.find ccms cmmap in
+	   ClassMethodSet.add cm.cm_class_method_signature
+	     ClassMethodSet.empty
      | (`Special ccs,cms) ->
 	 let cms = make_cms cs ms
 	 and ccms = make_cms ccs cms in
 	 let cmmap = ClassMethodMap.find cms special_lookup_map in
-	 let (c,cm) = ClassMethodMap.find ccms cmmap in
-	   ClassMethodMap.add cm.cm_class_method_signature (c,cm)
-	     ClassMethodMap.empty
+	 let cm = ClassMethodMap.find ccms cmmap in
+	   ClassMethodSet.add cm.cm_class_method_signature
+	     ClassMethodSet.empty
   )
 
 let parse_program_from_rta prta instantiated_classes csms =
