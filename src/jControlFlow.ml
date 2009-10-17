@@ -29,7 +29,7 @@ module PP = struct
 	       meth:'a concrete_method;
 	       pc:int;}
       
-  let eqc = JProgram.equal
+  let eqc = JProgram.ioc_equal
   let eqm = (==)
   let eqi = (=)
     
@@ -179,7 +179,7 @@ let rec resolve_field' result fs c : unit =
     if defines_field c fs
     then
       begin
-	if not (List.exists (JProgram.equal c) !result)
+	if not (List.exists (ioc_equal c) !result)
 	then result := c::!result
       end
     else

@@ -74,7 +74,10 @@ let get_consts = function
   | Interface i -> i.i_info.i_consts
   | Class c -> c.c_info.c_consts
 
-let equal c1 c2 = match c1,c2 with
+let c_equal = (==)
+let i_equal = (==)
+
+let ioc_equal c1 c2 = match c1,c2 with
   | Class c1, Class c2 ->
       c1 == c2
       (* equal_class_names c1.c_info.c_signature c2.c_info.c_signature *)
@@ -172,14 +175,14 @@ let iter f p = ClassMap.iter (fun _ c -> f c) p.classes
 (* Access to the hierarchy *)
 
 let rec extends_class c1 c2 =
-  if (equal (Class c1) (Class c2)) then true
+  if c_equal c1 c2 then true
   else
-    match super (Class c1) with
-      | None -> false
+    match c1.c_super with
       | Some sc -> extends_class sc c2
+      | None -> false
 
 let rec extends_interface i1 i2 =
-  if (equal (Interface i1) (Interface i2)) then true
+  if i_equal i1 i2 then true
   else
     ClassMap.fold
       (fun _ i3 b -> b || extends_interface i3 i2)
@@ -191,7 +194,7 @@ let extends ioc1 ioc2 =
     | (Class c1, Class c2) -> extends_class c1 c2
     | (Interface i1, Interface i2) -> extends_interface i1 i2
     | (Interface i, Class c) ->
-	cn_equal i.i_super.c_info.c_name c.c_info.c_name
+	c_equal i.i_super.c_info c.c_info
 
 let rec implements (c1:'a class_node) (i2:'a interface_node) : bool =
   if
@@ -201,7 +204,7 @@ let rec implements (c1:'a class_node) (i2:'a interface_node) : bool =
 	false
     )
   then true
-  else match super (Class c1) with
+  else match c1.c_super with
     | None -> false
     | Some c3 -> implements c3 i2
 

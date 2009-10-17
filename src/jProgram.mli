@@ -103,7 +103,9 @@ val get_consts : 'a node -> constant array
 val get_interfaces : 'a node -> 'a interface_node ClassMap.t
 
 val get_all_children_classes : 'a class_node -> 'a class_node list
-val equal : 'a node -> 'a node -> bool
+val i_equal : 'a interface_node -> 'a interface_node -> bool
+val c_equal : 'a class_node -> 'a class_node -> bool
+val ioc_equal : 'a node -> 'a node -> bool
 
 val to_jclass : 'a node -> 'a interface_or_class
 
