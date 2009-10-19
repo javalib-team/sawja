@@ -30,7 +30,7 @@ type 'a interface_node = 'a JProgram.interface_node
 
 type 'a node = 'a JProgram.node
 
-val ioc_equal : 'a node -> 'a node -> bool
+val node_equal : 'a node -> 'a node -> bool
 
 (** {2 Accessing nodes content.} *)
 

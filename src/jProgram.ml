@@ -77,7 +77,7 @@ let get_consts = function
 let c_equal = (==)
 let i_equal = (==)
 
-let ioc_equal c1 c2 = match c1,c2 with
+let node_equal c1 c2 = match c1,c2 with
   | Class c1, Class c2 ->
       c1 == c2
       (* equal_class_names c1.c_info.c_signature c2.c_info.c_signature *)
