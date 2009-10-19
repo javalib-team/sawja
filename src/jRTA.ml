@@ -81,53 +81,7 @@ struct
     match ioc with
       | Class _ -> failwith "to_interface_node applied on class !"
       | Interface i -> i
-
-  and ioc2node p ioc =
-    match ioc with
-      | JClass c ->
-	  Class
-	    { c_info = c;
-	      c_super =
-		(match c.c_super_class with
-		   | None -> None
-		   | Some cs ->
-		       Some(to_class_node
-			      (get_class_info p cs).class_data));
-	      c_interfaces =
-		(let c_interfaces = ref ClassMap.empty in
-		   List.iter
-		     (fun cs ->
-			c_interfaces := ClassMap.add cs
-			  (to_interface_node
-			     (get_class_info p cs).class_data)
-			  !c_interfaces)
-		     c.Javalib.c_interfaces;
-		   !c_interfaces);
-	      c_children = [] }
-
-      | JInterface i ->
-	  Interface
-	    { i_info = i;
-	      i_super =
-		(let object_node =
-		   (get_class_info p java_lang_object).class_data in
-		   match object_node with
-		     | Class c -> c
-		     | Interface _ ->
-			 failwith "java.lang.object is an interface !");
-	      i_interfaces =
-		(let i_interfaces = ref ClassMap.empty in
-		   List.iter
-		     (fun cs ->
-			i_interfaces := ClassMap.add cs
-			  (to_interface_node
-			     (get_class_info p cs).class_data)
-			  !i_interfaces)
-		     i.Javalib.i_interfaces;
-		   !i_interfaces);
-	      i_children_interfaces = [];
-	      i_children_classes = [] }
-	    
+	  
   and get_class_info p cs =
     try
       ClassMap.find cs p.classes
@@ -148,24 +102,26 @@ struct
     let rta_methods = methods2rta_methods ioc in
       match ioc with
 	| JClass c ->
-	    let c_super = c.c_super_class in
-	    let super_classes =
-	      (match c_super with
-		 | None -> []
+	    let (super_class,super_classes) =
+	      (match c.c_super_class with
+		 | None -> (None, [])
 		 | Some sc ->
 		     let sc_info = get_class_info p sc in
-		       sc :: sc_info.super_classes)
+		       (Some (to_class_node sc_info.class_data),
+			sc :: sc_info.super_classes)
+	      )
 	    and implemented_interfaces =
-	      let s = ref ClassSet.empty in
-		List.iter (fun iname ->
-			     s := ClassSet.add iname !s) c.Javalib.c_interfaces;
-		!s in
-
-	    (* For each implemented interface and its super interfaces we add
-	       cni in the program interfaces map *)
+	      List.fold_right
+		(fun iname m ->
+		   ClassMap.add iname
+		     (to_interface_node (get_class_info p iname).class_data) m
+		) c.Javalib.c_interfaces ClassMap.empty
+	    in
+	      (* For each implemented interface and its super interfaces we add
+		 cni in the program interfaces map *)
 	    let super_implemented_interfaces =
-	      (ClassSet.fold
-		 (fun i_sig s ->
+	      (ClassMap.fold
+		 (fun i_sig _ s ->
 		    let i_info = get_class_info p i_sig in
 		      ClassSet.add i_sig
 			(ClassSet.union s i_info.super_interfaces)
@@ -180,9 +136,9 @@ struct
 		     p.interfaces <- ClassMap.add i
 		       (ClassSet.add cs ClassSet.empty) p.interfaces
 		) super_implemented_interfaces;
-	      
+	      let node = make_class_node c super_class implemented_interfaces in
 	      let ioc_info =
-		{ class_data = ioc2node p ioc;
+		{ class_data = Class node;
 		  is_instantiated = false;
 		  instantiated_subclasses = ClassMap.empty;
 		  super_classes = super_classes;
@@ -191,36 +147,24 @@ struct
 		  super_interfaces = super_implemented_interfaces;
 		  methods = rta_methods;
 		  memorized_virtual_calls = MethodSet.empty;
-		  memorized_interface_calls = MethodSet.empty }
-	      in
-	      let c = to_class_node ioc_info.class_data in
-		ClassSet.iter
-		  (fun i_name ->
-		     let i =
-		       to_interface_node (get_class_info p i_name).class_data in
-		       i.i_children_classes <- c :: i.i_children_classes
-		  )
-		  implemented_interfaces;
-		(match c_super with
-		   | None -> ()
-		   | Some sc_name ->
-		       let sc = to_class_node (get_class_info p sc_name).class_data in
-			 sc.c_children <- c :: sc.c_children
-		);
-		p.classes <- ClassMap.add cs ioc_info p.classes;
+		  memorized_interface_calls = MethodSet.empty } in
+		p.classes <- ClassMap.add cs ioc_info p.classes
 	| JInterface i ->
-	    let i_interfaces = i.Javalib.i_interfaces in
-	    let super_interfaces =
-	      let s = ref ClassSet.empty in
-		List.iter (fun si ->
-			     let si_info = get_class_info p si in
-			       s := ClassSet.add si !s;
-			       s := ClassSet.union si_info.super_interfaces !s
-			  ) i_interfaces;
-		!s in
-
+	    let (interfaces,super_interfaces) =
+	      List.fold_right
+		(fun si (m,s)->
+		   let si_info = get_class_info p si in
+		   let m = ClassMap.add si
+		     (to_interface_node si_info.class_data) m in
+		   let s = ClassSet.union si_info.super_interfaces
+		     (ClassSet.add si s) in
+		     (m,s)
+		) i.Javalib.i_interfaces (ClassMap.empty, ClassSet.empty) in
+	    let object_node =
+	      to_class_node (get_class_info p java_lang_object).class_data in
+	    let node = make_interface_node i object_node interfaces in
 	    let ioc_info =
-	      { class_data = ioc2node p ioc;
+	      { class_data = Interface node;
 		is_instantiated = false;
 		(* An interface will never be instantiated *)
 		instantiated_subclasses = ClassMap.empty;
@@ -230,15 +174,7 @@ struct
 		memorized_virtual_calls = MethodSet.empty;
 		memorized_interface_calls = MethodSet.empty }
 	    in
-	    let i = to_interface_node ioc_info.class_data in
-	      List.iter
-		(fun iname ->
-		   let si =
-		     to_interface_node (get_class_info p iname).class_data in
-		     si.i_children_interfaces <- i :: si.i_children_interfaces
-		)
-		i_interfaces;
-	      p.classes <- ClassMap.add cs ioc_info p.classes;
+	      p.classes <- ClassMap.add cs ioc_info p.classes
 
   and add_clinit p cs =
     let ioc_info = get_class_info p cs in

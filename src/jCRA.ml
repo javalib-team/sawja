@@ -85,26 +85,9 @@ let add_classFile c classes_map interfaces =
 			  )
 	  with Not_found -> raise (Class_not_found super)
   in
-  let cfile =
-    {c_info = c;
-     c_super = c_super;
-     c_interfaces = imap;
-     c_children = []
-    }
-  in
-    ClassMap.iter
-      (fun _ i ->
-	 i.i_children_classes <- cfile :: i.i_children_classes
-      ) cfile.c_interfaces;
-    begin
-      match super_class (Class cfile) with
-	| None -> ();
-	| Some sc ->
-	    sc.c_children <- cfile :: sc.c_children
-    end;
-    let rec c_info = Class cfile in
-      interfaces := update_interfaces classes_map c_info !interfaces c.c_name;
-      ClassMap.add c.c_name c_info classes_map
+  let c_info = Class (make_class_node c c_super imap) in
+    interfaces := update_interfaces classes_map c_info !interfaces c.c_name;
+    ClassMap.add c.c_name c_info classes_map
 
 let add_interfaceFile c classes_map =
   let imap =
@@ -133,20 +116,8 @@ let add_interfaceFile c classes_map =
 	    raise (Class_structure_error"java.lang.Object is declared as an interface.")
     with Not_found -> raise (Class_not_found java_lang_object)
   in
-  let cfile =
-    {i_info = c;
-     i_super = super;
-     i_interfaces = imap;
-     i_children_interfaces = [];
-     i_children_classes = []
-    }
-  in
-    ClassMap.iter
-      (fun _ i ->
-	 i.i_children_interfaces <- cfile :: i.i_children_interfaces)
-      cfile.i_interfaces;
-    let i_info = Interface cfile in
-      ClassMap.add c.i_name i_info classes_map
+  let i_info = Interface (make_interface_node c super imap) in
+    ClassMap.add c.i_name i_info classes_map
 
 let add_one_node f classes_map interfaces =
   match f with

@@ -56,6 +56,55 @@ and 'a node =
   | Interface of 'a interface_node
   | Class of 'a class_node
 
+let make_class_node c super interfaces =
+  let node =
+    {c_info = c;
+     c_super = super;
+     c_interfaces = interfaces;
+     c_children = []} in
+    ClassMap.iter
+      (fun _ i ->
+	 if not(List.exists
+		  (fun chc -> cn_equal chc.c_info.c_name c.c_name)
+		  i.i_children_classes) then
+	   i.i_children_classes <- node :: i.i_children_classes
+	 else failwith "Inconsistent make_class_node : child already present."
+      ) interfaces;
+    (match super with
+       | None -> ()
+       | Some sc ->
+	   (match c.c_super_class with
+	      | Some scn when cn_equal scn sc.c_info.c_name ->
+		  if not(List.exists
+			   (fun chc -> cn_equal chc.c_info.c_name c.c_name)
+			   sc.c_children) then
+		    sc.c_children <- node :: sc.c_children
+		  else
+		    failwith "Inconsistent make_class_node : child already present."
+	      | _ ->
+		  failwith "Inconsistent make_class_node : different super classes."
+	   )
+    );
+    node
+
+let make_interface_node i super interfaces =
+  let node =
+    {i_info = i;
+     i_super = super;
+     i_interfaces = interfaces;
+     i_children_classes = [];
+     i_children_interfaces = []} in
+    ClassMap.iter
+      (fun _ si ->
+	 if not(List.exists
+		  (fun chi -> cn_equal chi.i_info.i_name i.i_name)
+		  si.i_children_interfaces) then
+	   si.i_children_interfaces <- node :: si.i_children_interfaces
+	 else
+	   failwith "Inconsistent make_interface_node : child already present."
+      ) interfaces;
+    node
+
 let main_signature =
   let java_lang_string = make_cn "java.lang.String" in
     make_ms "main"
@@ -364,21 +413,8 @@ let add_interface_or_class cmap c nodemap =
 			ClassMap.add (Javalib.get_name i)
 			  (to_interface_node node) im)
 		  ) interfaces (nodemap, ClassMap.empty) in
-	      let node_info =
-		{ c_info = c;
-		  c_super = super_node;
-		  c_interfaces = interfaces_nodes;
-		  c_children = []
-		} in
+	      let node_info = make_class_node c super_node interfaces_nodes in
 	      let node = Class node_info in
-		(match super_node with
-		   | None -> ()
-		   | Some sc -> sc.c_children <- node_info :: sc.c_children);
-		ClassMap.iter
-		  (fun _ i ->
-		     i.i_children_classes <- 
-		       node_info :: i.i_children_classes)
-                  interfaces_nodes;
 		(ClassMap.add c.c_name node nodemap, node)
 	  | JInterface i ->
 	      let (nodemap, super_node) =
@@ -396,25 +432,10 @@ let add_interface_or_class cmap c nodemap =
 			ClassMap.add (Javalib.get_name i)
 			  (to_interface_node node) im)
 		  ) interfaces (nodemap, ClassMap.empty) in
-	      let node_info =
-		{ i_info = i;
-		  i_super = super_node;
-		  i_interfaces = interfaces_nodes;
-		  i_children_classes = [];
-		  i_children_interfaces = []
-		} in
+	      let node_info = make_interface_node i super_node interfaces_nodes in
 	      let node = Interface node_info in
-		ClassMap.iter
-		  (fun _ i ->
-		     i.i_children_interfaces <- 
-		       node_info :: i.i_children_interfaces) interfaces_nodes;
 		(ClassMap.add i.i_name node nodemap, node)
   in fst (add_interface_or_class c nodemap)
-
-(* val make_class_node : *)
-(*     ~node:'a jclass -> *)
-(*   ~super:'a class_node option -> *)
-(*   ~interfaces: 'a interface_node ClassMap.t -> 'a class_node *)
 
 let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap.t =
   ClassMap.fold

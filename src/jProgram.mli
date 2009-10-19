@@ -37,13 +37,13 @@ module ClassMethSet : Set.S with type elt = class_name * method_signature
     sub-interfaces).
 *)
 
-type 'a class_node = {
+type 'a class_node = private {
   c_info : 'a jclass;
   c_super : 'a class_node option;
   c_interfaces : 'a interface_node ClassMap.t;
   mutable c_children : 'a class_node list;
 }
-and 'a interface_node = {
+and 'a interface_node = private {
   i_info : 'a jinterface;
   i_super : 'a class_node;
   (** must be java.lang.Object. But note that interfaces are not
@@ -55,6 +55,20 @@ and 'a interface_node = {
 and 'a node =
   | Interface of 'a interface_node 
   | Class of 'a class_node
+
+(** [make_class_node c super interfaces] builds a class node given a jclass
+    [c], a super class node [super] and a map of implemented interfaces
+    [interfaces]. This function adds the class [c] to the children of [super]
+    and to the children classes of each interface in [interfaces]. *)
+val make_class_node : 'a jclass -> 'a class_node option
+  -> 'a interface_node ClassMap.t -> 'a class_node
+
+(** [make_interface_node i super interfaces] builds an interface node given
+    a jinterface [i], a super class node [c] (which is always [java.lang.Object])
+    and a map of super interfaces [interfaces]. This function adds the interface
+    [i] to the children interfaces of each interface in [interfaces]. *)
+val make_interface_node : 'a jinterface -> 'a class_node
+  -> 'a interface_node ClassMap.t -> 'a interface_node
 
 (** {2 The [program] structure.} *)
 
@@ -169,6 +183,7 @@ val firstCommonSuperClass : 'a class_node -> 'a class_node -> 'a class_node
 
 (** {2 Building a hierarchy from simple classes.} *)
 
+(** @raise Not_found if a needed super class is not in the given ClassMap. *)
 val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)

@@ -183,12 +183,7 @@ let rec value_type2class_nodes pvta v =
 			get_rta_instantiated_subclasses pvta c
 		    | Interface i ->
 			get_rta_implemented_interfaces pvta i
-	      with Not_found ->
-		(* Happen when an object is never instantiated and null
-		   is always passed as parameter. *)
-		Printf.printf "Class %s not loaded." (cn_name cn);
-		assert false
-		(* ClassMap.empty *)
+	      with Not_found -> assert false
 		    
 let parse_invoke pvta m cms =
   let rt = ms_rtype cms in
