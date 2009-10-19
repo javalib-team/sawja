@@ -342,7 +342,7 @@ let add_interface_or_class cmap c nodemap =
       try
 	let node = ClassMap.find cn nodemap in
 	  (nodemap, node)
-      with _ ->
+      with Not_found ->
 	match c with
 	  | JClass c ->
 	      let (nodemap, super_node) =
@@ -377,7 +377,8 @@ let add_interface_or_class cmap c nodemap =
 		ClassMap.iter
 		  (fun _ i ->
 		     i.i_children_classes <- 
-		       node_info :: i.i_children_classes) interfaces_nodes;
+		       node_info :: i.i_children_classes)
+                  interfaces_nodes;
 		(ClassMap.add c.c_name node nodemap, node)
 	  | JInterface i ->
 	      let (nodemap, super_node) =
@@ -409,6 +410,11 @@ let add_interface_or_class cmap c nodemap =
 		       node_info :: i.i_children_interfaces) interfaces_nodes;
 		(ClassMap.add i.i_name node nodemap, node)
   in fst (add_interface_or_class c nodemap)
+
+(* val make_class_node : *)
+(*     ~node:'a jclass -> *)
+(*   ~super:'a class_node option -> *)
+(*   ~interfaces: 'a interface_node ClassMap.t -> 'a class_node *)
 
 let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap.t =
   ClassMap.fold
