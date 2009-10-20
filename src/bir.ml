@@ -8,7 +8,7 @@ include Cmn
 
 type expr =
   | Const of const
-  | Var of var
+  | Var of typ * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
   | Field of expr * class_name * field_signature
@@ -65,6 +65,30 @@ type bir = {
 (* For stack type inference only *)
 type op_size = Op32 | Op64
 
+let type_of_value_type = function
+  | TBasic _ -> Num
+  | TObject _ -> Ref
+
+let rec type_of_expr = function
+  | Var (t,_) -> t
+  | Field (_,_,f) 
+  | StaticField (_,f) -> type_of_value_type (fs_type f)
+  | Const i -> begin
+      match i with
+	| `ANull
+	| `Class _
+	| `String _ -> Ref
+	| `Byte _
+	| `Double _
+	| `Float _
+	| `Int _
+	| `Long  _
+	| `Short _ -> Num
+    end
+  | Unop _ -> Num
+  | Binop (ArrayLoad t,_,_) -> t
+  | Binop (_,_,_) -> Num
+
 (************* PRINT ************)      
 
 let rec print_list_sep_rec sep pp = function
@@ -97,13 +121,13 @@ let bracket b s =
   if b then s else Printf.sprintf "(%s)" s 
 
 let rec print_expr first_level = function
-  | Var x -> var_name_g x
+  | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (print_typ t)
   | Field (e,c,f) -> Printf.sprintf "%s.%s" (print_expr false e) (print_field c f)
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | Binop (ArrayLoad,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2) 
+  | Binop (ArrayLoad t,e1,e2) -> Printf.sprintf "%s[%s]:%s" (print_expr false e1) (print_expr true e2) (print_typ t)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level
@@ -389,6 +413,9 @@ let rec remove_dim t n =
 	    | TObject t -> aux t (n-1) 
   in aux t n
 
+let binop_is_array = function
+  | ArrayLoad _ -> true
+  | _ -> false
 
 let is_in_expr test_var test_static test_field test_array =
   let rec aux expr =
@@ -396,18 +423,36 @@ let is_in_expr test_var test_static test_field test_array =
       | Const _ -> false
       | StaticField (c,f) -> test_static c f
       | Field (e,c,f) -> test_field c f || aux e
-      | Var x -> test_var x
+      | Var (_,x) -> test_var x
       | Unop(_,e) -> aux e
-      | Binop(s,e1,e2) -> (test_array && s = ArrayLoad) || aux e1 || aux e2
+      | Binop(s,e1,e2) -> (test_array && binop_is_array s) || aux e1 || aux e2
   in aux
 
-let replace_in_expr test_var test_static expr0 =
+let var_in_expr test_var =
+  let rec aux expr =
+    match expr with 
+      | Const _ -> None
+      | StaticField _ -> None
+      | Field (e,_,_) -> aux e
+      | Var (t,x) -> if test_var x then Some t else None
+      | Unop(_,e) -> aux e
+      | Binop(_,e1,e2) -> begin
+	  match aux e1 with
+	    | None -> aux e2
+	    | Some t -> Some t
+	end
+  in aux
+
+let replace_in_expr test_var test_static var =
   let rec aux expr =
     match expr with 
       | Const _ -> expr
-      | StaticField (c,f) -> if test_static c f then expr0 else expr
+      | StaticField (c,f) -> 
+	  if test_static c f
+	  then Var (type_of_value_type (fs_type f),var)
+	  else expr
       | Field (e,c,f) -> Field (aux e,c,f)
-      | Var x -> if test_var x then expr0 else expr
+      | Var (t,x) -> if test_var x then Var (t,var) else expr
       | Unop (s,e) -> Unop (s,aux e)
       | Binop (s,e1,e2) -> Binop (s,aux e1,aux e2)
   in aux
@@ -420,19 +465,31 @@ let is_in_stack test_var test_static =
       | _::s -> aux s
   in aux
 
-let replace_in_stack test_var test_static expr0 =
+let var_in_stack test_var =
+  let rec aux stack =
+    match stack with 
+      | [] -> None
+      | (E e)::s -> begin
+	  match var_in_expr test_var  e with
+	    | Some t -> Some t
+	    | None -> aux s
+	end
+      | _::s -> aux s
+  in aux
+
+let replace_in_stack test_var test_static var =
   let rec aux stack =
     match stack with 
       | [] -> []
       | e'::s -> begin
 	  match e' with
-	    | E e -> E (replace_in_expr test_var test_static expr0 e)::(aux s)
+	    | E e -> E (replace_in_expr test_var test_static var e)::(aux s)
 	    | Uninit _ -> e'::(aux s)
 	end
   in aux
 
 let is_var_in_stack x stack =
-  is_in_stack (var_equal x) (fun _ _ -> false) stack
+  var_in_stack (var_equal x) stack
 
 let is_static_in_stack c f stack =
   is_in_stack (fun _ -> false) (fun c0 f0 -> c=c0 && f=f0) stack
@@ -449,14 +506,14 @@ let is_var_in_expr_not_var x e = (* warning we use ocaml equality *)
 let is_heap_sensible_element_in_expr expr =
   is_in_expr (fun _ -> false) (fun _ _ -> true) (fun _ _ -> true) true expr
 
-let replace_var_in_expr x t =
-  replace_in_expr (var_equal x) (fun _ _ -> false) (Var t)
+let replace_var_in_expr x y =
+  replace_in_expr (var_equal x) (fun _ _ -> false) y
 
-let replace_var_in_stack x t stack =
-  replace_in_stack (var_equal x) (fun _ _ -> false) (Var t) stack
+let replace_var_in_stack x y stack =
+  replace_in_stack (var_equal x) (fun _ _ -> false) y stack
 
-let replace_static_in_stack c f t stack =
-  replace_in_stack (fun _ -> false) (fun c0 f0 -> c=c0 && f=f0) (Var t) stack
+let replace_static_in_stack c f y stack =
+  replace_in_stack (fun _ -> false) (fun c0 f0 -> c=c0 && f=f0) y stack
 
 let test_expr_in_instr f = function
   | AffectVar (_,Var _) 
@@ -503,7 +560,7 @@ let temp_in_expr acc expr =
       | Const _ 
       | StaticField _ -> acc
       | Field (e,_,_) -> aux acc e
-      | Var x ->
+      | Var (_,x) ->
 	  (match x with
 	       TempVar (i,_) -> Ptset.add i acc
 	     | _ -> acc)
@@ -540,11 +597,11 @@ let clean count1 count2 i test s instrs =
 	  match e with
 	    | Uninit _ -> e::s, instrs, test_succeed, cc1, cc2
 	    | E e ->
-		if test e then begin
+		if test e then
 		  let x = make_tempvar false s  (i,Some j) in
-		    (E (Var x)::s, (AffectVar (x,e))::instrs, true, cc1,cc2+1)
-		end else
-		  E e::s, instrs, test_succeed, cc1,cc2
+		  let t = type_of_expr e in
+		    (E (Var (t,x))::s, (AffectVar (x,e))::instrs, true, cc1,cc2+1)
+		else E e::s, instrs, test_succeed, cc1,cc2
   in
   let (s,instrs,test_succeed,c1,c2) = aux 0 count1 count2 s in
     if test_succeed then (s,instrs,c1+1,c2)
@@ -580,9 +637,10 @@ let to_addr3_binop i mode binop s instrs next_is_store =
   match mode with 
     | Addr3 -> 	let x = make_tempvar next_is_store s (i,None) 
       in begin
-	incr stats_nb_tempvar ;
-	incr stats_nb_tempvar_3a ;
-	E (Var x)::(pop2 s), instrs@[AffectVar(x,Binop (binop,topE (pop s),topE s))]
+	let e = Binop (binop,topE (pop s),topE s) in
+	  incr stats_nb_tempvar ;
+	  incr stats_nb_tempvar_3a ;
+	  E (Var (type_of_expr e,x))::(pop2 s), instrs@[AffectVar(x,e)]
       end
     | _ -> E (Binop (binop,topE (pop s),topE s))::(pop2 s), instrs
 
@@ -591,11 +649,20 @@ let to_addr3_unop i mode unop s instrs next_is_store =
   match mode with 
     | Addr3 -> let x = make_tempvar next_is_store s (i,None) 
       in begin
-	incr stats_nb_tempvar ;
-	incr stats_nb_tempvar_3a ;
-	E (Var x)::(pop s), instrs@[AffectVar(x,Unop (unop,topE s))]
+	let e = Unop (unop,topE s) in
+	  incr stats_nb_tempvar ;
+	  incr stats_nb_tempvar_3a ;
+	  E (Var (type_of_expr e,x))::(pop s), instrs@[AffectVar(x,e)]
       end
     | _ ->E (Unop (unop,topE s))::(pop s), instrs 
+
+let type_of_jvm_type = function
+  | `Long | `Float | `Double | `Int2Bool -> Num
+  | `Object -> Ref
+
+let type_of_array_type = function
+  | `Long | `Float | `Double | `Int | `Short | `Char | `ByteBool -> Num
+  | `Object -> Ref
 
 (* Maps each opcode to a function of a stack that modifies its 
  * according to opcode, and returns grimp corresponding instructions if any 
@@ -608,46 +675,50 @@ let to_addr3_unop i mode unop s instrs next_is_store =
 let bc2bir_instr mode pp_var i tos s next_is_store = function
   | OpNop -> s, []
   | OpConst x -> E (Const x)::s, []
-  | OpLoad (_,n) -> E (Var (OriginalVar (n,pp_var i n)))::s, []
-  | OpArrayLoad _ -> 
+  | OpLoad (t,n) -> E (Var (type_of_jvm_type t,OriginalVar (n,pp_var i n)))::s, []
+  | OpArrayLoad t -> 
       let a = topE (pop s) in
-      let idx = topE s in begin
+      let idx = topE s in 
+      let t = type_of_array_type t in begin
 	match mode with 
 	  | Addr3 ->
 	      let x = make_tempvar next_is_store s (i,None) in 
-		incr stats_nb_tempvar ;
+		incr stats_nb_tempvar;
 		incr stats_nb_tempvar_3a ;
-		E (Var x)::(pop2 s), 
-	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad,a,idx)))]	      
+		E (Var (t,x))::(pop2 s), 
+	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]	      
 	  | _ ->
-	      E (Binop(ArrayLoad,a,idx))::(pop2 s), 
+	      E (Binop(ArrayLoad t,a,idx))::(pop2 s), 
 	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
 	end
   | OpStore (_,n) ->  
       incr stats_nb_store ;
       let y = OriginalVar(n,pp_var i n) in
-	if is_var_in_stack y (pop s)
-	then begin
-	  incr stats_nb_store_is_var_in_stack ;
-	  incr stats_nb_tempvar ;
-	  let x = make_tempvar false s  (i,None) in
-	   (* was missing *)
-	    replace_var_in_stack y x (pop s), 
-	  [AffectVar(x,Var y); AffectVar(y,topE s)]
-	end else
-	   (pop s,[AffectVar (y,topE s)]) 
+	begin
+	  match is_var_in_stack y (pop s) with
+	    | Some t ->
+		incr stats_nb_store_is_var_in_stack ;
+		incr stats_nb_tempvar ;
+		let x = make_tempvar false s  (i,None) in
+		  replace_var_in_stack y x (pop s), 
+		  [AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
+	    | None ->
+		(pop s,[AffectVar (y,topE s)]) 
+	end
   | OpIInc (a,b) ->
       incr stats_nb_incr ; 
       let a = OriginalVar (a,pp_var i a) in
-	if is_var_in_stack a s
-	then begin
-	  incr stats_nb_incr_is_var_in_stack ;
-	  incr stats_nb_tempvar;
-	  let x = make_tempvar false s  (i,None) in
-	    replace_var_in_stack a x s, 
-	  [AffectVar(x,Var a);
-	   AffectVar (a,Binop(Add `Int2Bool,Var a,Const (`Int (Int32.of_int b))))]
-	end else s,[AffectVar(a,Binop(Add `Int2Bool,Var a,Const (`Int (Int32.of_int b))))]
+	begin
+	  match is_var_in_stack a s with
+	    | Some t ->
+		incr stats_nb_incr_is_var_in_stack ;
+		incr stats_nb_tempvar;
+		let x = make_tempvar false s  (i,None) in
+		  replace_var_in_stack a x s, 
+		  [AffectVar(x,Var (t,a));
+		   AffectVar (a,Binop(Add `Int2Bool,Var (Num,a),Const (`Int (Int32.of_int b))))]
+	    | _ -> s,[AffectVar(a,Binop(Add `Int2Bool,Var (Num,a),Const (`Int (Int32.of_int b))))]
+	end
   | OpPutField (c, f) -> 
       incr stats_nb_putfield ;
       let r = topE (pop s) in
@@ -801,7 +872,7 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 		incr stats_nb_tempvar_flat ;
 		incr stats_nb_tempvar_3a ;
 		let x = make_tempvar next_is_store s  (i,None) in
-		  E (Var x)::(pop s), 
+		  E (Var (type_of_value_type (fs_type f),x))::(pop s), 
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
 	end
   | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c]
@@ -831,11 +902,11 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 			stats_nb_method_call_with_modifiable_in_stack := count ;
 			stats_nb_tempvar_method_effect := count' ;
 			(s,instrs)
-		  | Some _ ->
+		  | Some t ->
 		      incr stats_nb_tempvar_side_effect ;
 		      incr stats_nb_tempvar ;
 		      let x = make_tempvar next_is_store s (i,None) in
-		      let (s,instrs,count,count') = clean !stats_nb_method_call_with_modifiable_in_stack  !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr (E (Var x)::(popn (List.length (ms_args ms)) s)) 
+		      let (s,instrs,count,count') = clean !stats_nb_method_call_with_modifiable_in_stack  !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr (E (Var (type_of_value_type t,x))::(popn (List.length (ms_args ms)) s)) 
 			[InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
 		      in
 			stats_nb_method_call_with_modifiable_in_stack := count ;
@@ -849,7 +920,7 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 			  incr stats_nb_tempvar ;
 			  incr stats_nb_tempvar_side_effect ;
 			  let x = make_tempvar next_is_store s (i,None) in
-			  let e' = E (Var x) in
+			  let e' = E (Var (Ref,x)) in
 			  let (s,instrs,count,count') = clean !stats_nb_method_call_with_modifiable_in_stack  !stats_nb_tempvar_method_effect i  is_heap_sensible_element_in_expr 
 			    (List.map 
 			       (function e -> if e = Uninit (c,j) then e' else e)
@@ -879,12 +950,12 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 				     stats_nb_method_call_with_modifiable_in_stack := count ;
 				     stats_nb_tempvar_method_effect := count' ;
 				     (s,instrs)				  
-			       | Some _ -> 
+			       | Some t -> 
 				   incr stats_nb_tempvar ;
 				   incr stats_nb_tempvar_side_effect ;
 				   let y = make_tempvar next_is_store s (i,None) in 
 				   let (s,instrs,count,count') =
-				     clean !stats_nb_method_call_with_modifiable_in_stack !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr (E (Var y)::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
+				     clean !stats_nb_method_call_with_modifiable_in_stack !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr (E (Var (type_of_value_type t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
 				     in 
 				     stats_nb_method_call_with_modifiable_in_stack := count ;
 				     stats_nb_tempvar_method_effect := count' ;
@@ -898,7 +969,7 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
       incr stats_nb_tempvar_side_effect ;
       let x = make_tempvar next_is_store s (i,None) in
 	let dim = topE s in
-	  E (Var x)::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
+	  E (Var (Ref,x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
   | OpArrayLength -> 
       let a = topE s in begin
 	match mode with 
@@ -906,7 +977,7 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 	      incr stats_nb_tempvar ;
 	      incr stats_nb_tempvar_3a ;
 	      let x = make_tempvar next_is_store s (i,None) in
-		E (Var x)::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))]
+		E (Var (Num,x))::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))]
 	  | _ -> E (Unop (ArrayLength,a))::(pop s),[Check (CheckNullPointer a)]
 	end
   | OpThrow -> 
@@ -924,7 +995,7 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
       incr stats_nb_tempvar ; 
       let x = make_tempvar next_is_store s (i,None) in
 	let params = param dim s in
-	  E (Var x)::(popn dim s), 
+	  E (Var (Ref,x))::(popn dim s), 
       (List.map (fun e -> Check (CheckNegativeArraySize e)) params)
       @[NewArray (x,remove_dim cn dim,params)]
   | OpBreakpoint -> failwith "breakpoint"  
@@ -982,7 +1053,7 @@ let para_assign pc succs stack =
 	  | E e -> 
 	      let (l1,l2) = aux (i+1) q in
 	      let x = BranchVar2 (pc,i) in
-	      let l = List.map (fun j -> AffectVar (BranchVar (j,i),Var x)) succs in
+	      let l = List.map (fun j -> AffectVar (BranchVar (j,i),Var (type_of_expr e,x))) succs in
 		AffectVar (x,e) :: l1, l @ l2
       end
     in 
@@ -1008,19 +1079,19 @@ let jump_stack count1 count2 pc' stack =
 	  | Uninit _ -> 
 	      let a,b,c = (aux (i+1) c1 c2 q) in 
 		(e :: a, b, c)
-	  | E _ -> 
+	  | E e -> 
 	      let a,b,c = (aux (i+1) c1 c2 q) in 
-	      ( E (Var (BranchVar (pc',i))) :: a, b+1 , c+1)
+	      ( E (Var (type_of_expr e,BranchVar (pc',i))) :: a, b+1 , c+1)
       end
   in aux 0 count1 count2 stack
 
 (* simplify the assignts chain, if this is allowed according to out_stack *)
 let simplify_assign mode bir out_stack = 
   match bir with
-    | (pc,[AffectVar(j,Var(k))])::(pc',instrs)::q ->
+    | (pc,[AffectVar(j,Var(_,k))])::(pc',instrs)::q ->
 	begin match k with 
 	  | TempVar (_,Some _) ->
-	      begin (* remove useless assignt *)
+	      begin (* remove useless assignement *)
 		match List.rev instrs with
 		  | AffectVar(i,e)::l when (var_equal i k) ->
 		      begin match j with 
@@ -1167,7 +1238,7 @@ let bc2ir flat pp_var jump_target code make_stats =
 	  (* no predecessor of pc have been visited before *)
 	  if List.exists (fun e -> pc = e.e_handler) code.c_exc_tbl then
 	    (* this is a handler point *)
-	    ([Op32],[E (Var (make_tempvar next_is_store as_in (pc,Some 0)))])
+	    ([Op32],[E (Var (Ref,make_tempvar next_is_store as_in (pc,Some 0)))])
 	  else
 	    (* this is a back jump target *)
 	    ([],[])

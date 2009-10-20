@@ -7,7 +7,7 @@ include Cmn
 
 type expr =
   | Const of const
-  | Var of typ * var
+  | Var of var
   | Unop of unop * expr
   | Binop of binop * expr * expr
   | Field of var * class_name * field_signature
@@ -62,12 +62,12 @@ exception Uninit_is_not_expr = Bir.Uninit_is_not_expr
 
 let expr2var expr = 
   match expr with 
-    | Bir.Var (_,v) -> v
+    | Bir.Var v -> v
     | _ -> assert false
 
 let rec bir2fbir_expr e = match e with 
   | Bir.Const c -> Const c
-  | Bir.Var (t,v) -> Var (t,v)
+  | Bir.Var v -> Var v
   | Bir.Unop (unop, expr) -> Unop(unop, bir2fbir_expr expr)
   | Bir.Binop(binop,expr1,expr2) ->  Binop(binop,bir2fbir_expr expr1,bir2fbir_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
@@ -125,13 +125,13 @@ let bracket b s =
   if b then s else Printf.sprintf "(%s)" s 
 
 let rec print_expr first_level = function
-  | Var (_,x) -> Bir.var_name_g x
+  | Var x -> Bir.var_name_g x
   | Field (v,c,f) -> Printf.sprintf "%s.%s" (Bir.var_name_g v) (print_field c f)
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | Binop (ArrayLoad t,e1,e2) -> Printf.sprintf "%s[%s]:%s" (print_expr false e1) (print_expr true e2) (print_typ t) 
+  | Binop (ArrayLoad,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2) 
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level

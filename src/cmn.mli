@@ -48,8 +48,10 @@ val print_unop : unop -> string
 
 type comp =  DG | DL | FG | FL | L 
 
+type typ = Ref | Num 
+
 type binop =    
-  | ArrayLoad
+  | ArrayLoad of typ
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -59,6 +61,7 @@ type binop =
   | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
   | CMP of comp
 
+val print_typ : typ -> string
 val print_binop : binop -> string
 
 (* type statistics = { *)

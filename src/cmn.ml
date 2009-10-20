@@ -25,8 +25,10 @@ type unop =
       
 type comp =  DG | DL | FG | FL | L 
 
+type typ = Ref | Num 
+
 type binop =
-  | ArrayLoad
+  | ArrayLoad of typ
   | Add of jvm_basic_type
   | Sub of jvm_basic_type 
   | Mult of jvm_basic_type
@@ -89,8 +91,12 @@ let print_unop = function
   | ArrayLength -> "ArrayLength"
   | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
 
+let print_typ = function
+  | Ref -> "ref"
+  | Num -> "num"
+
 let print_binop = function
-  | ArrayLoad -> "ArrayLoad"
+  | ArrayLoad t -> Printf.sprintf "ArrayLoad %s" (print_typ t)
   | Add t -> Printf.sprintf "%cAdd" (num_types t)
   | Sub t -> Printf.sprintf "%cSub" (num_types t)
   | Mult t -> Printf.sprintf "%cMult" (num_types t)

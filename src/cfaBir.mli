@@ -5,16 +5,17 @@
 
 (** {3 Expressions} *)
 
-type const =
+type const_ref =
     [ `ANull
-    | `Byte of int
     | `Class of JBasics.object_type
+    | `String of string ]
+type const_num =
+    [ `Byte of int
     | `Double of float
     | `Float of float
     | `Int of int32
     | `Long of int64
-    | `Short of int
-    | `String of string ]
+    | `Short of int ]
 
 type var 
 
@@ -25,6 +26,9 @@ val var_orig : var -> bool
 val var_equal : var -> var -> bool
 
 (** [var_name v] returns a string representation of the variable [v]. If the initial class was compiled using debug information, original variable names are build on this information *)
+val var_debug_name : var -> string option
+
+(** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string 
 
 (** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
@@ -43,11 +47,8 @@ type unop =
   | InstanceOf of JBasics.object_type
 
 type comp = DG | DL | FG | FL | L 
-
-type typ = Ref | Num 
     
 type binop =
-    ArrayLoad of typ
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -57,16 +58,20 @@ type binop =
   | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
   | CMP of comp
 
+type typ = Ref | Num 
+
 type expr =
-  | Const of const
+    Const of const
   | Var of typ * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
+  | ArrayLoad of typ * var * expr
   | Field of var * JBasics.class_name * JBasics.field_signature
   | StaticField of JBasics.class_name * JBasics.field_signature
 
-(** {3 Instructions} *)
+val type_of_expr : expr -> typ
 
+(** {3 Instructions} *)
 	  
 type virtual_call_kind =
   | VirtualCall of JBasics.object_type
@@ -83,7 +88,7 @@ type check =
 type instr =
   | Nop
   | AffectVar of var * expr
-  | AffectArray of var * expr * expr
+  | AffectArray of var * expr * expr 
   | AffectField of var * JBasics.class_name * JBasics.field_signature * expr
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
   | Goto of int
@@ -103,7 +108,7 @@ type instr =
   | MayInit of JBasics.class_name
   | Check of check 
 
-type fbir = {
+type t = {
   f_params : var list; 
   f_code : (int * instr list) list; 
   f_exc_tbl : JCode.exception_handler list;
@@ -114,7 +119,7 @@ type fbir = {
 
 val print_instr : instr -> string
 val print_instrs : (int * instr list) -> string
-val print_fbir : fbir -> string list
+val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
