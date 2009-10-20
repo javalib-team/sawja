@@ -6,6 +6,17 @@ include Cmn
 
 (*********** TYPES *************)
 
+type binop =
+  | ArrayLoad of typ
+  | Add of jvm_basic_type
+  | Sub of jvm_basic_type 
+  | Mult of jvm_basic_type
+  | Div of jvm_basic_type
+  | Rem of jvm_basic_type
+  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
+  | LShl | LShr | LAnd | LOr | LXor | LUshr
+  | CMP of comp
+      
 type expr =
   | Const of const
   | Var of typ * var
@@ -44,6 +55,7 @@ type instr =
       (* var :=  class (parameters) *)
   | NewArray of var * value_type * (expr list)
       (* var :=  value_type[e1]...[e2] *) 
+      (* value_type is the type of the array content *)
   | InvokeStatic 
       of var option * class_name * method_signature * expr list
   | InvokeVirtual
@@ -55,7 +67,7 @@ type instr =
   | MayInit of class_name
   | Check of check 
 
-type bir = {
+type t = {
   params : var list;
   code : (int * instr list) list;
   exc_tbl : exception_handler list;
@@ -65,32 +77,28 @@ type bir = {
 (* For stack type inference only *)
 type op_size = Op32 | Op64
 
-let type_of_value_type = function
-  | TBasic _ -> Num
-  | TObject _ -> Ref
-
-let rec type_of_expr = function
-  | Var (t,_) -> t
-  | Field (_,_,f) 
-  | StaticField (_,f) -> type_of_value_type (fs_type f)
-  | Const i -> begin
-      match i with
-	| `ANull
-	| `Class _
-	| `String _ -> Ref
-	| `Byte _
-	| `Double _
-	| `Float _
-	| `Int _
-	| `Long  _
-	| `Short _ -> Num
-    end
-  | Unop _ -> Num
-  | Binop (ArrayLoad t,_,_) -> t
-  | Binop (_,_,_) -> Num
-
 (************* PRINT ************)      
 
+let print_binop = function
+  | ArrayLoad t -> Printf.sprintf "ArrayLoad %s" (print_typ t)
+  | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
+  | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
+  | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
+  | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
+  | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
+  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
+  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
+  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
+  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
+  | CMP c -> Printf.sprintf "CMP %s" 
+      (match c with 
+	   DG -> "DG"
+	 | DL -> "DL"
+	 | FG -> "FG"
+	 | FL -> "FL" 
+	 | L -> "L"
+      )
+	   
 let rec print_list_sep_rec sep pp = function
   | [] -> ""
   | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
@@ -218,7 +226,7 @@ let rec print_code = function
       in
 	first@(print_code q)
 
-let print_bir m = print_code m.code
+let print m = print_code m.code
 
 (******* STACK MANIPULATION **************)
 
@@ -395,6 +403,30 @@ let type_next = function
   | OpInvalid -> failwith "invalid"
 
 
+let type_of_value_type = function
+  | TBasic _ -> Num
+  | TObject _ -> Ref
+
+let rec type_of_expr = function
+  | Var (t,_) -> t
+  | Field (_,_,f) 
+  | StaticField (_,f) -> type_of_value_type (fs_type f)
+  | Const i -> begin
+      match i with
+	| `ANull
+	| `Class _
+	| `String _ -> Ref
+	| `Byte _
+	| `Double _
+	| `Float _
+	| `Int _
+	| `Long  _
+	| `Short _ -> Num
+    end
+  | Unop _ -> Num
+  | Binop (ArrayLoad t,_,_) -> t
+  | Binop (_,_,_) -> Num
+
 (**************** GENERATION *************)
 
 exception Bad_Multiarray_dimension
@@ -515,44 +547,6 @@ let replace_var_in_stack x y stack =
 let replace_static_in_stack c f y stack =
   replace_in_stack (fun _ -> false) (fun c0 f0 -> c=c0 && f=f0) y stack
 
-let test_expr_in_instr f = function
-  | AffectVar (_,Var _) 
-  | Nop 
-  | Return None
-  | MayInit _
-  | Goto _ -> false  
-  | Throw e
-  | AffectVar (_,e) 
-  | Return (Some e)
-  | MonitorEnter e
-  | MonitorExit e 
-  | Check (CheckNegativeArraySize e)
-  | Check (CheckCast e)
-  | Check (CheckArithmetic e)
-  | Check (CheckNullPointer e)
-  | AffectStaticField (_,_,e) -> f e
-  | Ifd ((_,e1,e2), _)
-  | Check (CheckArrayBound (e1,e2))
-  | Check (CheckArrayStore (e1,e2))
-  | AffectField (e1,_,_,e2) ->  f e1 || f e2
-  | AffectArray (e1,e2,e3) -> f e1 || f e2 || f e3
-  | NewArray (_,_,le)
-  | InvokeStatic (_,_,_,le)
-  | New (_,_,_,le) -> List.exists f le
-  | InvokeVirtual (_,e,_,_,le)
-  | InvokeNonVirtual (_,e,_,_,le) -> f e || List.exists f le 
-
-
-	
-let is_var_in_expr_instr_not_var x =
-  test_expr_in_instr (is_var_in_expr_not_var x)
-
-let is_var_in_expr_bir_not_var x bir =
-  List.exists
-    (fun (_,instrs) -> List.exists (is_var_in_expr_instr_not_var x) instrs)
-    bir
-
-
 
 let temp_in_expr acc expr =
   let rec aux acc expr =
@@ -580,13 +574,10 @@ let choose_fresh_in_stack s =
   if Ptset.is_empty set then 0 
   else (Ptset.max_elt set)  +1
 
-let nb_tempvar = ref 0
-
 let make_tempvar next_is_store s (i,_) = 
   if next_is_store then TempVar (i,Some i)
   else  
     let fresh = choose_fresh_in_stack s in
-      if fresh  > !nb_tempvar -1 then incr nb_tempvar;
       TempVar (fresh,None)
 
 let clean count1 count2 i test s instrs =
@@ -1093,7 +1084,7 @@ let simplify_assign mode bir out_stack =
 	  | TempVar (_,Some _) ->
 	      begin (* remove useless assignement *)
 		match List.rev instrs with
-		  | AffectVar(i,e)::l when (var_equal i k) ->
+		  | AffectVar(i,e)::l when (var_equal i k) -> 
 		      begin match j with 
 			| OriginalVar _ ->
 			    if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
@@ -1151,7 +1142,6 @@ let simplify_assign mode bir out_stack =
 
 let simplify_assign_flag = ref true
 let simplify_assign flat bir out_stack = 
-  Printf.printf "simplify_assign %b\n" !simplify_assign_flag;
   if !simplify_assign_flag then simplify_assign flat bir out_stack 
   else bir
 
@@ -1185,8 +1175,8 @@ let make_tempvar_stats ir =
     fold_ir
       (fun (n,s) _ ->
 	 function 
-	   | (AffectVar (TempVar (i,None),_)) 
-	   | (AffectVar (TempVar (_,Some i),_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
+	   | (AffectVar (TempVar (i,None),_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
+	   | (AffectVar (TempVar (_,Some _),_))  -> assert false
 	   | _ -> (n,s))
       (0,Ptset.empty) ir in
     Some ({ stat_nb_total = nb_tempvar_not_branch + nb_tempvar_branch;
@@ -1285,7 +1275,6 @@ let bc2ir flat pp_var jump_target code make_stats =
 	loop as_ts_jump ins ts_out as_out (next code.c_code pc) 
       with End_of_method ->  ins
   in 
-    nb_tempvar := 0;
     if make_stats then
       begin
 	reset_stats ();
@@ -1300,12 +1289,12 @@ let bc2ir flat pp_var jump_target code make_stats =
 let varname = Cmn.varname
 
 let search_name_localvar static code i x = 
-  if x=0 && (not static) then "this"
+  if x=0 && (not static) then Some "this"
   else match JCode.get_local_variable_info x i code with
-    | None ->  Printf.sprintf "%s%d" varname x 
-    | Some (s,_) -> s
+    | None ->  None
+    | Some (s,_) -> Some s
 
-let bcvar i = OriginalVar (i,Printf.sprintf "%s%d" varname i)
+let bcvar i = OriginalVar (i,None)
 
 let compute_jump_target code =
   let jump_target = Array.make (Array.length code.c_code) false in

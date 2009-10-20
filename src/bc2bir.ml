@@ -104,7 +104,7 @@ let run_on_class mode classfile =
     begin
       let cp = class_path (Filename.dirname classfile) in
       let file = Filename.chop_suffix (Filename.basename classfile) ".class" in
-      let _ = show_file mode true false cp (JBasics.make_cn file) in
+      let _ = show_file mode true true cp (JBasics.make_cn file) in
 	close_class_path cp
     end 
   else begin
@@ -119,7 +119,7 @@ let run_on_jar mode jarfile =
       let cp = Filename.dirname jarfile in
       let jarfile = Filename.basename jarfile in
       let nb_class = ref 0 in
-      let _ = read (Javalib.make_directories cp) (fun _ -> incr nb_class; show_iorc mode false false) () [jarfile]
+      let _ = read (Javalib.make_directories cp) (fun _ -> incr nb_class; show_iorc mode false true) () [jarfile]
       in 
 	Printf.printf "%d classes\n" !nb_class
     end

@@ -5,6 +5,17 @@ open Bir
 
 include Cmn
 
+type binop =
+  | ArrayLoad of typ
+  | Add of jvm_basic_type
+  | Sub of jvm_basic_type 
+  | Mult of jvm_basic_type
+  | Div of jvm_basic_type
+  | Rem of jvm_basic_type
+  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
+  | LShl | LShr | LAnd | LOr | LXor | LUshr
+  | CMP of comp
+
 type expr =
   | Const of const
   | Var of typ * var
@@ -65,11 +76,32 @@ let expr2var expr =
     | Bir.Var (_,v) -> v
     | _ -> assert false
 
+let bir2fbir_binop = function
+  | Bir.ArrayLoad t -> ArrayLoad t
+  | Bir.Add t -> Add t
+  | Bir.Sub t -> Sub t
+  | Bir.Mult t -> Mult t
+  | Bir.Div t -> Div t
+  | Bir.Rem t -> Rem t
+  | Bir.IShl -> IShl
+  | Bir.IShr -> IShr
+  | Bir.LShl -> LShl
+  | Bir.LShr -> LShr
+  | Bir.IAnd -> IAnd
+  | Bir.IOr -> IOr
+  | Bir.IXor -> IXor
+  | Bir.IUshr -> IUshr
+  | Bir.LAnd -> LAnd
+  | Bir.LOr -> LOr
+  | Bir.LXor -> LXor
+  | Bir.LUshr -> LUshr
+  | Bir.CMP c -> CMP c
+
 let rec bir2fbir_expr e = match e with 
   | Bir.Const c -> Const c
   | Bir.Var (t,v) -> Var (t,v)
   | Bir.Unop (unop, expr) -> Unop(unop, bir2fbir_expr expr)
-  | Bir.Binop(binop,expr1,expr2) ->  Binop(binop,bir2fbir_expr expr1,bir2fbir_expr expr2) 
+  | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2fbir_binop binop,bir2fbir_expr expr1,bir2fbir_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
 
@@ -107,7 +139,7 @@ let bir2fbir_instr = function
   | Bir.MayInit cn -> MayInit cn
   | Bir.Check c -> Check (check2check c)
       
-type fbir = {
+type t = {
   f_params : var list; 
   f_code : (int * instr list) list; 
   f_exc_tbl : JCode.exception_handler list;
@@ -115,6 +147,25 @@ type fbir = {
 }
 
 
+let print_binop = function
+  | ArrayLoad t -> Printf.sprintf "ArrayLoad %s" (print_typ t)
+  | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
+  | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
+  | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
+  | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
+  | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
+  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
+  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
+  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
+  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
+  | CMP c -> Printf.sprintf "CMP %s" 
+      (match c with 
+	   DG -> "DG"
+	 | DL -> "DL"
+	 | FG -> "FG"
+	 | FL -> "FL" 
+	 | L -> "L"
+      )
 
 let print_field ?(long_fields=false) c f =
   if long_fields then
@@ -215,7 +266,7 @@ let rec print_code = function
       in
 	first@(print_code q)
 
-let print_fbir m = print_code m.f_code
+let print m = print_code m.f_code
 
 let bir2fbir  bir = 
   { f_params = bir.params ;

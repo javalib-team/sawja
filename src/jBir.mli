@@ -92,7 +92,8 @@ type instr =
   | Throw of expr
   | Return of expr option
   | New of var * JBasics.class_name * JBasics.value_type list * expr list (** x := new C<sig>(e1,...,en) *)
-  | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)
+  | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)       
+      (** value_type is the type of the array content *)
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list (** x :=  C.m<sig>(e1,...,en) or C.m<sig>(e1,...,en)  *)
   | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list (** x := e.m<sig>(e1,...,en) or e.m<sig>(e1,...,en)  *)
   | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list (** x := e.C.m<sig>(e1,...,en) or e.C.m<sig>(e1,...,en)  *)
@@ -102,7 +103,7 @@ type instr =
   | Check of check
 
 
-type bir = {
+type t = {
   params : var list;  (** method parameters *)
   code : (int * instr list) list; (** pc : \[instr1 ; ... ; instrn \] , ... , pc' : \[instr'1 ; ... ; instr'n. \] 
 				      Each pc indexes a list of [instr] instructions which all come from the same initial bytecode instruction*)
@@ -115,21 +116,21 @@ type bir = {
 
 val print_instr : instr -> string
 val print_instrs : (int * instr list) -> string
-val print_bir : bir -> string list
+val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
 (** Concrete method transformation, compressed or not *)
-val cm_transform : bool -> JCode.jcode Lazy.t Javalib.concrete_method -> bir Javalib.concrete_method 
+val cm_transform : bool -> JCode.jcode Lazy.t Javalib.concrete_method -> t Javalib.concrete_method 
   
 (** [interface_or_class] transformation, compressed or not *)
-val iorc_transform : bool -> JCode.jcode Lazy.t Javalib.interface_or_class -> bir Javalib.interface_or_class 
+val iorc_transform : bool -> JCode.jcode Lazy.t Javalib.interface_or_class -> t Javalib.interface_or_class 
 
 (** transform the [interface_or_class] corresponding to the class_path string, compressed or not
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : bool -> string -> bir Javalib.interface_or_class 
+val cn_transform : bool -> string -> t Javalib.interface_or_class 
 
 
 

@@ -92,6 +92,7 @@ type instr =
   | Return of expr option
   | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
   | NewArray of var * JBasics.value_type * (expr list)
+      (* value_type is the type of the array content *)
   | InvokeStatic 
       of var option * JBasics.class_name * JBasics.method_signature * expr list
   | InvokeVirtual
@@ -103,7 +104,7 @@ type instr =
   | MayInit of JBasics.class_name
   | Check of check 
 
-type fbir = {
+type t = {
   f_params : var list; 
   f_code : (int * instr list) list; 
   f_exc_tbl : JCode.exception_handler list;
@@ -114,23 +115,23 @@ type fbir = {
 
 val print_instr : instr -> string
 val print_instrs : (int * instr list) -> string
-val print_fbir : fbir -> string list
+val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
 (** Concrete method transformation. *)
 val cm_transform : bool ->
-  JCode.jcode Lazy.t Javalib.concrete_method -> fbir Javalib.concrete_method
+  JCode.jcode Lazy.t Javalib.concrete_method -> t Javalib.concrete_method
 
 (** [interface_or_class] transformation *)
 val iorc_transform : bool ->
-  JCode.jcode Lazy.t Javalib.interface_or_class -> fbir Javalib.interface_or_class
+  JCode.jcode Lazy.t Javalib.interface_or_class -> t Javalib.interface_or_class
 
 (** transform the [interface_or_class] corresponding to the class_path string.
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : bool -> string -> fbir Javalib.interface_or_class 
+val cn_transform : bool -> string -> t Javalib.interface_or_class 
 
 
 

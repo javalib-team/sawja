@@ -27,19 +27,8 @@ type comp =  DG | DL | FG | FL | L
 
 type typ = Ref | Num 
 
-type binop =
-  | ArrayLoad of typ
-  | Add of jvm_basic_type
-  | Sub of jvm_basic_type 
-  | Mult of jvm_basic_type
-  | Div of jvm_basic_type
-  | Rem of jvm_basic_type
-  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
-  | LShl | LShr | LAnd | LOr | LXor | LUshr
-  | CMP of comp
-      
 type var =
-  | OriginalVar of int * string      (* register number, name (debug or bcvar) *)
+  | OriginalVar of int * string option  (* register number, name (debug if available) *)
   | TempVar of int * int option
   | BranchVar of int * int
   | BranchVar2 of int * int
@@ -60,25 +49,24 @@ let tempname =  "$irvar"
 let branchvarname =  "$T"
 let branchvarname2 =  "$T'"
 
-let var_name = function
+let var_name_debug = function
   | OriginalVar (_,s) -> s 
-  | TempVar (i,None) -> Printf.sprintf "%s%d" tempname i
-  | TempVar (i,Some j) -> Printf.sprintf "%s%d_%d" tempname i j
-  | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
-  | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
+  | _ -> None
 
-let var_name_g = function
+let var_name = function
   | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
   | TempVar (i,None) -> Printf.sprintf "%s%d" tempname i
   | TempVar (i,Some j) -> Printf.sprintf "%s%d_%d" tempname i j
   | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
   | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
 
-
-let num_types = JDumpBasics.jvm_basic_type
+let var_name_g x = 
+  match var_name_debug x with
+    | Some s -> s
+    | None -> var_name x
 
 let print_unop = function
-  | Neg t -> Printf.sprintf "%cNeg" (num_types t)
+  | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
   | Conv conv ->
       begin
 	match conv with 
@@ -94,27 +82,6 @@ let print_unop = function
 let print_typ = function
   | Ref -> "ref"
   | Num -> "num"
-
-let print_binop = function
-  | ArrayLoad t -> Printf.sprintf "ArrayLoad %s" (print_typ t)
-  | Add t -> Printf.sprintf "%cAdd" (num_types t)
-  | Sub t -> Printf.sprintf "%cSub" (num_types t)
-  | Mult t -> Printf.sprintf "%cMult" (num_types t)
-  | Div t -> Printf.sprintf "%cDiv" (num_types t)
-  | Rem t -> Printf.sprintf "%cRem" (num_types t)
-  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
-  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
-  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
-  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s" 
-      (match c with 
-	   DG -> "DG"
-	 | DL -> "DL"
-	 | FG -> "FG"
-	 | FL -> "FL" 
-	 | L -> "L"
-      )
-	   
 
 (* Tests if two variable expressions denote the same variable *)
 (* todo : compare reg number then strings, true is conservative *)

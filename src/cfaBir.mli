@@ -5,17 +5,16 @@
 
 (** {3 Expressions} *)
 
-type const_ref =
-    [ `ANull
-    | `Class of JBasics.object_type
-    | `String of string ]
-type const_num =
-    [ `Byte of int
-    | `Double of float
-    | `Float of float
-    | `Int of int32
-    | `Long of int64
-    | `Short of int ]
+type const =
+      [ `ANull
+      | `Byte of int
+      | `Class of JBasics.object_type
+      | `Double of float
+      | `Float of float
+      | `Int of int32
+      | `Long of int64
+      | `Short of int
+      | `String of string ]
 
 type var 
 
@@ -25,8 +24,8 @@ val var_orig : var -> bool
 (** [var_equal v1 v2] tests the equality of variables [v1] and [v2] *)
 val var_equal : var -> var -> bool
 
-(** [var_name v] returns a string representation of the variable [v]. If the initial class was compiled using debug information, original variable names are build on this information *)
-val var_debug_name : var -> string option
+(** [var_name_debug v] returns, if possible the original variable names of [v], if the initial class was compiled using debug information. *)
+val var_name_debug : var -> string option
 
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string 
@@ -40,6 +39,7 @@ type conv = I2L  | I2F  | I2D
   | D2I  | D2L  | D2F
   | I2B  | I2C  | I2S
 
+(* numeric unary operator *)    
 type unop =
     Neg of JBasics.jvm_basic_type
   | Conv of conv 
@@ -47,7 +47,8 @@ type unop =
   | InstanceOf of JBasics.object_type
 
 type comp = DG | DL | FG | FL | L 
-    
+
+(* numeric binary operator *)    
 type binop =
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
@@ -97,6 +98,7 @@ type instr =
   | Return of expr option
   | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
   | NewArray of var * JBasics.value_type * (expr list)
+      (* value_type is the type of the array content *)
   | InvokeStatic 
       of var option * JBasics.class_name * JBasics.method_signature * expr list
   | InvokeVirtual
@@ -125,17 +127,17 @@ val print : t -> string list
 
 (** Concrete method transformation. *)
 val cm_transform : bool ->
-  JCode.jcode Lazy.t Javalib.concrete_method -> fbir Javalib.concrete_method
+  JCode.jcode Lazy.t Javalib.concrete_method -> t Javalib.concrete_method
 
 (** [interface_or_class] transformation *)
 val iorc_transform : bool ->
-  JCode.jcode Lazy.t Javalib.interface_or_class -> fbir Javalib.interface_or_class
+  JCode.jcode Lazy.t Javalib.interface_or_class -> t Javalib.interface_or_class
 
 (** transform the [interface_or_class] corresponding to the class_path string.
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : bool -> string -> fbir Javalib.interface_or_class 
+val cn_transform : bool -> string -> t Javalib.interface_or_class 
 
 
 

@@ -19,22 +19,26 @@ val print_const : const -> string
 val varname : string 
 
 type var =
-  | OriginalVar of int * string      (* register number, name (debug or bcvar) *)
+  | OriginalVar of int * string option  (* register number, name (debug if available) *)
   | TempVar of int * int option
   | BranchVar of int * int
   | BranchVar2 of int * int
       
+(** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program *)
 val var_orig : var -> bool
-  (** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program *)
   
+(** [var_name v] returns the string identifying the variable [v] *)
 val var_name : var -> string
-  (** [var_name v] returns the string identifying the variable [v] *)
   
+(** [var_name_debug v] returns, if possible the original variable names of [v], if the initial class was compiled using debug information. *)
+val var_name_debug : var -> string option
+
+(** [var_name_g v] returns the string identifying the variable [v], according to the local variable table provided in the class file from which it has been created *)
 val var_name_g : var -> string
-  (** [var_name v] returns the string identifying the variable [v], according to the local variable table provided in the class file from which it has been created *)
-  
+
+(** [var_equal v1 v2] tests the equality of variables [v1] and [v2] *)
 val var_equal : var -> var -> bool
-  (** [var_equal v1 v2] tests the equality of variables [v1] and [v2] *)
+
   
 type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S
 
@@ -50,19 +54,7 @@ type comp =  DG | DL | FG | FL | L
 
 type typ = Ref | Num 
 
-type binop =    
-  | ArrayLoad of typ
-  | Add of JBasics.jvm_basic_type
-  | Sub of JBasics.jvm_basic_type
-  | Mult of JBasics.jvm_basic_type
-  | Div of JBasics.jvm_basic_type
-  | Rem of JBasics.jvm_basic_type
-  | IShl  | IShr  | IAnd  | IOr  | IXor  | IUshr
-  | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
-  | CMP of comp
-
 val print_typ : typ -> string
-val print_binop : binop -> string
 
 (* type statistics = { *)
 (*     mutable nb_jump_with_non_empty_stacks : int; *)
