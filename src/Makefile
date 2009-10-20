@@ -38,9 +38,6 @@ install: jaws.cma jaws.cmxa
 	cp -f jaws.cma jaws.cmxa jaws.a $(MODULE_INTERFACES:=.cmi) $(INSTALL_DIR)
 	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
 
-bir.mli: bir.ml
-	$(OCAMLC) $(INCLUDE) -i bir.ml > bir.mli
-
 test_bir: jaws.cma
 	$(OCAMLC) $(INCLUDE) unix.cma zip.cma extlib.cma str.cma ptrees.cma javalib.cma jaws.cma -o test_bir test_bir.ml
 
