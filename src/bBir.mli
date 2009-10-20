@@ -46,51 +46,22 @@ type comp = DG | DL | FG | FL | L
     
 type typ = Ref | Num 
 
-type binop =
-    ArrayLoad of typ
-  | Add of JBasics.jvm_basic_type
-  | Sub of JBasics.jvm_basic_type
-  | Mult of JBasics.jvm_basic_type
-  | Div of JBasics.jvm_basic_type
-  | Rem of JBasics.jvm_basic_type
-  | IShl  | IShr  | IAnd  | IOr  | IXor  | IUshr
-  | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
-  | CMP of comp
-
-type expr =
-    Const of const
-  | Var of typ * var
-  | Unop of unop * expr
-  | Binop of binop * expr * expr
-  | Field of expr * JBasics.class_name * JBasics.field_signature
-  | StaticField of JBasics.class_name * JBasics.field_signature
-
+type binop = Bir.binop
+type expr = Bir.expr
 
 
 (** {3 Instructions} *)
 
-type virtual_call_kind =
-  |  VirtualCall of JBasics.object_type
-  | InterfaceCall of JBasics.class_name
+type virtual_call_kind = Bir.virtual_call_kind
 
-type check = 
-  | CheckNullPointer of expr
-  | CheckArrayBound of expr * expr
-  | CheckArrayStore of expr * expr
-  | CheckNegativeArraySize of expr
-  | CheckCast of expr
-  | CheckArithmetic of expr
+type check = Bir.check
       
 type instr =
-    Nop
   | AffectVar of var * expr (** x := e *)
   | AffectArray of expr * expr * expr (** e1\[e2\] := e3 *) 
   | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr (** e1.<C:f> := e2 *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr  (** <C:f> := e *)
-  | Goto of int
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
-  | Throw of expr
-  | Return of expr option
   | New of var * JBasics.class_name * JBasics.value_type list * expr list (** x := new C<sig>(e1,...,en) *)
   | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)       
       (** value_type is the type of the array content *)
@@ -102,36 +73,49 @@ type instr =
   | MayInit of JBasics.class_name
   | Check of check
 
+type last_instr =
+  | Goto of int
+  | Throw of expr
+  | Return of expr option
+
+type exception_handler = {
+  handler : int;
+  catch_type : JBasics.class_name option
+}
+    
+type block = {
+  label : int;
+  instrs : instr list;
+  last : last_instr;
+  handlers : exception_handler list;
+}
 
 type t = {
   params : var list;  (** method parameters *)
-  code : (int * instr list) list; (** pc : \[instr1 ; ... ; instrn \] , ... , pc' : \[instr'1 ; ... ; instr'n. \] 
-				      Each pc indexes a list of [instr] instructions which all come from the same initial bytecode instruction*)
-  exc_tbl : JCode.exception_handler list;
-  line_number_table : (int * int) list option;
-  jump_target : bool array
+  code : block list
 }
 
 
 (** {2 Printing functions} *)
 
-val print_instr : instr -> string
-val print_instrs : (int * instr list) -> string
+val print_block : block -> string
 val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
 (** Concrete method transformation, compressed or not *)
-val cm_transform : bool -> JCode.jcode Lazy.t Javalib.concrete_method -> t Javalib.concrete_method 
+val cm_transform : JCode.jcode Lazy.t Javalib.concrete_method -> t Javalib.concrete_method 
   
 (** [interface_or_class] transformation, compressed or not *)
-val iorc_transform : bool -> JCode.jcode Lazy.t Javalib.interface_or_class -> t Javalib.interface_or_class 
+val iorc_transform : JCode.jcode Lazy.t Javalib.interface_or_class -> t Javalib.interface_or_class 
+
+val show : JCode.jcode Lazy.t Javalib.interface_or_class -> unit
 
 (** transform the [interface_or_class] corresponding to the class_path string, compressed or not
 
     ex: [cn_transform "dir/dir2/Test.class"]
 *)
-val cn_transform : bool -> string -> t Javalib.interface_or_class 
+val cn_transform : string -> t Javalib.interface_or_class 
 
 
 

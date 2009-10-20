@@ -7,18 +7,11 @@ val compress_ir_flag : bool ref
 (** Basic simplification of consecutive assignments *)
 val simplify_assign_flag : bool ref
 
-val show_file :
-  mode  ->
-  bool ->
-  bool -> Javalib.class_path -> JBasics.class_name -> unit
-
 val add_nbvariables : int -> int -> unit
 val set_out_nbvariables : string -> unit 
 val close_out_nbvariables : unit -> unit
 
-val run_on_class : mode -> string -> unit
-val run_on_jar : mode -> string -> unit
-val run_on_dir : mode -> string -> unit
+val run : mode -> ?verbose:bool -> string -> unit
 
 val set_out_statistics : string -> unit
 val close_out_statistics : unit -> unit

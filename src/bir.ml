@@ -72,6 +72,7 @@ type t = {
   code : (int * instr list) list;
   exc_tbl : exception_handler list;
   line_number_table : (int * int) list option;
+  jump_target : bool array
 }
 
 (* For stack type inference only *)
@@ -1326,8 +1327,7 @@ let gen_params pp_var cm =
 	 (fun i _ -> OriginalVar (i+1,pp_var 0 (i+1)))
 	 (ms_args cm.cm_signature))
 
-let compress_ir code ir =
-  let jump_target = compute_jump_target code in
+let compress_ir ir jump_target =
   let rec aux0 pc0 = function
     | [] -> [pc0,[Nop]]
     | (pc,instrs)::q when jump_target.(pc) -> (pc0,[Nop])::(pc,instrs)::(aux q)
@@ -1341,9 +1341,9 @@ let compress_ir code ir =
 
 let compress_ir_flag = ref false
 
-let compress_ir code ir =
+let compress_ir ir jump_target =
   if !compress_ir_flag 
-  then compress_ir code ir
+  then compress_ir ir jump_target
   else ir
 
 let ret_stats = ref (Some {  stat_nb_total = 0 ;
@@ -1360,9 +1360,10 @@ let jcode2bir cm stats mode jcode =
   let res,stats = bc2ir mode pp_var jump_target code stats in 
     ret_stats := stats ;
     { params = gen_params pp_var cm;
-      code = compress_ir code (List.rev res);
+      code = compress_ir (List.rev res) jump_target;
       exc_tbl = code.c_exc_tbl;
-      line_number_table = code.c_line_number_table }
+      line_number_table = code.c_line_number_table;
+      jump_target = jump_target }
       
 let transform_intra_stats mode ?(stats=false) m =
    (Javalib.map_concrete_method (jcode2bir m stats mode)  m), !ret_stats
