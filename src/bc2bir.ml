@@ -51,6 +51,66 @@ let add_stat implem stats =
 	  Printf.fprintf !out_statistics "%d " stats.stat_nb_tempvar_must_alias;
 	  Printf.fprintf !out_statistics "%d \n" stats.stat_nb_tempvar_side_effect
     | _ -> assert false
+
+let sort_benchs_by_size () =
+  let ranges = [25;50;100;200;400;800;1600] in
+  let find_range x =
+    let rec aux = function
+	[] -> 0
+      | y::q -> if x<y then 0 else 1+ (aux q)
+    in aux ranges in
+  let bc_size = Array.make (1+ List.length ranges) 0 in
+  let total_bcvar = Array.make (1+ List.length ranges) 0 in
+  let total_temp = Array.make (1+ List.length ranges) 0 in
+  let temp_branch = Array.make (1+ List.length ranges) 0 in
+  let percentage x y = (100*x)/y in
+  let incr t i = t.(i) <- t.(i) +1 in
+  let n = ref 0 in
+  let add t i v =
+    if (not (t.(i) < max_int /2)) then 
+      (Printf.printf "error %d at line %d\n" i !n; exit 0);
+    assert (v < max_int /2);
+    t.(i) <- t.(i) + v in
+  let data = "compact1.csv" in
+  let benchs =  
+    ["jar/javacc.jar";
+     "jar/sootclasses-2.2.3.jar";
+     "jar/jscience.jar";
+     "jar/rt.jar"] in
+    List.iter
+      (fun f -> 
+	 if not (is_file f) 
+	 then begin
+	   Printf.printf "bench %s is missing\n" f; 
+	   exit 0
+	 end) benchs;
+    if is_file data then Unix.unlink data;
+    let f = open_in "compact1.csv" in
+    let _ = input_line f in
+      begin
+	try
+	  while true do 
+	    n := !n + 1;
+	    let r = input_line f in
+	    let s = Array.of_list (List.map int_of_string (Str.split (Str.regexp " ") r)) in
+	    let i = find_range s.(0) in
+	      incr bc_size i;
+	      add total_bcvar i s.(1);
+	      add total_temp i s.(2);
+	      add temp_branch i s.(3);
+	  done
+	with End_of_file -> 
+	  close_in f
+      end;
+      for i=0 to List.length ranges do
+	Printf.printf "[%d,%s] : size=%d nb_tempvar=%d nb_branchvar=%d\n"
+	  (if i=0 then 0 else List.nth ranges (i-1))
+	  (if i=List.length ranges then "+oo" else (string_of_int (List.nth ranges i)))
+	  bc_size.(i)
+	  (percentage total_temp.(i) total_bcvar.(i))
+	  (percentage temp_branch.(i) total_bcvar.(i))
+      done
+
       
 type mode = JBir | BBir
 
