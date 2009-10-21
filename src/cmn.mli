@@ -20,10 +20,14 @@ val varname : string
 
 type var =
   | OriginalVar of int * string option  (* register number, name (debug if available) *)
-  | TempVar of int * int option
+  | TempVar of int 
+  | ToBeRemovedVar
   | BranchVar of int * int
   | BranchVar2 of int * int
       
+(** Catched exception are store in [catch_var] *)
+val catch_var : var
+
 (** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program *)
 val var_orig : var -> bool
   

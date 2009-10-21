@@ -25,8 +25,8 @@ DOCDIR:=../$(DOCDIR)
 
 CSS=\"style.css\"
 
-MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml cmn bir jBir fBir bBir cfaBir bc2bir jaws 
-MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml cmn jBir fBir bBir cfaBir bc2bir jaws 
+MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml cmn bir jBir fBir bBir cfaBir jaws 
+MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml cmn jBir fBir bBir cfaBir jaws 
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc
@@ -38,8 +38,8 @@ install: jaws.cma jaws.cmxa
 	cp -f jaws.cma jaws.cmxa jaws.a $(MODULE_INTERFACES:=.cmi) $(INSTALL_DIR)
 	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
 
-test_bir: jaws.cma test_bir.ml
-	$(OCAMLC) $(INCLUDE) unix.cma zip.cma extlib.cma str.cma ptrees.cma javalib.cma jaws.cma -o test_bir test_bir.ml
+bc2bir: jaws.cma bc2bir.ml
+	$(OCAMLC) $(INCLUDE) unix.cma zip.cma extlib.cma str.cma ptrees.cma javalib.cma jaws.cma -o bc2bir bc2bir.ml
 
 ocaml:jaws.cma
 	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javaLib.cma jaws.cma
@@ -85,7 +85,7 @@ doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 
 clean:
-	rm -rf .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *.a *~ test_bir
+	rm -rf .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *.a *~ bc2bir
 
 cleanall: clean cleandoc
 	rm -rf ocaml tests tests.opt sample sample.opt *.cmi	\

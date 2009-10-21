@@ -276,21 +276,9 @@ let bir2fbir  bir =
   }
 
 (** Concrete method transformation. *) 
-let cm_transform compress j_m =
-  let bir_m = Bir.cm_transform_flat compress j_m in 
-    Javalib.map_concrete_method (fun code -> bir2fbir code) bir_m
+let transform ?(compress=false) j_m j_code =
+  let code = Bir.transform_flat ~compress:compress j_m j_code in 
+    bir2fbir code
       
-(** [interface_or_class] transformation *) 
-let iorc_transform compress j_iorc =
-  let bir_iorc = Bir.iorc_transform_flat compress j_iorc in 
-    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
-
-(** transform the [interface_or_class] corresponding to the class_path string.
-    ex: [cn_transform "dir/dir2/Test.class"] 
-    cn_transform
- *) 
-let cn_transform compress name =
-  let bir_iorc = Bir.cn_transform_flat compress name in
-    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
       
   

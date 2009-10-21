@@ -97,7 +97,7 @@ let expr2var expr =
     | Bir.Var (_,v) -> v
     | _ -> assert false
 
-let bir2fbir_binop = function
+let bir2cfabir_binop = function
   | Bir.ArrayLoad _ -> assert false
   | Bir.Add t -> Add t
   | Bir.Sub t -> Sub t
@@ -118,12 +118,12 @@ let bir2fbir_binop = function
   | Bir.LUshr -> LUshr
   | Bir.CMP c -> CMP c
 
-let rec bir2fbir_expr e = match e with 
+let rec bir2cfabir_expr e = match e with 
   | Bir.Const c -> Const c
   | Bir.Var (t,v) -> Var (t,v)
-  | Bir.Unop (unop, expr) -> Unop(unop, bir2fbir_expr expr)
-  | Bir.Binop(Bir.ArrayLoad t,expr1,expr2) -> ArrayLoad (t,expr2var expr1,bir2fbir_expr expr2) 
-  | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2fbir_binop binop,bir2fbir_expr expr1,bir2fbir_expr expr2) 
+  | Bir.Unop (unop, expr) -> Unop(unop, bir2cfabir_expr expr)
+  | Bir.Binop(Bir.ArrayLoad t,expr1,expr2) -> ArrayLoad (t,expr2var expr1,bir2cfabir_expr expr2) 
+  | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2cfabir_binop binop,bir2cfabir_expr expr1,bir2cfabir_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
 
@@ -132,32 +132,32 @@ let kind2kind = function
   | Bir.InterfaceCall cn -> InterfaceCall cn
 
 let check2check = function 
-  | Bir.CheckNullPointer e -> CheckNullPointer (bir2fbir_expr e)
-  | Bir.CheckArrayBound (e1, e2) -> CheckArrayBound (bir2fbir_expr e1, bir2fbir_expr e2)
-  | Bir.CheckArrayStore (e1,e2) -> CheckArrayStore (bir2fbir_expr e1,  bir2fbir_expr e2)
-  | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2fbir_expr e) 
-  | Bir.CheckCast e -> CheckCast (bir2fbir_expr e)
-  | Bir.CheckArithmetic e -> CheckArithmetic (bir2fbir_expr e)
+  | Bir.CheckNullPointer e -> CheckNullPointer (bir2cfabir_expr e)
+  | Bir.CheckArrayBound (e1, e2) -> CheckArrayBound (bir2cfabir_expr e1, bir2cfabir_expr e2)
+  | Bir.CheckArrayStore (e1,e2) -> CheckArrayStore (bir2cfabir_expr e1,  bir2cfabir_expr e2)
+  | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2cfabir_expr e) 
+  | Bir.CheckCast e -> CheckCast (bir2cfabir_expr e)
+  | Bir.CheckArithmetic e -> CheckArithmetic (bir2cfabir_expr e)
       
   
-let bir2fbir_instr = function
+let bir2cfabir_instr = function
     Bir.Nop -> Nop
-  | Bir.AffectVar (v,expr) -> AffectVar (v,bir2fbir_expr expr)
-  | Bir.AffectArray(e1,e2,e3) -> AffectArray(expr2var e1, bir2fbir_expr e2, bir2fbir_expr e3)
-  | Bir.AffectField(e1,cn,fs,e2) -> AffectField(expr2var e1,cn,fs,bir2fbir_expr e2) 
-  | Bir.AffectStaticField(cn,fs,e) -> AffectStaticField(cn,fs,bir2fbir_expr e)
+  | Bir.AffectVar (v,expr) -> AffectVar (v,bir2cfabir_expr expr)
+  | Bir.AffectArray(e1,e2,e3) -> AffectArray(expr2var e1, bir2cfabir_expr e2, bir2cfabir_expr e3)
+  | Bir.AffectField(e1,cn,fs,e2) -> AffectField(expr2var e1,cn,fs,bir2cfabir_expr e2) 
+  | Bir.AffectStaticField(cn,fs,e) -> AffectStaticField(cn,fs,bir2cfabir_expr e)
   | Bir.Goto i -> Goto i
-  | Bir.Ifd ((cmp,e1,e2),i) -> Ifd ((cmp,bir2fbir_expr e1,bir2fbir_expr e2),i)
-  | Bir.Throw e -> Throw (bir2fbir_expr e)
-  | Bir.Return (Some e) -> Return (Some (bir2fbir_expr e))
+  | Bir.Ifd ((cmp,e1,e2),i) -> Ifd ((cmp,bir2cfabir_expr e1,bir2cfabir_expr e2),i)
+  | Bir.Throw e -> Throw (bir2cfabir_expr e)
+  | Bir.Return (Some e) -> Return (Some (bir2cfabir_expr e))
   | Bir.Return None -> Return None
-  | Bir.New(v,cn,vtl,el) -> New (v,cn,vtl,List.map bir2fbir_expr el)
-  | Bir.NewArray(v,vt,el) -> NewArray(v,vt,List.map bir2fbir_expr el)
-  | Bir.InvokeStatic(v,cn,ms,el) -> InvokeStatic(v,cn,ms,List.map bir2fbir_expr el)
-  | Bir.InvokeVirtual(optv,expr, kind, ms, el) ->InvokeVirtual(optv, expr2var expr, kind2kind kind, ms, List.map bir2fbir_expr el)
-  | Bir.InvokeNonVirtual(optv, e, cn, ms, el) -> InvokeNonVirtual(optv,expr2var  e, cn, ms, List.map bir2fbir_expr el)
-  | Bir.MonitorEnter e -> MonitorEnter (bir2fbir_expr e)
-  | Bir.MonitorExit e ->  MonitorExit (bir2fbir_expr e)
+  | Bir.New(v,cn,vtl,el) -> New (v,cn,vtl,List.map bir2cfabir_expr el)
+  | Bir.NewArray(v,vt,el) -> NewArray(v,vt,List.map bir2cfabir_expr el)
+  | Bir.InvokeStatic(v,cn,ms,el) -> InvokeStatic(v,cn,ms,List.map bir2cfabir_expr el)
+  | Bir.InvokeVirtual(optv,expr, kind, ms, el) ->InvokeVirtual(optv, expr2var expr, kind2kind kind, ms, List.map bir2cfabir_expr el)
+  | Bir.InvokeNonVirtual(optv, e, cn, ms, el) -> InvokeNonVirtual(optv,expr2var  e, cn, ms, List.map bir2cfabir_expr el)
+  | Bir.MonitorEnter e -> MonitorEnter (bir2cfabir_expr e)
+  | Bir.MonitorExit e ->  MonitorExit (bir2cfabir_expr e)
   | Bir.MayInit cn -> MayInit cn
   | Bir.Check c -> Check (check2check c)
       
@@ -288,29 +288,14 @@ let rec print_code = function
 
 let print m = print_code m.f_code
 
-let bir2fbir  bir = 
+let bir2cfabir  bir = 
   { f_params = bir.params ;
-    f_code = List.map (fun (i,instrl) -> (i, List.map bir2fbir_instr instrl)) bir.code  ;
+    f_code = List.map (fun (i,instrl) -> (i, List.map bir2cfabir_instr instrl)) bir.code  ;
     f_exc_tbl = bir.exc_tbl ;
     f_line_number_table = bir.line_number_table ;
   }
 
-(** Concrete method transformation. *) 
-let cm_transform compress j_m =
-  let bir_m = Bir.cm_transform_flat compress j_m in 
-    Javalib.map_concrete_method (fun code -> bir2fbir code) bir_m
-      
-(** [interface_or_class] transformation *) 
-let iorc_transform compress j_iorc =
-  let bir_iorc = Bir.iorc_transform_flat compress j_iorc in 
-    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
+let transform ?(compress=false) j_m j_code =
+  let code = Bir.transform_flat ~compress:compress j_m j_code in 
+    bir2cfabir code
 
-(** transform the [interface_or_class] corresponding to the class_path string.
-    ex: [cn_transform "dir/dir2/Test.class"] 
-    cn_transform
- *) 
-let cn_transform compress name =
-  let bir_iorc = Bir.cn_transform_flat compress name in
-    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
-      
-  

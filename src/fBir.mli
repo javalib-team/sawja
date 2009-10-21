@@ -18,6 +18,9 @@ type const =
 
 type var 
 
+(** Catched exception are store in [catch_var] *)
+val catch_var : var
+
 (** [var_orig v] is [true] if and only if the variable [v] was already used at bytecode level *)
 val var_orig : var -> bool
 
@@ -119,21 +122,8 @@ val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** Concrete method transformation. *)
-val cm_transform : bool ->
-  JCode.jcode Lazy.t Javalib.concrete_method -> t Javalib.concrete_method
-
-(** [interface_or_class] transformation *)
-val iorc_transform : bool ->
-  JCode.jcode Lazy.t Javalib.interface_or_class -> t Javalib.interface_or_class
-
-(** transform the [interface_or_class] corresponding to the class_path string.
-
-    ex: [cn_transform "dir/dir2/Test.class"]
-*)
-val cn_transform : bool -> string -> t Javalib.interface_or_class 
-
-
+(** JCode transformation, compressed or not *)
+val transform : ?compress:bool -> JCode.jcode Lazy.t Javalib.concrete_method -> JCode.jcode Lazy.t -> t 
 
 (** {2 Exceptions} *)
 

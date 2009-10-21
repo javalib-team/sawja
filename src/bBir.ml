@@ -221,7 +221,7 @@ let build_blocks jump_target handlers code =
   in
     aux code
 
-let bir2fbir bir : t = 
+let bir2bbir bir : t = 
   List.iter
     (fun e -> 
 	 bir.jump_target.(e.e_start) <- true; (* David: could not work well with strange programs *)
@@ -231,27 +231,9 @@ let bir2fbir bir : t =
     code = build_blocks bir.Bir.jump_target bir.Bir.exc_tbl bir.Bir.code
   }
 
-(** Concrete method transformation. *) 
-let cm_transform j_m =
-  let bir_m = Bir.cm_transform true j_m in 
-    Javalib.map_concrete_method (fun code -> bir2fbir code) bir_m
+let transform ?(compress=false) j_m j_code =
+  let code = Bir.transform_flat ~compress:compress j_m j_code in 
+    bir2bbir code
       
-(** [interface_or_class] transformation *) 
-let iorc_transform j_iorc =
-  let bir_iorc = Bir.iorc_transform_flat true j_iorc in 
-    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
-
-(** transform the [interface_or_class] corresponding to the class_path string.
-    ex: [cn_transform "dir/dir2/Test.class"] 
-    cn_transform
- *) 
-let cn_transform name =
-  let bir_iorc = Bir.cn_transform_flat true name in
-    Javalib.map_interface_or_class (fun _cm code -> bir2fbir code) bir_iorc
-
-let show j_iorc =
-  JPrint.print_class (iorc_transform j_iorc)
-  (fun ?(jvm=false) x -> print x)
-  stdout
 
   

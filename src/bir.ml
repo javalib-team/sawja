@@ -557,7 +557,7 @@ let temp_in_expr acc expr =
       | Field (e,_,_) -> aux acc e
       | Var (_,x) ->
 	  (match x with
-	       TempVar (i,_) -> Ptset.add i acc
+	       TempVar i -> Ptset.add i acc
 	     | _ -> acc)
       | Unop (_,e) -> aux acc e
       | Binop (_,e1,e2) -> aux (aux acc e1) e2
@@ -570,82 +570,47 @@ let temp_in_opexpr acc = function
 let temp_in_stack s =
   List.fold_left temp_in_opexpr Ptset.empty s
 
-let choose_fresh_in_stack s =
+let fresh_in_stack s =
   let set = temp_in_stack s in
   if Ptset.is_empty set then 0 
   else (Ptset.max_elt set)  +1
 
-let make_tempvar next_is_store s (i,_) = 
-  if next_is_store then TempVar (i,Some i)
-  else  
-    let fresh = choose_fresh_in_stack s in
-      TempVar (fresh,None)
-
-let clean count1 count2 i test s instrs =
-  let rec aux j c1 c2 = function
-    | [] -> [], instrs, false, c1, c2
+let clean test s instrs =
+  let rec aux fresh = function
+    | [] -> [], instrs, fresh
     | e::s -> 
-	let (s,instrs,test_succeed,cc1,cc2) = aux (j+1) c1 c2 s in
+	let (s,instrs,fresh) = aux fresh s in
 	  match e with
-	    | Uninit _ -> e::s, instrs, test_succeed, cc1, cc2
+	    | Uninit _ -> 
+		e::s, instrs , fresh
 	    | E e ->
 		if test e then
-		  let x = make_tempvar false s  (i,Some j) in
+		  let x = TempVar fresh in
 		  let t = type_of_expr e in
-		    (E (Var (t,x))::s, (AffectVar (x,e))::instrs, true, cc1,cc2+1)
-		else E e::s, instrs, test_succeed, cc1,cc2
+		    E (Var (t,x))::s, (AffectVar (x,e))::instrs, fresh +1
+		else 
+		  E e::s, instrs, fresh
   in
-  let (s,instrs,test_succeed,c1,c2) = aux 0 count1 count2 s in
-    if test_succeed then (s,instrs,c1+1,c2)
-    else (s,instrs,c1,c2)
-
-let stats_nb_tempvar = ref 0
-let stats_nb_tempvar_branch = ref 0 
-let stats_nb_tempvar_putfield = ref 0
-let stats_nb_tempvar_method_effect = ref 0
-let stats_nb_tempvar_arraystore = ref 0 
-let stats_nb_tempvar_removed = ref 0
-let stats_nb_tempvar_side_effect = ref  0
-let stats_nb_tempvar_flat = ref 0
-let stats_nb_tempvar_3a = ref 0
-let stats_nb_jump_with_non_empty_stacks = ref  0 
-let stats_nb_back_jump_with_non_empty_stacks = ref 0 
-let stats_nb_store_is_var_in_stack= ref 0 
-let stats_nb_incr_is_var_in_stack= ref 0 
-let stats_nb_putfield_is_field_in_stack= ref 0 
-let stats_nb_arraystore_is_array_access_in_stack = ref 0 
-let stats_nb_putstatic_is_static_in_stack= ref 0 
-let stats_nb_method_call_with_modifiable_in_stack= ref 0 
-let stats_nb_store= ref 0
-let stats_nb_incr= ref  0 
-let stats_nb_putfield= ref 0 
-let stats_nb_arraystore= ref 0 
-let stats_nb_putstatic= ref 0 
-let stats_nb_method_call= ref 0 
-
+  let (s,instrs,_) = aux (fresh_in_stack s) s in
+    (s,instrs)
 
 	  
-let to_addr3_binop i mode binop s instrs next_is_store =
+let to_addr3_binop mode binop s instrs =
   match mode with 
-    | Addr3 -> 	let x = make_tempvar next_is_store s (i,None) 
+    | Addr3 -> 	let x = TempVar (fresh_in_stack s)
       in begin
 	let e = Binop (binop,topE (pop s),topE s) in
-	  incr stats_nb_tempvar ;
-	  incr stats_nb_tempvar_3a ;
 	  E (Var (type_of_expr e,x))::(pop2 s), instrs@[AffectVar(x,e)]
       end
     | _ -> E (Binop (binop,topE (pop s),topE s))::(pop2 s), instrs
 
-
-let to_addr3_unop i mode unop s instrs next_is_store = 
+let to_addr3_unop mode unop s instrs = 
   match mode with 
-    | Addr3 -> let x = make_tempvar next_is_store s (i,None) 
-      in begin
-	let e = Unop (unop,topE s) in
-	  incr stats_nb_tempvar ;
-	  incr stats_nb_tempvar_3a ;
-	  E (Var (type_of_expr e,x))::(pop s), instrs@[AffectVar(x,e)]
-      end
+    | Addr3 -> let x = TempVar (fresh_in_stack s) in
+	begin
+	  let e = Unop (unop,topE s) in
+	    E (Var (type_of_expr e,x))::(pop s), instrs@[AffectVar(x,e)]
+	end
     | _ ->E (Unop (unop,topE s))::(pop s), instrs 
 
 let type_of_jvm_type = function
@@ -656,6 +621,16 @@ let type_of_array_type = function
   | `Long | `Float | `Double | `Int | `Short | `Char | `ByteBool -> Num
   | `Object -> Ref
 
+let make_tempvar s next_store =
+  match next_store with
+    | None -> TempVar (fresh_in_stack s)
+    | Some x -> begin
+	match is_var_in_stack x s with
+	  | Some _ -> TempVar (fresh_in_stack s)
+	  | None -> x
+      end
+
+
 (* Maps each opcode to a function of a stack that modifies its 
  * according to opcode, and returns grimp corresponding instructions if any 
  * tos : type operand stack
@@ -664,7 +639,7 @@ let type_of_array_type = function
  * stats : statistics to compute
  * mode : normal , flat , 3add 
  *)
-let bc2bir_instr mode pp_var i tos s next_is_store = function
+let bc2bir_instr mode pp_var i tos s next_store = function
   | OpNop -> s, []
   | OpConst x -> E (Const x)::s, []
   | OpLoad (t,n) -> E (Var (type_of_jvm_type t,OriginalVar (n,pp_var i n)))::s, []
@@ -674,9 +649,7 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
       let t = type_of_array_type t in begin
 	match mode with 
 	  | Addr3 ->
-	      let x = make_tempvar next_is_store s (i,None) in 
-		incr stats_nb_tempvar;
-		incr stats_nb_tempvar_3a ;
+	      let x = make_tempvar (pop2 s) next_store in 
 		E (Var (t,x))::(pop2 s), 
 	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]	      
 	  | _ ->
@@ -684,43 +657,36 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
 	end
   | OpStore (_,n) ->  
-      incr stats_nb_store ;
       let y = OriginalVar(n,pp_var i n) in
 	begin
-	  match is_var_in_stack y (pop s) with
-	    | Some t ->
-		incr stats_nb_store_is_var_in_stack ;
-		incr stats_nb_tempvar ;
-		let x = make_tempvar false s  (i,None) in
-		  replace_var_in_stack y x (pop s), 
-		  [AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
-	    | None ->
-		(pop s,[AffectVar (y,topE s)]) 
+	  match topE s with
+	    | Var (_,y') when var_equal y y' -> (pop s,[]) 
+	    | _ -> 
+		begin
+		  match is_var_in_stack y (pop s) with
+		    | Some t ->
+			let x = make_tempvar s None in
+			  replace_var_in_stack y x (pop s), 
+			  [AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
+		    | None ->
+			(pop s,[AffectVar (y,topE s)]) 
+		end
 	end
   | OpIInc (a,b) ->
-      incr stats_nb_incr ; 
       let a = OriginalVar (a,pp_var i a) in
 	begin
 	  match is_var_in_stack a s with
 	    | Some t ->
-		incr stats_nb_incr_is_var_in_stack ;
-		incr stats_nb_tempvar;
-		let x = make_tempvar false s  (i,None) in
+		let x = make_tempvar s None in
 		  replace_var_in_stack a x s, 
 		  [AffectVar(x,Var (t,a));
 		   AffectVar (a,Binop(Add `Int2Bool,Var (Num,a),Const (`Int (Int32.of_int b))))]
 	    | _ -> s,[AffectVar(a,Binop(Add `Int2Bool,Var (Num,a),Const (`Int (Int32.of_int b))))]
 	end
   | OpPutField (c, f) -> 
-      incr stats_nb_putfield ;
       let r = topE (pop s) in
-      let (s,instrs,count,count') = clean !stats_nb_putfield_is_field_in_stack !stats_nb_tempvar_putfield i (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
-      in
-	stats_nb_putfield_is_field_in_stack := count ;
-	stats_nb_tempvar_putfield := count' ;
-	(s,instrs)
+	clean (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
   | OpArrayStore _ -> 
-      incr stats_nb_arraystore ;
       let v = topE s in
       let a = topE (pop2 s) in	
       let idx = topE (pop s) in
@@ -728,11 +694,8 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 		  Check (CheckArrayBound (a,idx)); 
 		  Check (CheckArrayStore (a,v)); 
 		  AffectArray (a, idx, v)]
-      in let (s,instrs,count,count') = clean  !stats_nb_arraystore_is_array_access_in_stack !stats_nb_tempvar_arraystore i is_array_in_expr (pop3 s) inss	
-      in 
-	stats_nb_arraystore_is_array_access_in_stack := count ;
-	stats_nb_tempvar_arraystore := count'  ;
-	(s,instrs)	  
+      in
+	clean is_array_in_expr (pop3 s) inss	
   | OpPop -> pop s, []
   | OpPop2 -> 
       (match (top tos) with
@@ -764,46 +727,46 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[]))
   | OpSwap -> (top (pop s))::(top s)::(pop2 s),[]
-  | OpAdd k -> to_addr3_binop i mode (Add k) s [] next_is_store 
-  | OpSub k -> to_addr3_binop i mode (Sub k) s [] next_is_store 
-  | OpMult k -> to_addr3_binop i mode (Mult k) s [] next_is_store 
-  | OpDiv k -> let q = topE s in to_addr3_binop i mode (Div k) s [Check (CheckArithmetic q)]  next_is_store
-  | OpRem k -> let q = topE s in to_addr3_binop i mode (Rem k) s [Check (CheckArithmetic q)]  next_is_store 
-  | OpNeg k -> to_addr3_unop i mode (Neg k) s []  next_is_store 
-  | OpIShl ->  to_addr3_binop i mode IShl s []  next_is_store 
-  | OpIShr ->  to_addr3_binop i mode IShr s []  next_is_store 
-  | OpLShl ->  to_addr3_binop i mode LShl s []  next_is_store 
-  | OpLShr -> to_addr3_binop i mode LShr s []  next_is_store 
-  | OpIAnd -> to_addr3_binop i mode IAnd s []  next_is_store 
-  | OpIOr -> to_addr3_binop i mode IOr s []  next_is_store 
-  | OpIXor -> to_addr3_binop i mode IXor s []  next_is_store 
-  | OpIUShr -> to_addr3_binop i mode IUshr s []  next_is_store 
-  | OpLAnd -> to_addr3_binop i mode LAnd s []  next_is_store 
-  | OpLOr -> to_addr3_binop i mode LOr s []  next_is_store 
-  | OpLXor -> to_addr3_binop i mode LXor s []  next_is_store 
-  | OpLUShr  -> to_addr3_binop i mode LUshr s []  next_is_store 
-  | OpI2L -> to_addr3_unop i mode (Conv I2L) s []  next_is_store 
-  | OpI2F -> to_addr3_unop i mode (Conv I2F) s []  next_is_store 
-  | OpI2D ->to_addr3_unop i mode (Conv I2D) s []  next_is_store 
-  | OpL2I ->to_addr3_unop i mode (Conv L2I) s []  next_is_store 
-  | OpL2F ->to_addr3_unop i mode (Conv L2F) s []  next_is_store 
-  | OpL2D ->to_addr3_unop i mode (Conv L2D) s []  next_is_store 
-  | OpF2I ->to_addr3_unop i mode (Conv F2I) s []  next_is_store 
-  | OpF2L ->to_addr3_unop i mode (Conv F2L) s []  next_is_store 
-  | OpF2D ->to_addr3_unop i mode (Conv F2D) s []  next_is_store 
-  | OpD2I ->to_addr3_unop i mode (Conv D2I) s []  next_is_store 
-  | OpD2L ->to_addr3_unop i mode (Conv D2L) s []  next_is_store 
-  | OpD2F ->to_addr3_unop i mode (Conv D2F) s []  next_is_store 
-  | OpI2B ->to_addr3_unop i mode (Conv I2B) s []  next_is_store 
-  | OpI2C ->to_addr3_unop i mode (Conv I2C) s []  next_is_store 
-  | OpI2S ->to_addr3_unop i mode (Conv I2S) s []  next_is_store 
+  | OpAdd k -> to_addr3_binop mode (Add k) s [] 
+  | OpSub k -> to_addr3_binop mode (Sub k) s [] 
+  | OpMult k -> to_addr3_binop mode (Mult k) s [] 
+  | OpDiv k -> let q = topE s in to_addr3_binop mode (Div k) s [Check (CheckArithmetic q)] 
+  | OpRem k -> let q = topE s in to_addr3_binop mode (Rem k) s [Check (CheckArithmetic q)]  
+  | OpNeg k -> to_addr3_unop mode (Neg k) s []  
+  | OpIShl ->  to_addr3_binop mode IShl s []  
+  | OpIShr ->  to_addr3_binop mode IShr s []  
+  | OpLShl ->  to_addr3_binop mode LShl s []  
+  | OpLShr -> to_addr3_binop mode LShr s []  
+  | OpIAnd -> to_addr3_binop mode IAnd s []  
+  | OpIOr -> to_addr3_binop mode IOr s []  
+  | OpIXor -> to_addr3_binop mode IXor s []  
+  | OpIUShr -> to_addr3_binop mode IUshr s []  
+  | OpLAnd -> to_addr3_binop mode LAnd s []  
+  | OpLOr -> to_addr3_binop mode LOr s []  
+  | OpLXor -> to_addr3_binop mode LXor s []  
+  | OpLUShr  -> to_addr3_binop mode LUshr s []  
+  | OpI2L -> to_addr3_unop mode (Conv I2L) s []  
+  | OpI2F -> to_addr3_unop mode (Conv I2F) s []  
+  | OpI2D ->to_addr3_unop mode (Conv I2D) s []  
+  | OpL2I ->to_addr3_unop mode (Conv L2I) s []  
+  | OpL2F ->to_addr3_unop mode (Conv L2F) s []  
+  | OpL2D ->to_addr3_unop mode (Conv L2D) s []  
+  | OpF2I ->to_addr3_unop mode (Conv F2I) s []  
+  | OpF2L ->to_addr3_unop mode (Conv F2L) s []  
+  | OpF2D ->to_addr3_unop mode (Conv F2D) s []  
+  | OpD2I ->to_addr3_unop mode (Conv D2I) s []  
+  | OpD2L ->to_addr3_unop mode (Conv D2L) s []  
+  | OpD2F ->to_addr3_unop mode (Conv D2F) s []  
+  | OpI2B ->to_addr3_unop mode (Conv I2B) s []  
+  | OpI2C ->to_addr3_unop mode (Conv I2C) s []  
+  | OpI2S ->to_addr3_unop mode (Conv I2S) s []  
   | OpCmp op -> 
       (match op with 
-	 | `DG -> to_addr3_binop i mode (CMP DG) s []  next_is_store
-	 | `DL -> to_addr3_binop i mode (CMP DL) s []  next_is_store
-	 | `FG -> to_addr3_binop i mode (CMP FG) s []  next_is_store
-	 | `FL ->to_addr3_binop i mode (CMP FL) s []  next_is_store
-	 | `L ->to_addr3_binop i mode (CMP L) s []  next_is_store
+	 | `DG -> to_addr3_binop mode (CMP DG) s [] 
+	 | `DL -> to_addr3_binop mode (CMP DL) s [] 
+	 | `FG -> to_addr3_binop mode (CMP FG) s [] 
+	 | `FL ->to_addr3_binop mode (CMP FL) s [] 
+	 | `L ->to_addr3_binop mode (CMP L) s [] 
       )	
   | OpIf ( x , n) ->  
       let guard = 
@@ -860,20 +823,14 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 	  match mode with 
 	    | Normal -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)]
 	    | _ ->
-		incr stats_nb_tempvar ;
-		incr stats_nb_tempvar_flat ;
-		incr stats_nb_tempvar_3a ;
-		let x = make_tempvar next_is_store s  (i,None) in
+		let x = make_tempvar s next_store in
 		  E (Var (type_of_value_type (fs_type f),x))::(pop s), 
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
 	end
   | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c]
   | OpPutStatic (c, f) -> 
-      incr stats_nb_putstatic ;
       if is_static_in_stack c f (pop s) then begin
-	incr stats_nb_putstatic_is_static_in_stack ;
-	incr stats_nb_tempvar ;
-	let x = make_tempvar false s  (i,None) in
+	let x = make_tempvar s None in
 	  replace_static_in_stack c f x (pop s), 
 	[MayInit c;
 	 AffectVar(x,StaticField(c,f));
@@ -882,46 +839,30 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 	pop s, [AffectStaticField (c, f,topE s)]
   | OpInvoke (x, ms) -> 
       begin
-	incr stats_nb_method_call ;
 	(match x with
 	   | `Static c -> 
 	       (match ms_rtype ms with
 		  | None -> 
-		      let (s,instrs,count,count') = clean   !stats_nb_method_call_with_modifiable_in_stack !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr
+		      clean is_heap_sensible_element_in_expr
 			(popn (List.length (ms_args ms)) s) 
 			[InvokeStatic (None,c,ms,param (List.length  (ms_args ms)) s)]
-		      in
-			stats_nb_method_call_with_modifiable_in_stack := count ;
-			stats_nb_tempvar_method_effect := count' ;
-			(s,instrs)
 		  | Some t ->
-		      incr stats_nb_tempvar_side_effect ;
-		      incr stats_nb_tempvar ;
-		      let x = make_tempvar next_is_store s (i,None) in
-		      let (s,instrs,count,count') = clean !stats_nb_method_call_with_modifiable_in_stack  !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr (E (Var (type_of_value_type t,x))::(popn (List.length (ms_args ms)) s)) 
-			[InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
-		      in
-			stats_nb_method_call_with_modifiable_in_stack := count ;
-			stats_nb_tempvar_method_effect := count' ;
-			(s,instrs))
+		      let x = make_tempvar s next_store in
+		      clean is_heap_sensible_element_in_expr
+			(E (Var (type_of_value_type t,x))::(popn (List.length (ms_args ms)) s)) 
+			[InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)])
 	   | x -> 
 	       begin
 		 let popn_s = popn (List.length (ms_args ms)) s in
 		   (match top popn_s  with
 		      | Uninit (c,j) ->
-			  incr stats_nb_tempvar ;
-			  incr stats_nb_tempvar_side_effect ;
-			  let x = make_tempvar next_is_store s (i,None) in
+			  let x = make_tempvar s next_store in
 			  let e' = E (Var (Ref,x)) in
-			  let (s,instrs,count,count') = clean !stats_nb_method_call_with_modifiable_in_stack  !stats_nb_tempvar_method_effect i  is_heap_sensible_element_in_expr 
-			    (List.map 
-			       (function e -> if e = Uninit (c,j) then e' else e)
-			       (pop popn_s))
-			    [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
-			  in 
-			    stats_nb_method_call_with_modifiable_in_stack := count ;
-			    stats_nb_tempvar_method_effect := count' ;
-			    (s,instrs)
+			    clean is_heap_sensible_element_in_expr 
+			      (List.map 
+				 (function e -> if e = Uninit (c,j) then e' else e)
+				 (pop popn_s))
+			      [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
 		      | E e0  ->
 			  let nb_args = List.length (ms_args ms) in
 			  let s_next = pop popn_s in
@@ -936,46 +877,30 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
 			  in
 			    (match ms_rtype ms with
 			       | None -> 
-				   let (s,instrs,count,count') = 
-				     clean !stats_nb_method_call_with_modifiable_in_stack !stats_nb_tempvar_method_effect  i is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
-				   in
-				     stats_nb_method_call_with_modifiable_in_stack := count ;
-				     stats_nb_tempvar_method_effect := count' ;
-				     (s,instrs)				  
+				   clean is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
 			       | Some t -> 
-				   incr stats_nb_tempvar ;
-				   incr stats_nb_tempvar_side_effect ;
-				   let y = make_tempvar next_is_store s (i,None) in 
-				   let (s,instrs,count,count') =
-				     clean !stats_nb_method_call_with_modifiable_in_stack !stats_nb_tempvar_method_effect i is_heap_sensible_element_in_expr (E (Var (type_of_value_type t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
-				     in 
-				     stats_nb_method_call_with_modifiable_in_stack := count ;
-				     stats_nb_tempvar_method_effect := count' ;
-				     (s,instrs)
+				   let y = make_tempvar s next_store in 
+				     clean is_heap_sensible_element_in_expr (E (Var (type_of_value_type t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
 			    )) 
 	       end)
 	end
   | OpNew c -> (Uninit (c,i))::s, [MayInit c]
   | OpNewArray t -> 
-      incr stats_nb_tempvar ;
-      incr stats_nb_tempvar_side_effect ;
-      let x = make_tempvar next_is_store s (i,None) in
-	let dim = topE s in
-	  E (Var (Ref,x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
+      let x = make_tempvar s next_store in
+      let dim = topE s in
+	E (Var (Ref,x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
   | OpArrayLength -> 
       let a = topE s in begin
-	match mode with 
-	  | Addr3 -> 
-	      incr stats_nb_tempvar ;
-	      incr stats_nb_tempvar_3a ;
-	      let x = make_tempvar next_is_store s (i,None) in
-		E (Var (Num,x))::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))]
-	  | _ -> E (Unop (ArrayLength,a))::(pop s),[Check (CheckNullPointer a)]
+	  match mode with 
+	    | Addr3 -> 
+		let x = make_tempvar s next_store in
+		  E (Var (Num,x))::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))]
+	    | _ -> E (Unop (ArrayLength,a))::(pop s),[Check (CheckNullPointer a)]
 	end
   | OpThrow -> 
       let r = topE s in [], [Check (CheckNullPointer r); Throw r]
   | OpCheckCast _ -> s, [Check (CheckCast (topE s))]
-  | OpInstanceOf c -> to_addr3_unop i mode (InstanceOf c) s []  next_is_store
+  | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) s [] 
   | OpMonitorEnter -> 
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorEnter r]
@@ -983,13 +908,11 @@ let bc2bir_instr mode pp_var i tos s next_is_store = function
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorExit r]
   | OpAMultiNewArray (cn,dim) -> 
-      incr stats_nb_tempvar_side_effect ;
-      incr stats_nb_tempvar ; 
-      let x = make_tempvar next_is_store s (i,None) in
-	let params = param dim s in
-	  E (Var (Ref,x))::(popn dim s), 
-      (List.map (fun e -> Check (CheckNegativeArraySize e)) params)
-      @[NewArray (x,remove_dim cn dim,params)]
+      let x = make_tempvar s next_store in
+      let params = param dim s in
+	E (Var (Ref,x))::(popn dim s), 
+	(List.map (fun e -> Check (CheckNegativeArraySize e)) params)
+	@[NewArray (x,remove_dim cn dim,params)]
   | OpBreakpoint -> failwith "breakpoint"  
   | OpInvalid -> failwith "invalid"
       
@@ -1063,89 +986,18 @@ let para_assign pc succs stack =
 	end
     in aux 0 stack
 
-let jump_stack count1 count2 pc' stack =
-  let rec aux i c1 c2 = function
-      [] -> ([],c1,c2)
+let jump_stack pc' stack =
+  let rec aux i = function
+      [] -> []
     | e::q -> begin
 	match e with 
 	  | Uninit _ -> 
-	      let a,b,c = (aux (i+1) c1 c2 q) in 
-		(e :: a, b, c)
+	      e :: (aux (i+1) q)
 	  | E e -> 
-	      let a,b,c = (aux (i+1) c1 c2 q) in 
-	      ( E (Var (type_of_expr e,BranchVar (pc',i))) :: a, b+1 , c+1)
+	      E (Var (type_of_expr e,BranchVar (pc',i))) :: (aux (i+1) q)
       end
-  in aux 0 count1 count2 stack
-
-(* simplify the assignts chain, if this is allowed according to out_stack *)
-let simplify_assign mode bir out_stack = 
-  match bir with
-    | (pc,[AffectVar(j,Var(_,k))])::(pc',instrs)::q ->
-	begin match k with 
-	  | TempVar (_,Some _) ->
-	      begin (* remove useless assignement *)
-		match List.rev instrs with
-		  | AffectVar(i,e)::l when (var_equal i k) -> 
-		      begin match j with 
-			| OriginalVar _ ->
-			    if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
-			      (* check the variable removal can be done (no longer used in the stack) *)
-			      bir
-			    else
-			      (incr stats_nb_tempvar_removed ;
-			       (pc,[])::(pc',List.rev (AffectVar(j,e)::l))::q )
-			| _ -> bir
-		      end
-		  | New(i,c,types,params)::l when  (var_equal i k) ->
-		      if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
-			bir
-		      else
-			(incr stats_nb_tempvar_removed ; 
-			 (pc,[])::(pc',List.rev (New (j,c,types,params)::l))::q)
-		  | (NewArray(i,c,params))::l when  (var_equal i k) ->
-		      if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
-			bir
-		      else 
-			(incr stats_nb_tempvar_removed ; 
-			 (pc,[])::(pc',List.rev (NewArray (j,c,params)::l))::q)
-		  | (InvokeStatic (Some x,c,ms,le))::l when var_equal x k ->
-		      begin match mode with 
-			  | Flat ->  bir
-			  | _ -> (if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then bir
-				  else 
-				    (incr stats_nb_tempvar_removed ; 
-				     (pc,[])::(pc',List.rev (InvokeStatic (Some j,c,ms,le)::l))::q))
-		      end
-		  | (InvokeVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
-		      begin match mode with 
-			| Flat ->  bir
-			| _ -> (if (is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
-				  bir
-				else 
-				  (incr stats_nb_tempvar_removed ; 
-				   (pc,[])::(pc',List.rev (InvokeVirtual (Some j,e1,kd,ms,le)::l))::q ))
-		      end
-		  | (InvokeNonVirtual (Some x,e1,kd,ms,le))::l when var_equal x k ->
-		      begin
-			match mode with 
-			  | Flat ->  bir
-			  | _ -> (if ( is_in_stack (var_equal k) (fun _ _ -> false) out_stack ) then 
-				    bir
-				  else 
-				    (incr stats_nb_tempvar_removed ; 
-				     (pc,[])::(pc',List.rev (InvokeNonVirtual (Some j,e1,kd,ms,le)::l))::q))
-		      end
-		  | _ -> bir
-	      end
-	  | _ -> bir
-	end
-    | _ -> bir
-
-let simplify_assign_flag = ref true
-let simplify_assign flat bir out_stack = 
-  if !simplify_assign_flag then simplify_assign flat bir out_stack 
-  else bir
-
+  in aux 0 stack
+       
 let fold_ir f a ir = 
   List.fold_left
     (fun s (pc,instrs) ->
@@ -1157,10 +1009,9 @@ let fold_ir f a ir =
 type tempvar_stats = {
   stat_nb_total : int;
   stat_nb_branchvar : int;
-  stat_nb_tempvar_may_alias : int;
-  stat_nb_tempvar_must_alias : int;
-  stat_nb_tempvar_side_effect : int;
+  stat_nb_branchvar2 : int;
 }
+    
 
 module SetInt2 = Set.Make(struct type t = int*int let compare = compare end)
 
@@ -1172,54 +1023,37 @@ let make_tempvar_stats ir =
 	   | (AffectVar (BranchVar (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
 	   | _ -> (n,s))
       (0,SetInt2.empty) ir in
+  let (nb_tempvar_branch2,_) = 
+    fold_ir
+      (fun (n,s) _ ->
+	 function 
+	   | (AffectVar (BranchVar2 (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
+	   | _ -> (n,s))
+      (0,SetInt2.empty) ir in
   let (nb_tempvar_not_branch,_) = 
     fold_ir
       (fun (n,s) _ ->
 	 function 
-	   | (AffectVar (TempVar (i,None),_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
-	   | (AffectVar (TempVar (_,Some _),_))  -> assert false
+	   | (AffectVar (TempVar i,_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
 	   | _ -> (n,s))
       (0,Ptset.empty) ir in
-    Some ({ stat_nb_total = nb_tempvar_not_branch + nb_tempvar_branch;
-	    stat_nb_branchvar = nb_tempvar_branch;
-	    stat_nb_tempvar_may_alias = !stats_nb_tempvar_putfield 
-	      + !stats_nb_tempvar_arraystore
-	      + !stats_nb_tempvar_method_effect;
-	    stat_nb_tempvar_must_alias = 
-	      !stats_nb_store_is_var_in_stack
-	      + !stats_nb_putstatic_is_static_in_stack
-	      + !stats_nb_incr_is_var_in_stack;
-	    stat_nb_tempvar_side_effect = !stats_nb_tempvar_side_effect
-	      - !stats_nb_tempvar_removed
-	  })
+    {
+      stat_nb_total = nb_tempvar_not_branch + nb_tempvar_branch + nb_tempvar_branch2;
+      stat_nb_branchvar = nb_tempvar_branch;
+      stat_nb_branchvar2 = nb_tempvar_branch2;
+    }
     
-let reset_stats () = 
-  begin
-    stats_nb_tempvar := 0; stats_nb_tempvar_branch := 0; stats_nb_tempvar_putfield := 0;
-    stats_nb_tempvar_method_effect := 0; stats_nb_tempvar_arraystore := 0; 
-    stats_nb_tempvar_removed := 0; stats_nb_tempvar_side_effect := 0;
-    stats_nb_tempvar_flat := 0;  stats_nb_tempvar_3a := 0;
-    stats_nb_jump_with_non_empty_stacks := 0 ; stats_nb_back_jump_with_non_empty_stacks := 0 ;
-    stats_nb_store_is_var_in_stack:= 0 ; stats_nb_incr_is_var_in_stack:= 0 ;
-    stats_nb_putfield_is_field_in_stack:= 0 ; stats_nb_arraystore_is_array_access_in_stack := 0 ;
-    stats_nb_putstatic_is_static_in_stack:= 0 ; stats_nb_method_call_with_modifiable_in_stack:= 0 ;
-    stats_nb_store:= 0 ; stats_nb_incr:= 0 ; stats_nb_putfield:= 0 ;
-    stats_nb_arraystore:= 0 ; stats_nb_putstatic:= 0 ; stats_nb_method_call:= 0 ;
-  end
-
-
-
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
 
-let bc2ir flat pp_var jump_target code make_stats =
+let bc2ir flat pp_var jump_target code =
   let rec loop as_ts_jump ins ts_in as_in pc =
-    let next_is_store =
+    let next_store =
       let next_pc = try next code.c_code pc with End_of_method -> pc in
 	match code.c_code.(next_pc) with
-	  | OpStore _ -> true
-	  | _ -> false
+	  | OpStore (_,n) -> if jump_target.(next_pc) then None else Some (OriginalVar (n,pp_var next_pc n))
+	  | _ -> None
     in
     let succs = normal_next code pc in
     let (ts_in,as_in) =
@@ -1229,14 +1063,14 @@ let bc2ir flat pp_var jump_target code make_stats =
 	  (* no predecessor of pc have been visited before *)
 	  if List.exists (fun e -> pc = e.e_handler) code.c_exc_tbl then
 	    (* this is a handler point *)
-	    ([Op32],[E (Var (Ref,make_tempvar next_is_store as_in (pc,Some 0)))])
+	    ([Op32],[E (Var (Ref,catch_var))])
 	  else
 	    (* this is a back jump target *)
 	    ([],[])
       else (ts_in,as_in)
     in 
     let ts_out = type_next code.c_code.(pc) ts_in in
-    let (as_out,instrs) = bc2bir_instr flat pp_var pc ts_in as_in next_is_store code.c_code.(pc)  in
+    let (as_out,instrs) = bc2bir_instr flat pp_var pc ts_in as_in next_store code.c_code.(pc)  in
       
       (* fail on backward branchings on a non-empty stack *)
       if List.length as_out>0 then  
@@ -1247,10 +1081,8 @@ let bc2ir flat pp_var jump_target code make_stats =
     let ins =
       if is_jump_instr code.c_code.(pc) then
 	(pc,branch_assigns@instrs)::ins
-      else if jump_target.(pc) then
+      else
 	(pc,instrs@branch_assigns)::ins
-      else (* simplify_assign should not be called on a jump target *)
-	simplify_assign flat ((pc,instrs@branch_assigns)::ins) as_out
     in
     let as_ts_jump =       
       List.fold_left 
@@ -1260,15 +1092,12 @@ let bc2ir flat pp_var jump_target code make_stats =
 	       (* check constraint on expr uninit and jumping forward on a non empty stack 
 		  all defined predecessor advice must match what is reached *)
 	       if (ts_jmp <> ts_out) then raise Type_constraint_on_Uninit ;
-	       let (jmp_s, _,_ ) =  jump_stack 0 0 pc' as_out in
+	       let jmp_s =  jump_stack pc' as_out in
 		 if (as_jmp <>  jmp_s) then raise Content_constraint_on_Uninit ;
 		 as_jump
 	   with Not_found -> 
 	     (* when first advice for pc', no constraint to check. add the advice in the map *)
-	     let (st,c1,c2) = jump_stack  !stats_nb_tempvar !stats_nb_tempvar_branch  pc' as_out
-	     in
-	       stats_nb_tempvar := c1 ; 
-	       stats_nb_tempvar_branch := c2 ;
+	     let st = jump_stack pc' as_out in
 	       MapPc.add pc' (ts_out,st) as_jump)
 	as_ts_jump
 	jump_succs in
@@ -1276,16 +1105,7 @@ let bc2ir flat pp_var jump_target code make_stats =
 	loop as_ts_jump ins ts_out as_out (next code.c_code pc) 
       with End_of_method ->  ins
   in 
-    if make_stats then
-      begin
-	reset_stats ();
-	let res = loop MapPc.empty [] [] [] 0 in
-	  (res, make_tempvar_stats res )
-      end
-    else 
-      let res = loop MapPc.empty [] [] [] 0 in
-	(res, None)
-
+    loop MapPc.empty [] [] [] 0 
       
 let varname = Cmn.varname
 
@@ -1339,146 +1159,18 @@ let compress_ir ir jump_target =
     | (pc,instrs)::q -> (pc,instrs)::(aux q)
   in aux ir
 
-let compress_ir_flag = ref false
-
-let compress_ir ir jump_target =
-  if !compress_ir_flag 
-  then compress_ir ir jump_target
-  else ir
-
-let ret_stats = ref (Some {  stat_nb_total = 0 ;
-			stat_nb_branchvar = 0 ;
-			stat_nb_tempvar_may_alias = 0;
-			stat_nb_tempvar_must_alias = 0 ;
-			stat_nb_tempvar_side_effect = 0 ;
-		     })
-
-let jcode2bir cm stats mode jcode =
+let jcode2bir mode compress cm jcode =
   let code = Lazy.force jcode in
   let pp_var = search_name_localvar cm.cm_static code in
   let jump_target = compute_jump_target code in
-  let res,stats = bc2ir mode pp_var jump_target code stats in 
-    ret_stats := stats ;
+  let res = bc2ir mode pp_var jump_target code in 
     { params = gen_params pp_var cm;
-      code = compress_ir (List.rev res) jump_target;
+      code = if compress then compress_ir (List.rev res) jump_target else (List.rev res);
       exc_tbl = code.c_exc_tbl;
       line_number_table = code.c_line_number_table;
       jump_target = jump_target }
       
-let transform_intra_stats mode ?(stats=false) m =
-   (Javalib.map_concrete_method (jcode2bir m stats mode)  m), !ret_stats
-  
-let transform_intra mode m = fst (transform_intra_stats mode ~stats:false m)
-  
-let cm_transform compress m = compress_ir_flag := compress ; fst (transform_intra_stats Normal ~stats:false m)
-
- let cm_transform_flat compress m = compress_ir_flag := compress ; fst ( transform_intra_stats Flat  ~stats:false m)
-
- let cm_transform_addr3 compress m = compress_ir_flag := compress ; fst (transform_intra_stats Addr3  ~stats:false m)
-
- let jmethod_accu mode cstats  m mmap =
-   match m with
-     | ConcreteMethod cm ->
-	 begin
-	   try
-	     let (ir,_) = transform_intra_stats mode ~stats:cstats cm in
-	       begin
-		 match ir.cm_implementation with
-		   | Java _ ->  MethodMap.add (get_method_signature m) (ConcreteMethod ir) mmap
-		   | _ -> mmap
-	       end
-	   with
-	     | Subroutine ->
-		 mmap
-	 end
-     | AbstractMethod am ->
-	 MethodMap.add (get_method_signature m) (AbstractMethod am) mmap 
-
- let iorc_transform_intra_stats mode cstats ci = 
-   match ci with 
-     | JInterface(i) ->
-	 begin
-	   match i.i_initializer with
-	     | None -> JInterface(
-		 { i_name = i.i_name ;  i_version = i.i_version ;
-		   i_access = i.i_access ; i_interfaces = i.i_interfaces ;
-		   i_generic_signature = i.i_generic_signature ; i_consts = i.i_consts  ;
-		   i_sourcefile = i.i_sourcefile ; i_deprecated = i.i_deprecated ;
-		   i_source_debug_extention = i.i_source_debug_extention ; i_inner_classes = i.i_inner_classes ;
-		   i_other_attributes = i.i_other_attributes ; i_annotation = i.i_annotation ;
-		   i_other_flags = i.i_other_flags ; i_fields = i.i_fields ;
-		   i_methods = i.i_methods ;  i_initializer = None
-		   }) 
-	       | Some cm -> 
-		   let ir = transform_intra mode cm
-		   in
-		     JInterface( 
-		       { i_name = i.i_name ; i_version = i.i_version ; i_access = i.i_access ;
-			 i_interfaces = i.i_interfaces ; i_generic_signature = i.i_generic_signature ;
-			 i_consts = i.i_consts  ; i_sourcefile = i.i_sourcefile ; i_deprecated = i.i_deprecated ;
-			 i_source_debug_extention = i.i_source_debug_extention ;
-			 i_inner_classes = i.i_inner_classes ; i_other_attributes = i.i_other_attributes ;
-			 i_annotation = i.i_annotation ; i_other_flags = i.i_other_flags ;
-			 i_fields = i.i_fields ; i_methods = i.i_methods ;  i_initializer = Some ir ;
-		       })
-	 end
-     |  JClass (cl) -> 
-	  begin
-	    let a = MethodMap.fold (fun _ -> jmethod_accu mode cstats )  cl.c_methods MethodMap.empty
-	    in  JClass ( {
-			   c_name = cl.c_name ; c_version = cl. c_version ; c_access = cl.c_access ; c_final = cl.c_final ;
-			   c_abstract = cl.c_abstract ; c_super_class = cl.c_super_class ; 
-			   c_generic_signature = cl.c_generic_signature ; c_fields = cl.c_fields ; c_interfaces = cl.c_interfaces ;
-			   c_consts = cl.c_consts ; c_sourcefile = cl.c_sourcefile; c_deprecated = cl.c_deprecated ;
-			   c_enclosing_method = cl.c_enclosing_method ; c_source_debug_extention = cl.c_source_debug_extention ;
-			   c_inner_classes = cl.c_inner_classes ; c_synthetic = cl.c_synthetic ; c_enum = cl.c_enum ;
-			   c_other_flags = cl.c_other_flags ; c_other_attributes = cl.c_other_attributes ; c_methods = a ;
-			 }) 
-	  end
-
-
- let iorc_transform_intra mode cstats = iorc_transform_intra_stats mode cstats 
-   
- let iorc_transform_stats mode ?(cstats=false) ci =
-   reset_stats (); 
-   iorc_transform_intra_stats mode cstats ci
-
- let iorc_transform compress =  compress_ir_flag := compress ; iorc_transform_stats Normal ~cstats:false
-   
- let iorc_transform_flat compress =  compress_ir_flag := compress ; iorc_transform_stats Flat ~cstats:false
-   
- let iorc_transform_3addr compress =  compress_ir_flag := compress ; iorc_transform_stats Addr3 ~cstats:false
-   
-
-let is_file f =
-  try
-    (Unix.stat f).Unix.st_kind = Unix.S_REG
-  with Unix.Unix_error (Unix.ENOENT, _,_) -> false
-
-
-let is_dir d =
-  try
-    (Unix.stat d).Unix.st_kind = Unix.S_DIR
-  with Unix.Unix_error (Unix.ENOENT, _,_) -> false
- 
-let cn_transform_stats mode ?(cstats=false) classfile =
-  if is_file classfile && Filename.check_suffix classfile ".class" then 
-    begin
-      let cp = class_path (Filename.dirname classfile) in
-      let file = Filename.chop_suffix (Filename.basename classfile) ".class" in
-      let stats = iorc_transform_stats mode ~cstats:cstats (get_class cp (make_cn file)) in
-	close_class_path cp;
-	stats
-    end 
-  else raise (JBasics.No_class_found classfile)
-
-let cn_transform_nbvars = cn_transform_stats Addr3 ~cstats:true 
-
-let cn_transform compress = compress_ir_flag := compress ; cn_transform_stats Normal ~cstats:false 
-
-let cn_transform_flat compress = compress_ir_flag := compress ; cn_transform_stats Flat ~cstats:false 
-
-let cn_transform_3addr compress = compress_ir_flag := compress ; cn_transform_stats Addr3 ~cstats:false 
-
-
+let transform ?(compress=false) = jcode2bir Normal compress 
+let transform_flat ?(compress=false) = jcode2bir Flat compress 
+let transform_addr3 ?(compress=false) = jcode2bir Addr3 compress 
 
