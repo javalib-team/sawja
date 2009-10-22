@@ -5,10 +5,91 @@ open Bir
 
 include Cmn
 
-type binop = Bir.binop
-type expr = Bir.expr
-type virtual_call_kind = Bir.virtual_call_kind
-type check = Bir.check
+type binop =
+  | ArrayLoad
+  | Add of jvm_basic_type
+  | Sub of jvm_basic_type 
+  | Mult of jvm_basic_type
+  | Div of jvm_basic_type
+  | Rem of jvm_basic_type
+  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
+  | LShl | LShr | LAnd | LOr | LXor | LUshr
+  | CMP of comp
+      
+type expr =
+  | Const of const
+  | Var of value_type * var
+  | Unop of unop * expr
+  | Binop of binop * expr * expr
+  | Field of expr * class_name * field_signature
+  | StaticField of class_name * field_signature
+
+let rec type_of_expr = function
+  | Var (t,_) -> t
+  | Field (_,_,f) 
+  | StaticField (_,f) -> fs_type f
+  | Const i -> begin
+      match i with
+	| `ANull
+	| `Class _
+	| `String _ -> TObject (TClass java_lang_object)
+	| `Byte _
+	| `Short _ 
+	| `Int _ -> TBasic `Int
+	| `Double _ -> TBasic `Double
+	| `Float _ -> TBasic `Float
+	| `Long  _ -> TBasic `Long
+    end
+  | Unop (u,_) -> 
+      TBasic 
+	(match u with
+	   | Neg t -> basic_to_num t
+	   | Conv c ->
+	       (match c with
+		  | I2L | F2L | D2L -> `Long
+		  | I2F | L2F | D2F -> `Float
+		  | I2D | L2D | F2D -> `Double
+		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
+	   | ArrayLength 
+	   | InstanceOf _ -> `Int)
+  | Binop (ArrayLoad,e,_) -> type_of_array_content e
+  | Binop (b,_,_) -> 
+      TBasic
+      (match b with
+	 | ArrayLoad -> assert false
+	 | Add t
+	 | Sub t
+	 | Mult t
+	 | Div t
+	 | Rem t -> 
+	     (match t with
+		| `Int2Bool -> `Int
+		| `Long -> `Long
+		| `Double -> `Double
+		| `Float -> `Float)
+	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
+	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
+	 | CMP _ -> `Int)
+and type_of_array_content e =
+  (match type_of_expr e with
+     | TObject (TArray t) -> t
+     | _ -> assert false)
+
+type opexpr =  
+  | Uninit of class_name * int
+  | E of expr
+
+type virtual_call_kind =
+  | VirtualCall of object_type
+  | InterfaceCall of class_name
+
+type check = 
+  | CheckNullPointer of expr
+  | CheckArrayBound of expr * expr
+  | CheckArrayStore of expr * expr
+  | CheckNegativeArraySize of expr
+  | CheckCast of expr
+  | CheckArithmetic of expr
 
 type instr =
   | AffectVar of var * expr (** x := e *)
@@ -59,32 +140,78 @@ exception Type_constraint_on_Uninit = Bir.Type_constraint_on_Uninit
 exception NonemptyStack_backward_jump = Bir.NonemptyStack_backward_jump
 exception Uninit_is_not_expr = Bir.Uninit_is_not_expr
 
+let to_binop = function
+  | Bir.ArrayLoad -> ArrayLoad 
+  | Bir.Add t -> Add t
+  | Bir.Sub t -> Sub t
+  | Bir.Mult t -> Mult t
+  | Bir.Div t -> Div t
+  | Bir.Rem t -> Rem t
+  | Bir.IShl -> IShl
+  | Bir.IShr ->IShr
+  | Bir.LShl ->LShl
+  | Bir.LShr ->LShr
+  | Bir.IAnd ->IAnd
+  | Bir.IOr ->IOr
+  | Bir.IXor ->IXor
+  | Bir.IUshr ->IUshr
+  | Bir.LAnd ->LAnd
+  | Bir.LOr ->LOr
+  | Bir.LXor ->LXor
+  | Bir.LUshr ->LUshr
+  | Bir.CMP c ->
+      CMP (match c with 
+	       Bir.DG -> DG
+	     | Bir.DL -> DL
+	     | Bir.FG -> FG
+	     | Bir.FL -> FL 
+	     | Bir.L -> L
+      )
+
+let rec to_expr = function
+  | Bir.Var (t,x) -> Var (t,x) 
+  | Bir.Field (e,c,f) -> Field (to_expr e,c,f)
+  | Bir.StaticField (c,f) -> StaticField (c,f)
+  | Bir.Const i -> Const i
+  | Bir.Unop (op,e) -> Unop (op,to_expr e)
+  | Bir.Binop (op,e1,e2) -> Binop (to_binop op,to_expr e1,to_expr e2)
+
+let to_virtual_call_kind = function
+  | Bir.VirtualCall t -> VirtualCall t
+  | Bir.InterfaceCall c -> InterfaceCall c
+
+let to_check = function
+    Bir.CheckNullPointer e -> CheckNullPointer (to_expr e)
+  | Bir.CheckArrayBound (a,i) -> CheckArrayBound (to_expr a,to_expr i)
+  | Bir.CheckArrayStore (a,v) -> CheckArrayStore (to_expr a,to_expr v)
+  | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (to_expr e)
+  | Bir.CheckCast e -> CheckCast (to_expr e)
+  | Bir.CheckArithmetic e -> CheckArithmetic (to_expr e)
+  
+
 let to_instr = function
-  | Bir.AffectVar (v,expr) -> AffectVar (v,expr)
-  | Bir.AffectArray(e1,e2,e3) -> AffectArray(e1, e2, e3)
-  | Bir.AffectField(e1,cn,fs,e2) -> AffectField(e1,cn,fs,e2) 
-  | Bir.AffectStaticField(cn,fs,e) -> AffectStaticField(cn,fs,e)
-  | Bir.Ifd ((cmp,e1,e2),i) -> Ifd ((cmp,e1,e2),i)
-  | Bir.New(v,cn,vtl,el) -> New (v,cn,vtl,el)
-  | Bir.NewArray(v,vt,el) -> NewArray(v,vt,el)
-  | Bir.InvokeStatic(v,cn,ms,el) -> InvokeStatic(v,cn,ms,el)
-  | Bir.InvokeVirtual(optv,expr, kind, ms, el) -> InvokeVirtual(optv, expr, kind, ms, el)
-  | Bir.InvokeNonVirtual(optv, e, cn, ms, el) -> InvokeNonVirtual(optv, e, cn, ms, el)
-  | Bir.MonitorEnter e -> MonitorEnter (e)
-  | Bir.MonitorExit e ->  MonitorExit (e)
+  | Bir.AffectVar (v,expr) -> AffectVar (v,to_expr expr)
+  | Bir.AffectArray(e1,e2,e3) -> AffectArray(to_expr e1,to_expr e2,to_expr e3)
+  | Bir.AffectField(e1,cn,fs,e2) -> AffectField(to_expr e1,cn,fs,to_expr e2) 
+  | Bir.AffectStaticField(cn,fs,e) -> AffectStaticField(cn,fs,to_expr e)
+  | Bir.Ifd ((cmp,e1,e2),i) -> Ifd ((cmp,to_expr e1,to_expr e2),i)
+  | Bir.New(v,cn,vtl,el) -> New (v,cn,vtl,List.map to_expr el)
+  | Bir.NewArray(v,vt,el) -> NewArray(v,vt,List.map to_expr el)
+  | Bir.InvokeStatic(v,cn,ms,el) -> InvokeStatic(v,cn,ms,List.map to_expr el)
+  | Bir.InvokeVirtual(optv,expr, kind, ms, el) -> InvokeVirtual(optv,to_expr expr,to_virtual_call_kind kind, ms, List.map to_expr el)
+  | Bir.InvokeNonVirtual(optv, e, cn, ms, el) -> InvokeNonVirtual(optv,to_expr e, cn, ms, List.map to_expr el)
+  | Bir.MonitorEnter e -> MonitorEnter (to_expr e)
+  | Bir.MonitorExit e ->  MonitorExit (to_expr e)
   | Bir.MayInit cn -> MayInit cn
-  | Bir.Check c -> Check c
+  | Bir.Check c -> Check (to_check c)
   | _ -> assert false
 
-let to_last_instr = function
-  | Bir.Goto i -> Goto i
-  | Bir.Throw e -> Throw e
-  | Bir.Return e -> Return e
-  | _ -> assert false
-
+let to_oexpr = function
+  | None -> None
+  | Some e -> Some (to_expr e)
 
 let print_binop = function
-  | ArrayLoad t -> Printf.sprintf "ArrayLoad %s" (print_typ t)
+  | ArrayLoad -> Printf.sprintf "ArrayLoad"
   | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
   | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
   | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
@@ -111,9 +238,32 @@ let print_field ?(long_fields=false) c f =
 let bracket b s =
   if b then s else Printf.sprintf "(%s)" s 
 
-let print_expr = Bir.print_expr
+let rec print_expr first_level = function
+  | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (JDumpBasics.type2shortstring t)
+  | Field (e,c,f) -> Printf.sprintf "%s.%s" (print_expr false e) (print_field c f)
+  | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
+  | Const i -> print_const i
+  | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
+  | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
+  | Binop (ArrayLoad,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2) 
+  | Binop (Add _,e1,e2) -> bracket first_level
+      (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
+  | Binop (Sub _,e1,e2) -> bracket first_level
+      (Printf.sprintf "%s-%s" (print_expr false e1) (print_expr false e2))
+  | Binop (Mult _,e1,e2) -> bracket first_level
+      (Printf.sprintf "%s*%s" (print_expr false e1) (print_expr false e2))
+  | Binop (Div _,e1,e2) -> bracket first_level
+      (Printf.sprintf "%s/%s" (print_expr false e1) (print_expr false e2))
+  | Binop (op,e1,e2) -> Printf.sprintf "%s(%s,%s)" (print_binop op) (print_expr true e1) (print_expr true e2) 
 
-let print_cmp = Bir.print_cmp
+let print_cmp  (c,e1,e2) =
+  match c with
+    | `Eq -> Printf.sprintf "%s == %s" (print_expr false e1) (print_expr false e2)
+    | `Ne -> Printf.sprintf "%s != %s" (print_expr false e1) (print_expr false e2)
+    | `Lt -> Printf.sprintf "%s < %s" (print_expr false e1) (print_expr false e2)
+    | `Ge -> Printf.sprintf "%s >= %s" (print_expr false e1) (print_expr false e2)
+    | `Gt -> Printf.sprintf "%s > %s" (print_expr false e1) (print_expr false e2)
+    | `Le -> Printf.sprintf "%s <= %s" (print_expr false e1) (print_expr false e2)
 
 let print_instr = function
   | AffectVar (x,e) -> Printf.sprintf "%s := %s" (var_name_g x) (print_expr true e)
@@ -185,8 +335,8 @@ let compute_handlers handlers i =
 let rec add_jump next = function
   | [] -> ([],Goto next)
   | [Bir.Goto j] -> ([],Goto j)
-  | [Bir.Throw e] -> ([],Throw e)
-  | [Bir.Return e] -> ([],Return e)
+  | [Bir.Throw e] -> ([],Throw (to_expr e))
+  | [Bir.Return e] -> ([],Return (to_oexpr e))
   | Bir.Nop::q -> add_jump next q
   | i::q -> 
       let (instrs,last) = add_jump next q in

@@ -48,15 +48,40 @@ type comp = DG | DL | FG | FL | L
     
 type typ = Ref | Num 
 
-type binop = Bir.binop
-type expr = Bir.expr
+type binop =
+    ArrayLoad
+  | Add of JBasics.jvm_basic_type
+  | Sub of JBasics.jvm_basic_type
+  | Mult of JBasics.jvm_basic_type
+  | Div of JBasics.jvm_basic_type
+  | Rem of JBasics.jvm_basic_type
+  | IShl  | IShr  | IAnd  | IOr  | IXor  | IUshr
+  | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
+  | CMP of comp
 
+type expr =
+    Const of const
+  | Var of JBasics.value_type * var
+  | Unop of unop * expr
+  | Binop of binop * expr * expr
+  | Field of expr * JBasics.class_name * JBasics.field_signature
+  | StaticField of JBasics.class_name * JBasics.field_signature
+
+val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
 
-type virtual_call_kind = Bir.virtual_call_kind
+type virtual_call_kind =
+  | VirtualCall of JBasics.object_type
+  | InterfaceCall of JBasics.class_name
 
-type check = Bir.check
+type check = 
+  | CheckNullPointer of expr
+  | CheckArrayBound of expr * expr
+  | CheckArrayStore of expr * expr
+  | CheckNegativeArraySize of expr
+  | CheckCast of expr
+  | CheckArithmetic of expr
       
 type instr =
   | AffectVar of var * expr (** x := e *)

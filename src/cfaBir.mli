@@ -66,14 +66,14 @@ type typ = Ref | Num
 
 type expr =
     Const of const
-  | Var of typ * var
+  | Var of JBasics.value_type * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
-  | ArrayLoad of typ * var * expr
+  | ArrayLoad of JBasics.value_type * var * expr
   | Field of var * JBasics.class_name * JBasics.field_signature
   | StaticField of JBasics.class_name * JBasics.field_signature
 
-val type_of_expr : expr -> typ
+val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
 	  

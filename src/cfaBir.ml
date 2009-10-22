@@ -17,10 +17,10 @@ type binop =
       
 type expr =
     Const of const
-  | Var of typ * var
+  | Var of JBasics.value_type * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
-  | ArrayLoad of typ * var * expr
+  | ArrayLoad of JBasics.value_type * var * expr
   | Field of var * JBasics.class_name * JBasics.field_signature
   | StaticField of JBasics.class_name * JBasics.field_signature
 
@@ -62,25 +62,56 @@ type instr =
 
 let bcvar = Bir.bcvar
 
+let type_of_array_content t =
+  match t with
+    | TObject (TArray t) -> t
+    | _ -> assert false
+
 let rec type_of_expr = function
   | Var (t,_) -> t
   | Field (_,_,f) 
-  | StaticField (_,f) -> type_of_value_type (fs_type f)
+  | StaticField (_,f) -> fs_type f
   | Const i -> begin
       match i with
 	| `ANull
 	| `Class _
-	| `String _ -> Ref
+	| `String _ -> TObject (TClass java_lang_object)
 	| `Byte _
-	| `Double _
-	| `Float _
-	| `Int _
-	| `Long  _
-	| `Short _ -> Num
+	| `Short _ 
+	| `Int _ -> TBasic `Int
+	| `Double _ -> TBasic `Double
+	| `Float _ -> TBasic `Float
+	| `Long  _ -> TBasic `Long
     end
-  | Unop _ -> Num
-  | ArrayLoad (t,_,_) -> t
-  | Binop (_,_,_) -> Num
+  | Unop (u,_) -> 
+      TBasic 
+	(match u with
+	   | Neg t -> basic_to_num t
+	   | Conv c ->
+	       (match c with
+		  | I2L | F2L | D2L -> `Long
+		  | I2F | L2F | D2F -> `Float
+		  | I2D | L2D | F2D -> `Double
+		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
+	   | ArrayLength 
+	   | InstanceOf _ -> `Int)
+  | ArrayLoad (t,_,_) -> type_of_array_content t
+  | Binop (b,_,_) -> 
+      TBasic
+      (match b with
+	 | Add t
+	 | Sub t
+	 | Mult t
+	 | Div t
+	 | Rem t -> 
+	     (match t with
+		| `Int2Bool -> `Int
+		| `Long -> `Long
+		| `Double -> `Double
+		| `Float -> `Float)
+	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
+	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
+	 | CMP _ -> `Int)
 
 
 
@@ -98,7 +129,7 @@ let expr2var expr =
     | _ -> assert false
 
 let bir2cfabir_binop = function
-  | Bir.ArrayLoad _ -> assert false
+  | Bir.ArrayLoad -> assert false
   | Bir.Add t -> Add t
   | Bir.Sub t -> Sub t
   | Bir.Mult t -> Mult t
@@ -122,7 +153,7 @@ let rec bir2cfabir_expr e = match e with
   | Bir.Const c -> Const c
   | Bir.Var (t,v) -> Var (t,v)
   | Bir.Unop (unop, expr) -> Unop(unop, bir2cfabir_expr expr)
-  | Bir.Binop(Bir.ArrayLoad t,expr1,expr2) -> ArrayLoad (t,expr2var expr1,bir2cfabir_expr expr2) 
+  | Bir.Binop(Bir.ArrayLoad,Bir.Var (t,x),expr2) -> ArrayLoad (t,x,bir2cfabir_expr expr2) 
   | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2cfabir_binop binop,bir2cfabir_expr expr1,bir2cfabir_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
@@ -202,7 +233,7 @@ let rec print_expr first_level = function
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | ArrayLoad (t,x,e2) -> Printf.sprintf "%s[%s]:%s" (Bir.var_name_g x) (print_expr true e2) (print_typ t) 
+  | ArrayLoad (t,x,e2) -> Printf.sprintf "%s:%s[%s]"  (JDumpBasics.type2shortstring t) (Bir.var_name_g x) (print_expr true e2)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level

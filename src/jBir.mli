@@ -50,7 +50,7 @@ type comp = DG | DL | FG | FL | L
 type typ = Ref | Num 
 
 type binop =
-    ArrayLoad of typ
+    ArrayLoad
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -62,13 +62,13 @@ type binop =
 
 type expr =
     Const of const
-  | Var of typ * var
+  | Var of JBasics.value_type * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
   | Field of expr * JBasics.class_name * JBasics.field_signature
   | StaticField of JBasics.class_name * JBasics.field_signature
 
-
+val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
 
