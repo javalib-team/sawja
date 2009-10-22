@@ -25,8 +25,19 @@ open Javalib
 
 (** {2 Definitions of node types.} *)
 
-type 'a class_node = 'a JProgram.class_node
-type 'a interface_node = 'a JProgram.interface_node
+type 'a class_node = 'a JProgram.class_node = private {
+  c_info : 'a Javalib.jclass;
+  c_super : 'a class_node option;
+  c_interfaces : 'a interface_node JBasics.ClassMap.t;
+  mutable c_children : 'a class_node list;
+}
+and 'a interface_node = 'a JProgram.interface_node = private {
+  i_info : 'a Javalib.jinterface;
+  i_super : 'a class_node;
+  i_interfaces : 'a interface_node JBasics.ClassMap.t;
+  mutable i_children_interfaces : 'a interface_node list;
+  mutable i_children_classes : 'a class_node list;
+}
 
 type 'a node = 'a JProgram.node
 
