@@ -105,7 +105,7 @@ type instr =
 
 
 type t = {
-  params : var list;  (** method parameters *)
+  params : (JBasics.value_type * var) list; (** method parameters *)
   code : (int * instr list) list; (** pc : \[instr1 ; ... ; instrn \] , ... , pc' : \[instr'1 ; ... ; instr'n. \] 
 				      Each pc indexes a list of [instr] instructions which all come from the same initial bytecode instruction*)
   exc_tbl : JCode.exception_handler list;

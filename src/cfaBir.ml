@@ -193,7 +193,7 @@ let bir2cfabir_instr = function
   | Bir.Check c -> Check (check2check c)
       
 type t = {
-  f_params : var list; 
+  f_params : (value_type * var) list; 
   f_code : (int * instr list) list; 
   f_exc_tbl : JCode.exception_handler list;
   f_line_number_table : (int * int) list option;

@@ -116,7 +116,7 @@ type block = {
 }
 
 type t = {
-  params : var list;  (** method parameters *)
+  params : (JBasics.value_type * var) list;  (** method parameters *)
   code : block list
 }
 

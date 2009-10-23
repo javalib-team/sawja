@@ -68,7 +68,7 @@ type instr =
   | Check of check 
 
 type t = {
-  params : var list;
+  params : (value_type * var) list;
   code : (int * instr list) list;
   exc_tbl : exception_handler list;
   line_number_table : (int * int) list option;
@@ -1572,13 +1572,13 @@ let compute_jump_target code =
 let gen_params pp_var cm =
   if cm.cm_static then
     mapi
-      (fun i _ -> OriginalVar (i,pp_var 0 i))
+      (fun i t -> t, OriginalVar (i,pp_var 0 i))
       (fun i t -> match convert_field_type t with Op32 -> i+1 | Op64 -> i+2)
       (ms_args cm.cm_signature)
   else 
-    (OriginalVar (0,pp_var 0 0))::
+    (TObject (TClass java_lang_object ), OriginalVar (0,pp_var 0 0))::
       (mapi
-	 (fun i _ -> OriginalVar (i+1,pp_var 0 (i+1)))
+	 (fun i t -> t, OriginalVar (i+1,pp_var 0 (i+1)))
 	 (fun i t -> match convert_field_type t with Op32 -> i+1 | Op64 -> i+2)
 	 (ms_args cm.cm_signature))
 
