@@ -46,8 +46,6 @@ type unop =
 
 type comp = DG | DL | FG | FL | L 
     
-type typ = Ref | Num 
-
 type binop =
     ArrayLoad
   | Add of JBasics.jvm_basic_type
@@ -125,8 +123,8 @@ type t = {
 
 (** {2 Printing functions} *)
 
-val print_block : block -> string
-val print : t -> string list
+val print_block : ?explicit_exception:bool -> block -> string
+val print : ?explicit_exception:bool -> t -> string list
 
 (** {2 Bytecode transformation} *)
 

@@ -82,9 +82,24 @@ let print_unop = function
   | ArrayLength -> "ArrayLength"
   | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
 
-let print_typ = function
-  | Ref -> "ref"
-  | Num -> "num"
+let print_typ t = 
+  let bt2ss = function
+    | `Long -> "J"
+    | `Float -> "F"
+    | `Double -> "D"
+    | `Int -> "I"
+    | `Short -> "S"
+    | `Char -> "C"
+    | `Byte -> "B"
+    | `Bool -> "Z"
+  in
+  let rec ot2ss = function
+    | TClass _ -> "O"
+    | TArray t -> "["^ vt2ss t
+  and vt2ss = function
+    | TBasic t -> bt2ss t
+    | TObject t -> ot2ss t
+  in vt2ss t
 
 (* Tests if two variable expressions denote the same variable *)
 (* todo : compare reg number then strings, true is conservative *)

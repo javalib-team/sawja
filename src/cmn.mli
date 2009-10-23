@@ -56,9 +56,7 @@ val print_unop : unop -> string
 
 type comp =  DG | DL | FG | FL | L 
 
-type typ = Ref | Num 
-
-val print_typ : typ -> string
+val print_typ : JBasics.value_type -> string
 
 (* type statistics = { *)
 (*     mutable nb_jump_with_non_empty_stacks : int; *)

@@ -233,7 +233,7 @@ let rec print_expr first_level = function
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | ArrayLoad (t,x,e2) -> Printf.sprintf "%s:%s[%s]"  (JDumpBasics.type2shortstring t) (Bir.var_name_g x) (print_expr true e2)
+  | ArrayLoad (t,x,e2) -> Printf.sprintf "%s:%s[%s]"  (print_typ t) (Bir.var_name_g x) (print_expr true e2)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level

@@ -1,9 +1,10 @@
 open Cmn
 open Javalib
+(*	  
 open JimpleVars
 
 
-	  
+
 type mode_run = Print | Stats
 type stats_mode = VarDistrib | CompSoot
 let target = ref ""
@@ -310,3 +311,11 @@ let _ =
        with
 	 | x -> Printf.printf "uncaught exception %s\n" (Printexc.to_string x) 
      end    
+*)
+
+let _ =
+  Javalib.iter
+    (fun j_iorc -> 
+       let j_iorc = Javalib.map_interface_or_class BBir.transform j_iorc in
+       Javalib.JPrint.print_class j_iorc (BBir.print ~explicit_exception:false) stdout)
+    Sys.argv.(1)

@@ -47,8 +47,6 @@ type unop =
 
 type comp = DG | DL | FG | FL | L 
     
-type typ = Ref | Num 
-
 type binop =
     ArrayLoad
   | Add of JBasics.jvm_basic_type

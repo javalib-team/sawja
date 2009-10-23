@@ -130,7 +130,7 @@ let bracket b s =
   if b then s else Printf.sprintf "(%s)" s 
 
 let rec print_expr first_level = function
-  | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (JDumpBasics.type2shortstring t)
+  | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (print_typ t)
   | Field (e,c,f) -> Printf.sprintf "%s.%s" (print_expr false e) (print_field c f)
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
@@ -742,7 +742,6 @@ let lub (s1,l1) (s2,l2) =
   (List.map2 lub s1 s2,Ptmap.merge lub l1 l2)
 
 let run cm code =
-  let code = Lazy.force code in
   let rec array_fold f b t i =
     if i>=0 then f i t.(i) (array_fold f b t (i-1)) else b in
   let array_fold f b t = array_fold f b t ((Array.length t)-1) in
@@ -778,10 +777,29 @@ let run cm code =
        | BadLoadType -> Printf.printf "BAD_LOAD_TYPE !\n"
        | ArrayContent -> assert false);
     (fun i -> 
-       match types.(i) with
-	 | Some (x::_, _) -> to_value_type x
+       match code.c_code.(i) with
+	 | OpLoad (_,n) -> 
+	     (match types.(i) with
+		| Some (_, l) -> to_value_type (get l n)
+		| _ -> assert false)
 	 | _ -> assert false)
 
+let run_dummy code i =
+  match code.c_code.(i) with
+    | OpLoad (t,_) -> 
+	(match t with
+	   | `Long -> TBasic `Long
+	   | `Float -> TBasic `Float
+	   | `Double -> TBasic `Double
+	   | `Int2Bool -> TBasic `Int
+	   | `Object -> TObject (TClass java_lang_object))
+    | _ -> assert false
+
+let run dummy cm code =
+  let code = Lazy.force code in
+    if dummy then run_dummy code
+    else run cm code
+	
 let print_instr i ins =
   JDump.opcode
     (match ins with
@@ -819,10 +837,6 @@ let debug verbose cm code =
 *)
 
 end
-
-let type_of_value_type = function
-  | TBasic _ -> Num
-  | TObject _ -> Ref
 
 let basic_to_num = function
   | `Int2Bool -> `Int
@@ -1085,7 +1099,8 @@ let make_tempvar s next_store =
 let bc2bir_instr mode pp_var i bctype tos s next_store = function
   | OpNop -> s, []
   | OpConst x -> E (Const x)::s, []
-  | OpLoad (_,n) -> E (Var (bctype i,OriginalVar (n,pp_var i n)))::s, []
+  | OpLoad (_,n) ->
+      E (Var (bctype i,OriginalVar (n,pp_var i n)))::s, []
   | OpArrayLoad _ -> 
       let a = topE (pop s) in
       let idx = topE s in 
@@ -1099,7 +1114,7 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 	      E (Binop(ArrayLoad,a,idx))::(pop2 s), 
 	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
 	end
-  | OpStore (_,n) ->  
+  | OpStore (_,n) ->
       let y = OriginalVar(n,pp_var i n) in
 	begin
 	  match topE s with
@@ -1331,7 +1346,7 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
   | OpNewArray t -> 
       let x = make_tempvar s next_store in
       let dim = topE s in
-	E (Var (TObject (TArray (bctype i)),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
+	E (Var (TObject (TArray t),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
   | OpArrayLength -> 
       let a = topE s in begin
 	  match mode with 
@@ -1581,9 +1596,18 @@ let compress_ir ir jump_target =
 
 let jcode2bir mode compress cm jcode =
   let code = Lazy.force jcode in
+(*    Array.iteri
+      (fun i op ->
+	 match op with
+	     OpLoad (_,x) 
+	   | OpStore (_,x) -> 
+	       Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i 
+		 (match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
+	   | _ -> ()
+      ) code.c_code; *)
   let pp_var = search_name_localvar cm.cm_static code in
   let jump_target = compute_jump_target code in
-  let bctype = BCV.run cm jcode in
+  let bctype = BCV.run false cm jcode in
   let res = bc2ir mode pp_var jump_target bctype code in 
     { params = gen_params pp_var cm;
       code = if compress then compress_ir (List.rev res) jump_target else (List.rev res);

@@ -62,8 +62,6 @@ type binop =
   | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
   | CMP of comp
 
-type typ = Ref | Num 
-
 type expr =
     Const of const
   | Var of JBasics.value_type * var

@@ -239,7 +239,7 @@ let bracket b s =
   if b then s else Printf.sprintf "(%s)" s 
 
 let rec print_expr first_level = function
-  | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (JDumpBasics.type2shortstring t)
+  | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (print_typ t)
   | Field (e,c,f) -> Printf.sprintf "%s.%s" (print_expr false e) (print_field c f)
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
@@ -307,9 +307,18 @@ let print_last_instr = function
   | Return None -> Printf.sprintf "return"
   | Return (Some e) -> Printf.sprintf "return %s" (print_expr false e)
 
-let rec print_block b =
+let is_check = function
+  | Check _ -> true
+  | _ -> false
+
+let rec print_block ?(explicit_exception=true) b =
   Printf.sprintf "%3d: %s%s%s\n" b.label
-    (List.fold_left (fun s i -> s^(print_instr i)^"\n           ") "" b.instrs)
+    (List.fold_left
+       (fun s i -> 
+	  if (not explicit_exception)&&(is_check i) 
+	  then s
+	  else s^(print_instr i)^"\n           ")
+       "" b.instrs)
     (print_last_instr b.last)
     (List.fold_left 
        (fun s e -> 
@@ -320,9 +329,9 @@ let rec print_block b =
 	    e.handler) ""
        b.handlers)
 
-let print_code = List.map print_block
+let print_code ?(explicit_exception=true) = List.map (print_block ~explicit_exception:explicit_exception)
 
-let print m = print_code m.code
+let print ?(explicit_exception=true) m = print_code ~explicit_exception:explicit_exception m.code
 
 let compute_handlers handlers i =
   let handlers = List.filter (fun e -> e.e_start <= i && i < e.e_end) handlers in
