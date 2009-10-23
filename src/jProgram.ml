@@ -445,7 +445,14 @@ let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap
 
 let map_program_classes f classes =
   let jcmap = ClassMap.map
-    (fun c -> map_interface_or_class_context (f c) (to_jclass c)) classes in
+    (fun c ->
+       map_interface_or_class_context
+         (function
+            | {cm_implementation = Java code} as cm -> f c cm (Lazy.force code)
+            | _ -> assert false)
+         (to_jclass c))
+    classes
+  in
     build_hierarchy jcmap
 
 let map_program' f p =
@@ -466,4 +473,5 @@ let map_program' f p =
     }
 
 let map_program f =
-  map_program' (fun node cm -> f (get_name node) cm.cm_signature)
+  map_program'
+    (fun node cm -> f (get_name node) cm.cm_signature)
