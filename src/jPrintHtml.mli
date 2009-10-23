@@ -21,7 +21,6 @@
 (** Pretty-Html-printer for high level programs. *)
 
 open JBasics
-open JCode
 open Javalib
 open JProgram
 
@@ -65,4 +64,4 @@ val js:string
     and {!js} are used when [css] or [js] is not provided.
 *)
 val pp_print_program_to_html_files :
-  ?css:string -> ?js:string -> jvm_code program -> string -> info -> unit
+  ?css:string -> ?js:string -> JCode.jcode program -> string -> info -> unit

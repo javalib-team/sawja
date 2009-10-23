@@ -109,7 +109,7 @@ module PP = struct
 end
   
 open PP
-type pp = JCode.jvm_code PP.t
+type pp = JCode.jcode PP.t
     
 let get_code (pp:pp) : jopcodes =
   match pp.meth.cm_implementation with

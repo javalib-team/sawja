@@ -445,10 +445,10 @@ let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap
 
 let map_program_classes f classes =
   let jcmap = ClassMap.map
-    (fun c -> map_interface_or_class (f c) (to_jclass c)) classes in
+    (fun c -> map_interface_or_class_context (f c) (to_jclass c)) classes in
     build_hierarchy jcmap
 
-let map_program f p =
+let map_program' f p =
   let classes = map_program_classes f p.classes in
     { classes = classes;
       parsed_methods =
@@ -464,3 +464,6 @@ let map_program f p =
 	  ) p.parsed_methods;
       static_lookup_method = p.static_lookup_method
     }
+
+let map_program f =
+  map_program' (fun node cm -> f (get_name node) cm.cm_signature)

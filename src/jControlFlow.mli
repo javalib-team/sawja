@@ -62,13 +62,13 @@ module PP : sig
 end
 
 (** The type of program point identifier. *)
-type pp = JCode.jvm_code PP.t
+type pp = JCode.jcode PP.t
 
 val get_opcode : pp -> JCode.jopcode
 val next_instruction : pp -> pp
 val normal_successors : pp -> pp list
-val handlers : JCode.jvm_code program -> pp -> JCode.exception_handler list
-val exceptional_successors : JCode.jvm_code program -> pp -> pp list
+val handlers : JCode.jcode program -> pp -> JCode.exception_handler list
+val exceptional_successors : JCode.jcode program -> pp -> pp list
 
 
 (** {2 Lookup and resolve procedure} *)
@@ -185,13 +185,13 @@ val implements_methods : method_signature -> 'a class_node -> 'a interface_node 
     that may be called from program point [pp]. All methods that may be
     called at execution time are known to implement or extend one of
     the class that this function returns. *)
-val static_lookup : JCode.jvm_code program -> pp
-  -> (JCode.jvm_code node list * method_signature) option
+val static_lookup : JCode.jcode program -> pp
+  -> (JCode.jcode node list * method_signature) option
 
 (** [static_lookup' program pp] returns a list of methods that may be
     called from program point [pp].  The computation is base on RTA or
     CHA, depending on the function used to build the program. *)
-val static_lookup' : JCode.jvm_code program -> pp -> pp list
+val static_lookup' : JCode.jcode program -> pp -> pp list
 
 (** {2 Interface Implementations.}*)
 

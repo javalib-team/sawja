@@ -25,28 +25,28 @@ open Javalib
 open JProgram
   
 type vta_concrete_method =
-    { c_method : jvm_code concrete_method;
+    { c_method : jcode concrete_method;
       mutable c_has_been_parsed : bool;
-      mutable vta_instantiated_classes : jvm_code class_node ClassMap.t;
-      mutable virtual_calls : (jvm_code class_node * method_signature) ClassMethodMap.t;
-      mutable interface_calls : (jvm_code interface_node * method_signature) ClassMethodMap.t;
+      mutable vta_instantiated_classes : jcode class_node ClassMap.t;
+      mutable virtual_calls : (jcode class_node * method_signature) ClassMethodMap.t;
+      mutable interface_calls : (jcode interface_node * method_signature) ClassMethodMap.t;
       mutable static_lookup_virtual : ClassMethodSet.t ClassMethodMap.t;
       mutable static_lookup_interface : ClassMethodSet.t ClassMethodMap.t;
-      mutable static_lookup_static : jvm_code concrete_method ClassMethodMap.t;
-      mutable static_lookup_special : jvm_code concrete_method ClassMethodMap.t;
-      mutable vta_instantiated_subclasses : jvm_code class_node ClassMap.t ClassMap.t;
-      mutable vta_implemented_interfaces : jvm_code class_node ClassMap.t ClassMap.t
+      mutable static_lookup_static : jcode concrete_method ClassMethodMap.t;
+      mutable static_lookup_special : jcode concrete_method ClassMethodMap.t;
+      mutable vta_instantiated_subclasses : jcode class_node ClassMap.t ClassMap.t;
+      mutable vta_implemented_interfaces : jcode class_node ClassMap.t ClassMap.t
     }
       
 type vta_program =
-    { p : jvm_code program;
-      rta_instantiated_classes : jvm_code class_node ClassMap.t;
+    { p : jcode program;
+      rta_instantiated_classes : jcode class_node ClassMap.t;
       mutable methods : vta_concrete_method ClassMethodMap.t;
-      workset : (jvm_code node * vta_concrete_method) Wlist.wlist;
-      mutable pvta_parsed_methods : (jvm_code node *
-				       jvm_code concrete_method) ClassMethodMap.t;
-      mutable rta_instantiated_subclasses : jvm_code class_node ClassMap.t ClassMap.t;
-      mutable rta_implemented_interfaces : jvm_code class_node ClassMap.t ClassMap.t
+      workset : (jcode node * vta_concrete_method) Wlist.wlist;
+      mutable pvta_parsed_methods : (jcode node *
+				       jcode concrete_method) ClassMethodMap.t;
+      mutable rta_instantiated_subclasses : jcode class_node ClassMap.t ClassMap.t;
+      mutable rta_implemented_interfaces : jcode class_node ClassMap.t ClassMap.t
     }
       
 let filter_subclasses sc classes =

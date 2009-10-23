@@ -26,18 +26,18 @@ open JProgram
 module Program =
 struct
   type rta_method = { mutable has_been_parsed : bool;
-		      c_method : JCode.jvm_code jmethod }
+		      c_method : JCode.jcode jmethod }
   type class_info =
-      { class_data : JCode.jvm_code node;
+      { class_data : JCode.jcode node;
 	mutable is_instantiated : bool;
-	mutable instantiated_subclasses : JCode.jvm_code class_node ClassMap.t;
+	mutable instantiated_subclasses : JCode.jcode class_node ClassMap.t;
 	super_classes : class_name list;
 	super_interfaces : ClassSet.t;
 	methods : rta_method MethodMap.t;
 	mutable memorized_virtual_calls : MethodSet.t;
 	mutable memorized_interface_calls : MethodSet.t }
 	
-  type class_method = JCode.jvm_code class_node * JCode.jvm_code concrete_method
+  type class_method = JCode.jcode class_node * JCode.jcode concrete_method
 
   type program_cache =
       { mutable classes : class_info ClassMap.t;
@@ -51,7 +51,7 @@ struct
 	(* the clinits fields contains a set of class indexes whose clinit
 	   methods have already been added to the workset *)
 	mutable clinits : ClassSet.t;
-	workset : (class_name * JCode.jvm_code concrete_method) Wlist.wlist;
+	workset : (class_name * JCode.jcode concrete_method) Wlist.wlist;
 	classpath : Javalib.class_path;
 	mutable native_methods : ClassMethSet.t;
 	parse_natives : bool;

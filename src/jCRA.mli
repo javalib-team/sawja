@@ -28,7 +28,7 @@ open JBasics
     looking for them in the classpath (a list of directories and [.jar] files separated with ':').
     [other_classes] is set to [default_classes] if not given. *)
 val parse_program :
-  ?other_classes:class_name list -> string -> class_name list -> JCode.jvm_code JProgram.program
+  ?other_classes:class_name list -> string -> class_name list -> JCode.jcode JProgram.program
 
 val parse_program_bench : ?other_classes:class_name list -> string -> class_name list -> unit
 

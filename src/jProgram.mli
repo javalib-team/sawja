@@ -188,7 +188,17 @@ val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)
 
+(** [map_program f p] lazily applies [f] to all non-native implementation
+    (cf. {!Javalib.implementation}) of the program [p]. [map_program] passes to
+    [f] the class name and method signature corresponding to the method being
+    converted.  The application is {b lazy}: [f] is be effectively applied
+    when [Lazy.force] is called on the implementation. *)
+(* TODO: be clear on the lazy stuff... *)
 val map_program :
+  (class_name -> method_signature -> 'a -> 'b) -> 'a program -> 'b program
+
+(* advanced version of the previous one *)
+val map_program' :
   ('a node -> 'a concrete_method -> 'a -> 'b) -> 'a program -> 'b program
 
 (** {2 Callgraph.} *)
@@ -196,7 +206,7 @@ val map_program :
 type callgraph = ((class_name * method_signature * int)
 		  * (class_name * method_signature)) list
 
-val get_callgraph : JCode.jvm_code program -> callgraph
+val get_callgraph : JCode.jcode program -> callgraph
 
 val store_callgraph : callgraph -> string -> unit
 
