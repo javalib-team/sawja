@@ -67,6 +67,9 @@ jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
 .mli.cmi:
 	$(OCAMLC) $(INCLUDE) -c $<
 
+jaws.cma: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
+	$(OCAMLC) -a $(MODULES:=.cmo) -o $@
+
 jaws.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 	$(OCAMLOPT) -a $(MODULES:=.cmx) -o $@
 # endif
