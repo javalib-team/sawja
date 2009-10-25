@@ -94,7 +94,7 @@ let print_typ t =
     | `Bool -> "Z"
   in
   let rec ot2ss = function
-    | TClass c -> "O"
+    | TClass _ -> "O"
     | TArray t -> "["^ vt2ss t
   and vt2ss = function
     | TBasic t -> bt2ss t
