@@ -129,7 +129,7 @@ val print : ?explicit_exception:bool -> t -> string list
 (** {2 Bytecode transformation} *)
 
 (** JCode transformation, compressed or not *)
-val transform : ?compress:bool -> JCode.jcode Lazy.t Javalib.concrete_method -> JCode.jcode Lazy.t -> t 
+val transform : ?compress:bool -> JCode.jcode  Javalib.concrete_method -> JCode.jcode  -> t 
 
 (** {2 Exceptions} *)
 

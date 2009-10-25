@@ -39,7 +39,7 @@ install: jaws.cma jaws.cmxa
 	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
 
 bc2bir: jaws.cma bc2bir.ml
-	$(OCAMLC) $(INCLUDE) unix.cma zip.cma extlib.cma str.cma ptrees.cma javalib.cma jaws.cma -o bc2bir bc2bir.ml
+	$(OCAMLC) $(INCLUDE) unix.cma zip.cma extlib.cma str.cma ptrees.cma javalib.cma jaws.cma jimpleLexer.cmo jimpleParser.cmo jimpleVars.cmo  -o bc2bir bc2bir.ml
 
 ocaml:jaws.cma
 	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javaLib.cma jaws.cma

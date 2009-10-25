@@ -29,6 +29,7 @@ type opexpr =
   | Uninit of class_name * int
   | E of expr
 
+
 type virtual_call_kind =
   | VirtualCall of object_type
   | InterfaceCall of class_name
@@ -796,9 +797,8 @@ let run_dummy code i =
     | _ -> assert false
 
 let run dummy cm code =
-  let code = Lazy.force code in
-    if dummy then run_dummy code
-    else run cm code
+  if dummy then run_dummy code
+  else run cm code
 	
 let print_instr i ins =
   JDump.opcode
@@ -892,8 +892,8 @@ let rec type_of_expr = function
 	 | CMP _ -> `Int)
 and type_of_array_content e =
   (match type_of_expr e with
-     | TObject (TArray t) -> t
-     | _ -> assert false)
+     | TObject (TArray t) -> t (* can this happen ? *)
+     | _ -> Printf.printf "%s\n" (print_typ (type_of_expr e)) ; assert false)
 
 
 
@@ -1046,8 +1046,7 @@ let clean test s instrs =
     | e::s -> 
 	let (s,instrs,fresh) = aux fresh s in
 	  match e with
-	    | Uninit _ -> 
-		e::s, instrs , fresh
+	    | Uninit _ -> e::s, instrs , fresh
 	    | E e ->
 		if test e then
 		  let x = TempVar fresh in
@@ -1093,7 +1092,6 @@ let make_tempvar s next_store =
  * tos : type operand stack
  * i : current index of bytecode
  * next : progression along instruction bytecode index 
- * stats : statistics to compute
  * mode : normal , flat , 3add 
  *)
 let bc2bir_instr mode pp_var i bctype tos s next_store = function
@@ -1118,7 +1116,7 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
       let y = OriginalVar(n,pp_var i n) in
 	begin
 	  match topE s with
-	    | Var (_,y') when var_equal y y' -> (pop s,[]) 
+	    | Var (_,y') when var_equal y y' ->  (pop s,[]) 
 	    | _ -> 
 		begin
 		  match is_var_in_stack y (pop s) with
@@ -1152,8 +1150,7 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 		  Check (CheckArrayBound (a,idx)); 
 		  Check (CheckArrayStore (a,v)); 
 		  AffectArray (a, idx, v)]
-      in
-	clean is_array_in_expr (pop3 s) inss	
+      in clean is_array_in_expr (pop3 s) inss	
   | OpPop -> pop s, []
   | OpPop2 -> 
       (match (top tos) with
@@ -1480,8 +1477,26 @@ exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
 
+
+let value_compare e1 e2 = 
+  match e1, e2 with 
+    | Var(_,x), Var(_,y) -> var_equal x y
+    | _ -> e1 = e2
+
+let value_compare e1 e2 = 
+  match e1, e2 with 
+    | Uninit _, Uninit _ -> e1 = e2
+    | E e1, E e2 -> value_compare e1 e2
+    | _ -> false
+
+let value_compare_stack s1 s2 =
+  List.for_all2 value_compare s1 s2
+
+
 let bc2ir flat pp_var jump_target bctype code =
   let rec loop as_ts_jump ins ts_in as_in pc =
+    
+    (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
       let next_pc = try next code.c_code pc with End_of_method -> pc in
 	match code.c_code.(next_pc) with
@@ -1526,8 +1541,12 @@ let bc2ir flat pp_var jump_target bctype code =
 		  all defined predecessor advice must match what is reached *)
 	       if (ts_jmp <> ts_out) then raise Type_constraint_on_Uninit ;
 	       let jmp_s =  jump_stack pc' as_out in
-		 if (as_jmp <>  jmp_s) then raise Content_constraint_on_Uninit ;
-		 as_jump
+		 if (not (value_compare_stack as_jmp jmp_s)) then 
+		   ( Printf.printf "\n %s\n" (string_of_int pc') ;
+		     Printf.printf "%s \n" (print_stackmap as_jmp) ;
+		     Printf.printf "%s \n" (print_stackmap jmp_s) ;
+		     assert false ) (*raise Content_constraint_on_Uninit*)
+		 else as_jump
 	   with Not_found -> 
 	     (* when first advice for pc', no constraint to check. add the advice in the map *)
 	     let st = jump_stack pc' as_out in
@@ -1595,16 +1614,16 @@ let compress_ir ir jump_target =
   in aux ir
 
 let jcode2bir mode compress cm jcode =
-  let code = Lazy.force jcode in
-(*    Array.iteri
-      (fun i op ->
-	 match op with
-	     OpLoad (_,x) 
-	   | OpStore (_,x) -> 
-	       Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i 
-		 (match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
-	   | _ -> ()
-      ) code.c_code; *)
+  let code = jcode in
+    (*    Array.iteri
+	  (fun i op ->
+	  match op with
+	  OpLoad (_,x) 
+	  | OpStore (_,x) -> 
+	  Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i 
+	  (match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
+	  | _ -> ()
+	  ) code.c_code; *)
   let pp_var = search_name_localvar cm.cm_static code in
   let jump_target = compute_jump_target code in
   let bctype = BCV.run false cm jcode in
