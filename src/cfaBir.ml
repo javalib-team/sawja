@@ -33,7 +33,7 @@ type check =
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
   | CheckNegativeArraySize of expr
-  | CheckCast of expr
+  | CheckCast of expr * object_type
   | CheckArithmetic of expr
 
 type instr =
@@ -129,7 +129,7 @@ let expr2var expr =
     | _ -> assert false
 
 let bir2cfabir_binop = function
-  | Bir.ArrayLoad -> assert false
+  | Bir.ArrayLoad _ -> assert false
   | Bir.Add t -> Add t
   | Bir.Sub t -> Sub t
   | Bir.Mult t -> Mult t
@@ -153,7 +153,7 @@ let rec bir2cfabir_expr e = match e with
   | Bir.Const c -> Const c
   | Bir.Var (t,v) -> Var (t,v)
   | Bir.Unop (unop, expr) -> Unop(unop, bir2cfabir_expr expr)
-  | Bir.Binop(Bir.ArrayLoad,Bir.Var (t,x),expr2) -> ArrayLoad (t,x,bir2cfabir_expr expr2) 
+  | Bir.Binop(Bir.ArrayLoad _,Bir.Var (t,x),expr2) -> ArrayLoad (t,x,bir2cfabir_expr expr2) 
   | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2cfabir_binop binop,bir2cfabir_expr expr1,bir2cfabir_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
@@ -167,7 +167,7 @@ let check2check = function
   | Bir.CheckArrayBound (e1, e2) -> CheckArrayBound (bir2cfabir_expr e1, bir2cfabir_expr e2)
   | Bir.CheckArrayStore (e1,e2) -> CheckArrayStore (bir2cfabir_expr e1,  bir2cfabir_expr e2)
   | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2cfabir_expr e) 
-  | Bir.CheckCast e -> CheckCast (bir2cfabir_expr e)
+  | Bir.CheckCast (e,t) -> CheckCast (bir2cfabir_expr e,t)
   | Bir.CheckArithmetic e -> CheckArithmetic (bir2cfabir_expr e)
       
   
@@ -291,7 +291,7 @@ let print_instr = function
 	  | CheckArrayBound (a,i) -> Printf.sprintf "checkbound %s[%s]"  (print_expr true a) (print_expr true i)
 	  | CheckArrayStore (a,v) -> Printf.sprintf "checkstore %s[] <- %s"  (print_expr true a) (print_expr true v)
 	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_expr true e)
-	  | CheckCast e -> Printf.sprintf "checkcast %s" (print_expr true e)
+	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_expr true e) (JDumpBasics.object_value_signature t)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr true e)
       end
 

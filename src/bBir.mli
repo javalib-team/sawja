@@ -47,7 +47,7 @@ type unop =
 type comp = DG | DL | FG | FL | L 
     
 type binop =
-    ArrayLoad
+    ArrayLoad of JBasics.jvm_array_type
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -78,7 +78,7 @@ type check =
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
   | CheckNegativeArraySize of expr
-  | CheckCast of expr
+  | CheckCast of expr * JBasics.object_type
   | CheckArithmetic of expr
       
 type instr =

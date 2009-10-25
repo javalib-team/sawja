@@ -7,7 +7,7 @@ include Cmn
 (*********** TYPES *************)
 
 type binop =
-  | ArrayLoad
+  | ArrayLoad of JBasics.jvm_array_type
   | Add of jvm_basic_type
   | Sub of jvm_basic_type 
   | Mult of jvm_basic_type
@@ -39,7 +39,7 @@ type check =
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
   | CheckNegativeArraySize of expr
-  | CheckCast of expr
+  | CheckCast of expr * object_type
   | CheckArithmetic of expr
 
 type instr =
@@ -82,7 +82,7 @@ type op_size = Op32 | Op64
 (************* PRINT ************)      
 
 let print_binop = function
-  | ArrayLoad -> Printf.sprintf "ArrayLoad"
+  | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
   | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
   | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
   | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
@@ -137,7 +137,7 @@ let rec print_expr first_level = function
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | Binop (ArrayLoad,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2)
+  | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level
@@ -202,7 +202,7 @@ let print_instr = function
 	  | CheckArrayBound (a,i) -> Printf.sprintf "checkbound %s[%s]"  (print_expr true a) (print_expr true i)
 	  | CheckArrayStore (a,v) -> Printf.sprintf "checkstore %s[] <- %s"  (print_expr true a) (print_expr true v)
 	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_expr true e)
-	  | CheckCast e -> Printf.sprintf "checkcast %s" (print_expr true e)
+	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_expr true e) (JDumpBasics.object_value_signature t)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr true e)
       end
 
@@ -742,7 +742,32 @@ let init cm =
 let lub (s1,l1) (s2,l2) =
   (List.map2 lub s1 s2,Ptmap.merge lub l1 l2)
 
-let run cm code =
+let print_instr i ins =
+  JDump.opcode
+    (match ins with
+       | OpIf (t, n) -> OpIf (t,n+i)
+       | OpIfCmp (t, n) -> OpIfCmp (t,n+i)
+       | OpGoto n -> OpGoto (i+n)
+       | OpTableSwitch (default, low, high, table) ->
+	   OpTableSwitch (default+i, low, high,Array.map ((+)i) table)
+       | OpLookupSwitch (default, npairs) ->
+	   OpLookupSwitch (default+i,List.map (fun (x,y) -> (x,y+i)) npairs)
+       | _ -> ins)
+
+let print_result cm types code =
+  Printf.printf "%s%s\n" (if cm.cm_static then "static " else "") (JPrint.method_signature cm.cm_signature);
+  Array.iteri
+    (fun i op ->
+       if op<>OpInvalid then
+	 Printf.printf "    %s\n%3d: %s\n"
+	   (match types.(i) with None -> "NONE" | Some sl -> print sl)
+	   i (print_instr i op))
+    code.c_code;
+  List.iter 
+    (fun e -> Printf.printf "    %s\n" (JPrint.exception_handler e))
+    code.c_exc_tbl
+
+let run verbose cm code =
   let rec array_fold f b t i =
     if i>=0 then f i t.(i) (array_fold f b t (i-1)) else b in
   let array_fold f b t = array_fold f b t ((Array.length t)-1) in
@@ -777,6 +802,7 @@ let run cm code =
 	 GetNotFound -> Printf.printf "GET_NOT_FOUND !\n"; assert false
        | BadLoadType -> Printf.printf "BAD_LOAD_TYPE !\n"
        | ArrayContent -> assert false);
+    if verbose then print_result cm types code;
     (fun i -> 
        match code.c_code.(i) with
 	 | OpLoad (_,n) -> 
@@ -796,45 +822,10 @@ let run_dummy code i =
 	   | `Object -> TObject (TClass java_lang_object))
     | _ -> assert false
 
-let run dummy cm code =
+let run dummy ?(verbose=false) cm code =
   if dummy then run_dummy code
-  else run cm code
+  else run verbose cm code
 	
-let print_instr i ins =
-  JDump.opcode
-    (match ins with
-       | OpIf (t, n) -> OpIf (t,n+i)
-       | OpIfCmp (t, n) -> OpIfCmp (t,n+i)
-       | OpGoto n -> OpGoto (i+n)
-       | OpTableSwitch (default, low, high, table) ->
-	   OpTableSwitch (default+i, low, high,Array.map ((+)i) table)
-       | OpLookupSwitch (default, npairs) ->
-	   OpLookupSwitch (default+i,List.map (fun (x,y) -> (x,y+i)) npairs)
-       | _ -> ins)
-
-(*
-let print_result cm types code =
-  let code = Lazy.force code in
-  Printf.printf "%s%s\n" (if cm.cm_static then "static " else "") (JPrint.method_signature cm.cm_signature);
-  Array.iteri
-    (fun i op ->
-       if op<>OpInvalid then
-	 Printf.printf "    %s\n%3d: %s\n"
-	   (match types.(i) with None -> "NONE" | Some sl -> print sl)
-	   i (print_instr i op))
-    code.c_code;
-  List.iter 
-    (fun e -> Printf.printf "    %s\n" (JPrint.exception_handler e))
-    code.c_exc_tbl
-
-let debug verbose cm code =
-(*  if ms_name cm.cm_signature = "marshalIn" then *)
-  try
-    let types = run cm code in 
-      if verbose then print_result cm types code
-  with
-      Subroutine -> ()
-*)
 
 end
 
@@ -872,11 +863,11 @@ let rec type_of_expr = function
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
 	   | ArrayLength 
 	   | InstanceOf _ -> `Int)
-  | Binop (ArrayLoad,e,_) -> type_of_array_content e
+  | Binop (ArrayLoad t,e,_) -> type_of_array_content t e
   | Binop (b,_,_) -> 
       TBasic
       (match b with
-	 | ArrayLoad -> assert false
+	 | ArrayLoad _ -> assert false
 	 | Add t
 	 | Sub t
 	 | Mult t
@@ -890,11 +881,16 @@ let rec type_of_expr = function
 	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
 	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
 	 | CMP _ -> `Int)
-and type_of_array_content e =
-  (match type_of_expr e with
-     | TObject (TArray t) -> t (* can this happen ? *)
-     | _ -> Printf.printf "%s\n" (print_typ (type_of_expr e)) ; assert false)
-
+and type_of_array_content t e =
+  match type_of_expr e with
+    | TObject (TArray t) -> t (* can this happen ? *)
+    | _ -> (* we use the type found in the OpArrayLoad argument *)
+	(match t with
+	   | `Int | `Short | `Char | `ByteBool -> TBasic `Int
+	   | `Long -> TBasic `Long
+	   | `Float -> TBasic `Float
+	   | `Double -> TBasic `Double
+	   | `Object -> TObject (TClass java_lang_object))
 
 
 (**************** GENERATION *************)
@@ -915,6 +911,10 @@ let rec remove_dim t n =
 	    | TObject t -> aux t (n-1) 
   in aux t n
 
+let is_arrayload = function
+  | ArrayLoad _ -> true
+  | _ -> false
+
 let is_in_expr test_var test_static test_field test_array =
   let rec aux expr =
     match expr with 
@@ -923,7 +923,7 @@ let is_in_expr test_var test_static test_field test_array =
       | Field (e,c,f) -> test_field c f || aux e
       | Var (_,x) -> test_var x
       | Unop(_,e) -> aux e
-      | Binop(s,e1,e2) -> (test_array && s=ArrayLoad) || aux e1 || aux e2
+      | Binop(s,e1,e2) -> (test_array && is_arrayload s) || aux e1 || aux e2
   in aux
 
 let var_in_expr test_var =
@@ -1099,17 +1099,17 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
   | OpConst x -> E (Const x)::s, []
   | OpLoad (_,n) ->
       E (Var (bctype i,OriginalVar (n,pp_var i n)))::s, []
-  | OpArrayLoad _ -> 
+  | OpArrayLoad t -> 
       let a = topE (pop s) in
       let idx = topE s in 
 	begin
 	match mode with 
 	  | Addr3 ->
 	      let x = make_tempvar (pop2 s) next_store in 
-		E (Var (type_of_array_content a,x))::(pop2 s), 
-		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad,a,idx)))]
+		E (Var (type_of_array_content t a,x))::(pop2 s), 
+		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]
 	  | _ ->
-	      E (Binop(ArrayLoad,a,idx))::(pop2 s), 
+	      E (Binop(ArrayLoad t,a,idx))::(pop2 s), 
 	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
 	end
   | OpStore (_,n) ->
@@ -1354,7 +1354,7 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 	end
   | OpThrow -> 
       let r = topE s in [], [Check (CheckNullPointer r); Throw r]
-  | OpCheckCast _ -> s, [Check (CheckCast (topE s))]
+  | OpCheckCast t -> s, [Check (CheckCast (topE s,t))]
   | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) s [] 
   | OpMonitorEnter -> 
       let r = topE s in
@@ -1492,7 +1492,6 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-
 let bc2ir flat pp_var jump_target bctype code =
   let rec loop as_ts_jump ins ts_in as_in pc =
     
@@ -1626,7 +1625,7 @@ let jcode2bir mode compress cm jcode =
 	  ) code.c_code; *)
   let pp_var = search_name_localvar cm.cm_static code in
   let jump_target = compute_jump_target code in
-  let bctype = BCV.run false cm jcode in
+  let bctype = BCV.run ~verbose:true true cm code in
   let res = bc2ir mode pp_var jump_target bctype code in 
     { params = gen_params pp_var cm;
       code = if compress then compress_ir (List.rev res) jump_target else (List.rev res);

@@ -84,7 +84,7 @@ type check =
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
   | CheckNegativeArraySize of expr
-  | CheckCast of expr
+  | CheckCast of expr * JBasics.object_type
   | CheckArithmetic of expr
 
 type instr =

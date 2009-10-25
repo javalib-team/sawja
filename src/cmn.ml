@@ -30,7 +30,7 @@ type typ = Ref | Num
 type var =
   | OriginalVar of int * string option  (* register number, name (debug if available) *)
   | TempVar of int
-  | ToBeRemovedVar
+  | RetVar
   | BranchVar of int * int
   | BranchVar2 of int * int
       
@@ -59,7 +59,7 @@ let var_name_debug = function
 let var_name = function
   | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
   | TempVar i -> Printf.sprintf "%s%d" tempname i
-  | ToBeRemovedVar -> "ToBeRemoved" 
+  | RetVar -> "RetVar" 
   | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
   | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
 

@@ -6,7 +6,7 @@ open Bir
 include Cmn
 
 type binop =
-  | ArrayLoad 
+  | ArrayLoad  of JBasics.jvm_array_type
   | Add of jvm_basic_type
   | Sub of jvm_basic_type 
   | Mult of jvm_basic_type
@@ -52,11 +52,11 @@ let rec type_of_expr = function
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
 	   | ArrayLength 
 	   | InstanceOf _ -> `Int)
-  | Binop (ArrayLoad,e,_) -> type_of_array_content e
+  | Binop (ArrayLoad t,e,_) -> type_of_array_content t e
   | Binop (b,_,_) -> 
       TBasic
       (match b with
-	 | ArrayLoad -> assert false
+	 | ArrayLoad _ -> assert false
 	 | Add t
 	 | Sub t
 	 | Mult t
@@ -70,10 +70,16 @@ let rec type_of_expr = function
 	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
 	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
 	 | CMP _ -> `Int)
-and type_of_array_content e =
-  (match type_of_expr e with
-     | TObject (TArray t) -> t
-     | _ -> assert false)
+and type_of_array_content t e =
+  match type_of_expr e with
+    | TObject (TArray t) -> t 
+    | _ -> (* we use the type found in the OpArrayLoad argument *)
+	(match t with
+	   | `Int | `Short | `Char | `ByteBool -> TBasic `Int
+	   | `Long -> TBasic `Long
+	   | `Float -> TBasic `Float
+	   | `Double -> TBasic `Double
+	   | `Object -> TObject (TClass java_lang_object))
 
 type virtual_call_kind =
   | VirtualCall of object_type
@@ -84,7 +90,7 @@ type check =
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
   | CheckNegativeArraySize of expr
-  | CheckCast of expr
+  | CheckCast of expr * object_type
   | CheckArithmetic of expr
 
 type instr =
@@ -128,7 +134,7 @@ let expr2var expr =
     | _ -> assert false
 
 let bir2fbir_binop = function
-  | Bir.ArrayLoad -> ArrayLoad 
+  | Bir.ArrayLoad t -> ArrayLoad t
   | Bir.Add t -> Add t
   | Bir.Sub t -> Sub t
   | Bir.Mult t -> Mult t
@@ -165,7 +171,7 @@ let check2check = function
   | Bir.CheckArrayBound (e1, e2) -> CheckArrayBound (bir2fbir_expr e1, bir2fbir_expr e2)
   | Bir.CheckArrayStore (e1,e2) -> CheckArrayStore (bir2fbir_expr e1,  bir2fbir_expr e2)
   | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2fbir_expr e) 
-  | Bir.CheckCast e -> CheckCast (bir2fbir_expr e)
+  | Bir.CheckCast (e,t) -> CheckCast (bir2fbir_expr e,t)
   | Bir.CheckArithmetic e -> CheckArithmetic (bir2fbir_expr e)
       
   
@@ -199,7 +205,7 @@ type t = {
 
 
 let print_binop = function
-  | ArrayLoad -> Printf.sprintf "ArrayLoad"
+  | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
   | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
   | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
   | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
@@ -233,7 +239,7 @@ let rec print_expr first_level = function
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | Binop (ArrayLoad,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2) 
+  | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2) 
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level
@@ -291,7 +297,7 @@ let print_instr = function
 	  | CheckArrayBound (a,i) -> Printf.sprintf "checkbound %s[%s]"  (print_expr true a) (print_expr true i)
 	  | CheckArrayStore (a,v) -> Printf.sprintf "checkstore %s[] <- %s"  (print_expr true a) (print_expr true v)
 	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_expr true e)
-	  | CheckCast e -> Printf.sprintf "checkcast %s" (print_expr true e)
+	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_expr true e) (JDumpBasics.object_value_signature t)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr true e)
       end
 

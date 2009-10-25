@@ -21,7 +21,7 @@ val varname : string
 type var =
   | OriginalVar of int * string option  (* register number, name (debug if available) *)
   | TempVar of int 
-  | ToBeRemovedVar
+  | RetVar
   | BranchVar of int * int
   | BranchVar2 of int * int
       
