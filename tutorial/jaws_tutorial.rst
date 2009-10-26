@@ -71,6 +71,24 @@ The program structure contains:
 *JCRA*, *JRTA* and *JRRTA* modules
 ----------------------------------
 
+Each of these modules implements a function ``parse_program`` (the
+signature varies) which returns a program parametrized by the
+``Javalib.jcode`` representation.
+
+In *RTA*, the function ``parse_program`` takes at least, as
+parameters, a class-path and a program entry point (generally a main
+method). The ``default_entrypoints`` value represents the
+methods that are always called by the *Sun JVM* before a program is
+launched.
+
+In *CRA*, the function ``parse_program`` takes at least, as
+parameters, a class-path and a list of classes acting as entry points.
+The ``default_classes`` value represents the classes that are always
+loaded by the *Sun JVM*.
+
+*JRRTA* is a refinement of *RTA*. It first calls *RTA* and then prunes
+the call graph.
+
 *JNativeStubs* module
 ---------------------
 
