@@ -25,8 +25,8 @@ DOCDIR:=../$(DOCDIR)
 
 CSS=\"style.css\"
 
-MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml partial cmn bir jBir fBir bBir cfaBir jaws 
-MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml partial cmn jBir fBir bBir cfaBir jaws 
+MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml partial cmn bir jBir fBir bBir cfaBir
+MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml partial cmn jBir fBir bBir cfaBir
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc
@@ -39,7 +39,7 @@ install: jaws.cma jaws.cmxa
 	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
 
 ocaml:jaws.cma
-	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javaLib.cma jaws.cma
+	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javalib.cma jaws.cma
 
 .depend:$(MODULE_INTERFACES:=.mli) $(MODULES:=.ml)
 	$(OCAMLDEP) $(PP) $^ > $@
