@@ -168,7 +168,7 @@ val overrides_methods : method_signature -> 'a class_node -> 'a class_node list
     methods that overrides (or implements) [(c,ms)] (in the children
     of [c]).
 
-    @Raise Invalid_argument("overridden_by_methods") if the method is
+    @raise Invalid_argument("overridden_by_methods") if the method is
     a class or instance initialization method.*)
 val overridden_by_methods : method_signature -> 'a node -> 'a class_node list
 
