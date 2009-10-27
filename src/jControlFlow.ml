@@ -8,14 +8,14 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -23,24 +23,24 @@ open JBasics
 open JCode
 open Javalib
 open JProgram
-  
+
 module PP = struct
   type 'a t = {cl:'a node;
 	       meth:'a concrete_method;
 	       pc:int;}
-      
+
   let eqc = JProgram.node_equal
   let eqm = (==)
   let eqi = (=)
-    
+
   let equal pp1 pp2 =
     eqm pp1.meth pp2.meth
     && eqi pp1.pc pp2.pc
     && eqc pp1.cl pp2.cl
-      
+
   let hash pp1 =
     Hashtbl.hash (get_name pp1.cl,pp1.meth.cm_signature,pp1.pc)
-      
+
   let compare pp1 pp2 =
     if equal pp1 pp2
     then 0
@@ -55,9 +55,9 @@ module PP = struct
 		    | n -> n
 	      end
 	  | n -> n
-	      
+
   exception NoCode of (class_name * method_signature)
-    
+
   let to_string (pp:'a t) : string =
     let s = pp.meth.cm_signature in
     let mname = ms_name s in
@@ -67,20 +67,20 @@ module PP = struct
       ^ (String.concat ", "
 	   (List.map JDumpBasics.value_signature mparams))
       ^ "): " ^ string_of_int pp.pc
-	
+
   let pprint fmt pp : unit =
     Format.pp_print_string fmt (to_string pp)
-      
+
   let get_class (pp:'a t) : 'a node =
     pp.cl
-      
+
   let get_meth (pp:'a t) : 'a concrete_method =
     pp.meth
-      
+
   let get_pc (pp:'a t) : int = pp.pc
-    
+
   let get_pp cl' meth' pc' : 'a t = {cl=cl';meth=meth';pc=pc';}
-    
+
   let get_first_pp prog cs ms : 'a t =
     match get_node prog cs with
       | Interface {i_info = {i_initializer = Some m}} as c
@@ -94,30 +94,30 @@ module PP = struct
 	      | _ -> raise (NoCode (cs,ms))
 	  end
       | _ -> raise (NoCode (cs,ms))
-	  
+
   let get_first_pp_wp c ms : 'a t =
     match get_method c ms with
       | ConcreteMethod m ->
 	  {cl=c;meth=m;pc=0;}
       | AbstractMethod m ->
 	  raise (NoCode (get_name c,m.am_signature))
-	    
+
   let goto_absolute pp i : 'a t = {pp with pc=i;}
-    
+
   let goto_relative pp jmp : 'a t ={pp with pc=pp.pc+jmp;}
-    
+
 end
-  
+
 open PP
 type pp = JCode.jcode PP.t
-    
+
 let get_code (pp:pp) : jopcodes =
   match pp.meth.cm_implementation with
     | Java c -> (Lazy.force c).c_code
     | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
-	
+
 let get_opcode (pp:pp) : jopcode = (get_code pp).(pp.pc)
-  
+
 let next_instruction pp =
   let opcodes = get_code pp
   and i = ref (succ pp.pc)
@@ -126,7 +126,7 @@ let next_instruction pp =
       incr i;
     done;
     goto_absolute pp !i
-      
+
 let normal_successors pp =
   match get_opcode pp with
     | OpIf (_,l)
@@ -164,13 +164,13 @@ let normal_successors pp =
     | OpBreakpoint ->
 	raise (Class_structure_error "Instructions Invalid and Breakpoint are not authorized")
     | _ -> [next_instruction pp]
-	
-	
-	
+
+
+
 let resolve_class program cs =
   try get_node program cs
   with Not_found -> raise NoClassDefFoundError
-    
+
 let rec resolve_field' result fs c : unit =
   let get_interfaces = function
     | Interface i -> i.i_interfaces
@@ -195,13 +195,13 @@ let rec resolve_field' result fs c : unit =
 	      | None -> ()
 	  end
       end
-	
+
 let resolve_field fs c : 'a node list =
   let result = ref [] in
     resolve_field' result fs c;
     !result
-      
-      
+
+
 let rec resolve_method' ms (c:'a class_node) : 'a class_node =
   if defines_method (Class c) ms
   then c
@@ -209,7 +209,7 @@ let rec resolve_method' ms (c:'a class_node) : 'a class_node =
     match super_class (Class c) with
       | Some super -> resolve_method' ms super
       | None -> raise NoSuchMethodError
-	  
+
 let rec resolve_interface_method' ?(acc=[]) ms (c:'a node) : 'a interface_node list =
   ClassMap.fold
     (fun _ i acc ->
@@ -218,7 +218,7 @@ let rec resolve_interface_method' ?(acc=[]) ms (c:'a node) : 'a interface_node l
        else resolve_interface_method' ~acc ms (Interface i))
     (get_interfaces c)
     acc
-    
+
 (* TODO : like resolve_field, resolve_method should return a list in
    case the method is defined in several interfaces at the same time. *)
 (* TODO : we could use c_resolve_methods or update it if there are no
@@ -232,8 +232,8 @@ let rec resolve_method ms (c:'a class_node) : 'a node =
       | [] -> match super_class (Class c) with
 	  | None -> raise NoSuchMethodError
 	  | Some c' -> resolve_method ms c'
-	      
-	      
+
+
 let resolve_interface_method ms (c:'a interface_node) : 'a node =
   if defines_method (Interface c) ms
   then (Interface c)
@@ -241,12 +241,12 @@ let resolve_interface_method ms (c:'a interface_node) : 'a node =
     match resolve_interface_method' ms (Interface c) with
       | resolved::_ -> Interface resolved
       | [] -> Class (resolve_method' ms c.i_super) (* super = java.lang.object *)
-	  
+
 let resolve_all_interface_methods ms (i:'a interface_node) : 'a interface_node list =
   if defines_method (Interface i) ms
   then [i]
   else resolve_interface_method' ms (Interface i)
-    
+
 let lookup_virtual_method ms (c:'a class_node) : 'a class_node =
   let c' =
     try resolve_method' ms c
@@ -257,9 +257,9 @@ let lookup_virtual_method ms (c:'a class_node) : 'a class_node =
 	| ConcreteMethod _ -> c'
 	| AbstractMethod _ -> raise AbstractMethodError
     with Not_found -> raise AbstractMethodError
-      
+
 let lookup_interface_method = lookup_virtual_method
-  
+
 let overrides_methods ms c =
   let result = ref [] in
     match c.c_super with
@@ -279,7 +279,7 @@ let overrides_methods ms c =
 	      assert false
 	    with NoSuchMethodError ->
 	      !result
-  
+
 (* TODO : need to be accelerated (store intermediate result for future
    use) *)
 let overridden_by_methods ms c : 'a class_node list=
@@ -312,20 +312,20 @@ let overridden_by_methods ms c : 'a class_node list=
     end;
     overridden_by_methods' c;
     ClassMap.fold (fun _ ioc l -> ioc::l) !result []
-      
+
 let implements_method c ms =
   try
     match MethodMap.find ms c.c_info.c_methods with
       | ConcreteMethod _ -> true
       | AbstractMethod _ -> false
   with Not_found -> false
-    
+
 let implements_methods ms c =
   ClassMap.fold
     (fun _ i l -> resolve_all_interface_methods ms i @ l)
     c.c_interfaces
     []
-    
+
 let static_lookup_interface prog cs ms : 'a node list =
   match resolve_class prog cs with
     | Class _ -> raise IncompatibleClassChangeError
@@ -339,7 +339,7 @@ let static_lookup_interface prog cs ms : 'a node list =
 	    let c = Class (resolve_method' ms i.i_super)
 	    in c::il
 	  with _ -> il
-	    
+
 let static_lookup_special prog pp cs cms ms =
   match resolve_class prog cs with
     | Interface _ -> raise IncompatibleClassChangeError
@@ -354,7 +354,7 @@ let static_lookup_special prog pp cs cms ms =
 		match super_class pp.cl with
 		  | None -> raise AbstractMethodError
 		  | Some c -> lookup_virtual_method ms c
-		      
+
 let static_lookup_virtual prog iobj ms =
   match iobj with
     | TArray _ ->
@@ -389,7 +389,7 @@ let static_lookup_static program cs ms =
       | Class c' when implements_method c' ms -> c
       | _ -> raise AbstractMethodError
 
-		    
+
 let static_lookup program pp =
   match get_opcode pp with
     | OpInvoke (`Virtual obj, ms) ->
@@ -401,7 +401,7 @@ let static_lookup program pp =
     | OpInvoke (`Interface cs, ms) ->
 	Some (static_lookup_interface program cs ms,ms)
     | _ -> None
-	
+
 let static_lookup' program pp =
   match get_opcode pp with
     | OpInvoke (a,b) ->
@@ -411,7 +411,7 @@ let static_lookup' program pp =
           List.map
             (fun (cs,ms) -> get_first_pp program cs ms)
             (List.map
-               (fun (cs,ms) -> 
+               (fun (cs,ms) ->
                   let c = get_node program cs
                   in match get_method c ms with
                     | AbstractMethod _ -> assert false;
@@ -420,7 +420,7 @@ let static_lookup' program pp =
 		  (ClassMethodSet.elements
                      (program.static_lookup_method cs ms (a,b)))))
     | _ -> []
-	
+
 let handlers program pp =
   let ioc2c = function
     | Class c -> c
@@ -442,7 +442,7 @@ let handlers program pp =
 		  try
 		    let exn_class =
 		      ioc2c (JProgram.get_node program exn_name)
-		    and javalangexception = 
+		    and javalangexception =
                       let cs = make_cn "java.lang.Exception"
                       in
 			ioc2c (JProgram.get_node program cs)
@@ -500,7 +500,7 @@ let handlers program pp =
 	      (Lazy.force code).c_exc_tbl
       | Native ->
 	  raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
-	    
+
 let exceptional_successors program pp =
   List.map (fun e -> goto_absolute pp e.e_handler) (handlers program pp)
 
@@ -554,7 +554,7 @@ let invoke_interface_lookup ?(i=None) ms instantiated_classes =
        let rcmsig = make_cms (rc.c_info.c_name) ms in
 	 ClassMethodMap.add rcmsig (rc,cm) cmmap
     ) instantiated_classes ClassMethodMap.empty
-    
+
 let invoke_special_lookup current_class called_class ms =
   let ccs = get_name current_class in
   let rc = resolve_method' ms called_class in

@@ -7,14 +7,14 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -36,7 +36,7 @@ struct
 	methods : rta_method MethodMap.t;
 	mutable memorized_virtual_calls : MethodSet.t;
 	mutable memorized_interface_calls : MethodSet.t }
-	
+
   type class_method = JCode.jcode class_node * JCode.jcode concrete_method
 
   type program_cache =
@@ -81,7 +81,7 @@ struct
     match ioc with
       | Class _ -> failwith "to_interface_node applied on class !"
       | Interface i -> i
-	  
+
   and get_class_info p cs =
     try
       ClassMap.find cs p.classes
@@ -93,7 +93,7 @@ struct
 	  with _ ->
 	    failwith ("Can't load class or interface "
 		      ^ (cn_name cs))
-	      
+
   and add_class p cs =
     (* We assume that a call to add_class is done only when a class has never *)
     (* been loaded in the program. Loading a class implies loading all its *)
@@ -190,14 +190,14 @@ struct
       List.iter
 	(fun cs -> add_clinit p cs)
 	(cs :: ioc_info.super_classes)
-	
+
   and get_method p cs ms =
     let cl_info = get_class_info p cs in
       try
 	MethodMap.find ms cl_info.methods
       with
 	| Not_found -> raise Method_not_found
-            
+
   and add_to_workset p (cs,ms) =
     let m = get_method p cs ms in
       match m with
@@ -263,7 +263,7 @@ struct
 		 (ClassMethodSet.add cm.cm_class_method_signature s)
 		 p.static_virtual_lookup
 	) virtual_lookup_map
-	  
+
   let invoke_virtual_lookup p cs ms =
     (* If this virtual call site appears for the first time, *)
     (* we will update the static_lookup_virtual map, otherwise *)
@@ -298,7 +298,7 @@ struct
   	MethodSet.add ms i_info.memorized_interface_calls;
       interface_lookup_action p.interfaces cs
   	(fun x -> invoke_virtual_lookup p x ms)
-	
+
   let update_interface_lookup_set p interfaces =
     ClassSet.iter
       (fun i ->
@@ -311,7 +311,7 @@ struct
       )
       interfaces
       (* transitivly implemented interfaces *)
-      
+
   let add_instantiated_class p cs =
     let cl_info = get_class_info p cs in
       if not( cl_info.is_instantiated ) then
@@ -468,7 +468,7 @@ struct
 	   let ms = make_ms m_name parameters rettype in
 	     add_to_workset p (cs,ms)
 	) calls
-    
+
   let iter_workset p =
     let tail = Wlist.tail p.workset
     in
@@ -531,7 +531,7 @@ struct
 	   then add_to_workset p (cs,ms))
 	entrypoints;
       p
-	
+
   let parse_program entrypoints native_stubs classpath =
     let classpath = Javalib.class_path classpath in
     let p = new_program_cache entrypoints native_stubs classpath in
@@ -581,7 +581,7 @@ let static_interface_lookup virtual_lookup_map interfaces_map cs ms =
 
 let static_special_lookup special_lookup_map cs ccs cms =
   ClassMethMap.find (ccs,cms) (ClassMap.find cs special_lookup_map)
-    
+
 let static_lookup_method p :
     class_name -> method_signature -> invoke -> ClassMethodSet.t =
   let virtual_lookup_map = p.Program.static_virtual_lookup

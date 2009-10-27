@@ -7,14 +7,14 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -52,10 +52,10 @@ let gen_opening_tag ?(iscustom=true) tagname attributes =
     ^ (if tag_attributes <> "" then " " else "")
     ^ tag_attributes
     ^ (if iscustom then "" else " /") ^ ">"
-    
+
 let gen_closing_tag tagname =
   "</" ^ tagname ^ ">"
-    
+
 let gen_custom_tag tagname attributes htmltree =
   let opening_tag = gen_opening_tag tagname attributes
   and closing_tag = gen_closing_tag tagname in
@@ -69,7 +69,7 @@ let gen_span htmltree attributes =
 
 let gen_titled_span htmltree attributes title =
   gen_custom_tag "span" (attributes @ ["title",title]) htmltree
-  
+
 let gen_div htmltree attributes =
   gen_custom_tag "div" attributes htmltree
 
@@ -121,7 +121,7 @@ let gen_hidden_list hlist =
       ) hlist in
     gen_custom_tag "ul" [("class",clickable_class)] ullist
 
-type param = | SimpleParam of html_tree list 
+type param = | SimpleParam of html_tree list
 	     | DynamicParam of (html_tree list) * ((html_tree list) list)
 
 let gen_inst pp inst prm annots =
@@ -174,7 +174,7 @@ let gen_field anchor_name field_signature annots =
     gen_div (add_anchor anchor_name "" field_body) [("class",field_class)]
 
 let gen_class anchor_name classname annots content =
-  let class_name = gen_div classname [("class",classname_class)] in 
+  let class_name = gen_div classname [("class",classname_class)] in
   let class_body = (class_name :: (gen_annots annots) :: content) in
     gen_div (add_anchor anchor_name "" class_body)
       [("class", class_class)]
@@ -217,7 +217,7 @@ type info =
 	  other attributes of the class. *)
       p_field : class_name -> field_signature -> string list;
       (** Prints field information that is printed along with the corresponding
-	  field. *)  
+	  field. *)
       p_method : class_name -> method_signature -> string list;
       (** Prints method information that is printed inside the method,
 	  along with other attributes of the method. *)
@@ -280,7 +280,7 @@ let get_relative_file fromclass toclass =
   and p2 = cn_package toclass
   and c = cn_simple_name toclass  in
     (get_relative_path p1 p2) ^ c ^ ".html"
-      
+
 let rec valuetype2html program t currentclass =
   match t with
     | TBasic _ -> [PCData (JPrint.value_type t)]
@@ -329,7 +329,7 @@ let fs2anchorname cs fs =
   let fdesc = fs_type fs in
   let fstype2string = type2anchorstring fdesc in
     (cn2anchorname cs) ^ ":" ^ fname ^ ":" ^ fstype2string
-      
+
 let ms2anchorname cs ms =
   let mname = ms_name ms in
   let mparameters = ms_args ms in
@@ -392,7 +392,7 @@ let methodcallers2html cs ms info =
 	(fun (ccs,cms) ->
 	   let anchor = ms2anchorname ccs cms in
 	   let href = (get_relative_file cs ccs) ^ "#" ^ anchor in
-	     make_methodsignature2html ccs cms 
+	     make_methodsignature2html ccs cms
 	       (fun name mssimple msstr ->
 		  [gen_titled_hyperlink href (name ^ "." ^ mssimple) msstr]
 	       )
@@ -564,7 +564,7 @@ let opcodeparam2param program cs ms pp op prmstr =
 	    SimpleParam ((PCData prm)
 			 :: match signature with
 			   | None -> []
-			   | Some s -> 
+			   | Some s ->
 			       (PCData " : ")
 			       :: (valuetype2html program s cs)
 			)
@@ -651,7 +651,7 @@ let css = "(* CSS *)"
 let js = "function showInfoList(e){
     var siblings = e.parentNode.childNodes;
     var len = siblings.length;
-    
+
     for(var i = 0; i < len; i++){
         var sibling = siblings[i];
     	if (sibling.nodeName == \"UL\"

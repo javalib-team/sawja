@@ -8,25 +8,25 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
 open Genlex
-  
+
 type jmethod = { m_type : string;
 		 m_class : string;
 		 m_name : string;
 		 m_signature : string
 	       }
-    
+
 let jmethod_compare m1 m2 =
   if (m1.m_type = m2.m_type) then
     if (m1.m_class = m2.m_class) then
@@ -36,38 +36,38 @@ let jmethod_compare m1 m2 =
       else compare m1.m_name m2.m_name
     else compare m1.m_class m2.m_class
   else compare m1.m_type m2.m_type
-    
+
 module ClassSignatureSet = Set.Make(
   struct
     type t = string
     let compare = compare
   end)
-  
+
 module MethodSet = Set.Make(
   struct
     type t = jmethod
     let compare = jmethod_compare
   end)
-  
+
 module MethodMap = Map.Make(
   struct
     type t = jmethod
     let compare = jmethod_compare
   end)
-  
+
 module StringMap = Map.Make(
   struct
     type t = string
     let compare = compare
   end)
-  
+
 type native_method_info = { native_alloc : ClassSignatureSet.t;
 			    native_calls : MethodSet.t }
-    
+
 type native_info = native_method_info MethodMap.t
-    
+
 let keywords = ["{"; "}"]
-  
+
 let rec parse_method_attrs expr =
   match expr with parser
     | [< 'Ident "type"; 'Ident "="; 'String mtype;
@@ -83,13 +83,13 @@ let rec parse_method_attrs expr =
 	 p = parse_method_attrs >] ->
 	StringMap.add "signature" msign p
     | [< >] -> StringMap.empty
-	
+
 let rec parse_native_alloc expr =
   match expr with parser
     | [< 'String class_signature; allocated_classes = parse_native_alloc >] ->
 	ClassSignatureSet.add class_signature allocated_classes
     | [< >] -> ClassSignatureSet.empty
-	
+
 let rec parse_native_calls expr =
   match expr with parser
     | [< 'Ident "Method"; 'Kwd "{"; method_attrs = parse_method_attrs;
@@ -104,7 +104,7 @@ let rec parse_native_calls expr =
 			m_signature = m_signature } in
 	  MethodSet.add jmethod native_calls
     | [< >] -> MethodSet.empty
-	
+
 let rec parse_native_alloc_calls method_attrs native_info expr =
   let empty_method_info = { native_alloc = ClassSignatureSet.empty;
 			    native_calls = MethodSet.empty } in
@@ -145,7 +145,7 @@ let rec parse_native_alloc_calls method_attrs native_info expr =
 	  if (MethodMap.mem jmethod native_info) then
 	    native_info
 	  else MethodMap.add jmethod empty_method_info native_info
-	  
+
 let rec parse_native_info_stream native_info expr =
   match expr with parser
     | [< 'Ident "Method"; 'Kwd "{";
@@ -153,7 +153,7 @@ let rec parse_native_info_stream native_info expr =
 	 'Kwd "{"; new_native_info = parse_native_alloc_calls attrs native_info;
 	 'Kwd "}" >] -> parse_native_info_stream new_native_info expr
     | [< _ = Stream.empty >] -> native_info
-	
+
 let parse_native_info_file file =
   let native_info = MethodMap.empty in
   let ic = open_in file in
@@ -162,16 +162,16 @@ let parse_native_info_file file =
     (make_lexer keywords stream) in
     close_in ic;
     new_native_info
-      
+
 let indent_size = 4
 let indent = String.make indent_size ' '
-  
+
 let string_of_method jmethod =
   "Method{type=\"" ^ jmethod.m_type
   ^ "\" class=\"" ^ jmethod.m_class
   ^ "\" name=\"" ^ jmethod.m_name
   ^ "\" signature=\"" ^ jmethod.m_signature ^ "\"}"
-    
+
 let fprint_native_info native_info file =
   let oc = open_out file in
     MethodMap.iter
@@ -199,7 +199,7 @@ let fprint_native_info native_info file =
 	 Printf.fprintf oc "}\n\n";
       ) native_info;
     close_out oc
-      
+
 type t = native_info
 let make_t x = x
 
@@ -213,7 +213,7 @@ let get_native_methods info =
 	   methods := (jmethod.m_class,jmethod.m_name,jmethod.m_signature)
 	   :: !methods) info;
     List.rev !methods
-      
+
 let get_native_method_allocations (m_class,m_name,m_signature) info =
   let native_alloc =
     (MethodMap.find { m_type = "Native";
@@ -221,7 +221,7 @@ let get_native_method_allocations (m_class,m_name,m_signature) info =
 		      m_name = m_name;
 		      m_signature = m_signature } info).native_alloc in
     ClassSignatureSet.elements native_alloc
-      
+
 let get_native_method_calls (m_class,m_name,m_signature) info =
   let native_calls =
     (MethodMap.find { m_type = "Native";
@@ -231,7 +231,7 @@ let get_native_method_calls (m_class,m_name,m_signature) info =
     List.map (fun jmethod ->
 		(jmethod.m_class,jmethod.m_name,jmethod.m_signature)
 	     ) (MethodSet.elements native_calls)
-      
+
 let merge_native_info info1 info2 =
   MethodMap.fold
     (fun jmeth methinfo1 native_info ->
@@ -245,7 +245,7 @@ let merge_native_info info1 info2 =
 	   MethodMap.add jmeth new_methinfo native_info
        else
 	 MethodMap.add jmeth methinfo1 native_info) info1 info2
-    
+
 let merge_native_info_files file1 file2 =
   let info1 = parse_native_info_file file1
   and info2 = parse_native_info_file file2 in

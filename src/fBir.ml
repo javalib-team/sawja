@@ -8,7 +8,7 @@ include Cmn
 type binop =
   | ArrayLoad  of JBasics.jvm_array_type
   | Add of jvm_basic_type
-  | Sub of jvm_basic_type 
+  | Sub of jvm_basic_type
   | Mult of jvm_basic_type
   | Div of jvm_basic_type
   | Rem of jvm_basic_type
@@ -23,10 +23,10 @@ type expr =
   | Binop of binop * expr * expr
   | Field of var * class_name * field_signature
   | StaticField of class_name * field_signature
-	  
+
 let rec type_of_expr = function
   | Var (t,_) -> t
-  | Field (_,_,f) 
+  | Field (_,_,f)
   | StaticField (_,f) -> fs_type f
   | Const i -> begin
       match i with
@@ -34,14 +34,14 @@ let rec type_of_expr = function
 	| `Class _
 	| `String _ -> TObject (TClass java_lang_object)
 	| `Byte _
-	| `Short _ 
+	| `Short _
 	| `Int _ -> TBasic `Int
 	| `Double _ -> TBasic `Double
 	| `Float _ -> TBasic `Float
 	| `Long  _ -> TBasic `Long
     end
-  | Unop (u,_) -> 
-      TBasic 
+  | Unop (u,_) ->
+      TBasic
 	(match u with
 	   | Neg t -> basic_to_num t
 	   | Conv c ->
@@ -50,10 +50,10 @@ let rec type_of_expr = function
 		  | I2F | L2F | D2F -> `Float
 		  | I2D | L2D | F2D -> `Double
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
-	   | ArrayLength 
+	   | ArrayLength
 	   | InstanceOf _ -> `Int)
   | Binop (ArrayLoad t,e,_) -> type_of_array_content t e
-  | Binop (b,_,_) -> 
+  | Binop (b,_,_) ->
       TBasic
       (match b with
 	 | ArrayLoad _ -> assert false
@@ -61,7 +61,7 @@ let rec type_of_expr = function
 	 | Sub t
 	 | Mult t
 	 | Div t
-	 | Rem t -> 
+	 | Rem t ->
 	     (match t with
 		| `Int2Bool -> `Int
 		| `Long -> `Long
@@ -72,7 +72,7 @@ let rec type_of_expr = function
 	 | CMP _ -> `Int)
 and type_of_array_content t e =
   match type_of_expr e with
-    | TObject (TArray t) -> t 
+    | TObject (TArray t) -> t
     | _ -> (* we use the type found in the OpArrayLoad argument *)
 	(match t with
 	   | `Int | `Short | `Char | `ByteBool -> TBasic `Int
@@ -85,7 +85,7 @@ type virtual_call_kind =
   | VirtualCall of object_type
   | InterfaceCall of class_name
 
-type check = 
+type check =
   | CheckNullPointer of expr
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
@@ -106,21 +106,21 @@ type instr =
   | New of var * class_name * value_type list * (expr list)
       (* var :=  class (parameters) *)
   | NewArray of var * value_type * (expr list)
-      (* var :=  value_type[e1]...[e2] *) 
-  | InvokeStatic 
+      (* var :=  value_type[e1]...[e2] *)
+  | InvokeStatic
       of var option * class_name * method_signature * expr list
   | InvokeVirtual
       of var option * var * virtual_call_kind * method_signature * expr list
   | InvokeNonVirtual
       of var option * var * class_name * method_signature * expr list
   | MonitorEnter of expr
-  | MonitorExit of expr 
+  | MonitorExit of expr
   | MayInit of class_name
-  | Check of check 
+  | Check of check
 
 let bcvar = Bir.bcvar
 
-exception Bad_Multiarray_dimension = Bir.Bad_Multiarray_dimension 
+exception Bad_Multiarray_dimension = Bir.Bad_Multiarray_dimension
 exception Bad_stack = Bir.Bad_stack
 exception Subroutine = Bir.Subroutine
 exception Content_constraint_on_Uninit = Bir.Content_constraint_on_Uninit
@@ -128,8 +128,8 @@ exception Type_constraint_on_Uninit = Bir.Type_constraint_on_Uninit
 exception NonemptyStack_backward_jump = Bir.NonemptyStack_backward_jump
 exception Uninit_is_not_expr = Bir.Uninit_is_not_expr
 
-let expr2var expr = 
-  match expr with 
+let expr2var expr =
+  match expr with
     | Bir.Var (_,v) -> v
     | _ -> assert false
 
@@ -154,32 +154,32 @@ let bir2fbir_binop = function
   | Bir.LUshr -> LUshr
   | Bir.CMP c -> CMP c
 
-let rec bir2fbir_expr e = match e with 
+let rec bir2fbir_expr e = match e with
   | Bir.Const c -> Const c
   | Bir.Var (t,v) -> Var (t,v)
   | Bir.Unop (unop, expr) -> Unop(unop, bir2fbir_expr expr)
-  | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2fbir_binop binop,bir2fbir_expr expr1,bir2fbir_expr expr2) 
+  | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2fbir_binop binop,bir2fbir_expr expr1,bir2fbir_expr expr2)
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
 
-let kind2kind = function 
-  | Bir.VirtualCall objt -> VirtualCall objt 
+let kind2kind = function
+  | Bir.VirtualCall objt -> VirtualCall objt
   | Bir.InterfaceCall cn -> InterfaceCall cn
 
-let check2check = function 
+let check2check = function
   | Bir.CheckNullPointer e -> CheckNullPointer (bir2fbir_expr e)
   | Bir.CheckArrayBound (e1, e2) -> CheckArrayBound (bir2fbir_expr e1, bir2fbir_expr e2)
   | Bir.CheckArrayStore (e1,e2) -> CheckArrayStore (bir2fbir_expr e1,  bir2fbir_expr e2)
-  | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2fbir_expr e) 
+  | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2fbir_expr e)
   | Bir.CheckCast (e,t) -> CheckCast (bir2fbir_expr e,t)
   | Bir.CheckArithmetic e -> CheckArithmetic (bir2fbir_expr e)
-      
-  
+
+
 let bir2fbir_instr = function
     Bir.Nop -> Nop
   | Bir.AffectVar (v,expr) -> AffectVar (v,bir2fbir_expr expr)
   | Bir.AffectArray(e1,e2,e3) -> AffectArray(expr2var e1, bir2fbir_expr e2, bir2fbir_expr e3)
-  | Bir.AffectField(e1,cn,fs,e2) -> AffectField(expr2var e1,cn,fs,bir2fbir_expr e2) 
+  | Bir.AffectField(e1,cn,fs,e2) -> AffectField(expr2var e1,cn,fs,bir2fbir_expr e2)
   | Bir.AffectStaticField(cn,fs,e) -> AffectStaticField(cn,fs,bir2fbir_expr e)
   | Bir.Goto i -> Goto i
   | Bir.Ifd ((cmp,e1,e2),i) -> Ifd ((cmp,bir2fbir_expr e1,bir2fbir_expr e2),i)
@@ -195,10 +195,10 @@ let bir2fbir_instr = function
   | Bir.MonitorExit e ->  MonitorExit (bir2fbir_expr e)
   | Bir.MayInit cn -> MayInit cn
   | Bir.Check c -> Check (check2check c)
-      
+
 type t = {
-  f_params : (value_type * var) list; 
-  f_code : (int * instr list) list; 
+  f_params : (value_type * var) list;
+  f_code : (int * instr list) list;
   f_exc_tbl : JCode.exception_handler list;
   f_line_number_table : (int * int) list option;
 }
@@ -215,12 +215,12 @@ let print_binop = function
   | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
   | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
   | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s" 
-      (match c with 
+  | CMP c -> Printf.sprintf "CMP %s"
+      (match c with
 	   DG -> "DG"
 	 | DL -> "DL"
 	 | FG -> "FG"
-	 | FL -> "FL" 
+	 | FL -> "FL"
 	 | L -> "L"
       )
 
@@ -230,7 +230,7 @@ let print_field ?(long_fields=false) c f =
   else (fs_name f)
 
 let bracket b s =
-  if b then s else Printf.sprintf "(%s)" s 
+  if b then s else Printf.sprintf "(%s)" s
 
 let rec print_expr first_level = function
   | Var (_,x) -> Bir.var_name_g x
@@ -239,7 +239,7 @@ let rec print_expr first_level = function
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2) 
+  | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level
@@ -248,7 +248,7 @@ let rec print_expr first_level = function
       (Printf.sprintf "%s*%s" (print_expr false e1) (print_expr false e2))
   | Binop (Div _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s/%s" (print_expr false e1) (print_expr false e2))
-  | Binop (op,e1,e2) -> Printf.sprintf "%s(%s,%s)" (print_binop op) (print_expr true e1) (print_expr true e2) 
+  | Binop (op,e1,e2) -> Printf.sprintf "%s(%s,%s)" (print_binop op) (print_expr true e1) (print_expr true e2)
 
 let print_cmp  (c,e1,e2) =
   match c with
@@ -271,28 +271,28 @@ let print_instr = function
   | Throw e -> Printf.sprintf "throw %s" (print_expr false e)
   | Return None -> Printf.sprintf "return"
   | Return (Some e) -> Printf.sprintf "return %s" (print_expr false e)
-  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_expr true) le) 
-  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr true e)) le) 
-  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeVirtual (r,x,_,ms,le) -> 
+  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_expr true) le)
+  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr true e)) le)
+  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le)
+  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le)
+  | InvokeVirtual (r,x,_,ms,le) ->
       Printf.sprintf "%s%s.%s(%s)"
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(var_name_g x) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeNonVirtual (r,x,kd,ms,le) -> 
+	(var_name_g x) (ms_name ms) (print_list_sep "," (print_expr true) le)
+  | InvokeNonVirtual (r,x,kd,ms,le) ->
       Printf.sprintf "%s%s.%s.%s(%s)"
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(var_name_g x) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," (print_expr true) le) 
+	(var_name_g x) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," (print_expr true) le)
   | MonitorEnter e -> Printf.sprintf "monitorenter(%s)" (print_expr true e)
   | MonitorExit e -> Printf.sprintf "monitorexit(%s)" (print_expr true e)
   | MayInit c -> Printf.sprintf "mayinit %s" (JPrint.class_name c)
   | Check c ->
       begin
-	match c with 
+	match c with
 	    CheckNullPointer e -> Printf.sprintf "notnull %s" (print_expr true e)
 	  | CheckArrayBound (a,i) -> Printf.sprintf "checkbound %s[%s]"  (print_expr true a) (print_expr true i)
 	  | CheckArrayStore (a,v) -> Printf.sprintf "checkstore %s[] <- %s"  (print_expr true a) (print_expr true v)
@@ -309,15 +309,15 @@ let rec print_code_intra = function
   | [] -> []
   | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
 
-let print_fbir_intra m = 
+let print_fbir_intra m =
   print_code_intra m.f_code
 
 let rec print_code = function
   | [] -> []
-  | (pc,instrs)::q -> 
-      let strl = (print_list_sep_list "     " print_instr instrs) in 
-      let first = 
-	match strl with 
+  | (pc,instrs)::q ->
+      let strl = (print_list_sep_list "     " print_instr instrs) in
+      let first =
+	match strl with
 	  | [] -> [(Printf.sprintf "%3d: " pc )]
 	  | s::m -> (Printf.sprintf "%3d: %s" pc ) s :: m
       in
@@ -325,17 +325,17 @@ let rec print_code = function
 
 let print m = print_code m.f_code
 
-let bir2fbir  bir = 
+let bir2fbir  bir =
   { f_params = bir.params ;
     f_code = List.map (fun (i,instrl) -> (i, List.map bir2fbir_instr instrl)) bir.code  ;
     f_exc_tbl = bir.exc_tbl ;
     f_line_number_table = bir.line_number_table ;
   }
 
-(** Concrete method transformation. *) 
+(** Concrete method transformation. *)
 let transform ?(compress=false) j_m j_code =
-  let code = Bir.transform_flat ~compress:compress j_m j_code in 
+  let code = Bir.transform_flat ~compress:compress j_m j_code in
     bir2fbir code
-      
-      
-  
+
+
+

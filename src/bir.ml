@@ -9,14 +9,14 @@ include Cmn
 type binop =
   | ArrayLoad of JBasics.jvm_array_type
   | Add of jvm_basic_type
-  | Sub of jvm_basic_type 
+  | Sub of jvm_basic_type
   | Mult of jvm_basic_type
   | Div of jvm_basic_type
   | Rem of jvm_basic_type
   | IShl | IShr  | IAnd | IOr  | IXor | IUshr
   | LShl | LShr | LAnd | LOr | LXor | LUshr
   | CMP of comp
-      
+
 type expr =
   | Const of const
   | Var of value_type * var
@@ -24,8 +24,8 @@ type expr =
   | Binop of binop * expr * expr
   | Field of expr * class_name * field_signature
   | StaticField of class_name * field_signature
-	  
-type opexpr =  
+
+type opexpr =
   | Uninit of class_name * int
   | E of expr
 
@@ -34,7 +34,7 @@ type virtual_call_kind =
   | VirtualCall of object_type
   | InterfaceCall of class_name
 
-type check = 
+type check =
   | CheckNullPointer of expr
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
@@ -55,9 +55,9 @@ type instr =
   | New of var * class_name * value_type list * (expr list)
       (* var :=  class (parameters) *)
   | NewArray of var * value_type * (expr list)
-      (* var :=  value_type[e1]...[e2] *) 
+      (* var :=  value_type[e1]...[e2] *)
       (* value_type is the type of the array content *)
-  | InvokeStatic 
+  | InvokeStatic
       of var option * class_name * method_signature * expr list
   | InvokeVirtual
       of var option * expr * virtual_call_kind * method_signature * expr list
@@ -66,7 +66,7 @@ type instr =
   | MonitorEnter of expr
   | MonitorExit of expr
   | MayInit of class_name
-  | Check of check 
+  | Check of check
 
 type t = {
   params : (value_type * var) list;
@@ -79,7 +79,7 @@ type t = {
 (* For stack type inference only *)
 type op_size = Op32 | Op64
 
-(************* PRINT ************)      
+(************* PRINT ************)
 
 let print_binop = function
   | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
@@ -92,15 +92,15 @@ let print_binop = function
   | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
   | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
   | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s" 
-      (match c with 
+  | CMP c -> Printf.sprintf "CMP %s"
+      (match c with
 	   DG -> "DG"
 	 | DL -> "DL"
 	 | FG -> "FG"
-	 | FL -> "FL" 
+	 | FL -> "FL"
 	 | L -> "L"
       )
-	   
+
 let rec print_list_sep_rec sep pp = function
   | [] -> ""
   | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
@@ -128,7 +128,7 @@ let print_field ?(long_fields=false) c f =
   else (fs_name f)
 
 let bracket b s =
-  if b then s else Printf.sprintf "(%s)" s 
+  if b then s else Printf.sprintf "(%s)" s
 
 let rec print_expr first_level = function
   | Var (t,x) -> Printf.sprintf "%s:%s" (var_name_g x) (print_typ t)
@@ -146,7 +146,7 @@ let rec print_expr first_level = function
       (Printf.sprintf "%s*%s" (print_expr false e1) (print_expr false e2))
   | Binop (Div _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s/%s" (print_expr false e1) (print_expr false e2))
-  | Binop (op,e1,e2) -> Printf.sprintf "%s(%s,%s)" (print_binop op) (print_expr true e1) (print_expr true e2) 
+  | Binop (op,e1,e2) -> Printf.sprintf "%s(%s,%s)" (print_binop op) (print_expr true e1) (print_expr true e2)
 
 let print_cmp  (c,e1,e2) =
   match c with
@@ -176,28 +176,28 @@ let print_instr = function
   | Throw e -> Printf.sprintf "throw %s" (print_expr false e)
   | Return None -> Printf.sprintf "return"
   | Return (Some e) -> Printf.sprintf "return %s" (print_expr false e)
-  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_expr true) le) 
-  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr true e)) le) 
-  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeVirtual (r,e1,_,ms,le) -> 
+  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_expr true) le)
+  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr true e)) le)
+  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le)
+  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr true) le)
+  | InvokeVirtual (r,e1,_,ms,le) ->
       Printf.sprintf "%s%s.%s(%s)"
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_expr false e1) (ms_name ms) (print_list_sep "," (print_expr true) le) 
-  | InvokeNonVirtual (r,e1,kd,ms,le) -> 
+	(print_expr false e1) (ms_name ms) (print_list_sep "," (print_expr true) le)
+  | InvokeNonVirtual (r,e1,kd,ms,le) ->
       Printf.sprintf "%s%s.%s.%s(%s)"
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_expr false e1) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," (print_expr true) le) 
+	(print_expr false e1) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," (print_expr true) le)
   | MonitorEnter e -> Printf.sprintf "monitorenter(%s)" (print_expr true e)
   | MonitorExit e -> Printf.sprintf "monitorexit(%s)" (print_expr true e)
   | MayInit c -> Printf.sprintf "mayinit %s" (JPrint.class_name c)
   | Check c ->
       begin
-	match c with 
+	match c with
 	    CheckNullPointer e -> Printf.sprintf "notnull %s" (print_expr true e)
 	  | CheckArrayBound (a,i) -> Printf.sprintf "checkbound %s[%s]"  (print_expr true a) (print_expr true i)
 	  | CheckArrayStore (a,v) -> Printf.sprintf "checkstore %s[] <- %s"  (print_expr true a) (print_expr true v)
@@ -214,15 +214,15 @@ let rec print_code_intra = function
   | [] -> []
   | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
 
-let print_bir_intra m = 
+let print_bir_intra m =
   print_code_intra m.code
 
 let rec print_code = function
   | [] -> []
-  | (pc,instrs)::q -> 
-      let strl = (print_list_sep_list "     " print_instr instrs) in 
-      let first = 
-	match strl with 
+  | (pc,instrs)::q ->
+      let strl = (print_list_sep_list "     " print_instr instrs) in
+      let first =
+	match strl with
 	  | [] -> [(Printf.sprintf "%3d: " pc )]
 	  | s::m -> (Printf.sprintf "%3d: %s" pc ) s :: m
       in
@@ -260,7 +260,7 @@ let rec param_acc n l acc =
   else
     match l with
       | [] -> raise Bad_stack
-      | x::q -> 
+      | x::q ->
 	  param_acc (n-1) q (x::acc)
 let param n l = param_acc n l []
 
@@ -268,7 +268,7 @@ exception Uninit_is_not_expr
 
 let topE = function
   | [] -> raise Bad_stack
-  | (Uninit _)::_ -> raise Uninit_is_not_expr 
+  | (Uninit _)::_ -> raise Uninit_is_not_expr
   | (E e)::_ -> e
 let getE = function
   | Uninit _ -> raise Uninit_is_not_expr
@@ -285,9 +285,9 @@ let convert_type = function
   | `Byte  | `Int2Bool  | `ByteBool
   | `Bool   | `Float   | `Object -> Op32
   | `Long  | `Double -> Op64
-      
+
 let convert_const = function
-  | `String _   | `Class _   | `ANull 
+  | `String _   | `Class _   | `ANull
   | `Byte _  | `Short _  | `Float _
   | `Int _ -> Op32
   | `Long _   | `Double _ -> Op64
@@ -313,7 +313,7 @@ let type_next = function
 		   | Op64 -> pop s)
   | OpDup -> (function s -> (top s)::s)
   | OpDupX1 -> (function s -> (top s)::(top (pop s))::(top s)::(pop2 s))
-  | OpDupX2 -> (function s -> 
+  | OpDupX2 -> (function s ->
      (match (top (pop s)) with
 	| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s)
 	| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s)))
@@ -321,11 +321,11 @@ let type_next = function
       (match (top s) with
 	 | Op32 -> (top s)::(top (pop s))::(top s)::(top (pop s))::(pop2 s)
 	 | Op64 -> (top s)::s))
-  | OpDup2X1 -> 
+  | OpDup2X1 ->
       (function s -> match (top s) with
 	 | Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(top (pop s))::(pop3 s)
 	 | Op64 ->  (top s)::(top (pop s))::(top s)::(pop2 s))
-  | OpDup2X2 -> 
+  | OpDup2X2 ->
       (function s -> match (top s) with
 	 | Op32 ->
 	     (match (top (pop2 s)) with
@@ -336,22 +336,22 @@ let type_next = function
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s)
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s)))
   | OpSwap -> (function s -> (top (pop s))::(top s)::(pop2 s))
-  | OpAdd k 
-  | OpSub k 
-  | OpMult k 
-  | OpDiv k 
+  | OpAdd k
+  | OpSub k
+  | OpMult k
+  | OpDiv k
   | OpRem k  -> (function s -> (convert_type k)::(pop2 s))
   | OpNeg k -> (function s -> (convert_type k)::(pop s))
   | OpIShl
   | OpIShr
   | OpIAnd
-  | OpIOr 
+  | OpIOr
   | OpIXor
   | OpIUShr -> (function s ->  Op32::(pop2 s))
   | OpLShr
   | OpLShl -> (function s ->  pop s)
   | OpLAnd
-  | OpLOr 
+  | OpLOr
   | OpLXor
   | OpLUShr -> (function s -> Op64::(pop2 s))
   | OpIInc (_,_) -> (function s -> s)
@@ -401,7 +401,7 @@ let type_next = function
   | OpMonitorEnter -> pop
   | OpMonitorExit -> pop
   | OpAMultiNewArray (_,b) -> (function s -> Op32::(popn b s))
-  | OpBreakpoint -> failwith "breakpoint"  
+  | OpBreakpoint -> failwith "breakpoint"
   | OpInvalid -> failwith "invalid"
 
 exception End_of_method
@@ -412,9 +412,9 @@ let next c i =
       !k
   with _ -> raise End_of_method
 
-let normal_next code i = 
+let normal_next code i =
   match code.c_code.(i) with
-  | OpIf (_, n) 
+  | OpIf (_, n)
   | OpIfCmp (_, n) -> [next code.c_code i;i+n]
   | OpGoto n -> [i+n]
   | OpJsr _
@@ -425,7 +425,7 @@ let normal_next code i =
       List.map (( + ) i) (default :: List.map snd npairs)
   | OpReturn _ -> []
   | OpThrow -> []
-  | OpBreakpoint -> failwith "breakpoint"  
+  | OpBreakpoint -> failwith "breakpoint"
   | OpInvalid -> failwith "invalid"
   | _ -> [next code.c_code i]
 
@@ -435,13 +435,13 @@ let compute_handlers code i =
   let handlers = List.map (fun e -> e.e_handler) handlers in
     handlers
 
-let succs code i = 
+let succs code i =
   (normal_next code i)@(compute_handlers code i)
 
 let mapi f g =
   let rec aux i = function
       [] -> []
-    | x::q -> (f i x)::(aux (g i x) q) 
+    | x::q -> (f i x)::(aux (g i x) q)
   in  aux 0
 
 module BCV = struct
@@ -462,8 +462,8 @@ type t = typ list * typ Ptmap.t
 
 let conv = function
   | TObject (TArray v) -> Array v
-  | TObject (TClass _) -> Object 
-  | TBasic jbt -> 
+  | TObject (TClass _) -> Object
+  | TBasic jbt ->
       (match jbt with
 	 | `Int
 	 | `Short
@@ -495,21 +495,21 @@ let print (s,l) =
 
 exception BadLoadType
 let to_value_type = function
-  | Top32 
+  | Top32
   | Top64
   | Top -> raise BadLoadType
   | Int -> TBasic `Int
   | Float -> TBasic `Float
   | Double -> TBasic `Double
   | Long -> TBasic `Long
-  | Bot 
+  | Bot
   | Object -> TObject (TClass java_lang_object)
   | Array v -> TObject (TArray v)
 
 
 exception GetNotFound
-let get l n = 
-  try Ptmap.find n l 
+let get l n =
+  try Ptmap.find n l
   with Not_found -> assert false
 
 let get l n =
@@ -517,8 +517,8 @@ let get l n =
   let _ = to_value_type res in
     res
 
-let upd l n t = 
-  Ptmap.add n t l 
+let upd l n t =
+  Ptmap.add n t l
 
 exception ArrayContent
 let array_content i = function
@@ -553,12 +553,12 @@ let is32_basic = function
   | `Long -> false
   | `Double -> false
 
-let rec leq_value_type v1 v2 = 
+let rec leq_value_type v1 v2 =
   match v1, v2 with
   | TObject v1, TObject v2 -> leq_object_type v1 v2
   | TBasic t1, TBasic t2 -> t1=t2
   | _, _ -> false
-and leq_object_type v1 v2 = 
+and leq_object_type v1 v2 =
   match v1, v2 with
   | TClass c1, TClass c2 -> cn_equal c1 c2 || cn_equal c2 java_lang_object
   | TArray v1, TArray v2 -> leq_value_type v1 v2
@@ -573,7 +573,7 @@ let (<=) x y =
       (match y with
 	 | Top64 -> x=Double || x=Long || x=Top64
 	 | Object -> (match x with Array _ -> true | _ -> false)
-	 | Top32 -> (match x with 
+	 | Top32 -> (match x with
 			 Array _ | Object
 		       | Int | Float | Top32-> true
 		       | _ -> false)
@@ -581,13 +581,13 @@ let (<=) x y =
 	 | _ -> false)
 
 (* v1 and v2 not ordered *)
-let rec lub_value_type v1 v2 = 
+let rec lub_value_type v1 v2 =
   match v1, v2 with
     | TObject v1, TObject v2 -> Some (TObject (lub_object_type v1 v2))
     | _, _ -> None
 and lub_object_type x y =
   match x, y with
-  | TArray v1, TArray v2 -> 
+  | TArray v1, TArray v2 ->
       (match lub_value_type v1 v2 with
 	 | None -> TClass java_lang_object
 	 | Some v -> TArray v)
@@ -600,26 +600,26 @@ let lub x y =
     | Int
     | Float
     | Object -> (match y with Top64 | Double | Long -> Top | _ -> Top32)
-    | Double 
+    | Double
     | Long -> (match y with Double | Long -> Top64 | _ -> Top)
-    | Array x -> 
+    | Array x ->
 	(match y with
-	     Array y -> 
+	     Array y ->
 	       (match lub_value_type x y with
 		  | None -> Object
 		  | Some v -> Array v)
 	   | Int | Float -> Top32
 	   | _ -> Top)
     | _ -> Top
-	
+
 let next i = function
   | OpNop -> (function (s,l) -> (s,l))
-  | OpConst x -> (fun (s,l) -> 
+  | OpConst x -> (fun (s,l) ->
 		    let c = match x with
 		      | `ANull -> Bot
 		      | `String _
 		      | `Class _ -> Object
-		      | `Byte _ 
+		      | `Byte _
 		      | `Short _
 		      | `Int _ -> Int
 		      | `Long _ -> Long
@@ -637,7 +637,7 @@ let next i = function
 		    | Op64 -> pop s), l)
   | OpDup -> (fun (s,l) -> (top s)::s, l)
   | OpDupX1 -> (fun (s,l) -> (top s)::(top (pop s))::(top s)::(pop2 s), l)
-  | OpDupX2 -> (fun (s,l) -> 
+  | OpDupX2 -> (fun (s,l) ->
      (match size (top (pop s)) with
 	| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s), l
 	| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s), l))
@@ -645,11 +645,11 @@ let next i = function
       (match size (top s) with
 	 | Op32 -> (top s)::(top (pop s))::(top s)::(top (pop s))::(pop2 s), l
 	 | Op64 -> (top s)::s, l))
-  | OpDup2X1 -> 
+  | OpDup2X1 ->
       (fun (s,l) -> match size (top s) with
 	 | Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(top (pop s))::(pop3 s), l
 	 | Op64 ->  (top s)::(top (pop s))::(top s)::(pop2 s), l)
-  | OpDup2X2 -> 
+  | OpDup2X2 ->
       (fun (s,l) -> match size (top s) with
 	 | Op32 ->
 	     (match size (top (pop2 s)) with
@@ -660,26 +660,26 @@ let next i = function
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s), l
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s), l))
   | OpSwap -> (fun (s,l) -> (top (pop s))::(top s)::(pop2 s), l)
-  | OpAdd k 
-  | OpSub k 
-  | OpMult k 
-  | OpDiv k 
+  | OpAdd k
+  | OpSub k
+  | OpMult k
+  | OpDiv k
   | OpRem k  -> (fun (s,l) -> (basic k)::(pop2 s), l)
   | OpNeg k -> (fun (s,l) -> (basic k)::(pop s), l)
   | OpIShl
   | OpIShr
   | OpIAnd
-  | OpIOr 
+  | OpIOr
   | OpIXor
   | OpIUShr -> (fun (s,l) ->  Int::(pop2 s), l)
   | OpLShr
   | OpLShl -> (fun (s,l) ->  pop s, l)
   | OpLAnd
-  | OpLOr 
+  | OpLOr
   | OpLXor
   | OpLUShr -> (fun (s,l) -> Long::(pop2 s), l)
-  | OpIInc (_,_) -> (fun (s,l) -> s,l) 
-  | OpI2L -> (fun (s,l) -> Long::(pop s), l)  
+  | OpIInc (_,_) -> (fun (s,l) -> s,l)
+  | OpI2L -> (fun (s,l) -> Long::(pop s), l)
   | OpI2F -> (fun (s,l) -> Float::(pop s), l)
   | OpI2D -> (fun (s,l) -> Double::(pop s), l)
   | OpL2I -> (fun (s,l) -> Int::(pop s), l)
@@ -724,20 +724,20 @@ let next i = function
   | OpMonitorEnter -> (fun (s,l) -> pop s,l)
   | OpMonitorExit -> (fun (s,l) -> pop s,l)
   | OpAMultiNewArray (t,b) -> (fun (s,l) -> (conv (TObject t))::(popn b s), l)
-  | OpBreakpoint -> failwith "breakpoint"  
+  | OpBreakpoint -> failwith "breakpoint"
   | OpInvalid -> failwith "invalid"
 
 let init cm =
   let rec aux i = function
       [] -> Ptmap.empty
-    | v::q -> 
+    | v::q ->
 	if convert_field_type v = Op32 then
 	  Ptmap.add i (conv v) (aux (i+1) q)
 	else
 	  Ptmap.add i (conv v) (aux (i+2) q)
   in
     if cm.cm_static then [], aux 0 (ms_args cm.cm_signature)
-    else [], Ptmap.add 0 Object (aux 1 (ms_args cm.cm_signature)) 
+    else [], Ptmap.add 0 Object (aux 1 (ms_args cm.cm_signature))
 
 let lub (s1,l1) (s2,l2) =
   (List.map2 lub s1 s2,Ptmap.merge lub l1 l2)
@@ -763,7 +763,7 @@ let print_result cm types code =
 	   (match types.(i) with None -> "NONE" | Some sl -> print sl)
 	   i (print_instr i op))
     code.c_code;
-  List.iter 
+  List.iter
     (fun e -> Printf.printf "    %s\n" (JPrint.exception_handler e))
     code.c_exc_tbl
 
@@ -771,21 +771,21 @@ let run verbose cm code =
   let rec array_fold f b t i =
     if i>=0 then f i t.(i) (array_fold f b t (i-1)) else b in
   let array_fold f b t = array_fold f b t ((Array.length t)-1) in
-  let ws = array_fold 
+  let ws = array_fold
 	     (fun i op ws -> if op=OpInvalid then ws else Ptset.add i ws)
 	     Ptset.empty code.c_code in
   let types : t option array = Array.make (Array.length code.c_code) None in
   let upd sl' ws i =
     match types.(i) with
       | None -> types.(i) <- Some sl'; Ptset.add i ws
-      | Some sl -> 
+      | Some sl ->
 	  let sl' = lub sl sl' in
 	    if sl=sl' then ws
 	    else (types.(i) <- Some sl'; Ptset.add i ws)
   in
   let rec loop ws =
     if Ptset.is_empty ws then ()
-    else 
+    else
       let i = Ptset.min_elt ws in
       let ws = Ptset.remove i ws in
       let sl = match types.(i) with Some sl -> sl | None -> assert false in
@@ -797,15 +797,15 @@ let run verbose cm code =
   in
     assert ((Array.length types)>0);
     types.(0) <- Some (init cm);
-    (try loop ws 
+    (try loop ws
      with
 	 GetNotFound -> Printf.printf "GET_NOT_FOUND !\n"; assert false
        | BadLoadType -> Printf.printf "BAD_LOAD_TYPE !\n"
        | ArrayContent -> assert false);
     if verbose then print_result cm types code;
-    (fun i -> 
+    (fun i ->
        match code.c_code.(i) with
-	 | OpLoad (_,n) -> 
+	 | OpLoad (_,n) ->
 	     (match types.(i) with
 		| Some (_, l) -> to_value_type (get l n)
 		| _ -> assert false)
@@ -813,7 +813,7 @@ let run verbose cm code =
 
 let run_dummy code i =
   match code.c_code.(i) with
-    | OpLoad (t,_) -> 
+    | OpLoad (t,_) ->
 	(match t with
 	   | `Long -> TBasic `Long
 	   | `Float -> TBasic `Float
@@ -825,7 +825,7 @@ let run_dummy code i =
 let run dummy ?(verbose=false) cm code =
   if dummy then run_dummy code
   else run verbose cm code
-	
+
 
 end
 
@@ -837,7 +837,7 @@ let basic_to_num = function
 
 let rec type_of_expr = function
   | Var (t,_) -> t
-  | Field (_,_,f) 
+  | Field (_,_,f)
   | StaticField (_,f) -> fs_type f
   | Const i -> begin
       match i with
@@ -845,14 +845,14 @@ let rec type_of_expr = function
 	| `Class _
 	| `String _ -> TObject (TClass java_lang_object)
 	| `Byte _
-	| `Short _ 
+	| `Short _
 	| `Int _ -> TBasic `Int
 	| `Double _ -> TBasic `Double
 	| `Float _ -> TBasic `Float
 	| `Long  _ -> TBasic `Long
     end
-  | Unop (u,_) -> 
-      TBasic 
+  | Unop (u,_) ->
+      TBasic
 	(match u with
 	   | Neg t -> basic_to_num t
 	   | Conv c ->
@@ -861,10 +861,10 @@ let rec type_of_expr = function
 		  | I2F | L2F | D2F -> `Float
 		  | I2D | L2D | F2D -> `Double
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
-	   | ArrayLength 
+	   | ArrayLength
 	   | InstanceOf _ -> `Int)
   | Binop (ArrayLoad t,e,_) -> type_of_array_content t e
-  | Binop (b,_,_) -> 
+  | Binop (b,_,_) ->
       TBasic
       (match b with
 	 | ArrayLoad _ -> assert false
@@ -872,7 +872,7 @@ let rec type_of_expr = function
 	 | Sub t
 	 | Mult t
 	 | Div t
-	 | Rem t -> 
+	 | Rem t ->
 	     (match t with
 		| `Int2Bool -> `Int
 		| `Long -> `Long
@@ -904,11 +904,11 @@ let rec remove_dim t n =
   let rec aux t n =
     match t with
       | TClass _ -> raise Bad_Multiarray_dimension (* bad dimension *)
-      | TArray t -> 
+      | TArray t ->
 	  if n=1 then t
 	  else match t with
 	    | TBasic _ -> raise Bad_Multiarray_dimension (* bad dimension *)
-	    | TObject t -> aux t (n-1) 
+	    | TObject t -> aux t (n-1)
   in aux t n
 
 let is_arrayload = function
@@ -917,7 +917,7 @@ let is_arrayload = function
 
 let is_in_expr test_var test_static test_field test_array =
   let rec aux expr =
-    match expr with 
+    match expr with
       | Const _ -> false
       | StaticField (c,f) -> test_static c f
       | Field (e,c,f) -> test_field c f || aux e
@@ -928,7 +928,7 @@ let is_in_expr test_var test_static test_field test_array =
 
 let var_in_expr test_var =
   let rec aux expr =
-    match expr with 
+    match expr with
       | Const _ -> None
       | StaticField _ -> None
       | Field (e,_,_) -> aux e
@@ -943,9 +943,9 @@ let var_in_expr test_var =
 
 let replace_in_expr test_var test_static var =
   let rec aux expr =
-    match expr with 
+    match expr with
       | Const _ -> expr
-      | StaticField (c,f) -> 
+      | StaticField (c,f) ->
 	  if test_static c f
 	  then Var (fs_type f,var)
 	  else expr
@@ -957,7 +957,7 @@ let replace_in_expr test_var test_static var =
 
 let is_in_stack test_var test_static =
   let rec aux stack =
-    match stack with 
+    match stack with
       | [] -> false
       | (E e)::_ when is_in_expr test_var test_static (fun _ _ -> false) false e -> true
       | _::s -> aux s
@@ -965,7 +965,7 @@ let is_in_stack test_var test_static =
 
 let var_in_stack test_var =
   let rec aux stack =
-    match stack with 
+    match stack with
       | [] -> None
       | (E e)::s -> begin
 	  match var_in_expr test_var  e with
@@ -977,7 +977,7 @@ let var_in_stack test_var =
 
 let replace_in_stack test_var test_static var =
   let rec aux stack =
-    match stack with 
+    match stack with
       | [] -> []
       | e'::s -> begin
 	  match e' with
@@ -1016,8 +1016,8 @@ let replace_static_in_stack c f y stack =
 
 let temp_in_expr acc expr =
   let rec aux acc expr =
-    match expr with 
-      | Const _ 
+    match expr with
+      | Const _
       | StaticField _ -> acc
       | Field (e,_,_) -> aux acc e
       | Var (_,x) ->
@@ -1037,13 +1037,13 @@ let temp_in_stack s =
 
 let fresh_in_stack s =
   let set = temp_in_stack s in
-  if Ptset.is_empty set then 0 
+  if Ptset.is_empty set then 0
   else (Ptset.max_elt set)  +1
 
 let clean test s instrs =
   let rec aux fresh = function
     | [] -> [], instrs, fresh
-    | e::s -> 
+    | e::s ->
 	let (s,instrs,fresh) = aux fresh s in
 	  match e with
 	    | Uninit _ -> e::s, instrs , fresh
@@ -1052,15 +1052,15 @@ let clean test s instrs =
 		  let x = TempVar fresh in
 		  let t = type_of_expr e in
 		    E (Var (t,x))::s, (AffectVar (x,e))::instrs, fresh +1
-		else 
+		else
 		  E e::s, instrs, fresh
   in
   let (s,instrs,_) = aux (fresh_in_stack s) s in
     (s,instrs)
 
-	  
+
 let to_addr3_binop mode binop s instrs =
-  match mode with 
+  match mode with
     | Addr3 -> 	let x = TempVar (fresh_in_stack s)
       in begin
 	let e = Binop (binop,topE (pop s),topE s) in
@@ -1068,14 +1068,14 @@ let to_addr3_binop mode binop s instrs =
       end
     | _ -> E (Binop (binop,topE (pop s),topE s))::(pop2 s), instrs
 
-let to_addr3_unop mode unop s instrs = 
-  match mode with 
+let to_addr3_unop mode unop s instrs =
+  match mode with
     | Addr3 -> let x = TempVar (fresh_in_stack s) in
 	begin
 	  let e = Unop (unop,topE s) in
 	    E (Var (type_of_expr e,x))::(pop s), instrs@[AffectVar(x,e)]
 	end
-    | _ ->E (Unop (unop,topE s))::(pop s), instrs 
+    | _ ->E (Unop (unop,topE s))::(pop s), instrs
 
 let make_tempvar s next_store =
   match next_store with
@@ -1087,45 +1087,45 @@ let make_tempvar s next_store =
       end
 
 
-(* Maps each opcode to a function of a stack that modifies its 
- * according to opcode, and returns grimp corresponding instructions if any 
+(* Maps each opcode to a function of a stack that modifies its
+ * according to opcode, and returns grimp corresponding instructions if any
  * tos : type operand stack
  * i : current index of bytecode
- * next : progression along instruction bytecode index 
- * mode : normal , flat , 3add 
+ * next : progression along instruction bytecode index
+ * mode : normal , flat , 3add
  *)
 let bc2bir_instr mode pp_var i bctype tos s next_store = function
   | OpNop -> s, []
   | OpConst x -> E (Const x)::s, []
   | OpLoad (_,n) ->
       E (Var (bctype i,OriginalVar (n,pp_var i n)))::s, []
-  | OpArrayLoad t -> 
+  | OpArrayLoad t ->
       let a = topE (pop s) in
-      let idx = topE s in 
+      let idx = topE s in
 	begin
-	match mode with 
+	match mode with
 	  | Addr3 ->
-	      let x = make_tempvar (pop2 s) next_store in 
-		E (Var (type_of_array_content t a,x))::(pop2 s), 
+	      let x = make_tempvar (pop2 s) next_store in
+		E (Var (type_of_array_content t a,x))::(pop2 s),
 		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]
 	  | _ ->
-	      E (Binop(ArrayLoad t,a,idx))::(pop2 s), 
+	      E (Binop(ArrayLoad t,a,idx))::(pop2 s),
 	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
 	end
   | OpStore (_,n) ->
       let y = OriginalVar(n,pp_var i n) in
 	begin
 	  match topE s with
-	    | Var (_,y') when var_equal y y' ->  (pop s,[]) 
-	    | _ -> 
+	    | Var (_,y') when var_equal y y' ->  (pop s,[])
+	    | _ ->
 		begin
 		  match is_var_in_stack y (pop s) with
 		    | Some t ->
 			let x = make_tempvar s None in
-			  replace_var_in_stack y x (pop s), 
+			  replace_var_in_stack y x (pop s),
 			  [AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
 		    | None ->
-			(pop s,[AffectVar (y,topE s)]) 
+			(pop s,[AffectVar (y,topE s)])
 		end
 	end
   | OpIInc (a,b) ->
@@ -1134,44 +1134,44 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 	  match is_var_in_stack a s with
 	    | Some t ->
 		let x = make_tempvar s None in
-		  replace_var_in_stack a x s, 
+		  replace_var_in_stack a x s,
 		  [AffectVar(x,Var (t,a));
 		   AffectVar (a,Binop(Add `Int2Bool,Var (TBasic `Int,a),Const (`Int (Int32.of_int b))))]
 	    | _ -> s,[AffectVar(a,Binop(Add `Int2Bool,Var (TBasic `Int,a),Const (`Int (Int32.of_int b))))]
 	end
-  | OpPutField (c, f) -> 
+  | OpPutField (c, f) ->
       let r = topE (pop s) in
 	clean (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
-  | OpArrayStore _ -> 
+  | OpArrayStore _ ->
       let v = topE s in
-      let a = topE (pop2 s) in	
+      let a = topE (pop2 s) in
       let idx = topE (pop s) in
-      let inss = [Check (CheckNullPointer a); 
-		  Check (CheckArrayBound (a,idx)); 
-		  Check (CheckArrayStore (a,v)); 
+      let inss = [Check (CheckNullPointer a);
+		  Check (CheckArrayBound (a,idx));
+		  Check (CheckArrayStore (a,v));
 		  AffectArray (a, idx, v)]
-      in clean is_array_in_expr (pop3 s) inss	
+      in clean is_array_in_expr (pop3 s) inss
   | OpPop -> pop s, []
-  | OpPop2 -> 
+  | OpPop2 ->
       (match (top tos) with
 	 | Op32 -> pop2 s, []
 	 | Op64 -> pop s, [])
   | OpDup -> (top s)::s,[]
   | OpDupX1 -> (top s)::(top (pop s))::(top s)::(pop2 s), []
-  | OpDupX2 -> 
+  | OpDupX2 ->
 	 (match (top (pop tos)) with
-	    | Op32 -> 
+	    | Op32 ->
 		(top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
 	    | Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[])
-  | OpDup2 -> 
+  | OpDup2 ->
       (match (top tos) with
 	 | Op32 -> (top s)::(top (pop s))::(top s)::(top (pop s))::(pop2 s),[]
 	 | Op64 -> (top s)::s,[])
-  | OpDup2X1 -> 
+  | OpDup2X1 ->
       (match (top tos) with
 	 | Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(top (pop s))::(pop3 s),[]
 	 | Op64 ->  (top s)::(top (pop s))::(top s)::(pop2 s),[])
-  | OpDup2X2 -> 
+  | OpDup2X2 ->
       (match (top tos) with
 	 | Op32 ->
 	     (match (top (pop2 tos)) with
@@ -1182,53 +1182,53 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[]))
   | OpSwap -> (top (pop s))::(top s)::(pop2 s),[]
-  | OpAdd k -> to_addr3_binop mode (Add k) s [] 
-  | OpSub k -> to_addr3_binop mode (Sub k) s [] 
-  | OpMult k -> to_addr3_binop mode (Mult k) s [] 
-  | OpDiv k -> let q = topE s in to_addr3_binop mode (Div k) s [Check (CheckArithmetic q)] 
-  | OpRem k -> let q = topE s in to_addr3_binop mode (Rem k) s [Check (CheckArithmetic q)]  
-  | OpNeg k -> to_addr3_unop mode (Neg k) s []  
-  | OpIShl ->  to_addr3_binop mode IShl s []  
-  | OpIShr ->  to_addr3_binop mode IShr s []  
-  | OpLShl ->  to_addr3_binop mode LShl s []  
-  | OpLShr -> to_addr3_binop mode LShr s []  
-  | OpIAnd -> to_addr3_binop mode IAnd s []  
-  | OpIOr -> to_addr3_binop mode IOr s []  
-  | OpIXor -> to_addr3_binop mode IXor s []  
-  | OpIUShr -> to_addr3_binop mode IUshr s []  
-  | OpLAnd -> to_addr3_binop mode LAnd s []  
-  | OpLOr -> to_addr3_binop mode LOr s []  
-  | OpLXor -> to_addr3_binop mode LXor s []  
-  | OpLUShr  -> to_addr3_binop mode LUshr s []  
-  | OpI2L -> to_addr3_unop mode (Conv I2L) s []  
-  | OpI2F -> to_addr3_unop mode (Conv I2F) s []  
-  | OpI2D ->to_addr3_unop mode (Conv I2D) s []  
-  | OpL2I ->to_addr3_unop mode (Conv L2I) s []  
-  | OpL2F ->to_addr3_unop mode (Conv L2F) s []  
-  | OpL2D ->to_addr3_unop mode (Conv L2D) s []  
-  | OpF2I ->to_addr3_unop mode (Conv F2I) s []  
-  | OpF2L ->to_addr3_unop mode (Conv F2L) s []  
-  | OpF2D ->to_addr3_unop mode (Conv F2D) s []  
-  | OpD2I ->to_addr3_unop mode (Conv D2I) s []  
-  | OpD2L ->to_addr3_unop mode (Conv D2L) s []  
-  | OpD2F ->to_addr3_unop mode (Conv D2F) s []  
-  | OpI2B ->to_addr3_unop mode (Conv I2B) s []  
-  | OpI2C ->to_addr3_unop mode (Conv I2C) s []  
-  | OpI2S ->to_addr3_unop mode (Conv I2S) s []  
-  | OpCmp op -> 
-      (match op with 
-	 | `DG -> to_addr3_binop mode (CMP DG) s [] 
-	 | `DL -> to_addr3_binop mode (CMP DL) s [] 
-	 | `FG -> to_addr3_binop mode (CMP FG) s [] 
-	 | `FL ->to_addr3_binop mode (CMP FL) s [] 
-	 | `L ->to_addr3_binop mode (CMP L) s [] 
-      )	
-  | OpIf ( x , n) ->  
-      let guard = 
+  | OpAdd k -> to_addr3_binop mode (Add k) s []
+  | OpSub k -> to_addr3_binop mode (Sub k) s []
+  | OpMult k -> to_addr3_binop mode (Mult k) s []
+  | OpDiv k -> let q = topE s in to_addr3_binop mode (Div k) s [Check (CheckArithmetic q)]
+  | OpRem k -> let q = topE s in to_addr3_binop mode (Rem k) s [Check (CheckArithmetic q)]
+  | OpNeg k -> to_addr3_unop mode (Neg k) s []
+  | OpIShl ->  to_addr3_binop mode IShl s []
+  | OpIShr ->  to_addr3_binop mode IShr s []
+  | OpLShl ->  to_addr3_binop mode LShl s []
+  | OpLShr -> to_addr3_binop mode LShr s []
+  | OpIAnd -> to_addr3_binop mode IAnd s []
+  | OpIOr -> to_addr3_binop mode IOr s []
+  | OpIXor -> to_addr3_binop mode IXor s []
+  | OpIUShr -> to_addr3_binop mode IUshr s []
+  | OpLAnd -> to_addr3_binop mode LAnd s []
+  | OpLOr -> to_addr3_binop mode LOr s []
+  | OpLXor -> to_addr3_binop mode LXor s []
+  | OpLUShr  -> to_addr3_binop mode LUshr s []
+  | OpI2L -> to_addr3_unop mode (Conv I2L) s []
+  | OpI2F -> to_addr3_unop mode (Conv I2F) s []
+  | OpI2D ->to_addr3_unop mode (Conv I2D) s []
+  | OpL2I ->to_addr3_unop mode (Conv L2I) s []
+  | OpL2F ->to_addr3_unop mode (Conv L2F) s []
+  | OpL2D ->to_addr3_unop mode (Conv L2D) s []
+  | OpF2I ->to_addr3_unop mode (Conv F2I) s []
+  | OpF2L ->to_addr3_unop mode (Conv F2L) s []
+  | OpF2D ->to_addr3_unop mode (Conv F2D) s []
+  | OpD2I ->to_addr3_unop mode (Conv D2I) s []
+  | OpD2L ->to_addr3_unop mode (Conv D2L) s []
+  | OpD2F ->to_addr3_unop mode (Conv D2F) s []
+  | OpI2B ->to_addr3_unop mode (Conv I2B) s []
+  | OpI2C ->to_addr3_unop mode (Conv I2C) s []
+  | OpI2S ->to_addr3_unop mode (Conv I2S) s []
+  | OpCmp op ->
+      (match op with
+	 | `DG -> to_addr3_binop mode (CMP DG) s []
+	 | `DL -> to_addr3_binop mode (CMP DL) s []
+	 | `FG -> to_addr3_binop mode (CMP FG) s []
+	 | `FL ->to_addr3_binop mode (CMP FL) s []
+	 | `L ->to_addr3_binop mode (CMP L) s []
+      )
+  | OpIf ( x , n) ->
+      let guard =
 	match x with
-	  | `NonNull -> (`Ne,topE s, Const `ANull) 
+	  | `NonNull -> (`Ne,topE s, Const `ANull)
 	  | `Null ->  (`Eq,topE s, Const `ANull)
-	  | `Eq | `Ge | `Gt | `Le | `Lt | `Ne as c   -> 
+	  | `Eq | `Ge | `Gt | `Le | `Lt | `Ne as c   ->
 	      begin
 		match topE s with
 		  | Binop (CMP _,e1,e2) -> (c,e1,e2)
@@ -1237,7 +1237,7 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
        in
       let target = i+n in
 	pop s, [Ifd (guard,target)]
-  | OpIfCmp (x, n) -> 
+  | OpIfCmp (x, n) ->
       let x = match x with
 	  `AEq | `IEq -> `Eq
 	| `ANe | `INe -> `Ne
@@ -1251,19 +1251,19 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
   | OpGoto n -> s, [Goto (n+i)]
   | OpJsr _ -> raise Subroutine
   | OpRet _ -> raise Subroutine
-  | OpTableSwitch (def,min,_,tbl) -> 
-      pop s, 
+  | OpTableSwitch (def,min,_,tbl) ->
+      pop s,
       (Array.fold_right
 		  (fun (guard,i) l -> (Ifd (guard,i))::l)
-		  (Array.mapi 
-		     (fun idx j -> 
+		  (Array.mapi
+		     (fun idx j ->
 			(`Eq,
 			 topE s,
 			 Const (`Int (Int32.add (Int32.of_int idx) min))),
 			j+i) tbl)
 		  [Goto (def+i)])
-  | OpLookupSwitch (def,pairs) -> 
-      pop s, 
+  | OpLookupSwitch (def,pairs) ->
+      pop s,
       (List.fold_right
 		  (fun (c,j) l -> (Ifd ((`Eq,topE s,Const (`Int c)),j+i))::l)
 		  pairs
@@ -1272,49 +1272,49 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
       (match k with
 	 | `Void -> [Return None]
 	 | _ -> [Return (Some (topE s))])
-  | OpGetField (c, f) -> 
+  | OpGetField (c, f) ->
       let r = topE s in
 	begin
-	  match mode with 
+	  match mode with
 	    | Normal -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)]
 	    | _ ->
 		let x = make_tempvar s next_store in
-		  E (Var (fs_type f,x))::(pop s), 
+		  E (Var (fs_type f,x))::(pop s),
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
 	end
   | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c]
-  | OpPutStatic (c, f) -> 
+  | OpPutStatic (c, f) ->
       if is_static_in_stack c f (pop s) then begin
 	let x = make_tempvar s None in
-	  replace_static_in_stack c f x (pop s), 
+	  replace_static_in_stack c f x (pop s),
 	[MayInit c;
 	 AffectVar(x,StaticField(c,f));
 	 AffectStaticField (c,f,topE s)]
-      end else 
+      end else
 	pop s, [AffectStaticField (c, f,topE s)]
-  | OpInvoke (x, ms) -> 
+  | OpInvoke (x, ms) ->
       begin
 	(match x with
-	   | `Static c -> 
+	   | `Static c ->
 	       (match ms_rtype ms with
-		  | None -> 
+		  | None ->
 		      clean is_heap_sensible_element_in_expr
-			(popn (List.length (ms_args ms)) s) 
+			(popn (List.length (ms_args ms)) s)
 			[InvokeStatic (None,c,ms,param (List.length  (ms_args ms)) s)]
 		  | Some t ->
 		      let x = make_tempvar s next_store in
 		      clean is_heap_sensible_element_in_expr
-			(E (Var (t,x))::(popn (List.length (ms_args ms)) s)) 
+			(E (Var (t,x))::(popn (List.length (ms_args ms)) s))
 			[InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)])
-	   | x -> 
+	   | x ->
 	       begin
 		 let popn_s = popn (List.length (ms_args ms)) s in
 		   (match top popn_s  with
 		      | Uninit (c,j) ->
 			  let x = make_tempvar s next_store in
 			  let e' = E (Var (TObject (TClass java_lang_object),x)) in
-			    clean is_heap_sensible_element_in_expr 
-			      (List.map 
+			    clean is_heap_sensible_element_in_expr
+			      (List.map
 				 (function e -> if e = Uninit (c,j) then e' else e)
 				 (pop popn_s))
 			      [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
@@ -1322,60 +1322,60 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 			  let nb_args = List.length (ms_args ms) in
 			  let s_next = pop popn_s in
 			  let this = topE popn_s in
-			  let ins target = 
+			  let ins target =
 			    begin match x with
 				| `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
-				| `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]  
+				| `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
 				| `Special c -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
-				| `Static _ -> assert false (* already treated above *) 
+				| `Static _ -> assert false (* already treated above *)
 			    end
 			  in
 			    (match ms_rtype ms with
-			       | None -> 
+			       | None ->
 				   clean is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
-			       | Some t -> 
-				   let y = make_tempvar s next_store in 
+			       | Some t ->
+				   let y = make_tempvar s next_store in
 				     clean is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
-			    )) 
+			    ))
 	       end)
 	end
   | OpNew c -> (Uninit (c,i))::s, [MayInit c]
-  | OpNewArray t -> 
+  | OpNewArray t ->
       let x = make_tempvar s next_store in
       let dim = topE s in
 	E (Var (TObject (TArray t),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
-  | OpArrayLength -> 
+  | OpArrayLength ->
       let a = topE s in begin
-	  match mode with 
-	    | Addr3 -> 
+	  match mode with
+	    | Addr3 ->
 		let x = make_tempvar s next_store in
 		  E (Var (TBasic `Int,x))::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))]
 	    | _ -> E (Unop (ArrayLength,a))::(pop s),[Check (CheckNullPointer a)]
 	end
-  | OpThrow -> 
+  | OpThrow ->
       let r = topE s in [], [Check (CheckNullPointer r); Throw r]
   | OpCheckCast t -> s, [Check (CheckCast (topE s,t))]
-  | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) s [] 
-  | OpMonitorEnter -> 
+  | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) s []
+  | OpMonitorEnter ->
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorEnter r]
-  | OpMonitorExit -> 
+  | OpMonitorExit ->
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorExit r]
-  | OpAMultiNewArray (cn,dim) -> 
+  | OpAMultiNewArray (cn,dim) ->
       let x = make_tempvar s next_store in
       let params = param dim s in
-	E (Var (TObject cn,x))::(popn dim s), 
+	E (Var (TObject cn,x))::(popn dim s),
 	(List.map (fun e -> Check (CheckNegativeArraySize e)) params)
 	@[NewArray (x,remove_dim cn dim,params)]
-  | OpBreakpoint -> failwith "breakpoint"  
+  | OpBreakpoint -> failwith "breakpoint"
   | OpInvalid -> failwith "invalid"
-      
+
 let is_jump_instr = function
-  | OpIfCmp _ 
+  | OpIfCmp _
   | OpTableSwitch _
-  | OpLookupSwitch _ 
-  | OpIf _ 
+  | OpLookupSwitch _
+  | OpIf _
   | OpGoto _ -> true
   | _ -> false
 
@@ -1395,13 +1395,13 @@ let para_assign pc succs stack =
     | e::q -> begin
 	match e with
 	  | Uninit _ -> aux (i+1) q
-	  | E e -> 
+	  | E e ->
 	      let (l1,l2) = aux (i+1) q in
 	      let x = BranchVar2 (pc,i) in
 	      let l = List.map (fun j -> AffectVar (BranchVar (j,i),Var (type_of_expr e,x))) succs in
 		AffectVar (x,e) :: l1, l @ l2
       end
-    in 
+    in
     let (l1,l2) = aux 0 stack in
       l1@l2
   else
@@ -1410,7 +1410,7 @@ let para_assign pc succs stack =
       | e::q -> begin
 	  match e with
 	    | Uninit _ -> aux (i+1) q
-	    | E e -> 
+	    | E e ->
 		let l = List.map (fun j -> AffectVar (BranchVar (j,i),e)) succs in
 		  l @ (aux (i+1) q)
 	end
@@ -1420,18 +1420,18 @@ let jump_stack pc' stack =
   let rec aux i = function
       [] -> []
     | e::q -> begin
-	match e with 
-	  | Uninit _ -> 
+	match e with
+	  | Uninit _ ->
 	      e :: (aux (i+1) q)
-	  | E e -> 
+	  | E e ->
 	      E (Var (type_of_expr e,BranchVar (pc',i))) :: (aux (i+1) q)
       end
   in aux 0 stack
-       
-let fold_ir f a ir = 
+
+let fold_ir f a ir =
   List.fold_left
     (fun s (pc,instrs) ->
-       List.fold_left 
+       List.fold_left
 	 (fun s ins -> f s pc ins)
 	 s instrs
     ) a ir
@@ -1441,29 +1441,29 @@ type tempvar_stats = {
   stat_nb_branchvar : int;
   stat_nb_branchvar2 : int;
 }
-    
+
 
 module SetInt2 = Set.Make(struct type t = int*int let compare = compare end)
 
-let make_tempvar_stats ir = 
-  let (nb_tempvar_branch,_) = 
+let make_tempvar_stats ir =
+  let (nb_tempvar_branch,_) =
     fold_ir
       (fun (n,s) _ ->
-	 function 
+	 function
 	   | (AffectVar (BranchVar (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
 	   | _ -> (n,s))
       (0,SetInt2.empty) ir in
-  let (nb_tempvar_branch2,_) = 
+  let (nb_tempvar_branch2,_) =
     fold_ir
       (fun (n,s) _ ->
-	 function 
+	 function
 	   | (AffectVar (BranchVar2 (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
 	   | _ -> (n,s))
       (0,SetInt2.empty) ir in
-  let (nb_tempvar_not_branch,_) = 
+  let (nb_tempvar_not_branch,_) =
     fold_ir
       (fun (n,s) _ ->
-	 function 
+	 function
 	   | (AffectVar (TempVar i,_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
 	   | _ -> (n,s))
       (0,Ptset.empty) ir in
@@ -1472,19 +1472,19 @@ let make_tempvar_stats ir =
       stat_nb_branchvar = nb_tempvar_branch;
       stat_nb_branchvar2 = nb_tempvar_branch2;
     }
-    
+
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
 
 
-let value_compare e1 e2 = 
-  match e1, e2 with 
+let value_compare e1 e2 =
+  match e1, e2 with
     | Var(_,x), Var(_,y) -> var_equal x y
     | _ -> e1 = e2
 
-let value_compare e1 e2 = 
-  match e1, e2 with 
+let value_compare e1 e2 =
+  match e1, e2 with
     | Uninit _, Uninit _ -> e1 = e2
     | E e1, E e2 -> value_compare e1 e2
     | _ -> false
@@ -1494,7 +1494,7 @@ let value_compare_stack s1 s2 =
 
 let bc2ir flat pp_var jump_target bctype code =
   let rec loop as_ts_jump ins ts_in as_in pc =
-    
+
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
       let next_pc = try next code.c_code pc with End_of_method -> pc in
@@ -1506,7 +1506,7 @@ let bc2ir flat pp_var jump_target bctype code =
     let (ts_in,as_in) =
       if jump_target.(pc) then
 	try MapPc.find pc as_ts_jump
-	with Not_found -> 
+	with Not_found ->
 	  (* no predecessor of pc have been visited before *)
 	  if List.exists (fun e -> pc = e.e_handler) code.c_exc_tbl then
 	    (* this is a handler point *)
@@ -1515,14 +1515,14 @@ let bc2ir flat pp_var jump_target bctype code =
 	    (* this is a back jump target *)
 	    ([],[])
       else (ts_in,as_in)
-    in 
+    in
     let ts_out = type_next code.c_code.(pc) ts_in in
     let (as_out,instrs) = bc2bir_instr flat pp_var pc bctype ts_in as_in next_store code.c_code.(pc)  in
-      
+
       (* fail on backward branchings on a non-empty stack *)
-      if List.length as_out>0 then  
+      if List.length as_out>0 then
 	if (List.exists (fun j -> j<pc) succs) then raise NonemptyStack_backward_jump;
-    
+
     let jump_succs = List.filter (fun i -> jump_target.(i)) succs in
     let branch_assigns = para_assign pc jump_succs as_out in
     let ins =
@@ -1531,36 +1531,36 @@ let bc2ir flat pp_var jump_target bctype code =
       else
 	(pc,instrs@branch_assigns)::ins
     in
-    let as_ts_jump =       
-      List.fold_left 
+    let as_ts_jump =
+      List.fold_left
 	(fun as_jump pc' ->
-	   try 
+	   try
 	     let (ts_jmp,as_jmp) = MapPc.find pc' as_jump in
-	       (* check constraint on expr uninit and jumping forward on a non empty stack 
+	       (* check constraint on expr uninit and jumping forward on a non empty stack
 		  all defined predecessor advice must match what is reached *)
 	       if (ts_jmp <> ts_out) then raise Type_constraint_on_Uninit ;
 	       let jmp_s =  jump_stack pc' as_out in
-		 if (not (value_compare_stack as_jmp jmp_s)) then 
+		 if (not (value_compare_stack as_jmp jmp_s)) then
 		   ( Printf.printf "\n %s\n" (string_of_int pc') ;
 		     Printf.printf "%s \n" (print_stackmap as_jmp) ;
 		     Printf.printf "%s \n" (print_stackmap jmp_s) ;
 		     assert false ) (*raise Content_constraint_on_Uninit*)
 		 else as_jump
-	   with Not_found -> 
+	   with Not_found ->
 	     (* when first advice for pc', no constraint to check. add the advice in the map *)
 	     let st = jump_stack pc' as_out in
 	       MapPc.add pc' (ts_out,st) as_jump)
 	as_ts_jump
 	jump_succs in
       try
-	loop as_ts_jump ins ts_out as_out (next code.c_code pc) 
+	loop as_ts_jump ins ts_out as_out (next code.c_code pc)
       with End_of_method ->  ins
-  in 
-    loop MapPc.empty [] [] [] 0 
-      
+  in
+    loop MapPc.empty [] [] [] 0
+
 let varname = Cmn.varname
 
-let search_name_localvar static code i x = 
+let search_name_localvar static code i x =
   if x=0 && (not static) then Some "this"
   else match JCode.get_local_variable_info x i code with
     | None ->  None
@@ -1574,8 +1574,8 @@ let compute_jump_target code =
     Array.iteri
       (fun i instr ->
 	 match instr with
-	   | OpIf (_, n) 
-	   | OpIfCmp (_, n) 
+	   | OpIf (_, n)
+	   | OpIfCmp (_, n)
 	   | OpGoto n -> jump_target.(i+n) <- true;
 	   | OpJsr _
 	   | OpRet _ -> raise Subroutine
@@ -1593,7 +1593,7 @@ let gen_params pp_var cm =
       (fun i t -> t, OriginalVar (i,pp_var 0 i))
       (fun i t -> match convert_field_type t with Op32 -> i+1 | Op64 -> i+2)
       (ms_args cm.cm_signature)
-  else 
+  else
     (TObject (TClass java_lang_object ), OriginalVar (0,pp_var 0 0))::
       (mapi
 	 (fun i t -> t, OriginalVar (i+1,pp_var 0 (i+1)))
@@ -1617,23 +1617,23 @@ let jcode2bir mode compress cm jcode =
     (*    Array.iteri
 	  (fun i op ->
 	  match op with
-	  OpLoad (_,x) 
-	  | OpStore (_,x) -> 
-	  Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i 
+	  OpLoad (_,x)
+	  | OpStore (_,x) ->
+	  Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i
 	  (match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
 	  | _ -> ()
 	  ) code.c_code; *)
   let pp_var = search_name_localvar cm.cm_static code in
   let jump_target = compute_jump_target code in
   let bctype = BCV.run ~verbose:true true cm code in
-  let res = bc2ir mode pp_var jump_target bctype code in 
+  let res = bc2ir mode pp_var jump_target bctype code in
     { params = gen_params pp_var cm;
       code = if compress then compress_ir (List.rev res) jump_target else (List.rev res);
       exc_tbl = code.c_exc_tbl;
       line_number_table = code.c_line_number_table;
       jump_target = jump_target }
-      
-let transform ?(compress=false) = jcode2bir Normal compress 
-let transform_flat ?(compress=false) = jcode2bir Flat compress 
-let transform_addr3 ?(compress=false) = jcode2bir Addr3 compress 
+
+let transform ?(compress=false) = jcode2bir Normal compress
+let transform_flat ?(compress=false) = jcode2bir Flat compress
+let transform_addr3 ?(compress=false) = jcode2bir Addr3 compress
 

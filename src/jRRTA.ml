@@ -8,14 +8,14 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -23,7 +23,7 @@ open JBasics
 open JCode
 open Javalib
 open JProgram
-  
+
 type vta_concrete_method =
     { c_method : jcode concrete_method;
       mutable c_has_been_parsed : bool;
@@ -37,7 +37,7 @@ type vta_concrete_method =
       mutable vta_instantiated_subclasses : jcode class_node ClassMap.t ClassMap.t;
       mutable vta_implemented_interfaces : jcode class_node ClassMap.t ClassMap.t
     }
-      
+
 type vta_program =
     { p : jcode program;
       rta_instantiated_classes : jcode class_node ClassMap.t;
@@ -48,10 +48,10 @@ type vta_program =
       mutable rta_instantiated_subclasses : jcode class_node ClassMap.t ClassMap.t;
       mutable rta_implemented_interfaces : jcode class_node ClassMap.t ClassMap.t
     }
-      
+
 let filter_subclasses sc classes =
   ClassMap.filter (fun c -> extends_class c sc) classes
-    
+
 let get_rta_instantiated_subclasses pvta c =
   let cs = c.c_info.c_name in
     try
@@ -62,7 +62,7 @@ let get_rta_instantiated_subclasses pvta c =
 	pvta.rta_instantiated_subclasses <-
 	  ClassMap.add cs classes pvta.rta_instantiated_subclasses;
 	classes
-	  
+
 let get_vta_instantiated_subclasses m c =
   let cs = c.c_info.c_name in
     try
@@ -73,7 +73,7 @@ let get_vta_instantiated_subclasses m c =
 	m.vta_instantiated_subclasses <-
 	  ClassMap.add cs classes m.vta_instantiated_subclasses;
 	classes
-	  
+
 let get_vta_method pvta cm =
   let cms = cm.cm_class_method_signature in
     try
@@ -93,13 +93,13 @@ let get_vta_method pvta cm =
 	      } in
 	pvta.methods <- ClassMethodMap.add cms m pvta.methods;
 	m
-	  
+
 let filter_classes_implementing_interface i classes =
   ClassMap.filter
     (fun c ->
        JControlFlow.implements_interface_or_subinterface_transitively c i
     ) classes
-    
+
 let get_rta_implemented_interfaces pvta i =
   let cs = i.i_info.i_name in
     try
@@ -110,7 +110,7 @@ let get_rta_implemented_interfaces pvta i =
 	pvta.rta_implemented_interfaces <-
 	  ClassMap.add cs classes pvta.rta_implemented_interfaces;
 	classes
-	  
+
 let get_vta_implemented_interfaces m i =
   let cs = i.i_info.i_name in
     try
@@ -121,7 +121,7 @@ let get_vta_implemented_interfaces m i =
 	m.vta_implemented_interfaces <-
 	  ClassMap.add cs classes m.vta_implemented_interfaces;
 	classes
-	  
+
 let update_invoke_virtual pvta m =
   ClassMethodMap.iter
     (fun ccms (cc,cms) ->
@@ -144,7 +144,7 @@ let update_invoke_virtual pvta m =
 	     ClassMethodMap.add ccms
 	     (ClassMethodSet.union mset rset) m.static_lookup_virtual
     ) m.virtual_calls
-    
+
 let update_invoke_interface pvta m =
   ClassMethodMap.iter
     (fun ccms (ci,cms) ->
@@ -167,7 +167,7 @@ let update_invoke_interface pvta m =
 	     ClassMethodMap.add ccms
 	     (ClassMethodSet.union mset rset) m.static_lookup_interface
     ) m.interface_calls
-    
+
 let rec value_type2class_nodes pvta v =
   match v with
     | TBasic _ -> ClassMap.empty
@@ -184,7 +184,7 @@ let rec value_type2class_nodes pvta v =
 		    | Interface i ->
 			get_rta_implemented_interfaces pvta i
 	      with Not_found -> assert false
-		    
+
 let parse_invoke pvta m cms =
   let rt = ms_rtype cms in
   let instantiated_classes =
@@ -194,19 +194,19 @@ let parse_invoke pvta m cms =
     m.vta_instantiated_classes <-
       ClassMap.merge
       (fun x _ -> x) instantiated_classes m.vta_instantiated_classes
-      
+
 let parse_invoke_virtual pvta m cc cms =
   parse_invoke pvta m cms;
   let ccms = make_cms (cc.c_info.c_name) cms in
     m.virtual_calls <-
       ClassMethodMap.add ccms (cc,cms) m.virtual_calls
-    
+
 let parse_invoke_interface pvta m ci cms =
   parse_invoke pvta m cms;
   let ccms = make_cms (ci.i_info.i_name) cms in
     m.interface_calls <-
       ClassMethodMap.add ccms (ci,cms) m.interface_calls
-    
+
 let add_clinit pvta ioc =
   try
     let clinit = get_method ioc clinit_signature in
@@ -218,23 +218,23 @@ let add_clinit pvta ioc =
 		(mvta.c_has_been_parsed <- true;
 		 Wlist.add (ioc,mvta) pvta.workset)
   with Not_found -> ()
-    
+
 let rec add_class_clinits pvta c =
   add_clinit pvta (Class c);
   match c.c_super with
     | None -> ()
     | Some sc -> add_class_clinits pvta sc
-	
+
 let parse_new m c =
   m.vta_instantiated_classes <-
     ClassMap.add c.c_info.c_name c m.vta_instantiated_classes
-    
+
 let parse_get pvta m fs =
   let instantiated_classes = value_type2class_nodes pvta fs in
     m.vta_instantiated_classes <-
       ClassMap.merge
       (fun x _ -> x) instantiated_classes m.vta_instantiated_classes
-      
+
 let parse_get_put_static pvta ioc fs =
   let rioc_list = JControlFlow.resolve_field fs ioc in
     List.iter
@@ -244,7 +244,7 @@ let parse_get_put_static pvta ioc fs =
 	    | Interface _ -> add_clinit pvta rioc
 	 )
       ) rioc_list
-      
+
 let parse_invoke_static pvta m cc cms =
   parse_invoke pvta m cms;
   let ccms = make_cms cc.c_info.c_name cms in
@@ -256,7 +256,7 @@ let parse_invoke_static pvta m cc cms =
 	(mvta.c_has_been_parsed <- true;
 	 Wlist.add (Class rc, mvta) pvta.workset);
       rc
-	
+
 let parse_invoke_special pvta m ioc cc cms =
   parse_invoke pvta m cms;
   let ccms = make_cms cc.c_info.c_name cms in
@@ -267,7 +267,7 @@ let parse_invoke_special pvta m ioc cc cms =
       if not(mvta.c_has_been_parsed) then
 	(mvta.c_has_been_parsed <- true;
 	 Wlist.add (Class rc, mvta) pvta.workset)
-	  
+
 let parse_method_parameters pvta m prms =
   List.iter
     (fun v ->
@@ -277,7 +277,7 @@ let parse_method_parameters pvta m prms =
 	   ClassMap.merge
 	   (fun x _ -> x) classes m.vta_instantiated_classes
     ) prms
-    
+
 let parse_vta_method pvta ioc m =
   pvta.pvta_parsed_methods <-
     ClassMethodMap.add m.c_method.cm_class_method_signature
@@ -310,7 +310,7 @@ let parse_vta_method pvta ioc m =
 			    | Class c -> c
 			 ) in
 		       parse_new m c;
-		       add_class_clinits pvta c		       
+		       add_class_clinits pvta c
 		 | OpGetField (_,fs) ->
 		     parse_get pvta m (fs_type fs)
 		 | OpGetStatic (cs,fs) ->
@@ -373,12 +373,12 @@ let parse_vta_method pvta ioc m =
 	    ) opcodes;
 	  update_invoke_virtual pvta m;
 	  update_invoke_interface pvta m
-	    
+
 let iter_workset pvta =
   let tail = Wlist.tail pvta.workset in
     Wlist.iter_to_head
       (fun (ioc,mvta) -> parse_vta_method pvta ioc mvta) tail
-      
+
 let static_lookup_method virtual_lookup_map interface_lookup_map
     static_lookup_map special_lookup_map cs ms invoke =
   (match invoke with
@@ -457,7 +457,7 @@ let parse_program_from_rta prta instantiated_classes csms =
 	    static_static_lookup_map
 	    static_special_lookup_map
       }
-	
+
 let default_entrypoints = JRTA.default_entrypoints
 
 let parse_program ?(other_entrypoints=default_entrypoints) classpath csms =

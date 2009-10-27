@@ -5,7 +5,7 @@ type t = {
   super_classes : class_name list ClassMap.t;
   classpath : class_path
 }
-    
+
 (* let make cp cns = *)
 
 let rec get_super_classes classpath map cn =
@@ -19,14 +19,14 @@ let rec get_super_classes classpath map cn =
 		(match c.c_super_class with
 		   | None -> ([],ClassMap.add cn [] map)
 		   | Some sc ->
-		       let (ss_classes,map) = 
+		       let (ss_classes,map) =
 			 get_super_classes classpath map sc in
 		       let super_classes = cn :: ss_classes in
 			 (super_classes,ClassMap.add cn super_classes map))
 	    | JInterface _ -> get_super_classes classpath map java_lang_object
       end
 
-let make classpath cn_list = 
+let make classpath cn_list =
   {
     super_classes = List.fold_left
 		      (fun map cn -> snd (get_super_classes classpath map cn))
