@@ -16,7 +16,7 @@ type const =
     | `Short of int
     | `String of string ]
 
-type var 
+type var
 
 (** Catched exception are store in [catch_var] *)
 val catch_var : var
@@ -27,25 +27,25 @@ val var_orig : var -> bool
 val var_equal : var -> var -> bool
 
 (** [var_name v] returns a string representation of the variable [v]. If the initial class was compiled using debug information, original variable names are build on this information *)
-val var_name : var -> string 
+val var_name : var -> string
 
 (** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
 val bcvar : int -> var
 
-type conv = I2L  | I2F  | I2D  
-  | L2I  | L2F  | L2D  
+type conv = I2L  | I2F  | I2D
+  | L2I  | L2F  | L2D
   | F2I  | F2L  | F2D
   | D2I  | D2L  | D2F
   | I2B  | I2C  | I2S
 
 type unop =
     Neg of JBasics.jvm_basic_type
-  | Conv of conv 
+  | Conv of conv
   | ArrayLength
   | InstanceOf of JBasics.object_type
 
-type comp = DG | DL | FG | FL | L 
-    
+type comp = DG | DL | FG | FL | L
+
 type binop =
     ArrayLoad of JBasics.jvm_array_type
   | Add of JBasics.jvm_basic_type
@@ -73,22 +73,22 @@ type virtual_call_kind =
   | VirtualCall of JBasics.object_type
   | InterfaceCall of JBasics.class_name
 
-type check = 
+type check =
   | CheckNullPointer of expr
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
   | CheckNegativeArraySize of expr
   | CheckCast of expr * JBasics.object_type
   | CheckArithmetic of expr
-      
+
 type instr =
   | AffectVar of var * expr (** x := e *)
-  | AffectArray of expr * expr * expr (** e1\[e2\] := e3 *) 
+  | AffectArray of expr * expr * expr (** e1\[e2\] := e3 *)
   | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr (** e1.<C:f> := e2 *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr  (** <C:f> := e *)
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
   | New of var * JBasics.class_name * JBasics.value_type list * expr list (** x := new C<sig>(e1,...,en) *)
-  | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)       
+  | NewArray of var * JBasics.value_type * expr list  (** x := new C\[e1\]...\[en\] *)
       (** value_type is the type of the array content *)
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list (** x :=  C.m<sig>(e1,...,en) or C.m<sig>(e1,...,en)  *)
   | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list (** x := e.m<sig>(e1,...,en) or e.m<sig>(e1,...,en)  *)
@@ -107,7 +107,7 @@ type exception_handler = {
   handler : int;
   catch_type : JBasics.class_name option
 }
-    
+
 type block = {
   label : int;
   instrs : instr list;
@@ -129,7 +129,7 @@ val print : ?explicit_exception:bool -> t -> string list
 (** {2 Bytecode transformation} *)
 
 (** JCode transformation, compressed or not *)
-val transform : ?compress:bool -> JCode.jcode  Javalib.concrete_method -> JCode.jcode  -> t 
+val transform : ?compress:bool -> JCode.jcode  Javalib.concrete_method -> JCode.jcode  -> t
 
 (** {2 Exceptions} *)
 

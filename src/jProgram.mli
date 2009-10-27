@@ -8,14 +8,14 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -53,7 +53,7 @@ and 'a interface_node = private {
   mutable i_children_classes : 'a class_node list
 }
 and 'a node =
-  | Interface of 'a interface_node 
+  | Interface of 'a interface_node
   | Class of 'a class_node
 
 (** [make_class_node c super interfaces] builds a class node given a jclass

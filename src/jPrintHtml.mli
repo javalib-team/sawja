@@ -7,14 +7,14 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see 
+ * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -38,7 +38,7 @@ type info = {
       other attributes of the class. *)
   p_field : class_name -> field_signature -> string list;
   (** Prints field information that is printed along with the corresponding
-      field. *)  
+      field. *)
   p_method : class_name -> method_signature -> string list;
   (** Prints method information that is printed inside the method,
       along with other attributes of the method. *)

@@ -16,7 +16,7 @@ type const =
       | `Short of int
       | `String of string ]
 
-type var 
+type var
 
 (** Catched exception are store in [catch_var] *)
 val catch_var : var
@@ -31,27 +31,27 @@ val var_equal : var -> var -> bool
 val var_name_debug : var -> string option
 
 (** [var_name v] returns a string representation of the variable [v]. *)
-val var_name : var -> string 
+val var_name : var -> string
 
 (** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
 val bcvar : int -> var
 
-type conv = I2L  | I2F  | I2D  
-  | L2I  | L2F  | L2D  
+type conv = I2L  | I2F  | I2D
+  | L2I  | L2F  | L2D
   | F2I  | F2L  | F2D
   | D2I  | D2L  | D2F
   | I2B  | I2C  | I2S
 
-(* numeric unary operator *)    
+(* numeric unary operator *)
 type unop =
     Neg of JBasics.jvm_basic_type
-  | Conv of conv 
+  | Conv of conv
   | ArrayLength
   | InstanceOf of JBasics.object_type
 
-type comp = DG | DL | FG | FL | L 
+type comp = DG | DL | FG | FL | L
 
-(* numeric binary operator *)    
+(* numeric binary operator *)
 type binop =
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
@@ -74,12 +74,12 @@ type expr =
 val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
-	  
+
 type virtual_call_kind =
   | VirtualCall of JBasics.object_type
   | InterfaceCall of JBasics.class_name
 
-type check = 
+type check =
   | CheckNullPointer of expr
   | CheckArrayBound of expr * expr
   | CheckArrayStore of expr * expr
@@ -90,7 +90,7 @@ type check =
 type instr =
   | Nop
   | AffectVar of var * expr
-  | AffectArray of var * expr * expr 
+  | AffectArray of var * expr * expr
   | AffectField of var * JBasics.class_name * JBasics.field_signature * expr
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
   | Goto of int
@@ -100,20 +100,20 @@ type instr =
   | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
   | NewArray of var * JBasics.value_type * (expr list)
       (* value_type is the type of the array content *)
-  | InvokeStatic 
+  | InvokeStatic
       of var option * JBasics.class_name * JBasics.method_signature * expr list
   | InvokeVirtual
       of var option * var * virtual_call_kind * JBasics.method_signature * expr list
   | InvokeNonVirtual
       of var option * var * JBasics.class_name * JBasics.method_signature * expr list
   | MonitorEnter of expr
-  | MonitorExit of expr 
+  | MonitorExit of expr
   | MayInit of JBasics.class_name
-  | Check of check 
+  | Check of check
 
 type t = {
-  f_params : (JBasics.value_type * var) list; 
-  f_code : (int * instr list) list; 
+  f_params : (JBasics.value_type * var) list;
+  f_code : (int * instr list) list;
   f_exc_tbl : JCode.exception_handler list;
   f_line_number_table : (int * int) list option;
 }
@@ -127,7 +127,7 @@ val print : t -> string list
 (** {2 Bytecode transformation} *)
 
 (** JCode transformation, compressed or not *)
-val transform : ?compress:bool -> JCode.jcode  Javalib.concrete_method -> JCode.jcode -> t 
+val transform : ?compress:bool -> JCode.jcode  Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 

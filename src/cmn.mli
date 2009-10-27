@@ -13,27 +13,27 @@ type const =
       | `Long of int64
       | `Short of int
       | `String of string ]
-	
+
 val print_const : const -> string
 
-val varname : string 
+val varname : string
 
 type var =
   | OriginalVar of int * string option  (* register number, name (debug if available) *)
-  | TempVar of int 
+  | TempVar of int
   | RetVar
   | BranchVar of int * int
   | BranchVar2 of int * int
-      
+
 (** Catched exception are store in [catch_var] *)
 val catch_var : var
 
 (** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program *)
 val var_orig : var -> bool
-  
+
 (** [var_name v] returns the string identifying the variable [v] *)
 val var_name : var -> string
-  
+
 (** [var_name_debug v] returns, if possible the original variable names of [v], if the initial class was compiled using debug information. *)
 val var_name_debug : var -> string option
 
@@ -43,18 +43,18 @@ val var_name_g : var -> string
 (** [var_equal v1 v2] tests the equality of variables [v1] and [v2] *)
 val var_equal : var -> var -> bool
 
-  
+
 type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S
 
 type unop =
     Neg of JBasics.jvm_basic_type
-  | Conv of conv 
+  | Conv of conv
   | ArrayLength
   | InstanceOf of JBasics.object_type
 
 val print_unop : unop -> string
 
-type comp =  DG | DL | FG | FL | L 
+type comp =  DG | DL | FG | FL | L
 
 val print_typ : JBasics.value_type -> string
 

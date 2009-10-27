@@ -2,12 +2,12 @@
 
 type t
 
-(** [make cp l] creates a new partial hierarchy using classpath [cp] 
+(** [make cp l] creates a new partial hierarchy using classpath [cp]
     and adding all class names found in the list [l]. *)
 val make : Javalib.class_path -> JBasics.class_name list -> t
 
 (** [add h cn] return an updated partial hierarchy where the class of
-    class name [cn] has been added to [h]. An interface name is handled 
+    class name [cn] has been added to [h]. An interface name is handled
     as [JBasics.java_lang_object]. *)
 val add : t -> JBasics.class_name -> t
 
