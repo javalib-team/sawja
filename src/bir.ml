@@ -1059,15 +1059,25 @@ let clean test s instrs =
     (s,instrs)
 
 
-let to_addr3_binop mode binop s instrs =
+let to_addr3_binop mode binop s =
   match mode with
     | Addr3 -> 	let x = TempVar (fresh_in_stack s)
-      in begin
-	let e = Binop (binop,topE (pop s),topE s) in
-	  E (Var (type_of_expr e,x))::(pop2 s), instrs@[AffectVar(x,e)]
-      end
-    | _ -> E (Binop (binop,topE (pop s),topE s))::(pop2 s), instrs
-
+      in 
+	(match binop with 
+	   | Div _ 
+	   | Rem _ ->
+	       begin
+		 let q = topE s in 
+		 let e = Binop (binop,topE (pop s),topE s) in
+		   E (Var (type_of_expr e,x))::(pop2 s), [Check (CheckArithmetic q) ; AffectVar(x,e)]
+	       end
+	   | _ ->
+	       begin
+		 let e = Binop (binop,topE (pop s),topE s) in
+		   E (Var (type_of_expr e,x))::(pop2 s), [AffectVar(x,e)]
+	       end)
+    | _ -> E (Binop (binop,topE (pop s), topE s))::(pop2 s), []
+	
 let to_addr3_unop mode unop s instrs =
   match mode with
     | Addr3 -> let x = TempVar (fresh_in_stack s) in
@@ -1182,49 +1192,49 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[]))
   | OpSwap -> (top (pop s))::(top s)::(pop2 s),[]
-  | OpAdd k -> to_addr3_binop mode (Add k) s []
-  | OpSub k -> to_addr3_binop mode (Sub k) s []
-  | OpMult k -> to_addr3_binop mode (Mult k) s []
-  | OpDiv k -> let q = topE s in to_addr3_binop mode (Div k) s [Check (CheckArithmetic q)]
-  | OpRem k -> let q = topE s in to_addr3_binop mode (Rem k) s [Check (CheckArithmetic q)]
-  | OpNeg k -> to_addr3_unop mode (Neg k) s []
-  | OpIShl ->  to_addr3_binop mode IShl s []
-  | OpIShr ->  to_addr3_binop mode IShr s []
-  | OpLShl ->  to_addr3_binop mode LShl s []
-  | OpLShr -> to_addr3_binop mode LShr s []
-  | OpIAnd -> to_addr3_binop mode IAnd s []
-  | OpIOr -> to_addr3_binop mode IOr s []
-  | OpIXor -> to_addr3_binop mode IXor s []
-  | OpIUShr -> to_addr3_binop mode IUshr s []
-  | OpLAnd -> to_addr3_binop mode LAnd s []
-  | OpLOr -> to_addr3_binop mode LOr s []
-  | OpLXor -> to_addr3_binop mode LXor s []
-  | OpLUShr  -> to_addr3_binop mode LUshr s []
-  | OpI2L -> to_addr3_unop mode (Conv I2L) s []
-  | OpI2F -> to_addr3_unop mode (Conv I2F) s []
-  | OpI2D ->to_addr3_unop mode (Conv I2D) s []
-  | OpL2I ->to_addr3_unop mode (Conv L2I) s []
-  | OpL2F ->to_addr3_unop mode (Conv L2F) s []
-  | OpL2D ->to_addr3_unop mode (Conv L2D) s []
-  | OpF2I ->to_addr3_unop mode (Conv F2I) s []
-  | OpF2L ->to_addr3_unop mode (Conv F2L) s []
-  | OpF2D ->to_addr3_unop mode (Conv F2D) s []
-  | OpD2I ->to_addr3_unop mode (Conv D2I) s []
-  | OpD2L ->to_addr3_unop mode (Conv D2L) s []
-  | OpD2F ->to_addr3_unop mode (Conv D2F) s []
-  | OpI2B ->to_addr3_unop mode (Conv I2B) s []
-  | OpI2C ->to_addr3_unop mode (Conv I2C) s []
-  | OpI2S ->to_addr3_unop mode (Conv I2S) s []
-  | OpCmp op ->
-      (match op with
-	 | `DG -> to_addr3_binop mode (CMP DG) s []
-	 | `DL -> to_addr3_binop mode (CMP DL) s []
-	 | `FG -> to_addr3_binop mode (CMP FG) s []
-	 | `FL ->to_addr3_binop mode (CMP FL) s []
-	 | `L ->to_addr3_binop mode (CMP L) s []
-      )
-  | OpIf ( x , n) ->
-      let guard =
+  | OpAdd k -> to_addr3_binop mode (Add k) s
+  | OpSub k -> to_addr3_binop mode (Sub k) s 
+  | OpMult k -> to_addr3_binop mode (Mult k) s 
+  | OpDiv k ->  to_addr3_binop mode (Div k) s
+  | OpRem k -> to_addr3_binop mode (Rem k) s 
+  | OpNeg k -> to_addr3_unop mode (Neg k) s []  
+  | OpIShl ->  to_addr3_binop mode IShl s 
+  | OpIShr ->  to_addr3_binop mode IShr s
+  | OpLShl ->  to_addr3_binop mode LShl s
+  | OpLShr -> to_addr3_binop mode LShr s 
+  | OpIAnd -> to_addr3_binop mode IAnd s 
+  | OpIOr -> to_addr3_binop mode IOr s
+  | OpIXor -> to_addr3_binop mode IXor s 
+  | OpIUShr -> to_addr3_binop mode IUshr s
+  | OpLAnd -> to_addr3_binop mode LAnd s
+  | OpLOr -> to_addr3_binop mode LOr s 
+  | OpLXor -> to_addr3_binop mode LXor s 
+  | OpLUShr  -> to_addr3_binop mode LUshr s 
+  | OpI2L -> to_addr3_unop mode (Conv I2L) s []  
+  | OpI2F -> to_addr3_unop mode (Conv I2F) s []  
+  | OpI2D ->to_addr3_unop mode (Conv I2D) s []  
+  | OpL2I ->to_addr3_unop mode (Conv L2I) s []  
+  | OpL2F ->to_addr3_unop mode (Conv L2F) s []  
+  | OpL2D ->to_addr3_unop mode (Conv L2D) s []  
+  | OpF2I ->to_addr3_unop mode (Conv F2I) s []  
+  | OpF2L ->to_addr3_unop mode (Conv F2L) s []  
+  | OpF2D ->to_addr3_unop mode (Conv F2D) s []  
+  | OpD2I ->to_addr3_unop mode (Conv D2I) s []  
+  | OpD2L ->to_addr3_unop mode (Conv D2L) s []  
+  | OpD2F ->to_addr3_unop mode (Conv D2F) s []  
+  | OpI2B ->to_addr3_unop mode (Conv I2B) s []  
+  | OpI2C ->to_addr3_unop mode (Conv I2C) s []  
+  | OpI2S ->to_addr3_unop mode (Conv I2S) s []  
+  | OpCmp op -> 
+      (match op with 
+	 | `DG -> to_addr3_binop mode (CMP DG) s 
+	 | `DL -> to_addr3_binop mode (CMP DL) s 
+	 | `FG -> to_addr3_binop mode (CMP FG) s 
+	 | `FL ->to_addr3_binop mode (CMP FL) s 
+	 | `L ->to_addr3_binop mode (CMP L) s 
+      )	
+  | OpIf ( x , n) ->  
+      let guard = 
 	match x with
 	  | `NonNull -> (`Ne,topE s, Const `ANull)
 	  | `Null ->  (`Eq,topE s, Const `ANull)
@@ -1282,7 +1292,15 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 		  E (Var (fs_type f,x))::(pop s),
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
 	end
-  | OpGetStatic (c, f) -> E (StaticField (c, f))::s, [MayInit c]
+  | OpGetStatic (c, f) ->
+      begin
+	  match mode with 
+	    | Addr3 -> 
+		let x = make_tempvar s next_store in
+		  E (Var (fs_type f,x))::s, [MayInit c ; AffectVar(x,StaticField (c,f))]
+	    | _ -> E (StaticField (c, f))::s, [MayInit c]
+	    
+	end
   | OpPutStatic (c, f) ->
       if is_static_in_stack c f (pop s) then begin
 	let x = make_tempvar s None in
@@ -1298,9 +1316,10 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 	   | `Static c ->
 	       (match ms_rtype ms with
 		  | None ->
+		      let params = param (List.length  (ms_args ms)) s in
 		      clean is_heap_sensible_element_in_expr
 			(popn (List.length (ms_args ms)) s)
-			[InvokeStatic (None,c,ms,param (List.length  (ms_args ms)) s)]
+			[InvokeStatic (None,c,ms,params)]
 		  | Some t ->
 		      let x = make_tempvar s next_store in
 		      clean is_heap_sensible_element_in_expr
@@ -1544,7 +1563,7 @@ let bc2ir flat pp_var jump_target bctype code =
 		   ( Printf.printf "\n %s\n" (string_of_int pc') ;
 		     Printf.printf "%s \n" (print_stackmap as_jmp) ;
 		     Printf.printf "%s \n" (print_stackmap jmp_s) ;
-		     assert false ) (*raise Content_constraint_on_Uninit*)
+		     raise Content_constraint_on_Uninit )
 		 else as_jump
 	   with Not_found ->
 	     (* when first advice for pc', no constraint to check. add the advice in the map *)
@@ -1632,6 +1651,7 @@ let jcode2bir mode compress cm jcode =
       exc_tbl = code.c_exc_tbl;
       line_number_table = code.c_line_number_table;
       jump_target = jump_target }
+
 
 let transform ?(compress=false) = jcode2bir Normal compress
 let transform_flat ?(compress=false) = jcode2bir Flat compress
