@@ -45,13 +45,12 @@ This module defines:
   - some functions to browse the class hierarchy.
   - a large set of program manipulations.
 
-Classes and interfaces are represented by ``class_node`` and
-``interface_node`` record types, respectively. These types are
+Classes and interfaces are represented by **class_node** and
+**interface_node** record types, respectively. These types are
 parametrized by the code representation type, like in *Javalib*.
 These types are private and cannot be modified by the user.
-
 The only way to create them is to use the functions
-``make_class_node`` and ``make_interface_node`` with consistent
+**make_class_node** and **make_interface_node** with consistent
 arguments. In practice, you will never need to build them because the
 class hierarchy is automatically generated when loading a program. You
 only need a read access to these record fields.
@@ -65,32 +64,57 @@ The program structure contains:
   - a static lookup method. Given the calling class name, the calling
     method signature, the invoke kind (virtual, static, ...), the
     invoked class name and method signature, it returns a set of
-    potential (``class_name`` * ``method_signature``) that may be
+    potential (**class_name** * **method_signature**) that may be
     called.
 
 *JCRA*, *JRTA* and *JRRTA* modules
 ----------------------------------
 
-Each of these modules implements a function ``parse_program`` (the
+Each of these modules implements a function **parse_program** (the
 signature varies) which returns a program parametrized by the
-``Javalib.jcode`` representation.
+**Javalib.jcode** representation.
 
-In *RTA*, the function ``parse_program`` takes at least, as
-parameters, a class-path and a program entry point (generally a main
-method). The ``default_entrypoints`` value represents the
-methods that are always called by the *Sun JVM* before a program is
-launched.
+In *RTA*, the function **parse_program** takes at least, as
+parameters, a class-path and a program entry point. The
+**default_entrypoints** value represents the methods that are always
+called by *Sun JVM* before any program is launched.
 
-In *CRA*, the function ``parse_program`` takes at least, as
+In *CRA*, the function **parse_program** takes at least, as
 parameters, a class-path and a list of classes acting as entry points.
-The ``default_classes`` value represents the classes that are always
-loaded by the *Sun JVM*.
+The **default_classes** value represents the classes that are always
+loaded by *Sun JVM*.
 
 *JRRTA* is a refinement of *RTA*. It first calls *RTA* and then prunes
 the call graph.
 
 *JNativeStubs* module
 ---------------------
+
+This module allows to define stubs for native methods, containing
+information about native method calls and native object allocations.
+Stubs can be stored in files, loaded and merged. The format to
+describe stubs looks like:
+
+::
+
+  Method{type="Native" class="Ljava/lang/String;"
+         name="intern" signature="()Ljava/lang/String;"}{
+    VMAlloc{
+      "Ljava/lang/String;"
+      "[C"
+    }
+  }
+
+  Method{type="Native" class="Ljava/io/UnixFileSystem;"
+         name="getLength" signature="(Ljava/io/File;)J"}{
+    Invokes{
+      Method{type="Java" class="Ljava/lang/String;"
+             name="getBytes" signature="(Ljava/lang/String;)[B"}
+    }
+  }
+
+*JRTA* admits a stub file as optional argument to handle native
+methods.
 
 *JControlFlow* module
 ---------------------
