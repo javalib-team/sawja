@@ -7,11 +7,14 @@
 {b {L High level manipulations of programs}}
 {!modules: JProgram JControlFlow JNativeStubs JCRA JRTA JRRTA}
 
+{b {L Intermediate Representations}}
+{!modules: JBir A3Bir}
+
 {b {L Printing programs}}
 {!modules: JPrintHtml}
 
 {b {L Other}}
-{!modules: Wlist JBir FBir}
+{!modules: Wlist}
 
 {b {L Indexes}}
 
