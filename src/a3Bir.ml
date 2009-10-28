@@ -213,6 +213,7 @@ type t = {
   a3_code : (int * instr list) list; 
   a3_exc_tbl : JCode.exception_handler list;
   a3_line_number_table : (int * int) list option;
+  a3_jump_target : bool array ;
 }
 
 
@@ -346,6 +347,7 @@ let bir2a3bir  bir =
     a3_code = List.map (fun (i,instrl) -> (i, List.map bir2a3bir_instr instrl)) bir.Bir.code  ;
     a3_exc_tbl = bir.Bir.exc_tbl ;
     a3_line_number_table = bir.Bir.line_number_table ;
+    a3_jump_target = bir.Bir.jump_target ;
   }
 
 (** Concrete method transformation. *) 
