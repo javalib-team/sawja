@@ -29,8 +29,7 @@ code representation to another.
 
 [^1]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
 Stackless Intermediate Representation For Java Bytecode*. Research
-Report 7021, INRIA, 2009.
-See http://irisa.fr/celtique/ext/bir/
+Report 7021, INRIA, 2009. See http://irisa.fr/celtique/ext/bir/
 
 Global architecture
 ===================
@@ -53,13 +52,13 @@ This module defines:
 
 Classes and interfaces are represented by **class_node** and
 **interface_node** record types, respectively. These types are
-parametrized by the code representation type, like in *Javalib*.
-These types are private and cannot be modified by the user.
-The only way to create them is to use the functions
-**make_class_node** and **make_interface_node** with consistent
-arguments. In practice, you will never need to build them because the
-class hierarchy is automatically generated when loading a program. You
-only need a read access to these record fields.
+parametrized by the code representation type, like in *Javalib*. These
+types are private and cannot be modified by the user. The only way to
+create them is to use the functions **make_class_node** and
+**make_interface_node** with consistent arguments. In practice, you
+will never need to build them because the class hierarchy is
+automatically generated when loading a program. You only need a read
+access to these record fields.
 
 The program structure contains:
 
@@ -116,10 +115,11 @@ describe stubs looks like:
         Method{type="Java" class="Ljava/lang/String;"
                name="getBytes" signature="(Ljava/lang/String;)[B"}
         }
-    } 
+    }
 ~~~~~
 
-*JRTA* admits a stub file as optional argument to handle native methods.
+*JRTA* admits a stub file as optional argument to handle native
+*methods.
 
 *JControlFlow* module
 ---------------------
@@ -132,8 +132,19 @@ present.
 This module also contains an internal module **PP** which allows to
 navigate through the control flow graph of a program.
 
-*JBir* module
--------------
+*JBir* and *A3Bir* modules
+--------------------------
+
+These modules both declare a type **t** defining an intermediate code
+representation. Both representations are stack-less. *A3Bir* looks
+like a three-address code representation whereas expressions in *JBir*
+can have arbitrary depths.
+
+Each module defines a function **transform** which takes as parameters
+a concrete method and its associated **JCode.code**, and returns
+a representation of type **t**. This function coupled with
+**JProgram.map_program2** can be used to transform a whole program
+loaded with *RTA* algorithm for example.
 
 *JPrintHtml* module
 -------------------
@@ -182,8 +193,8 @@ information.
 In order to test the efficiency of *Jaws*, we like to work on huge
 programs. For instance we will use *Soot*, a *Java Optimization
 Framework* written in *Java*, which can be found at
-http://www.sable.mcgill.ca/soot. Once you have downloaded *Soot*
-and its dependencies, make sure that the **$CLASSPATH** environment
+http://www.sable.mcgill.ca/soot. Once you have downloaded *Soot* and
+its dependencies, make sure that the **$CLASSPATH** environment
 variable contains the corresponding **.jar** files and the *Java
 Runtime* **rt.jar**. The following sample of code loads *Soot*
 program, given its main entry point:
