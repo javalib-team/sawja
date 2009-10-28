@@ -3,9 +3,9 @@
 
 all: jaws_tutorial.tex jaws_tutorial.pdf
 
-jaws_tutorial.tex: jaws_tutorial.rst
+jaws_tutorial.tex: jaws_tutorial.md
 	cat header.tex > jaws_tutorial.tex
-	pandoc -R -f rst -t latex -o jaws_tutorial_part.tex jaws_tutorial.rst
+	pandoc -f markdown -t latex -o jaws_tutorial_part.tex jaws_tutorial.md
 	cat jaws_tutorial_part.tex >> jaws_tutorial.tex
 	cat footer.tex >> jaws_tutorial.tex
 	rm jaws_tutorial_part.tex

@@ -1,4 +1,3 @@
-============
 Introduction
 ============
 
@@ -18,32 +17,39 @@ node, it's easy to access its super class, its implemented interfaces
 or its children classes. The next chapters will give more information
 about the nodes and program data structures.
 
-Moreover, *Jaws* provides a stack-less intermediate representation of
-code, called *JBir*. This representation opens the way to many
-analyses which can be built upon it more naturally, better than with
-the byte-code representation (e.g. *Live Variable Analysis*). *Jaws*
-also provides functions to map a program using a particular code
-representation to another.
+Moreover, *Jaws* provides some stack-less intermediate representations
+of code, called *JBir* and *A3Bir*. Such representations open the way
+to many analyses which can be built upon them more naturally, better
+than with the byte-code representation (e.g. *Live Variable
+Analysis*). The transformation algorithm, common to these
+representations, has been formalized and proved [^1].
 
-===================
+*Jaws* also provides functions to map a program using a particular
+code representation to another.
+
+[^1]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
+Stackless Intermediate Representation For Java Bytecode*. Research
+Report 7021, INRIA, 2009.
+See http://irisa.fr/celtique/ext/bir/
+
 Global architecture
 ===================
 
 In this section, we present the different modules of *Jaws* and how
-they interact together. While reading the next sections, we recommend you
-to have a look at *Jaws* API at the same time.
+they interact together. While reading the next sections, we recommend
+you to have a look at *Jaws* API at the same time.
 
 *JProgram* module
 -----------------
 
 This module defines:
 
-  - the types representing the class hierarchy.
-  - the program structure.
-  - some functions to access classes, methods and fields (similar to
-    *Javalib* functions).
-  - some functions to browse the class hierarchy.
-  - a large set of program manipulations.
+- the types representing the class hierarchy.
+- the program structure.
+- some functions to access classes, methods and fields (similar to
+*Javalib* functions).
+- some functions to browse the class hierarchy.
+- a large set of program manipulations.
 
 Classes and interfaces are represented by **class_node** and
 **interface_node** record types, respectively. These types are
@@ -57,15 +63,14 @@ only need a read access to these record fields.
 
 The program structure contains:
 
-  - a map of all the classes referenced in the loaded program. These
-    classes are linked together through the node structure.
-  - a map of parsed methods. This map depends on the algorithm used to
-    load the program (*CRA*, *RTA*, ...).
-  - a static lookup method. Given the calling class name, the calling
-    method signature, the invoke kind (virtual, static, ...), the
-    invoked class name and method signature, it returns a set of
-    potential (**class_name** * **method_signature**) that may be
-    called.
+- a map of all the classes referenced in the loaded program. These
+classes are linked together through the node structure.
+- a map of parsed methods. This map depends on the algorithm used to
+load the program (*CRA*, *RTA*, ...).
+- a static lookup method. Given the calling class name, the calling
+method signature, the invoke kind (virtual, static, ...), the invoked
+class name and method signature, it returns a set of potential couples
+of (**class_name**, **method_signature**) that may be called.
 
 *JCRA*, *JRTA* and *JRRTA* modules
 ----------------------------------
@@ -95,26 +100,26 @@ information about native method calls and native object allocations.
 Stubs can be stored in files, loaded and merged. The format to
 describe stubs looks like:
 
-::
-
-  Method{type="Native" class="Ljava/lang/String;"
-         name="intern" signature="()Ljava/lang/String;"}{
-    VMAlloc{
-      "Ljava/lang/String;"
-      "[C"
+~~~~~
+    Method{type="Native" class="Ljava/lang/String;"
+           name="intern" signature="()Ljava/lang/String;"}{
+      VMAlloc{
+        "Ljava/lang/String;"
+        "[C"
+      }
     }
-  }
 
-  Method{type="Native" class="Ljava/io/UnixFileSystem;"
-         name="getLength" signature="(Ljava/io/File;)J"}{
-    Invokes{
-      Method{type="Java" class="Ljava/lang/String;"
-             name="getBytes" signature="(Ljava/lang/String;)[B"}
-    }
-  }
 
-*JRTA* admits a stub file as optional argument to handle native
-methods.
+    Method{type="Native" class="Ljava/io/UnixFileSystem;"
+           name="getLength" signature="(Ljava/io/File;)J"}{
+      Invokes{
+        Method{type="Java" class="Ljava/lang/String;"
+               name="getBytes" signature="(Ljava/lang/String;)[B"}
+        }
+    } 
+~~~~~
+
+*JRTA* admits a stub file as optional argument to handle native methods.
 
 *JControlFlow* module
 ---------------------
@@ -133,30 +138,31 @@ navigate through the control flow graph of a program.
 *JPrintHtml* module
 -------------------
 
-This modules provides a main function
+This module provides a main function
 **pp_print_program_to_html_files** to dump a program into a set of
 **.html** files (one per class) related together by the control flow
 graph. This function takes as parameters the program, the name of the
 output directory and a type **info**. The type **info** is used to
 insert custom annotations at different levels : class, method, field
-or program point. A value **void_info** is also given and can be used
+and program point. A value **void_info** is also given and can be used
 by default.
 
-========
 Tutorial
 ========
 
 To begin this tutorial, open an *OCaml* toplevel, for instance using
 the *Emacs* **tuareg-mode**, and load the following libraries in the
-given order: ::
+given order:
 
-  #load "str.cma"
-  #load "unix.cma"
-  #load "extLib.cma"
-  #load "zip.cma"
-  #load "ptrees.cma"
-  #load "javalib.cma"
-  #load "jaws.cma"
+~~~~~
+    #load "str.cma"
+    #load "unix.cma"
+    #load "extLib.cma"
+    #load "zip.cma"
+    #load "ptrees.cma"
+    #load "javalib.cma"
+    #load "jaws.cma"
+~~~~~
 
 Don't forget the associated **#directory** directives that allow you
 to specify the paths where to find these libraries.
@@ -176,72 +182,74 @@ information.
 In order to test the efficiency of *Jaws*, we like to work on huge
 programs. For instance we will use *Soot*, a *Java Optimization
 Framework* written in *Java*, which can be found at
-``http://www.sable.mcgill.ca/soot``. Once you have downloaded *Soot*
+http://www.sable.mcgill.ca/soot. Once you have downloaded *Soot*
 and its dependencies, make sure that the **$CLASSPATH** environment
 variable contains the corresponding **.jar** files and the *Java
 Runtime* **rt.jar**. The following sample of code loads *Soot*
 program, given its main entry point:
 
-::
-
-  open Javalib
-  let cp = class_path (Sys.getenv "CLASSPATH")
-  let (prta,instantiated_classes) =
-    JRTA.parse_program cp (make_cn "soot.Main",
-                             JProgram.main_signature)
+~~~~~
+    open Javalib
+    let cp = class_path (Sys.getenv "CLASSPATH")
+    let (prta,instantiated_classes) =
+      JRTA.parse_program cp (make_cn "soot.Main",
+                               JProgram.main_signature)
+~~~~~
 
 It can be interesting to generate the **.html** files corresponding to
 the parsed program **prta**. We first need to build an **info** type.
 
-::
+~~~~~
+    (* p_class annots a class, saying if it may be instantiated
+       or not. *)
+    let p_class =
+      (fun cn ->
+        let ioc = get_node prta cn in
+          match ioc with
+           | Class c ->
+             if ClassMap.mem (get_name ioc) instantiated_classes then
+               ["Instantiated"] else ["Not instantiatied"]
+           | _ -> []
+      )
+~~~~~
 
-  (* p_class annots a class, saying if it may be instantiated
-     or not. *)
-  let p_class =
-    (fun cn ->
-      let ioc = get_node prta cn in
-        match ioc with
-         | Class c ->
-           if ClassMap.mem (get_name ioc) instantiated_classes then
-             ["Instantiated"] else ["Not instantiatied"]
-         | _ -> []
-    )
+~~~~~  
+    (* p_method annots a method, saying if it is concrete or abstract,
+       and if it has been parsed or not (by RTA). *)
+    let p_method =
+      (fun cn ms ->
+        let m = get_method (get_node prta cn) ms in
+           match m with
+            | AbstractMethod _ -> ["Abstract Method"]
+            | ConcreteMethod cm ->
+              let cms = make_cms cn ms in
+              let parse =
+                if ClassMethodMap.mem cms prta.parsed_methods then
+                  "Parsed" else "Not parsed" in
+                ["Concrete Method "; parse]
+      )
+~~~~~
+
+~~~~~  
+    (* There is no field annotation. *)
+    let p_field = (fun _ _ -> [])
   
-  (* p_method annots a method, saying if it is concrete or abstract,
-     and if it has been parsed or not (by RTA). *)
-  let p_method =
-    (fun cn ms ->
-      let m = get_method (get_node prta cn) ms in
-         match m with
-          | AbstractMethod _ -> ["Abstract Method"]
-          | ConcreteMethod cm ->
-            let cms = make_cms cn ms in
-            let parse =
-              if ClassMethodMap.mem cms prta.parsed_methods then
-                "Parsed" else "Not parsed" in
-              ["Concrete Method "; parse]
-    )
-
-  (* There is no field annotation. *)
-  let p_field = (fun _ _ -> [])
-
-  (* There is no program point annotation. *)
-  let p_pp = (fun _ _ _ -> [])
-  
-  (* This is the info type. *)
-  let simple_info = 
-    { JPrintHtml.p_class = p_class;
-      JPrintHtml.p_field = p_field;
-      JPrintHtml.p_method = p_method;
-      JPrintHtml.p_pp = p_pp }
-
+    (* There is no program point annotation. *)
+    let p_pp = (fun _ _ _ -> [])
+    
+    (* This is the info type. *)
+    let simple_info = 
+      { JPrintHtml.p_class = p_class;
+        JPrintHtml.p_field = p_field;
+        JPrintHtml.p_method = p_method;
+        JPrintHtml.p_pp = p_pp }
+~~~~~
 
 Then we just need to call the printing function:
 
-::
-
-  let output = "/tmp/soot"
-  let () =
-    JPrintHtml.pp_print_program_to_html_files prta
-      output simple_info
-  
+~~~~~
+    let output = "/tmp/soot"
+    let () =
+      JPrintHtml.pp_print_program_to_html_files prta
+        output simple_info
+~~~~~
