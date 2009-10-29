@@ -22,7 +22,7 @@ PTREES_PATH		= +ptrees
 JAVALIB_PATH		= +javalib
 
 INSTALL_DIR		= `ocamlc -where`/jaws
-DOCDIR			= doc
+DOCDIR			= doc/api
 
 OPT_FLAGS		= -noassert -ccopt -O3
 

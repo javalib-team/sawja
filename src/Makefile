@@ -45,7 +45,9 @@ ocaml:jaws.cma
 	$(OCAMLDEP) $(PP) $^ > $@
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),cleanall)
+ifneq ($(MAKECMDGOALS),cleandoc)
 -include .depend
+endif
 endif
 endif
 
@@ -76,7 +78,7 @@ jaws.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 
 doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
-	$(OCAMLDOC) $(INCLUDE) -d $(DOCDIR) -html -stars		\
+	$(OCAMLDOC) -pp "recode UTF-8..Latin-1 <" $(INCLUDE) -d $(DOCDIR) -html -stars		\
 		-colorize-code -intro ../intro.ocamldoc -t Jaws		\
 		$(MODULE_INTERFACES:=.mli)
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc

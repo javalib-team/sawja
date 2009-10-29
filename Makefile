@@ -5,7 +5,7 @@ all:jaws
 jaws:
 	$(MAKE) -C src
 
-clean cleanall:
+clean cleanall cleandoc:
 	$(MAKE) -C src $@
 
 doc:
