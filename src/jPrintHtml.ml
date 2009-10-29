@@ -18,6 +18,10 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(* TODO :
+ * JPrintHTML should be more generic (functor ?) and able to
+   print any code representation. *)
+
 open JBasics
 open JCode
 open Javalib

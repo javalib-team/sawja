@@ -264,3 +264,16 @@ Then we just need to call the printing function:
       JPrintHtml.pp_print_program_to_html_files prta
         output simple_info
 ~~~~~
+
+Transforming a program with *Bir*
+---------------------------------
+
+In this section we present a sample of code transforming a program
+loaded with *RTA* to *JBir* representation. The procedure to obtain
+the *A3Bir* representation is exactly the same.
+
+~~~~~
+    let prtaimg = map_program2
+      (fun _ -> JBir.transform ~compress:false) prta
+~~~~~
+
