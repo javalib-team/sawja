@@ -1,0 +1,20 @@
+Initial release 1.0β
+--------------------
+This initial version features a fork from Javalib 1.8.1 where the code
+concerning the program representation and manipulation has been moved from
+Javalib to SAWJA.  From Javalib 1.8.1, The main improvements includes the
+bytecode transformations, the overall efficiency (more lazy stuff, indexed data,
+caches, etc.) and the cleanner interfaces and documentation.
+
+Main features:
+* Program representation where the bytecode (method) representation can be
+  modified
+* Intermediate bytecode representation (bytecode with expressions and without
+  stack and 3 addresses code)
+* Control flow manipulation (resolution of classes, fields and methods, static
+  over approximation of lookups, etc.)
+* Program discovery with RTA (Rapid Type Analysis), CRA (Class Reachability
+  Analysis) and RRTA (Refine Rapid Type Analysis)
+* Stub generation for object allocation for native methods from concrete
+  execution
+* Program pretty printing as text or HTML output
