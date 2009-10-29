@@ -1,9 +1,9 @@
 Introduction
 ============
 
-*Jaws* is a library written in *OCaml*, relying on the *Javalib* to
+*Sawja* is a library written in *OCaml*, relying on the *Javalib* to
 provide a high level representation of *Java* byte-code programs.
-Whereas *Javalib* is dedicated to class per class loading, *Jaws*
+Whereas *Javalib* is dedicated to class per class loading, *Sawja*
 introduces a notion of program thanks to control flow algorithms. For
 instance, a program can be loaded using various algorithms like *Class
 Reachability Analysis* (a variant of *CHA* algorithm) or *Rapid Type
@@ -11,20 +11,20 @@ Analysis* (*RTA*). For now, *RTA* is the best compromise between
 loading time and precision of the call graph. A version of *XTA* is
 coming soon.
 
-In *Jaws*, classes and interfaces are represented by interconnected
+In *Sawja*, classes and interfaces are represented by interconnected
 nodes belonging to a common hierarchy. For example, given a class
 node, it's easy to access its super class, its implemented interfaces
 or its children classes. The next chapters will give more information
 about the nodes and program data structures.
 
-Moreover, *Jaws* provides some stack-less intermediate representations
+Moreover, *Sawja* provides some stack-less intermediate representations
 of code, called *JBir* and *A3Bir*. Such representations open the way
 to many analyses which can be built upon them more naturally, better
 than with the byte-code representation (e.g. *Live Variable
 Analysis*). The transformation algorithm, common to these
 representations, has been formalized and proved [^1].
 
-*Jaws* also provides functions to map a program using a particular
+*Sawja* also provides functions to map a program using a particular
 code representation to another.
 
 [^1]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
@@ -35,9 +35,9 @@ Report 7021, INRIA, 2009. See
 Global architecture
 ===================
 
-In this section, we present the different modules of *Jaws* and how
+In this section, we present the different modules of *Sawja* and how
 they interact together. While reading the next sections, we recommend
-you to have a look at *Jaws* API at the same time.
+you to have a look at *Sawja* API at the same time.
 
 *JProgram* module
 -----------------
@@ -173,25 +173,25 @@ given order:
     #load "zip.cma"
     #load "ptrees.cma"
     #load "javalib.cma"
-    #load "jaws.cma"
+    #load "sawja.cma"
 ~~~~~
 
 Don't forget the associated **#directory** directives that allow you
 to specify the paths where to find these libraries.
 
 You can also build a toplevel including all these libraries using the
-command **make ocaml** in the sources repository of *Jaws*. This
+command **make ocaml** in the sources repository of *Sawja*. This
 command builds an executable named **ocaml** which is the result of
 the **ocamlmktop** command.
 
 Loading and printing a program
 ------------------------------
 
-In this section, we present how to load a program with *Jaws* and some
+In this section, we present how to load a program with *Sawja* and some
 basic manipulations we can do on it to recover interesting
 information.
 
-In order to test the efficiency of *Jaws*, we like to work on huge
+In order to test the efficiency of *Sawja*, we like to work on huge
 programs. For instance we will use *Soot*, a *Java Optimization
 Framework* written in *Java*, which can be found at
 [http://www.sable.mcgill.ca/soot](http://www.sable.mcgill.ca/soot).
