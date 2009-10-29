@@ -1,4 +1,4 @@
-# This file is part of Jaws
+# This file is part of Sawja
 # Copyright (c)2007 Tiphaine Turpin (Université de Rennes 1)
 # Copyright (c)2007 Laurent Hubert (CNRS)
 #
@@ -21,7 +21,7 @@ CAMLZIP_PATH		= +zip
 PTREES_PATH		= +ptrees
 JAVALIB_PATH		= +javalib
 
-INSTALL_DIR		= `ocamlc -where`/jaws
+INSTALL_DIR		= `ocamlc -where`/sawja
 DOCDIR			= doc/api
 
 OPT_FLAGS		= -noassert -ccopt -O3

@@ -1,12 +1,13 @@
-.PHONY:all jaws cleanall doc
+.PHONY:all sawja cleanall doc
 
-all:jaws
+all:sawja
 
-jaws:
+sawja:
 	$(MAKE) -C src
 
 clean cleanall cleandoc:
 	$(MAKE) -C src $@
+	$(RM) *~
 
 doc:
 	$(MAKE) -C src doc

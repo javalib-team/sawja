@@ -1,4 +1,4 @@
-# This file is part of Jaws
+# This file is part of Sawja
 # Copyright (c)2007 Tiphaine Turpin (Université de Rennes 1)
 # Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
 # Copyright (c)2009 Nicolas Barre (INRIA)
@@ -31,15 +31,15 @@ MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrin
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc
 
-all: jaws.cma jaws.cmxa
+all: sawja.cma sawja.cmxa
 
-install: jaws.cma jaws.cmxa
+install: sawja.cma sawja.cmxa
 	mkdir -p $(INSTALL_DIR)
-	cp -f jaws.cma jaws.cmxa jaws.a $(MODULE_INTERFACES:=.cmi) $(INSTALL_DIR)
+	cp -f sawja.cma sawja.cmxa sawja.a $(MODULE_INTERFACES:=.cmi) $(INSTALL_DIR)
 	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
 
-ocaml:jaws.cma
-	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javalib.cma jaws.cma
+ocaml:sawja.cma
+	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javalib.cma sawja.cma
 
 .depend:$(MODULE_INTERFACES:=.mli) $(MODULES:=.ml)
 	$(OCAMLDEP) $(PP) $^ > $@
@@ -69,17 +69,17 @@ jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
 .mli.cmi:
 	$(OCAMLC) $(INCLUDE) -c $<
 
-jaws.cma: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
+sawja.cma: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
 	$(OCAMLC) -a $(MODULES:=.cmo) -o $@
 
-jaws.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
+sawja.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 	$(OCAMLOPT) -a $(MODULES:=.cmx) -o $@
 # endif
 
 doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -html -stars		\
-		-colorize-code -intro ../intro.ocamldoc -t Jaws		\
+		-colorize-code -intro ../intro.ocamldoc -t Sawja		\
 		$(MODULE_INTERFACES:=.mli)
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 
