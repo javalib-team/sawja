@@ -1,18 +1,18 @@
 # This is the tutorial Makefile
 # You need to install pandoc
 
-all: jaws_tutorial.tex jaws_tutorial.pdf
+all: sawja_tutorial.tex sawja_tutorial.pdf
 
-jaws_tutorial.tex: jaws_tutorial.md
-	cat header.tex > jaws_tutorial.tex
-	pandoc -f markdown -t latex -o jaws_tutorial_part.tex jaws_tutorial.md
-	cat jaws_tutorial_part.tex >> jaws_tutorial.tex
-	cat footer.tex >> jaws_tutorial.tex
-	rm jaws_tutorial_part.tex
+sawja_tutorial.tex: sawja_tutorial.md
+	cat header.tex > sawja_tutorial.tex
+	pandoc -f markdown -t latex -o sawja_tutorial_part.tex sawja_tutorial.md
+	cat sawja_tutorial_part.tex >> sawja_tutorial.tex
+	cat footer.tex >> sawja_tutorial.tex
+	rm sawja_tutorial_part.tex
 
-jaws_tutorial.pdf: jaws_tutorial.tex
-	pdflatex jaws_tutorial.tex
-	pdflatex jaws_tutorial.tex
+sawja_tutorial.pdf: sawja_tutorial.tex
+	pdflatex sawja_tutorial.tex
+	pdflatex sawja_tutorial.tex
 
 clean:
-	rm -f jaws_tutorial.tex jaws_tutorial.pdf
+	rm -f sawja_tutorial.tex sawja_tutorial.pdf

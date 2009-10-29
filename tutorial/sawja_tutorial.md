@@ -29,8 +29,9 @@ code representation to another.
 
 [^1]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
 Stackless Intermediate Representation For Java Bytecode*. Research
-Report 7021, INRIA, 2009. See http://irisa.fr/celtique/ext/bir/
-
+Report 7021, INRIA, 2009. See
+[http://irisa.fr/celtique/ext/bir](http://irisa.fr/celtique/ext/bir)
+	
 Global architecture
 ===================
 
@@ -119,7 +120,7 @@ describe stubs looks like:
 ~~~~~
 
 *JRTA* admits a stub file as optional argument to handle native
-*methods.
+methods.
 
 *JControlFlow* module
 ---------------------
@@ -183,8 +184,8 @@ command **make ocaml** in the sources repository of *Jaws*. This
 command builds an executable named **ocaml** which is the result of
 the **ocamlmktop** command.
 
-First steps: loading and printing a program
--------------------------------------------
+Loading and printing a program
+------------------------------
 
 In this section, we present how to load a program with *Jaws* and some
 basic manipulations we can do on it to recover interesting
@@ -193,11 +194,11 @@ information.
 In order to test the efficiency of *Jaws*, we like to work on huge
 programs. For instance we will use *Soot*, a *Java Optimization
 Framework* written in *Java*, which can be found at
-http://www.sable.mcgill.ca/soot. Once you have downloaded *Soot* and
-its dependencies, make sure that the **$CLASSPATH** environment
-variable contains the corresponding **.jar** files and the *Java
-Runtime* **rt.jar**. The following sample of code loads *Soot*
-program, given its main entry point:
+[http://www.sable.mcgill.ca/soot](http://www.sable.mcgill.ca/soot).
+Once you have downloaded *Soot* and its dependencies, make sure that
+the **$CLASSPATH** environment variable contains the corresponding
+**.jar** files and the *Java Runtime* **rt.jar**. The following sample
+of code loads *Soot* program, given its main entry point:
 
 ~~~~~
     open Javalib
@@ -273,7 +274,21 @@ loaded with *RTA* to *JBir* representation. The procedure to obtain
 the *A3Bir* representation is exactly the same.
 
 ~~~~~
-    let prtaimg = map_program2
+    let pbir = map_program2
       (fun _ -> JBir.transform ~compress:false) prta
 ~~~~~
 
+Warning:
+:    Subroutines are not yet handled in *JBir* and *A3Bir*. If some transformed code contains such subroutines, the exception **JBir.Subroutine** or **AB3Bir.Subroutine** will be raised, respectively. However, when transforming a whole program with the above function, no exception will be raised because of the *lazy* evaluation of code.
+
+To see how *JBir* representation looks like, we can pretty-print one
+class, for instance **java.lang.Object**:
+
+~~~~~
+    let obj = get_node pbir JBasics.java_lang_object
+    let () = JPrint.print_class (JProgram.to_jclass obj)
+        JBir.print stdout
+~~~~~
+
+Note:
+:    We can't dump the whole program using *JPrintHtml* module yet, because it depends on *JCode.code* representation.
