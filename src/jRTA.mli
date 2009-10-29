@@ -1,5 +1,5 @@
 (*
- * This file is part of JavaLib
+ * This file is part of SAWJA
  * Copyright (c)2009 Laurent Hubert (CNRS)
  * Copyright (c)2009 Nicolas Barre (INRIA)
  *

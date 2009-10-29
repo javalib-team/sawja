@@ -1,6 +1,5 @@
 (*
- * This file is part of JavaLib
- * Copyright (c)2009 Laurent Hubert (CNRS)
+ * This file is part of SAWJA
  * Copyright (c)2009 Nicolas Barre (INRIA)
  *
  * This program is free software: you can redistribute it and/or
