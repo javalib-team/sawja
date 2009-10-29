@@ -57,10 +57,10 @@ jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
 	$(OCAMLOPT) $(INCLUDE) $(PP) -c $<
 
 jPrintHtml.cmo:jPrintHtml.ml
-	$(OCAMLC) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
-	$(OCAMLOPT) $(INCLUDE) -pp "/usr/bin/perl -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 .ml.cmo:
 	$(OCAMLC) $(INCLUDE) -c $<
@@ -78,7 +78,7 @@ jaws.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 
 doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
-	$(OCAMLDOC) -pp "recode UTF-8..Latin-1 <" $(INCLUDE) -d $(DOCDIR) -html -stars		\
+	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -html -stars		\
 		-colorize-code -intro ../intro.ocamldoc -t Jaws		\
 		$(MODULE_INTERFACES:=.mli)
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
