@@ -20,8 +20,8 @@
  *)
 
 
-(** Builds high level representations of java byte-code programs using
-    a refinement of RTA. *)
+(** Builds high level representations of Java bytecode programs using a
+    refinement of RTA. *)
 
 open JBasics
 open Javalib

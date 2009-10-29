@@ -18,8 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Builds high level representations of java byte-code programs using
-    Rapid Type Analysis algorithm. *)
+(** Builds high level representations of Java bytecode programs using Rapid Type
+    Analysis algorithm. *)
 
 open JBasics
 open Javalib

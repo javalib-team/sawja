@@ -19,7 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Defines high level Ocaml representation of a java byte-code program. *)
+(** Defines high level OCaml representation of a Java bytecode program. *)
 
 open JBasics
 open Javalib
@@ -31,10 +31,9 @@ module ClassMethSet : Set.S with type elt = class_name * method_signature
 
 (** {2 Navigable hierarchy.} *)
 
-(** To be able to navigate more easily in byte-code program, class
-    names are replaced by pointers to class_file structures ( for
-    super_class, implemented interfaces and sub-classes or
-    sub-interfaces).
+(** To be able to navigate more easily in bytecode program, class names are
+    replaced by pointers to class_file structures (for super_class, implemented
+    interfaces and sub-classes or sub-interfaces).
 *)
 
 type 'a class_node = private {

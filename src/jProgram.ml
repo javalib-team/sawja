@@ -19,12 +19,12 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(* TODO : add cache memories in lookup functions *)
-
 open JBasics
 open JCode
 open Javalib
 
+(* TODO : replace ClassMethMap and ClassMethSet with JBasics.ClassMethodMap and
+   JBasics.ClassMethodSet *)
 module ClassMethMap = Map.Make(
   struct
     type t = class_name * method_signature

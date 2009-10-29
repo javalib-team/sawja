@@ -21,7 +21,7 @@
 
 open JBasics
 
-(** Builds high level representations of java byte-code programs using basic
+(** Builds high level representations of Java bytecode programs using basic
     Class Reachability Analysis. *)
 
 (** [parse_program classpath names] parses a list of classes,
