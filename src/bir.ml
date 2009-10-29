@@ -1,6 +1,7 @@
-open JBasics
+
 open Javalib
-open JCode
+open JBasics
+open JCode 
 
 include Cmn
 
@@ -8,31 +9,31 @@ include Cmn
 
 type binop =
   | ArrayLoad of JBasics.jvm_array_type
-  | Add of jvm_basic_type
-  | Sub of jvm_basic_type
-  | Mult of jvm_basic_type
-  | Div of jvm_basic_type
-  | Rem of jvm_basic_type
+  | Add of JBasics.jvm_basic_type
+  | Sub of JBasics.jvm_basic_type
+  | Mult of JBasics.jvm_basic_type
+  | Div of JBasics.jvm_basic_type
+  | Rem of JBasics.jvm_basic_type
   | IShl | IShr  | IAnd | IOr  | IXor | IUshr
   | LShl | LShr | LAnd | LOr | LXor | LUshr
   | CMP of comp
 
 type expr =
   | Const of const
-  | Var of value_type * var
+  | Var of JBasics.value_type * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
-  | Field of expr * class_name * field_signature
-  | StaticField of class_name * field_signature
+  | Field of expr * JBasics.class_name * field_signature
+  | StaticField of JBasics.class_name * field_signature
 
 type opexpr =
-  | Uninit of class_name * int
+  | Uninit of JBasics.class_name * int
   | E of expr
 
 
 type virtual_call_kind =
   | VirtualCall of object_type
-  | InterfaceCall of class_name
+  | InterfaceCall of JBasics.class_name
 
 type check =
   | CheckNullPointer of expr
@@ -46,30 +47,27 @@ type instr =
   | Nop
   | AffectVar of var * expr
   | AffectArray of expr * expr * expr
-  | AffectField of expr * class_name * field_signature * expr
-  | AffectStaticField of class_name * field_signature * expr
+  | AffectField of expr * JBasics.class_name * field_signature * expr
+  | AffectStaticField of JBasics.class_name * field_signature * expr
   | Goto of int
   | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
   | Throw of expr
   | Return of expr option
-  | New of var * class_name * value_type list * (expr list)
-      (* var :=  class (parameters) *)
-  | NewArray of var * value_type * (expr list)
-      (* var :=  value_type[e1]...[e2] *)
-      (* value_type is the type of the array content *)
+  | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
+  | NewArray of var * JBasics.value_type * (expr list)
   | InvokeStatic
-      of var option * class_name * method_signature * expr list
+      of var option * JBasics.class_name * method_signature * expr list
   | InvokeVirtual
       of var option * expr * virtual_call_kind * method_signature * expr list
   | InvokeNonVirtual
-      of var option * expr * class_name * method_signature * expr list
+      of var option * expr * JBasics.class_name * method_signature * expr list
   | MonitorEnter of expr
   | MonitorExit of expr
-  | MayInit of class_name
+  | MayInit of JBasics.class_name
   | Check of check
 
 type t = {
-  params : (value_type * var) list;
+  params : (JBasics.value_type * var) list;
   code : (int * instr list) list;
   exc_tbl : exception_handler list;
   line_number_table : (int * int) list option;
@@ -456,7 +454,7 @@ type typ =
   | Double
   | Long
   | Object
-  | Array of value_type
+  | Array of JBasics.value_type
 
 type t = typ list * typ Ptmap.t
 
@@ -695,7 +693,7 @@ let next i = function
   | OpI2C -> (fun (s,l) -> Int::(pop s), l)
   | OpI2S -> (fun (s,l) -> Int::(pop s), l)
   | OpCmp _ -> (fun (s,l) -> Int::(pop2 s),l)
-  | OpIf (_, _) -> (fun (s,l) -> pop s, l)
+  | OpIf(_, _) -> (fun (s,l) -> pop s, l)
   | OpIfCmp (_, _) -> (fun (s,l) -> pop2 s, l)
   | OpGoto _ -> (fun (s,l) -> s,l)
   | OpJsr _ -> raise Subroutine
@@ -1491,6 +1489,7 @@ let make_tempvar_stats ir =
       stat_nb_branchvar = nb_tempvar_branch;
       stat_nb_branchvar2 = nb_tempvar_branch2;
     }
+
 
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit

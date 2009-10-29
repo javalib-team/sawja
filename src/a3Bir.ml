@@ -168,11 +168,13 @@ let bir2a3bir_basic_expr e = match e with
   | _ -> Printf.printf "%s\n" (Bir.print_expr false e) ; assert false
 
 let rec bir2a3bir_expr e = match e with 
+  | Bir.Const _ 
+  | Bir.Var _ -> BasicExpr (bir2a3bir_basic_expr e)
   | Bir.Unop (unop, expr) -> Unop(unop,bir2a3bir_basic_expr expr)
   | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2a3bir_binop binop,bir2a3bir_basic_expr expr1,bir2a3bir_basic_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
-  | _ -> assert false 
+  
 
 let kind2kind = function 
   | Bir.VirtualCall objt -> VirtualCall objt 
@@ -349,6 +351,9 @@ let bir2a3bir  bir =
     a3_line_number_table = bir.Bir.line_number_table ;
     a3_jump_target = bir.Bir.jump_target ;
   }
+
+
+
 
 (** Concrete method transformation. *) 
 let transform ?(compress=false) j_m j_code =
