@@ -9,7 +9,7 @@ sawja_tutorial.tex: sawja_tutorial.md
 	cat sawja_tutorial_part.tex >> sawja_tutorial.tex
 	cat footer.tex >> sawja_tutorial.tex
 	rm sawja_tutorial_part.tex
-	pandoc -s -c style.css -B header.html --toc -T 'Sawja tutorial' -f markdown -t html -o sawja-tut.html sawja_tutorial.md
+	pandoc -s -c style.css -B header.html --toc -T 'Sawja tutorial' -f markdown -t html sawja_tutorial.md | tidy -q > sawja-tut.html 
 
 sawja_tutorial.pdf: sawja_tutorial.tex
 	pdflatex sawja_tutorial.tex
