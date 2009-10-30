@@ -11,7 +11,7 @@ sawja_tutorial.tex: sawja_tutorial.md
 	rm sawja_tutorial_part.tex
 
 sawja-tut.html: sawja_tutorial.md header.html
-	pandoc -s -c style.css -B header.html --toc -T 'Sawja tutorial' -f markdown -t html sawja_tutorial.md | tidy -q > sawja-tut.html 
+	pandoc -s -c style-tut.css -B header.html --toc -T 'Sawja tutorial' -f markdown -t html sawja_tutorial.md | tidy -q > sawja-tut.html 
 
 sawja_tutorial.pdf: sawja_tutorial.tex
 	pdflatex sawja_tutorial.tex

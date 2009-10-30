@@ -6,10 +6,12 @@ provide a high level representation of *Java* byte-code programs.
 Whereas *Javalib* is dedicated to class per class loading, *Sawja*
 introduces a notion of program thanks to control flow algorithms. For
 instance, a program can be loaded using various algorithms like *Class
-Reachability Analysis* (a variant of *CHA* algorithm) or *Rapid Type
-Analysis* (*RTA*). For now, *RTA* is the best compromise between
-loading time and precision of the call graph. A version of *XTA* is
-coming soon.
+Reachability Analysis* (*CRA*), a variant of *Class Hierarchy
+Analysis* algorithm (*CHA*) or *Rapid Type Analysis* (*RTA*). For now,
+*RTA* is the best compromise between loading time and precision of the
+call graph. A version of *XTA* is coming soon. To get more information
+about control flow graph algorithms and their complexity, you can
+consult the paper of Frank Tip and Jens Palsberg [^1].
 
 In *Sawja*, classes and interfaces are represented by interconnected
 nodes belonging to a common hierarchy. For example, given a class
@@ -22,15 +24,19 @@ of code, called *JBir* and *A3Bir*. Such representations open the way
 to many analyses which can be built upon them more naturally, better
 than with the byte-code representation (e.g. *Live Variable
 Analysis*). The transformation algorithm, common to these
-representations, has been formalized and proved [^1].
+representations, has been formalized and proved [^2].
 
 *Sawja* also provides functions to map a program using a particular
 code representation to another.
 
-[^1]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
+[^1]: F. Tip, J. Palsberg. *Scalable Propagation-Based Call Graph
+Construction Algorithms*. OOPSLA 2000. See
+[http://www.cs.ucla.edu/\~palsberg/paper/oopsla00.pdf](http://www.cs.ucla.edu/\~palsberg/paper/oopsla00.pdf).
+
+[^2]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
 Stackless Intermediate Representation For Java Bytecode*. Research
 Report 7021, INRIA, 2009. See
-[http://irisa.fr/celtique/ext/bir](http://irisa.fr/celtique/ext/bir)
+[http://irisa.fr/celtique/ext/bir](http://irisa.fr/celtique/ext/bir).
 	
 Global architecture
 ===================
@@ -91,6 +97,10 @@ loaded by *Sun JVM*.
 
 *JRRTA* is a refinement of *RTA*. It first calls *RTA* and then prunes
 the call graph.
+    
+If we compare these algorithms according to their precision on the
+call-graph, and their cost (time and memory consumption), we get the
+following order : *CRA* < *RTA* < *RRTA* < *XTA*.
 
 *JNativeStubs* module
 ---------------------
@@ -260,7 +270,7 @@ the parsed program **prta**. We first need to build an **info** type.
 Then we just need to call the printing function:
 
 ~~~~~
-    let output = "/tmp/soot"
+    let output = "./soot"
     let () =
       JPrintHtml.pp_print_program_to_html_files prta
         output simple_info

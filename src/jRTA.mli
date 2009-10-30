@@ -40,13 +40,16 @@ val parse_program :
   string -> class_name * method_signature ->
   JCode.jcode program * JCode.jcode class_node ClassMap.t
 
-val parse_program_bench :
-  ?other_entrypoints:(class_name * method_signature) list ->
-  string -> class_name * method_signature -> unit
-
 (** Sun's JVM calls some methods natively during the JVM
     initialization.  We have included the list (that we suppose
     complete but without guarantee). Some of the method listed may not
     exists (as <clinit> method are optionals) but there should be
     executed in this order. *)
 val default_entrypoints : (class_name * method_signature) list
+
+
+(**/**)
+
+val parse_program_bench :
+  ?other_entrypoints:(class_name * method_signature) list ->
+  string -> class_name * method_signature -> unit

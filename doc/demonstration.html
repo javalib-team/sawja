@@ -1,8 +1,16 @@
-<h2>Short Demonstration</h2>
+<h2>Quick start</h2>
 
 <p>
   We quickly present some <em>OCaml</em> code allowing to load a full program
   and to transform it into <em>JBir</em> intermediate representation.
+
+  To get started, run the command <strong>make ocaml</strong> in the
+  source repository of <em>Sawja</em>. Then you can run the generated
+  toplevel named <strong>ocaml</strong>, which
+  includes <em>Javalib</em> and <em>Sawja</em> modules. You need to
+  enter some <strong>#directory</strong> directives to specify the
+  location of the <strong>.cmi</strong> files needed
+  by <em>Javalib</em> and <em>Sawja</em>.
 
   <h3>Loading a program</h3>
 
@@ -25,7 +33,7 @@
 It can be interesting to generate the <strong>.html</strong> files corresponding to the parsed program <strong>prta</strong>.
 
 <p>
-  <pre><code>    let output = "/tmp/test"
+  <pre><code>    let output = "./test"
     let () =
       JPrintHtml.pp_print_program_to_html_files prta output JPrintHtml.void_info
   </code></pre>

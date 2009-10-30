@@ -1,0 +1,374 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content=
+"HTML Tidy for Linux/x86 (vers 11 February 2007), see www.w3.org" />
+<title>Sawja tutorial</title>
+<meta http-equiv="Content-Type" content=
+"text/html; charset=us-ascii" />
+<meta name="generator" content="pandoc" />
+<link rel="stylesheet" href="style-tut.css" type="text/css" media=
+"all" />
+</head>
+<body>
+<h1 class="tutorial-title">Sawja tutorial<br />
+<img src="http://www.inria.fr/images/ti_dessous.gif" width="329"
+height="18" alt="-----------------------" /></h1>
+<div id="TOC">
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#global-architecture">Global architecture</a>
+<ul>
+<li><a href="#jprogram-module"><em>JProgram</em> module</a></li>
+<li><a href="#jcra-jrta-and-jrrta-modules"><em>JCRA</em>,
+<em>JRTA</em> and <em>JRRTA</em> modules</a></li>
+<li><a href="#jnativestubs-module"><em>JNativeStubs</em>
+module</a></li>
+<li><a href="#jcontrolflow-module"><em>JControlFlow</em>
+module</a></li>
+<li><a href="#jbir-and-a3bir-modules"><em>JBir</em> and
+<em>A3Bir</em> modules</a></li>
+<li><a href="#jprinthtml-module"><em>JPrintHtml</em>
+module</a></li>
+</ul>
+</li>
+<li><a href="#tutorial">Tutorial</a>
+<ul>
+<li><a href="#loading-and-printing-a-program">Loading and printing
+a program</a></li>
+<li><a href="#transforming-a-program-with-bir">Transforming a
+program with <em>Bir</em></a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div id="introduction">
+<h1><a href="#TOC">Introduction</a></h1>
+<p><em>Sawja</em> is a library written in <em>OCaml</em>, relying
+on the <em>Javalib</em> to provide a high level representation of
+<em>Java</em> byte-code programs. Whereas <em>Javalib</em> is
+dedicated to class per class loading, <em>Sawja</em> introduces a
+notion of program thanks to control flow algorithms. For instance,
+a program can be loaded using various algorithms like <em>Class
+Reachability Analysis</em> (<em>CRA</em>), a variant of <em>Class
+Hierarchy Analysis</em> algorithm (<em>CHA</em>) or <em>Rapid Type
+Analysis</em> (<em>RTA</em>). For now, <em>RTA</em> is the best
+compromise between loading time and precision of the call graph. A
+version of <em>XTA</em> is coming soon. To get more information
+about control flow graph algorithms and their complexity, you can
+consult the paper of Frank Tip and Jens Palsberg <a href="#fn1"
+class="footnoteRef" id="fnref1" name="fnref1"><sup>1</sup></a>.</p>
+<p>In <em>Sawja</em>, classes and interfaces are represented by
+interconnected nodes belonging to a common hierarchy. For example,
+given a class node, it's easy to access its super class, its
+implemented interfaces or its children classes. The next chapters
+will give more information about the nodes and program data
+structures.</p>
+<p>Moreover, <em>Sawja</em> provides some stack-less intermediate
+representations of code, called <em>JBir</em> and <em>A3Bir</em>.
+Such representations open the way to many analyses which can be
+built upon them more naturally, better than with the byte-code
+representation (e.g. <em>Live Variable Analysis</em>). The
+transformation algorithm, common to these representations, has been
+formalized and proved <a href="#fn2" class="footnoteRef" id=
+"fnref2" name="fnref2"><sup>2</sup></a>.</p>
+<p><em>Sawja</em> also provides functions to map a program using a
+particular code representation to another.</p>
+</div>
+<div id="global-architecture">
+<h1><a href="#TOC">Global architecture</a></h1>
+<p>In this section, we present the different modules of
+<em>Sawja</em> and how they interact together. While reading the
+next sections, we recommend you to have a look at <em>Sawja</em>
+API at the same time.</p>
+<div id="jprogram-module">
+<h2><a href="#TOC"><em>JProgram</em> module</a></h2>
+<p>This module defines:</p>
+<ul>
+<li>the types representing the class hierarchy.</li>
+<li>the program structure.</li>
+<li>some functions to access classes, methods and fields (similar
+to <em>Javalib</em> functions).</li>
+<li>some functions to browse the class hierarchy.</li>
+<li>a large set of program manipulations.</li>
+</ul>
+<p>Classes and interfaces are represented by
+<strong>class_node</strong> and <strong>interface_node</strong>
+record types, respectively. These types are parametrized by the
+code representation type, like in <em>Javalib</em>. These types are
+private and cannot be modified by the user. The only way to create
+them is to use the functions <strong>make_class_node</strong> and
+<strong>make_interface_node</strong> with consistent arguments. In
+practice, you will never need to build them because the class
+hierarchy is automatically generated when loading a program. You
+only need a read access to these record fields.</p>
+<p>The program structure contains:</p>
+<ul>
+<li>a map of all the classes referenced in the loaded program.
+These classes are linked together through the node structure.</li>
+<li>a map of parsed methods. This map depends on the algorithm used
+to load the program (<em>CRA</em>, <em>RTA</em>, ...).</li>
+<li>a static lookup method. Given the calling class name, the
+calling method signature, the invoke kind (virtual, static, ...),
+the invoked class name and method signature, it returns a set of
+potential couples of (<strong>class_name</strong>,
+<strong>method_signature</strong>) that may be called.</li>
+</ul>
+</div>
+<div id="jcra-jrta-and-jrrta-modules">
+<h2><a href="#TOC"><em>JCRA</em>, <em>JRTA</em> and <em>JRRTA</em>
+modules</a></h2>
+<p>Each of these modules implements a function
+<strong>parse_program</strong> (the signature varies) which returns
+a program parametrized by the <strong>Javalib.jcode</strong>
+representation.</p>
+<p>In <em>RTA</em>, the function <strong>parse_program</strong>
+takes at least, as parameters, a class-path and a program entry
+point. The <strong>default_entrypoints</strong> value represents
+the methods that are always called by <em>Sun JVM</em> before any
+program is launched.</p>
+<p>In <em>CRA</em>, the function <strong>parse_program</strong>
+takes at least, as parameters, a class-path and a list of classes
+acting as entry points. The <strong>default_classes</strong> value
+represents the classes that are always loaded by <em>Sun
+JVM</em>.</p>
+<p><em>JRRTA</em> is a refinement of <em>RTA</em>. It first calls
+<em>RTA</em> and then prunes the call graph.</p>
+<p>If we compare these algorithms according to their precision on
+the call-graph, and their cost (time and memory consumption), we
+get the following order : <em>CRA</em> &lt; <em>RTA</em> &lt;
+<em>RRTA</em> &lt; <em>XTA</em>.</p>
+</div>
+<div id="jnativestubs-module">
+<h2><a href="#TOC"><em>JNativeStubs</em> module</a></h2>
+<p>This module allows to define stubs for native methods,
+containing information about native method calls and native object
+allocations. Stubs can be stored in files, loaded and merged. The
+format to describe stubs looks like:</p>
+<pre>
+<code>    Method{type="Native" class="Ljava/lang/String;"
+           name="intern" signature="()Ljava/lang/String;"}{
+      VMAlloc{
+        "Ljava/lang/String;"
+        "[C"
+      }
+    }
+
+
+    Method{type="Native" class="Ljava/io/UnixFileSystem;"
+           name="getLength" signature="(Ljava/io/File;)J"}{
+      Invokes{
+        Method{type="Java" class="Ljava/lang/String;"
+               name="getBytes" signature="(Ljava/lang/String;)[B"}
+        }
+    }
+</code>
+</pre>
+<p><em>JRTA</em> admits a stub file as optional argument to handle
+native methods.</p>
+</div>
+<div id="jcontrolflow-module">
+<h2><a href="#TOC"><em>JControlFlow</em> module</a></h2>
+<p><em>JControlFlow</em> provides many functions related to class,
+field an method resolution. Static lookup functions for
+<strong>invokevirtual</strong>, <strong>invokeinterface</strong>,
+<strong>invokestatic</strong> and <strong>invokespecial</strong>
+are also present.</p>
+<p>This module also contains an internal module <strong>PP</strong>
+which allows to navigate through the control flow graph of a
+program.</p>
+</div>
+<div id="jbir-and-a3bir-modules">
+<h2><a href="#TOC"><em>JBir</em> and <em>A3Bir</em>
+modules</a></h2>
+<p>These modules both declare a type <strong>t</strong> defining an
+intermediate code representation. Both representations are
+stack-less. <em>A3Bir</em> looks like a three-address code
+representation whereas expressions in <em>JBir</em> can have
+arbitrary depths.</p>
+<p>Each module defines a function <strong>transform</strong> which
+takes as parameters a concrete method and its associated
+<strong>JCode.code</strong>, and returns a representation of type
+<strong>t</strong>. This function coupled with
+<strong>JProgram.map_program2</strong> can be used to transform a
+whole program loaded with <em>RTA</em> algorithm for example.</p>
+</div>
+<div id="jprinthtml-module">
+<h2><a href="#TOC"><em>JPrintHtml</em> module</a></h2>
+<p>This module provides a main function
+<strong>pp_print_program_to_html_files</strong> to dump a program
+into a set of <strong>.html</strong> files (one per class) related
+together by the control flow graph. This function takes as
+parameters the program, the name of the output directory and a type
+<strong>info</strong>. The type <strong>info</strong> is used to
+insert custom annotations at different levels : class, method,
+field and program point. A value <strong>void_info</strong> is also
+given and can be used by default.</p>
+</div>
+</div>
+<div id="tutorial">
+<h1><a href="#TOC">Tutorial</a></h1>
+<p>To begin this tutorial, open an <em>OCaml</em> toplevel, for
+instance using the <em>Emacs</em> <strong>tuareg-mode</strong>, and
+load the following libraries in the given order:</p>
+<pre>
+<code>    #load "str.cma"
+    #load "unix.cma"
+    #load "extLib.cma"
+    #load "zip.cma"
+    #load "ptrees.cma"
+    #load "javalib.cma"
+    #load "sawja.cma"
+</code>
+</pre>
+<p>Don't forget the associated <strong>#directory</strong>
+directives that allow you to specify the paths where to find these
+libraries.</p>
+<p>You can also build a toplevel including all these libraries
+using the command <strong>make ocaml</strong> in the sources
+repository of <em>Sawja</em>. This command builds an executable
+named <strong>ocaml</strong> which is the result of the
+<strong>ocamlmktop</strong> command.</p>
+<div id="loading-and-printing-a-program">
+<h2><a href="#TOC">Loading and printing a program</a></h2>
+<p>In this section, we present how to load a program with
+<em>Sawja</em> and some basic manipulations we can do on it to
+recover interesting information.</p>
+<p>In order to test the efficiency of <em>Sawja</em>, we like to
+work on huge programs. For instance we will use <em>Soot</em>, a
+<em>Java Optimization Framework</em> written in <em>Java</em>,
+which can be found at <a href=
+"http://www.sable.mcgill.ca/soot">http://www.sable.mcgill.ca/soot</a>.
+Once you have downloaded <em>Soot</em> and its dependencies, make
+sure that the <strong>$CLASSPATH</strong> environment variable
+contains the corresponding <strong>.jar</strong> files and the
+<em>Java Runtime</em> <strong>rt.jar</strong>. The following sample
+of code loads <em>Soot</em> program, given its main entry
+point:</p>
+<pre>
+<code>    open Javalib
+    let cp = class_path (Sys.getenv "CLASSPATH")
+    let (prta,instantiated_classes) =
+      JRTA.parse_program cp (make_cn "soot.Main",
+                               JProgram.main_signature)
+</code>
+</pre>
+<p>It can be interesting to generate the <strong>.html</strong>
+files corresponding to the parsed program <strong>prta</strong>. We
+first need to build an <strong>info</strong> type.</p>
+<pre>
+<code>    (* p_class annots a class, saying if it may be instantiated
+       or not. *)
+    let p_class =
+      (fun cn -&gt;
+        let ioc = get_node prta cn in
+          match ioc with
+           | Class c -&gt;
+             if ClassMap.mem (get_name ioc) instantiated_classes then
+               ["Instantiated"] else ["Not instantiatied"]
+           | _ -&gt; []
+      )
+</code>
+</pre>
+<pre>
+<code>    (* p_method annots a method, saying if it is concrete or abstract,
+       and if it has been parsed or not (by RTA). *)
+    let p_method =
+      (fun cn ms -&gt;
+        let m = get_method (get_node prta cn) ms in
+           match m with
+            | AbstractMethod _ -&gt; ["Abstract Method"]
+            | ConcreteMethod cm -&gt;
+              let cms = make_cms cn ms in
+              let parse =
+                if ClassMethodMap.mem cms prta.parsed_methods then
+                  "Parsed" else "Not parsed" in
+                ["Concrete Method "; parse]
+      )
+</code>
+</pre>
+<pre>
+<code>    (* There is no field annotation. *)
+    let p_field = (fun _ _ -&gt; [])
+
+    (* There is no program point annotation. *)
+    let p_pp = (fun _ _ _ -&gt; [])
+
+    (* This is the info type. *)
+    let simple_info = 
+      { JPrintHtml.p_class = p_class;
+        JPrintHtml.p_field = p_field;
+        JPrintHtml.p_method = p_method;
+        JPrintHtml.p_pp = p_pp }
+</code>
+</pre>
+<p>Then we just need to call the printing function:</p>
+<pre>
+<code>    let output = "./soot"
+    let () =
+      JPrintHtml.pp_print_program_to_html_files prta
+        output simple_info
+</code>
+</pre></div>
+<div id="transforming-a-program-with-bir">
+<h2><a href="#TOC">Transforming a program with
+<em>Bir</em></a></h2>
+<p>In this section we present a sample of code transforming a
+program loaded with <em>RTA</em> to <em>JBir</em> representation.
+The procedure to obtain the <em>A3Bir</em> representation is
+exactly the same.</p>
+<pre>
+<code>    let pbir = map_program2
+      (fun _ -&gt; JBir.transform ~compress:false) prta
+</code>
+</pre>
+<dl>
+<dt>Warning:</dt>
+<dd>Subroutines are not yet handled in <em>JBir</em> and
+<em>A3Bir</em>. If some transformed code contains such subroutines,
+the exception <strong>JBir.Subroutine</strong> or
+<strong>AB3Bir.Subroutine</strong> will be raised, respectively.
+However, when transforming a whole program with the above function,
+no exception will be raised because of the <em>lazy</em> evaluation
+of code.</dd>
+</dl>
+<p>To see how <em>JBir</em> representation looks like, we can
+pretty-print one class, for instance
+<strong>java.lang.Object</strong>:</p>
+<pre>
+<code>    let obj = get_node pbir JBasics.java_lang_object
+    let () = JPrint.print_class (JProgram.to_jclass obj)
+        JBir.print stdout
+</code>
+</pre>
+<dl>
+<dt>Note:</dt>
+<dd>We can't dump the whole program using <em>JPrintHtml</em>
+module yet, because it depends on <em>JCode.code</em>
+representation.</dd>
+</dl>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1">
+<p>F. Tip, J. Palsberg. <em>Scalable Propagation-Based Call Graph
+Construction Algorithms</em>. OOPSLA 2000. See <a href=
+"http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf">http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf</a>.
+<a href="#fnref1" class="footnoteBackLink" title=
+"Jump back to footnote 1">&#8617;</a></p>
+</li>
+<li id="fn2">
+<p>D. Demange, T. Jensen and D. Pichardie. <em>A Provably Correct
+Stackless Intermediate Representation For Java Bytecode</em>.
+Research Report 7021, INRIA, 2009. See <a href=
+"http://irisa.fr/celtique/ext/bir">http://irisa.fr/celtique/ext/bir</a>.
+<a href="#fnref2" class="footnoteBackLink" title=
+"Jump back to footnote 2">&#8617;</a></p>
+</li>
+</ol>
+</div>
+</body>
+</html>

@@ -30,7 +30,9 @@ open JBasics
 val parse_program :
   ?other_classes:class_name list -> string -> class_name list -> JCode.jcode JProgram.program
 
-val parse_program_bench : ?other_classes:class_name list -> string -> class_name list -> unit
-
 (** classes always loaded (natively) by the JVM. *)
 val default_classes : class_name list
+
+(**/**)
+
+val parse_program_bench : ?other_classes:class_name list -> string -> class_name list -> unit
