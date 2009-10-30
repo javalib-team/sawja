@@ -1464,50 +1464,7 @@ let jump_stack pc' stack =
       end
   in aux 0 stack
 
-let fold_ir f a ir =
-  List.fold_left
-    (fun s (pc,instrs) ->
-       List.fold_left
-	 (fun s ins -> f s pc ins)
-	 s instrs
-    ) a ir
 
-type tempvar_stats = {
-  stat_nb_total : int;
-  stat_nb_branchvar : int;
-  stat_nb_branchvar2 : int;
-}
-
-
-module SetInt2 = Set.Make(struct type t = int*int let compare = compare end)
-
-let make_tempvar_stats ir =
-  let (nb_tempvar_branch,_) =
-    fold_ir
-      (fun (n,s) _ ->
-	 function
-	   | (AffectVar (BranchVar (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
-	   | _ -> (n,s))
-      (0,SetInt2.empty) ir in
-  let (nb_tempvar_branch2,_) =
-    fold_ir
-      (fun (n,s) _ ->
-	 function
-	   | (AffectVar (BranchVar2 (i,j),_)) when (not (SetInt2.mem (i,j) s))-> (n+1,SetInt2.add (i,j) s)
-	   | _ -> (n,s))
-      (0,SetInt2.empty) ir in
-  let (nb_tempvar_not_branch,_) =
-    fold_ir
-      (fun (n,s) _ ->
-	 function
-	   | (AffectVar (TempVar i,_)) when (not (Ptset.mem i s))-> (n+1,Ptset.add i s)
-	   | _ -> (n,s))
-      (0,Ptset.empty) ir in
-    {
-      stat_nb_total = nb_tempvar_not_branch + nb_tempvar_branch + nb_tempvar_branch2;
-      stat_nb_branchvar = nb_tempvar_branch;
-      stat_nb_branchvar2 = nb_tempvar_branch2;
-    }
 
 
 exception NonemptyStack_backward_jump
