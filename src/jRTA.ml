@@ -590,7 +590,7 @@ let static_lookup_method p :
   and interfaces_map = p.Program.interfaces
   and classes_map = p.Program.classes in
     fun cs ms invoke ->
-      let ioc = to_jclass (ClassMap.find cs classes_map).Program.class_data in
+      let ioc = to_ioc (ClassMap.find cs classes_map).Program.class_data in
       let m = Javalib.get_method ioc ms in
 	match m with
 	  | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"

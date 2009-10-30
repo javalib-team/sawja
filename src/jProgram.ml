@@ -178,14 +178,14 @@ exception NoClassDefFoundError
 exception AbstractMethodError
 exception IllegalAccessError
 
-let to_jclass ioc =
+let to_ioc ioc =
   match ioc with
     | Interface i -> JInterface (i.i_info)
     | Class c -> JClass (c.c_info)
 
-let defines_method ioc ms = Javalib.defines_method (to_jclass ioc) ms
+let defines_method ioc ms = Javalib.defines_method (to_ioc ioc) ms
 
-let defines_field ioc fs = Javalib.defines_field (to_jclass ioc) fs
+let defines_field ioc fs = Javalib.defines_field (to_ioc ioc) fs
 
 let get_node program cs =
   ClassMap.find cs program.classes
@@ -193,16 +193,16 @@ let get_node program cs =
 let super_class c : 'a class_node option = super c
 
 let get_method ioc ms =
-  Javalib.get_method (to_jclass ioc) ms
+  Javalib.get_method (to_ioc ioc) ms
 
-let get_methods ioc = Javalib.get_methods (to_jclass ioc)
+let get_methods ioc = Javalib.get_methods (to_ioc ioc)
 
-let get_concrete_methods ioc = Javalib.get_concrete_methods (to_jclass ioc)
+let get_concrete_methods ioc = Javalib.get_concrete_methods (to_ioc ioc)
 
 let get_field ioc fs =
-  Javalib.get_field (to_jclass ioc) fs
+  Javalib.get_field (to_ioc ioc) fs
 
-let get_fields ioc = Javalib.get_fields (to_jclass ioc)
+let get_fields ioc = Javalib.get_fields (to_ioc ioc)
 
 
 (* Iterators *)
@@ -271,15 +271,12 @@ let rec rem_dbl = function
 
 let implemented_interfaces c = rem_dbl (implemented_interfaces' c)
 
-let rec firstCommonSuperClass (c1:'a class_node) (c2:'a class_node) : 'a class_node =
+let rec first_common_super_class (c1:'a class_node) (c2:'a class_node) : 'a class_node =
   if extends_class c1 c2
   then c2
   else match super_class (Class c2) with
-    | Some c3 -> firstCommonSuperClass c1 c3
-    | None -> raise (Failure "firstCommonSuperClass: c1 and c2 has been found such that c1 does not extends c2 and c2 has no super class.")
-
-exception Invoke_not_found of (class_name * method_signature
-			       * class_name * method_signature)
+    | Some c3 -> first_common_super_class c1 c3
+    | None -> failwith "first_common_super_class: c1 and c2 has been found such that c1 does not extends c2 and c2 has no super class."
 
 let get_method_calls p cs cm =
   let l = ref Ptmap.empty in
@@ -433,7 +430,7 @@ let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap
 
 let map_program_classes f classes =
   let jcmap = ClassMap.map
-    (fun c -> map_interface_or_class_context (f c) (to_jclass c))
+    (fun c -> map_interface_or_class_context (f c) (to_ioc c))
     classes
   in
     build_hierarchy jcmap

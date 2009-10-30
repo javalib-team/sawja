@@ -116,7 +116,7 @@ val i_equal : 'a interface_node -> 'a interface_node -> bool
 val c_equal : 'a class_node -> 'a class_node -> bool
 val node_equal : 'a node -> 'a node -> bool
 
-val to_jclass : 'a node -> 'a interface_or_class
+val to_ioc : 'a node -> 'a interface_or_class
 
 (** {2 Methods access functions.}*)
 
@@ -174,7 +174,7 @@ val implemented_interfaces : 'a class_node -> 'a interface_node list
     super-interfaces of [iname].*)
 val super_interfaces : 'a interface_node -> 'a interface_node list
 
-val firstCommonSuperClass : 'a class_node -> 'a class_node -> 'a class_node
+val first_common_super_class : 'a class_node -> 'a class_node -> 'a class_node
 
 (** {2 Building a hierarchy from simple classes.} *)
 
@@ -226,6 +226,3 @@ exception AbstractMethodError
 
 (** @see <http://java.sun.com/docs/books/jvms/second_edition/html/VMSpecTOC.doc.html> The JVM Specification *)
 exception IllegalAccessError
-
-exception Invoke_not_found of (class_name * method_signature
-			       * class_name * method_signature)
