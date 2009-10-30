@@ -60,7 +60,7 @@ val js:string
     generates html files representing the program [p] in the output
     directory [outputdir], given the annotation information [info], an
     optional Cascading Style Sheet (CSS) [css] and an optional
-    JavaCcript file [js].  If [css] or [js] is not provided, {!css}
+    JavaScript file [js].  If [css] or [js] is not provided, {!css}
     and {!js} are used when [css] or [js] is not provided.
 *)
 val pp_print_program_to_html_files :

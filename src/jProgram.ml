@@ -205,18 +205,6 @@ let get_field ioc fs =
 let get_fields ioc = Javalib.get_fields (to_jclass ioc)
 
 
-let store_program filename program : unit =
-  let ch = open_out_bin filename
-  in
-    Marshal.to_channel ch program [];
-    close_out ch
-
-let load_program filename : 'a program =
-  let ch = open_in_bin filename
-  in let p = (Marshal.from_channel ch : 'a program);
-  in close_in ch; p
-
-
 (* Iterators *)
 let fold f s p = ClassMap.fold (fun _ c s -> f s c) p.classes s
 let iter f p = ClassMap.iter (fun _ c -> f c) p.classes

@@ -94,10 +94,6 @@ type 'a program = { classes : 'a node ClassMap.t;
 			  methods that may be called from the program point
 			  identified by [(cni,msi,pc)]. *) }
 
-(** @raise Sys_error if the file could not be opened. *)
-val load_program : string -> 'a program
-val store_program : string -> 'a program -> unit
-
 (** {2 Iterators.}*)
 
 val iter : ('a node -> unit) -> 'a program -> unit

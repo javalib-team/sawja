@@ -13,9 +13,6 @@
 {b {L Printing programs}}
 {!modules: JPrintHtml}
 
-{b {L Other}}
-{!modules: Wlist}
-
 {b {L Indexes}}
 
 {!indexlist}
