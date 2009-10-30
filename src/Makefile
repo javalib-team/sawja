@@ -35,7 +35,7 @@ all: sawja.cma sawja.cmxa
 
 install: sawja.cma sawja.cmxa
 	mkdir -p $(INSTALL_DIR)
-	cp -f sawja.cma sawja.cmxa sawja.a $(MODULE_INTERFACES:=.cmi) $(INSTALL_DIR)
+	cp -f sawja.cma sawja.cmxa sawja.a $(MODULE_INTERFACES:=.cmi) bir.cmi $(INSTALL_DIR)
 	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
 
 ocaml:sawja.cma
