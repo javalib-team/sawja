@@ -760,7 +760,7 @@ let lub (s1,l1) (s2,l2) =
   (List.map2 lub s1 s2,Ptmap.merge lub l1 l2)
 
 let print_instr i ins =
-  JDump.opcode
+  JPrint.jopcode ~jvm:true
     (match ins with
        | OpIf (t, n) -> OpIf (t,n+i)
        | OpIfCmp (t, n) -> OpIfCmp (t,n+i)

@@ -576,7 +576,7 @@ let opcodeparam2param program cs ms pp op prmstr =
 	  SimpleParam [PCData prmstr]
 
 let opcode2inst program cs ms (pp : int) op (annots : string list) =
-  let opdump = (JDump.opcode op) in
+  let opdump = (JPrint.jopcode ~jvm:true op) in
     try
       let (opcode,prm) = ExtString.String.split opdump " " in
 	(pp,PCData opcode,opcodeparam2param program cs ms pp op prm,annots)
