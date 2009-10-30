@@ -23,9 +23,9 @@
   
 <p>
   <pre><code>    open Javalib
-    let cp = class_path (Sys.getenv "CLASSPATH")
     let (prta,instantiated_classes) =
-      JRTA.parse_program cp (make_cn "Test", JProgram.main_signature)
+      JRTA.parse_program (Sys.getenv "CLASSPATH")
+         (make_cn "Test", JProgram.main_signature)
     let () = close_class_path cp
   </code></pre>
 <p>

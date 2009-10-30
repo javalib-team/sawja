@@ -124,15 +124,15 @@ modules</a></h2>
 a program parametrized by the <strong>Javalib.jcode</strong>
 representation.</p>
 <p>In <em>RTA</em>, the function <strong>parse_program</strong>
-takes at least, as parameters, a class-path and a program entry
-point. The <strong>default_entrypoints</strong> value represents
-the methods that are always called by <em>Sun JVM</em> before any
-program is launched.</p>
+takes at least, as parameters, a class-path string and a program
+entry point. The <strong>default_entrypoints</strong> value
+represents the methods that are always called by <em>Sun JVM</em>
+before any program is launched.</p>
 <p>In <em>CRA</em>, the function <strong>parse_program</strong>
-takes at least, as parameters, a class-path and a list of classes
-acting as entry points. The <strong>default_classes</strong> value
-represents the classes that are always loaded by <em>Sun
-JVM</em>.</p>
+takes at least, as parameters, a class-path string and a list of
+classes acting as entry points. The
+<strong>default_classes</strong> value represents the classes that
+are always loaded by <em>Sun JVM</em>.</p>
 <p><em>JRRTA</em> is a refinement of <em>RTA</em>. It first calls
 <em>RTA</em> and then prunes the call graph.</p>
 <p>If we compare these algorithms according to their precision on
@@ -248,10 +248,9 @@ of code loads <em>Soot</em> program, given its main entry
 point:</p>
 <pre>
 <code>    open Javalib
-    let cp = class_path (Sys.getenv "CLASSPATH")
     let (prta,instantiated_classes) =
-      JRTA.parse_program cp (make_cn "soot.Main",
-                               JProgram.main_signature)
+      JRTA.parse_program (Sys.getenv "CLASSPATH")
+         (make_cn "soot.Main", JProgram.main_signature)
 </code>
 </pre>
 <p>It can be interesting to generate the <strong>.html</strong>

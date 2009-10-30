@@ -86,14 +86,14 @@ signature varies) which returns a program parametrized by the
 **Javalib.jcode** representation.
 
 In *RTA*, the function **parse_program** takes at least, as
-parameters, a class-path and a program entry point. The
+parameters, a class-path string and a program entry point. The
 **default_entrypoints** value represents the methods that are always
 called by *Sun JVM* before any program is launched.
 
 In *CRA*, the function **parse_program** takes at least, as
-parameters, a class-path and a list of classes acting as entry points.
-The **default_classes** value represents the classes that are always
-loaded by *Sun JVM*.
+parameters, a class-path string and a list of classes acting as entry
+points. The **default_classes** value represents the classes that are
+always loaded by *Sun JVM*.
 
 *JRRTA* is a refinement of *RTA*. It first calls *RTA* and then prunes
 the call graph.
@@ -212,10 +212,9 @@ of code loads *Soot* program, given its main entry point:
 
 ~~~~~
     open Javalib
-    let cp = class_path (Sys.getenv "CLASSPATH")
     let (prta,instantiated_classes) =
-      JRTA.parse_program cp (make_cn "soot.Main",
-                               JProgram.main_signature)
+      JRTA.parse_program (Sys.getenv "CLASSPATH")
+         (make_cn "soot.Main", JProgram.main_signature)
 ~~~~~
 
 It can be interesting to generate the **.html** files corresponding to
