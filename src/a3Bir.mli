@@ -133,7 +133,7 @@ type instr =
 - return x otherwise 
 *)
   | New of var * JBasics.class_name * JBasics.value_type list * (basic_expr list)  (** [New(x,c,tl,args)] denotes x:= new c<tl>(args),  [tl] gives the type of [args]. *)
-  | NewArray of var * JBasics.value_type * (basic_expr list)   (** [NewArray(x,t,xl)] denotes x := new c\[x1\]...\[xn\] where xi are the elements of type [t] of the list [xl].  *)
+  | NewArray of var * JBasics.value_type * (basic_expr list)  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the elements of [el] ; they represent the length of the corresponding dimension. Elements of the array are of type [t].  *)
   | InvokeStatic 
       of var option * JBasics.class_name * JBasics.method_signature * basic_expr list  (** [InvokeStatic(x,c,ms,args)] denotes 
 - c.m<ms>(args) if [x] is [None] (void returning method)
@@ -156,7 +156,7 @@ type instr =
 
 (** [t] is the parameter type for A3Bir methods. *)
 type t = {
-  a3_params : (JBasics.value_type * var) list; (** [a3_params] contains the method parameters. *)
+  a3_params : (JBasics.value_type * var) list; (** [a3_params] contains the method parameters (including the receiver this for virtual methods). *)
   a3_code : (int * instr list) list; (** Each element of [a3_code] is a pair [(pc,instrs)] where 
 				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
   a3_exc_tbl : JCode.exception_handler list; (** [a3_exc_tbl] is the exception table of the method code. *)

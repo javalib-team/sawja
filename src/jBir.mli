@@ -128,7 +128,7 @@ type instr =
 - return opte otherwise 
 *)
   | New of var * JBasics.class_name * JBasics.value_type list * expr list (** [New(x,c,tl,args)] denotes x:= new c<tl>(args),  [tl] gives the type of [args]. *)
-  | NewArray of var * JBasics.value_type * expr list  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the elements of type [t] of the list [el].  *)
+  | NewArray of var * JBasics.value_type * expr list  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the elements of [el] ; they represent the length of the corresponding dimension. Elements of the array are of type [t].  *)
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list (** [InvokeStatic(x,c,ms,args)] denotes 
 - c.m<ms>(args) if [x] is [None] (void returning method)
 -  x :=  c.m<ms>(args) otherwise 
@@ -148,7 +148,7 @@ type instr =
 
 (** [t] is the parameter type for JBir methods. *)
 type t = {
-  params : (JBasics.value_type * var) list; (** [params] contains the method parameters. *)
+  params : (JBasics.value_type * var) list; (** [params] contains the method parameters (including the receiver this for virtual methods). *)
   code : (int * instr list) list; (** Each element of [code] is a pair [(pc,instrs)] where 
 				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
   exc_tbl : JCode.exception_handler list; (** [exc_tbl] is the exception table of the method code. *)
