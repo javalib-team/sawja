@@ -351,34 +351,38 @@ let default_classes = List.map make_cn
 
 let parse_program ?(other_classes=default_classes) class_path names =
   let class_path = Javalib.class_path class_path in
-  let class_map = ref
-    begin
-      List.fold_left
-	(fun clmap cn ->
-	   let c = Javalib.get_class class_path cn in
-	   let c_name = Javalib.get_name c in
-	     ClassMap.add c_name c clmap
-	) ClassMap.empty (other_classes @ names)
-    end in
-  let interfaces = ref ClassMap.empty in
-  let p_classes =
-    ClassMap.fold
-      (fun _ c classes -> add_node class_path c classes interfaces)
-      !class_map ClassMap.empty in
-  let parsed_methods =
-    ClassMap.fold
-      (fun _ ioc_info cmmap ->
-	 let ioc = ioc_info in
-	   MethodMap.fold
-	     (fun _ cm cmmap ->
-		ClassMethodMap.add cm.cm_class_method_signature (ioc,cm) cmmap
-	     ) (get_concrete_methods ioc) cmmap
-      ) p_classes ClassMethodMap.empty in
-    Javalib.close_class_path class_path;
-      { classes = p_classes;
-	parsed_methods = parsed_methods;
-	static_lookup_method = static_lookup_method p_classes !interfaces
-      }
+    try
+      let class_map = ref
+        begin
+          List.fold_left
+	    (fun clmap cn ->
+	       let c = Javalib.get_class class_path cn in
+	       let c_name = Javalib.get_name c in
+	         ClassMap.add c_name c clmap
+	    ) ClassMap.empty (other_classes @ names)
+        end in
+      let interfaces = ref ClassMap.empty in
+      let p_classes =
+        ClassMap.fold
+          (fun _ c classes -> add_node class_path c classes interfaces)
+          !class_map ClassMap.empty in
+      let parsed_methods =
+        ClassMap.fold
+          (fun _ ioc_info cmmap ->
+	     let ioc = ioc_info in
+	       MethodMap.fold
+	         (fun _ cm cmmap ->
+		    ClassMethodMap.add cm.cm_class_method_signature (ioc,cm) cmmap
+	         ) (get_concrete_methods ioc) cmmap
+          ) p_classes ClassMethodMap.empty in
+        Javalib.close_class_path class_path;
+        { classes = p_classes;
+	  parsed_methods = parsed_methods;
+	  static_lookup_method = static_lookup_method p_classes !interfaces
+        }
+    with e ->
+      Javalib.close_class_path class_path;
+      raise e
 
 let parse_program_bench ?(other_classes=default_classes) class_path names =
   let time_start = Sys.time() in

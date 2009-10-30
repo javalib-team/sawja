@@ -534,21 +534,25 @@ struct
 
   let parse_program entrypoints native_stubs classpath =
     let classpath = Javalib.class_path classpath in
-    let p = new_program_cache entrypoints native_stubs classpath in
-      iter_workset p;
-      if not (ClassMethSet.is_empty p.native_methods)
-      then prerr_endline "The program contains native method. Beware that native methods' side effects may invalidate the result of the analysis.";
-      Javalib.close_class_path classpath;
-      let instantiated_classes =
-	ClassMap.fold
-	  (fun cs info cmap ->
-	     match info.class_data with
-	       | Interface _ -> cmap
-	       | Class c ->
-		   if (info.is_instantiated) then
-		     ClassMap.add cs c cmap
-		   else cmap) p.classes ClassMap.empty in
-	(p, instantiated_classes)
+      try
+        let p = new_program_cache entrypoints native_stubs classpath in
+          iter_workset p;
+          if not (ClassMethSet.is_empty p.native_methods)
+          then prerr_endline "The program contains native method. Beware that native methods' side effects may invalidate the result of the analysis.";
+          Javalib.close_class_path classpath;
+          let instantiated_classes =
+	    ClassMap.fold
+	      (fun cs info cmap ->
+	         match info.class_data with
+	           | Interface _ -> cmap
+	           | Class c ->
+		       if (info.is_instantiated) then
+		         ClassMap.add cs c cmap
+		       else cmap) p.classes ClassMap.empty in
+	    (p, instantiated_classes)
+      with e ->
+        Javalib.close_class_path classpath;
+        raise e
 
   let parse_program_bench entrypoints classpath =
     let time_start = Sys.time() in
