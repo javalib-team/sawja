@@ -5,9 +5,10 @@ all:sawja
 sawja:
 	$(MAKE) -C src
 
-clean cleanall cleandoc:
+install:
 	$(MAKE) -C src $@
-	$(RM) *~
 
-doc:
-	$(MAKE) -C src doc
+clean cleanall cleandoc doc:
+	$(MAKE) -C src $@
+	$(MAKE) -C doc $@
+	$(RM) *~

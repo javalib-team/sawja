@@ -16,7 +16,7 @@
 # License along with this program.  If not, see 
 # <http://www.gnu.org/licenses/>.
 
-EXTLIB_PATH		= +extlib
+EXTLIB_PATH		= +site-lib/extlib
 CAMLZIP_PATH		= +zip
 PTREES_PATH		= +ptrees
 JAVALIB_PATH		= +javalib
@@ -32,8 +32,14 @@ OCAMLC			= ocamlc.opt -w Ae -dtypes -g
 OCAMLDOC		= ocamldoc.opt
 OCAMLDEP		= ocamldep.opt
 OCAMLMKTOP		= ocamlmktop
+
+# Uncomment the following line if you have recode on your system (otherwise,
+# some name and other characters in the documentation will not appear the right
+# way)
+# RECODE = -pp "recode UTF-8..Latin-1 <"
 RECODE                  = -pp "recode UTF-8..Latin-1 <"
-PERL                    = /usr/bin/perl
+
+PERL                    = perl
 INCLUDE			= -I $(EXTLIB_PATH) -I $(CAMLZIP_PATH) -I $(PTREES_PATH) -I $(JAVALIB_PATH)
 PP			= -pp camlp4o.opt
 
