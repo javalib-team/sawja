@@ -248,9 +248,11 @@ of code loads <em>Soot</em> program, given its main entry
 point:</p>
 <pre>
 <code>    open Javalib
+    open JBasics
+    open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
-         (make_cn "soot.Main", JProgram.main_signature)
+         (JBasics.make_cn "soot.Main", JProgram.main_signature)
 </code>
 </pre>
 <p>It can be interesting to generate the <strong>.html</strong>
@@ -306,10 +308,16 @@ first need to build an <strong>info</strong> type.</p>
 <pre>
 <code>    let output = "./soot"
     let () =
-      JPrintHtml.pp_print_program_to_html_files prta
-        output simple_info
+      JPrintHtml.pp_print_program_to_html_files ~info:simple_info
+        prta output
 </code>
-</pre></div>
+</pre>
+<dl>
+<dt>Note:</dt>
+<dd>The destination directory must exist, otherwise an exception
+will be raised.</dd>
+</dl>
+</div>
 <div id="transforming-a-program-with-bir">
 <h2><a href="#TOC">Transforming a program with
 <em>Bir</em></a></h2>
@@ -318,7 +326,7 @@ program loaded with <em>RTA</em> to <em>JBir</em> representation.
 The procedure to obtain the <em>A3Bir</em> representation is
 exactly the same.</p>
 <pre>
-<code>    let pbir = map_program2
+<code>    let pbir = JProgram.map_program2
       (fun _ -&gt; JBir.transform ~compress:false) prta
 </code>
 </pre>
@@ -336,8 +344,8 @@ of code.</dd>
 pretty-print one class, for instance
 <strong>java.lang.Object</strong>:</p>
 <pre>
-<code>    let obj = get_node pbir JBasics.java_lang_object
-    let () = JPrint.print_class (JProgram.to_jclass obj)
+<code>    let obj = JProgram.get_node pbir JBasics.java_lang_object
+    let () = JPrint.print_class (JProgram.to_ioc obj)
         JBir.print stdout
 </code>
 </pre>

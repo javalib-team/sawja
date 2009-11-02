@@ -20,23 +20,32 @@
   the <strong>$CLASSPATH</strong> environment variable contains the
   <strong>test.jar</strong> file and the <em>Java
   Runtime</em> <strong>rt.jar</strong>.
+
+  Enter the following directives in your <em>toplevel</em>:
+<p>
+  <pre><code>    #cd "... path of your test.jar archive ...";;
+    #directory "... path of Javalib sources ...";;
+    #directory "... path of Sawja sources ...";;
+  </code></pre>
+<p> 
   
 <p>
-  <pre><code>    open Javalib
-    let (prta,instantiated_classes) =
+  <pre><code>    let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
-         (make_cn "Test", JProgram.main_signature)
+         (JBasics.make_cn "Test", JProgram.main_signature);;
   </code></pre>
 <p>
 
 Now we generate the <strong>.html</strong> files corresponding to the
 parsed program <strong>prta</strong>. One file per class is generated
-and the package tree is reproduced in the destination directory.
+and the package tree is reproduced in the destination directory. The
+destination directory must exist otherwise an exception will be
+raised.
 
 <p>
   <pre><code>    let outputdir = "./test"
     let () =
-      JPrintHtml.pp_print_program_to_html_files prta outputdir JPrintHtml.void_info
+      JPrintHtml.pp_print_program_to_html_files prta outputdir;;
   </code></pre>
 </p>
 
@@ -49,8 +58,8 @@ control flow graph.
 We transform the previously loaded program.
 
 <p>
-  <pre><code>    let pbir = map_program2
-      (fun _ -&gt; JBir.transform ~compress:false) prta
+  <pre><code>    let pbir = JProgram.map_program2
+      (fun _ -&gt; JBir.transform ~compress:false) prta;;
   </code></pre>
 </p>
 
@@ -59,8 +68,8 @@ pretty-print one class to the standard output, for
 instance <strong>java.lang.Object</strong>.
 
 <p>
-  <pre><code>    let obj = get_node pbir JBasics.java_lang_object
-    let () = JPrint.print_class (JProgram.to_jclass obj) JBir.print stdout
+  <pre><code>    let obj = JProgram.get_node pbir JBasics.java_lang_object
+    let () = Javalib.JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;;
   </code></pre>
 </p>
 

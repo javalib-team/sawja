@@ -212,9 +212,11 @@ of code loads *Soot* program, given its main entry point:
 
 ~~~~~
     open Javalib
+    open JBasics
+    open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
-         (make_cn "soot.Main", JProgram.main_signature)
+         (JBasics.make_cn "soot.Main", JProgram.main_signature)
 ~~~~~
 
 It can be interesting to generate the **.html** files corresponding to
@@ -271,9 +273,12 @@ Then we just need to call the printing function:
 ~~~~~
     let output = "./soot"
     let () =
-      JPrintHtml.pp_print_program_to_html_files prta
-        output simple_info
+      JPrintHtml.pp_print_program_to_html_files ~info:simple_info
+        prta output
 ~~~~~
+
+Note:
+:   The destination directory must exist, otherwise an exception will be raised.
 
 Transforming a program with *Bir*
 ---------------------------------
@@ -283,7 +288,7 @@ loaded with *RTA* to *JBir* representation. The procedure to obtain
 the *A3Bir* representation is exactly the same.
 
 ~~~~~
-    let pbir = map_program2
+    let pbir = JProgram.map_program2
       (fun _ -> JBir.transform ~compress:false) prta
 ~~~~~
 
@@ -294,8 +299,8 @@ To see how *JBir* representation looks like, we can pretty-print one
 class, for instance **java.lang.Object**:
 
 ~~~~~
-    let obj = get_node pbir JBasics.java_lang_object
-    let () = JPrint.print_class (JProgram.to_jclass obj)
+    let obj = JProgram.get_node pbir JBasics.java_lang_object
+    let () = JPrint.print_class (JProgram.to_ioc obj)
         JBir.print stdout
 ~~~~~
 
