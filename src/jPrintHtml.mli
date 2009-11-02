@@ -62,6 +62,7 @@ val js:string
     optional Cascading Style Sheet (CSS) [css] and an optional JavaScript file
     [js].  If [css] or [js] is not provided, {!css} and {!js} are used when
     [css] or [js] is not provided.
+    @raise Sys_error if the output directory [outputdir] does not exist.
 *)
 val pp_print_program_to_html_files :
   ?css:string -> ?js:string -> ?info:info -> JCode.jcode program -> string -> unit

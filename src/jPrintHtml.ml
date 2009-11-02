@@ -680,25 +680,27 @@ let pp_print_program_to_html_files
       close_out outchan
   and stylefile = "style.css"
   and jsfile = "actions.js"
-  and info = get_internal_info program info
   in
-    copy_file css (outputdir ^ "/" ^ stylefile);
-    copy_file js (outputdir ^ "/" ^ jsfile);
-    ClassMap.iter
-      (fun cs ioc ->
-	 let cn = get_name ioc in
-	 let package = cn_package cn
-	 and cname = cn_simple_name cn in
-	 let relative_css = (get_relative_path package []) ^ stylefile
-	 and relative_js = (get_relative_path package []) ^ jsfile in
-	 let doc = gen_class_document program cs info
-	   relative_css relative_js in
-	 let doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n" in
-	   create_package_dir outputdir package;
-	   let out =
-	     open_out (outputdir ^ "/" ^
-			 String.concat "/" (package @ [cname ^ ".html"])) in
-	     output_string out doctype;
-	     print_html_tree doc out;
-	     close_out out
-      ) program.classes
+    if (Sys.is_directory outputdir) then
+      (copy_file css (outputdir ^ "/" ^ stylefile);
+       copy_file js (outputdir ^ "/" ^ jsfile)
+      );
+    let info = get_internal_info program info in
+      ClassMap.iter
+	(fun cs ioc ->
+	   let cn = get_name ioc in
+	   let package = cn_package cn
+	   and cname = cn_simple_name cn in
+	   let relative_css = (get_relative_path package []) ^ stylefile
+	   and relative_js = (get_relative_path package []) ^ jsfile in
+	   let doc = gen_class_document program cs info
+	     relative_css relative_js in
+	   let doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n" in
+	     create_package_dir outputdir package;
+	     let out =
+	       open_out (outputdir ^ "/" ^
+			   String.concat "/" (package @ [cname ^ ".html"])) in
+	       output_string out doctype;
+	       print_html_tree doc out;
+	       close_out out
+	) program.classes
