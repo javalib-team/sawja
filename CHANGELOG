@@ -1,3 +1,11 @@
+From 1.0β to 1.0
+----------------
+Minor fixes:
+* typos in documentation / tutorial / quick start
+* better error handling in JPrintHtml
+* providing style.css which was missing (looks better in JPrintHtml)
+* installation procedure should run more smoothly
+
 Initial release 1.0β
 --------------------
 This initial version features a fork from Javalib 1.8.1 where the code
