@@ -26,7 +26,6 @@
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
          (make_cn "Test", JProgram.main_signature)
-    let () = close_class_path cp
   </code></pre>
 <p>
 
