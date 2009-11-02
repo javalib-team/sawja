@@ -230,7 +230,7 @@ type info =
 	  printed after the instruction. *)
     }
 
-type info_interal ={
+type info_internal ={
   p_data : info;
   (** Prints information about the possible method callers. *)
   p_callers : class_name -> method_signature -> ClassMethSet.t;
@@ -684,7 +684,8 @@ let pp_print_program_to_html_files
     if (Sys.is_directory outputdir) then
       (copy_file css (outputdir ^ "/" ^ stylefile);
        copy_file js (outputdir ^ "/" ^ jsfile)
-      );
+      )
+    else invalid_arg "Last argument must be an existing directory";
     let info = get_internal_info program info in
       ClassMap.iter
 	(fun cs ioc ->

@@ -56,13 +56,15 @@ val js:string
 
 (** {2 HTML printing functions.} *)
 
-(** [pp_print_program_to_html_files ~css ~js ~info program outputdir] generates
-    html files representing the program [p] in the output directory [outputdir],
-    given the annotation information [info] ([void_info] by default), an
-    optional Cascading Style Sheet (CSS) [css] and an optional JavaScript file
-    [js].  If [css] or [js] is not provided, {!css} and {!js} are used when
-    [css] or [js] is not provided.
-    @raise Sys_error if the output directory [outputdir] does not exist.
+(** [pp_print_program_to_html_files ~css ~js ~info program outputdir]
+    generates html files representing the program [p] in the output
+    directory [outputdir], given the annotation information [info]
+    ([void_info] by default), an optional Cascading Style Sheet (CSS)
+    [css] and an optional JavaScript file [js]. If [css] or [js] is
+    not provided, {!css} and {!js} are used when [css] or [js] is not
+    provided. @raise Sys_error if the output directory [outputdir]
+    does not exist. @raise Invalid_argument if the name corresponding
+    to [outputdir] is a file.
 *)
 val pp_print_program_to_html_files :
   ?css:string -> ?js:string -> ?info:info -> JCode.jcode program -> string -> unit
