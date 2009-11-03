@@ -1,4 +1,4 @@
-.PHONY:all sawja cleanall doc
+.PHONY:all sawja install clean cleanall cleandoc doc
 
 all:sawja
 
