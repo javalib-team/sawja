@@ -12,8 +12,6 @@ ol.code {
 }
 
 .instruction {
-    display:inline-block;
-    width: 10em;
 }
 
 div.field, div.method {

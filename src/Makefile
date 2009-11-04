@@ -25,8 +25,8 @@ DOCDIR:=../$(DOCDIR)
 
 CSS=\"style.css\"
 
-MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml cmn bir jBir a3Bir 
-MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA jPrintHtml cmn jBir a3Bir 
+MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA cmn bir jBir a3Bir jPrintHtml
+MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA cmn jBir a3Bir jPrintHtml
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install clean cleanall cleandoc doc

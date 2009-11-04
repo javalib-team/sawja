@@ -28,9 +28,9 @@ open JProgram
     This web site can be used for any kind of visualisation or
     debbuging purposes. Annotations can be attached to the program and
     will be displayed properly (according to a given css). *)
-
+  
 (** {2 Program information.} *)
-
+  
 (** This type represents the information that will be printed. *)
 type info = {
   p_class : class_name -> string list;
@@ -46,25 +46,71 @@ type info = {
   (** Prints information associated to program points. The information is
       printed after the instruction. *)
 }
-
+    
 (** [void_info] is an instance of [info] that does not print anything
     nor filter anything. *)
 val void_info : info
+  
 
-val css:string
-val js:string
+(** {2 Printing a JCode.jcode program.} *)
 
-(** {2 HTML printing functions.} *)
+val print_program : ?css:string -> ?js:string -> ?info:info
+  -> JCode.jcode program -> string -> unit
 
-(** [pp_print_program_to_html_files ~css ~js ~info program outputdir]
-    generates html files representing the program [p] in the output
-    directory [outputdir], given the annotation information [info]
-    ([void_info] by default), an optional Cascading Style Sheet (CSS)
-    [css] and an optional JavaScript file [js]. If [css] or [js] is
-    not provided, {!css} and {!js} are used when [css] or [js] is not
-    provided. @raise Sys_error if the output directory [outputdir]
-    does not exist. @raise Invalid_argument if the name corresponding
-    to [outputdir] is a file.
-*)
-val pp_print_program_to_html_files :
-  ?css:string -> ?js:string -> ?info:info -> JCode.jcode program -> string -> unit
+(** {2 Printing a JBir.t program.} *)
+
+val print_jbir_program : ?css:string -> ?js:string -> ?info:info
+  -> JBir.t program -> string -> unit
+
+(** {2 Building a Printer for any program representation.} *)
+
+(* type html_tree *)
+  
+type param
+
+val simple_param : string -> param
+
+(* val html_param : html_tree list -> param *)
+
+val value_param : ?dim:int -> 'a program -> value_type -> class_name -> param
+
+val get_param : class_name -> class_name -> field_signature -> param
+
+val invoke_param : 'a program -> class_name -> method_signature -> invoke -> param
+
+val local_param : 'a program -> class_name -> method_signature -> int -> int -> param
+
+module type HTMLPrinter =
+sig
+  type code
+    
+  val css:string
+  val js:string
+
+  (** [print_program ~css ~js ~info program
+      outputdir] generates html files representing the program [p] in
+      the output directory [outputdir], given the annotation
+      information [info] ([void_info] by default), an optional
+      Cascading Style Sheet (CSS) [css] and an optional JavaScript
+      file [js]. If [css] or [js] is not provided, {!css} and {!js}
+      are used when [css] or [js] is not provided. @raise Sys_error if
+      the output directory [outputdir] does not exist. @raise
+      Invalid_argument if the name corresponding to [outputdir] is
+      a file.
+  *)
+  val print_program :
+    ?css:string -> ?js:string -> ?info:info -> code program -> string -> unit
+end
+
+module type PrintInterface =
+sig
+  type instr
+  type code
+  val print_instr : instr -> string
+  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val inst_html : code program -> class_name -> method_signature -> int
+    -> instr -> param list option
+  val get_callgraph : code program -> callgraph
+end
+
+module Make (S : PrintInterface) : HTMLPrinter
