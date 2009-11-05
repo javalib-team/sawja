@@ -1594,10 +1594,11 @@ let gen_params pp_var cm =
 	 (fun i t -> match convert_field_type t with Op32 -> i+1 | Op64 -> i+2)
 	 (ms_args cm.cm_signature))
 
-let compress_ir ir jump_target =
+let compress_ir handlers ir jump_target =
+  let h_ends = List.fold_right (fun e s -> Ptset.add e.e_end (Ptset.add e.e_start s)) handlers Ptset.empty in
   let rec aux0 pc0 = function
     | [] -> [pc0,[Nop]]
-    | (pc,instrs)::q when jump_target.(pc) -> (pc0,[Nop])::(pc,instrs)::(aux q)
+    | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[Nop])::(aux l)
     | (_,[])::q -> aux0 pc0 q
     | (_,instrs)::q -> (pc0,instrs)::(aux q)
   and aux = function
@@ -1608,27 +1609,61 @@ let compress_ir ir jump_target =
 
 let jcode2bir mode compress cm jcode =
   let code = jcode in
-    (*    Array.iteri
-	  (fun i op ->
-	  match op with
-	  OpLoad (_,x)
-	  | OpStore (_,x) ->
-	  Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i
-	  (match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
-	  | _ -> ()
-	  ) code.c_code; *)
-  let pp_var = search_name_localvar cm.cm_static code in
-  let jump_target = compute_jump_target code in
-  let bctype = BCV.run ~verbose:true true cm code in
-  let res = bc2ir mode pp_var jump_target bctype code in
-    { params = gen_params pp_var cm;
-      code = if compress then compress_ir (List.rev res) jump_target else (List.rev res);
-      exc_tbl = code.c_exc_tbl;
-      line_number_table = code.c_line_number_table;
-      jump_target = jump_target }
-
+    match JsrInline.inline code with
+      | Some code ->
+	  (*    Array.iteri
+		(fun i op ->
+		match op with
+		OpLoad (_,x)
+		| OpStore (_,x) ->
+		Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i
+		(match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
+		| _ -> ()
+		) code.c_code; *)
+	  let pp_var = search_name_localvar cm.cm_static code in
+	  let jump_target = compute_jump_target code in
+	  let bctype = BCV.run ~verbose:true true cm code in
+	  let res = bc2ir mode pp_var jump_target bctype code in
+	    { params = gen_params pp_var cm;
+	      code = if compress then compress_ir code.c_exc_tbl (List.rev res) jump_target else (List.rev res);
+	      exc_tbl = code.c_exc_tbl;
+	      line_number_table = code.c_line_number_table;
+	      jump_target = jump_target }
+      | None -> raise Subroutine
 
 let transform ?(compress=false) = jcode2bir Normal compress
 let transform_flat ?(compress=false) = jcode2bir Flat compress
 let transform_addr3 ?(compress=false) = jcode2bir Addr3 compress
 
+let rec last = function
+    [] -> assert false
+  | [(x,_)] -> x
+  | _::q -> last q
+
+let flatten_code code =
+  let rec aux i map = function
+      [] -> [], [], map
+    | (pc,instrs)::q ->
+	  let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
+	    instrs@instrs',(List.map (fun _ -> pc) instrs)@pc_list,Ptmap.add pc i map
+  in 
+  let (instrs,pc_list,map) = aux 0 Ptmap.empty code.code in
+  let rec find i = 
+    try Ptmap.find i map
+    with Not_found -> assert (i=1+(last code.code)); List.length instrs in
+    Array.of_list
+      (List.map (function 
+		   | Goto pc -> Goto (Ptmap.find pc map)
+		   | Ifd (g, pc) -> Ifd (g, Ptmap.find pc map)
+		   | ins -> ins) instrs),
+      Array.of_list pc_list,
+      map,
+      List.map
+	(fun e -> 
+	   {
+	     e_start = find e.e_start;
+	     e_end = find e.e_end; (* It may be outside the range ?  *)
+	     e_handler = find e.e_handler;
+	     e_catch_type = e.e_catch_type
+	   }) code.exc_tbl
+	

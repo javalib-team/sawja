@@ -174,6 +174,8 @@ val print : t -> string list
 [transform b cm jcode] can raise several exceptions. See exceptions below for details. *) 
 val transform : ?compress:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
+val flatten_code : t -> instr array * int array * int Ptmap.t * JCode.exception_handler list
+
 (** {2 Exceptions} *)
 
 (** {3 Exceptions due to the transformation limitations} *)
