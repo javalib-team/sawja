@@ -1,3 +1,4 @@
+# -*-Makefile-*-
 # This file is part of Sawja
 # Copyright (c)2007 Tiphaine Turpin (Université de Rennes 1)
 # Copyright (c)2007 Laurent Hubert (CNRS)
@@ -16,39 +17,43 @@
 # License along with this program.  If not, see 
 # <http://www.gnu.org/licenses/>.
 
-EXTLIB_PATH		= +site-lib/extlib
-CAMLZIP_PATH		= +zip
-PTREES_PATH		= +ptrees
-JAVALIB_PATH		= +javalib
+DOCDIR                  = doc/api
 
-INSTALL_DIR		= `ocamlc -where`/sawja
-DOCDIR			= doc/api
-
-OPT_FLAGS		= -noassert -ccopt -O3
-
-DEBUG			= no
-
-OCAMLC			= ocamlc.opt -w Ae -dtypes -g
-OCAMLDOC		= ocamldoc.opt
-OCAMLDEP		= ocamldep.opt
-OCAMLMKTOP		= ocamlmktop
+# set to yes to keep debugging information in native library or to prof to
+# profile (with gprof) your program
+#
+# DEBUG = no
+# DEBUG = prof
+DEBUG                   = yes
 
 # Uncomment the following line if you have recode on your system (otherwise,
 # some name and other characters in the documentation will not appear the right
 # way)
-# RECODE = -pp "recode UTF-8..Latin-1 <"
-RECODE                  = -pp "recode UTF-8..Latin-1 <"
+# RECODE                  = -pp "recode UTF-8..Latin-1 <"
 
 PERL                    = perl
-INCLUDE			= -I $(EXTLIB_PATH) -I $(CAMLZIP_PATH) -I $(PTREES_PATH) -I $(JAVALIB_PATH)
-PP			= -pp camlp4o.opt
+
+FLAGS			= -w Ae -dtypes -g
 
 ifeq ($(DEBUG),yes)
-OCAMLOPT		= ocamlopt.opt -g
+OPT_FLAGS               = -g
 else
 ifeq ($(DEBUG),prof)
-OCAMLOPT		= ocamlopt.opt -p $(OPT_FLAGS)
+OPT_FLAGS               = -p -noassert -ccopt -O3
 else
-OCAMLOPT		= ocamlopt.opt $(OPT_FLAGS)
+OPT_FLAGS               = -noassert -ccopt -O3
 endif
 endif
+
+OCAMLC                  = ocamlfind ocamlc $(FLAGS)
+OCAMLOPT                = ocamlfind ocamlopt $(OPT_FLAGS)
+OCAMLDOC                = ocamlfind ocamldoc
+OCAMLDEP                = ocamlfind ocamldep
+OCAMLMKTOP              = ocamlfind ocamlmktop
+INSTALL			= ocamlfind install
+
+INCLUDE                 = -package javalib
+
+# you can remove .opt if you only have camlp4o
+PP                      = -pp camlp4o
+

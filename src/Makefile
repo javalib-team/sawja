@@ -29,20 +29,22 @@ MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA cmn bir jBir a3
 MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA cmn jBir a3Bir jPrintHtml
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
-.PHONY : all install clean cleanall cleandoc doc
+.PHONY : all install remove clean cleanall cleandoc doc
 
 all: sawja.cma sawja.cmxa
 
-install: sawja.cma sawja.cmxa
-	mkdir -p $(INSTALL_DIR)
-	cp -f sawja.cma sawja.cmxa sawja.a $(MODULE_INTERFACES:=.cmi) bir.cmi $(INSTALL_DIR)
-	cp -f $(MODULE_INTERFACES:=.mli) $(INSTALL_DIR)
+install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) $(MODULE_INTERFACES:=.cmi)
+	$(INSTALL) sawja $^ bir.cmi sawja.a
+
+remove:
+	ocamlfind remove sawja
 
 ocaml:sawja.cma
-	$(OCAMLMKTOP) $(INCLUDE) -o $@ unix.cma zip.cma extLib.cma ptrees.cma str.cma javalib.cma sawja.cma
+	$(OCAMLMKTOP) $(INCLUDE) -linkpkg -o $@ sawja.cma
 
 .depend:$(MODULE_INTERFACES:=.mli) $(MODULES:=.ml)
 	$(OCAMLDEP) $(PP) $^ > $@
+
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),cleanall)
 ifneq ($(MAKECMDGOALS),cleandoc)
@@ -74,20 +76,19 @@ sawja.cma: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
 
 sawja.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 	$(OCAMLOPT) -a $(MODULES:=.cmx) -o $@
-# endif
 
+JAVALIB=`ocamlfind query javalib`
 doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
-	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -html -stars		\
-		-colorize-code -intro ../intro.ocamldoc -t Sawja		\
-		$(MODULE_INTERFACES:=.mli)
+
+	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
+		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) \
+		$(JAVALIB)/{javalib,jBasics,jCode}.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 
 clean:
-	rm -rf .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *.a *~ 
-
+	$(RM) .depend *.cmo *.cmx *.annot *.obj *.o *~ 
 cleanall: clean
-	rm -rf ocaml tests tests.opt sample sample.opt *.cmi	\
-		*.cma *.cmxa
+	$(RM) ocaml *.cma *.cmxa *.a
 cleandoc:
-	rm -rf $(DOCDIR)
+	$(RM) -r $(DOCDIR)

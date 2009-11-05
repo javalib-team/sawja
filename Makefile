@@ -5,7 +5,7 @@ all:sawja
 sawja:
 	$(MAKE) -C src
 
-install:
+install remove:
 	$(MAKE) -C src $@
 
 clean cleanall cleandoc doc:

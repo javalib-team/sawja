@@ -1,0 +1,5 @@
+version = "1.0.1"
+description = "Sawja helps you to manipulates Java bytecode programs"
+archive(native) = "sawja.cmxa"
+archive(byte) = "sawja.cma"
+requires = "javalib"

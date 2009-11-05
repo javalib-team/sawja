@@ -10,67 +10,55 @@
   includes <em>Javalib</em> and <em>Sawja</em> modules. You need to
   enter some <strong>#directory</strong> directives to specify the
   location of the <strong>.cmi</strong> files needed
-  by <em>Javalib</em> and <em>Sawja</em>.
+  by <em>Javalib</em> and <em>Sawja</em>.</p>
 
-  <h3>Loading a program</h3>
+<h3>Loading a program</h3>
 
-  Given an archive <b>test.jar</b> containing a class
+<p>Given an archive <b>test.jar</b> containing a class
   named <b>Test.class</b> defining a <b>main</b> method, we can load
   the corresponding program, assuming that
   the <strong>$CLASSPATH</strong> environment variable contains the
   <strong>test.jar</strong> file and the <em>Java
-  Runtime</em> <strong>rt.jar</strong>.
+  Runtime</em> <strong>rt.jar</strong>.</p>
 
-  Enter the following directives in your <em>toplevel</em>:
-<p>
-  <pre><code>    #cd "... path of your test.jar archive ...";;
+<p>Enter the following directives in your <em>toplevel</em>:</p>
+<pre><code>    #cd "... path of your test.jar archive ...";;
     #directory "... path of Javalib sources ...";;
-    #directory "... path of Sawja sources ...";;
-  </code></pre>
-<p> 
+    #directory "... path of Sawja sources ...";;</code></pre>
   
-<p>
-  <pre><code>    let (prta,instantiated_classes) =
+<pre><code>    let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
          (JBasics.make_cn "Test", JProgram.main_signature);;
-  </code></pre>
-<p>
+</code></pre>
 
-Now we generate the <strong>.html</strong> files corresponding to the
-parsed program <strong>prta</strong>. One file per class is generated
-and the package tree is reproduced in the destination directory. The
-destination directory must exist otherwise an exception will be
-raised.
+<p>Now we generate the <strong>.html</strong> files corresponding to the
+  parsed program <strong>prta</strong>. One file per class is generated
+  and the package tree is reproduced in the destination directory. The
+  destination directory must exist otherwise an exception will be
+  raised.</p>
 
-<p>
-  <pre><code>    let outputdir = "./test"
+<pre><code>    let outputdir = "./test"
     let () =
       JPrintHtml.pp_print_program_to_html_files prta outputdir;;
-  </code></pre>
-</p>
+</code></pre>
 
-You can open the file <strong>./test/Test.html</strong> with a web
-browser and navigate through the class hierarchy, or follow the
-control flow graph.
+<p>You can open the file <strong>./test/Test.html</strong> with a web
+  browser and navigate through the class hierarchy, or follow the
+  control flow graph.</p>
 
-  <h3>Transforming a program</h3>
+<h3>Transforming a program</h3>
 
-We transform the previously loaded program.
+<p>We transform the previously loaded program.</p>
 
-<p>
-  <pre><code>    let pbir = JProgram.map_program2
+<pre><code>    let pbir = JProgram.map_program2
       (fun _ -&gt; JBir.transform ~compress:false) prta;;
-  </code></pre>
-</p>
+</code></pre>
 
-To see how <em>JBir</em> representation looks like, we can
-pretty-print one class to the standard output, for
-instance <strong>java.lang.Object</strong>.
 
-<p>
-  <pre><code>    let obj = JProgram.get_node pbir JBasics.java_lang_object
+<p>To see how <em>JBir</em> representation looks like, we can
+  pretty-print one class to the standard output, for
+  instance <strong>java.lang.Object</strong>.</p>
+
+<pre><code>    let obj = JProgram.get_node pbir JBasics.java_lang_object
     let () = Javalib.JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;;
-  </code></pre>
-</p>
-
-</p>
+</code></pre>
