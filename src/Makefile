@@ -89,6 +89,6 @@ doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 clean:
 	$(RM) .depend *.cmo *.cmx *.annot *.obj *.o *~ 
 cleanall: clean
-	$(RM) ocaml *.cma *.cmxa *.a
+	$(RM) ocaml *.cmi *.cma *.cmxa *.a
 cleandoc:
 	$(RM) -r $(DOCDIR)

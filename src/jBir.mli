@@ -120,8 +120,8 @@ type instr =
   | AffectArray of expr * expr * expr (** [AffectArray(a,idx,e)] denotes   a\[idx\] := e. *)
   | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr (** [AffectField(e,c,fs,e')] denotes   e.<c:fs> := e'. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr  (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
-  | Goto of int (** [Goto pc] denotes goto pc. *)
-  | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. *)
+  | Goto of int (** [Goto pc] denotes goto pc. (absolute address) *)
+  | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
   | Throw of expr (** [Throw e] denotes throw e.  *)
   | Return of expr option (** [Return opte] denotes 
 - return void when [opte] is [None] 

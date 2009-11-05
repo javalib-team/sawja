@@ -1123,7 +1123,15 @@ let make_tempvar s next_store =
  *)
 let bc2bir_instr mode pp_var i bctype tos s next_store = function
   | OpNop -> s, []
-  | OpConst x -> E (Const x)::s, []
+  | OpConst c -> 
+      begin
+	match c with
+	  | `Class _ | `String _ -> 
+	      let x = make_tempvar s next_store in
+		E (Var (TObject (TClass java_lang_object),x))::s,
+		[AffectVar(x,Const c)]
+	  | _ -> E (Const c)::s, []
+      end
   | OpLoad (_,n) ->
       E (Var (bctype i,OriginalVar (n,pp_var i n)))::s, []
   | OpArrayLoad t ->
