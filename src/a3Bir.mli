@@ -48,7 +48,7 @@ val var_orig : var -> bool
 (** [var_equal v1 v2] tests the equality of variables [v1] and [v2]. *)
 val var_equal : var -> var -> bool
 
-(** [var_name v] returns a string representation of the variable [v]. If the initial class was compiled using debug information, original variable names are build on this information. *)
+(** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
 
 (** [var_name_debug v] returns, if possible the original variable names of [v], 
