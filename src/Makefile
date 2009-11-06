@@ -20,18 +20,31 @@
 
 
 -include ../Makefile.config
-INCLUDE:=$(INCLUDE)
 DOCDIR:=../$(DOCDIR)
 
 CSS=\"style.css\"
 
-MODULES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml
-MODULE_INTERFACES=wlist jProgram jControlFlow jNativeStubs jCRA jRTA jRRTA cmn jsrInline jBir a3Bir jPrintHtml
+ifeq ($(BUDDY),yes)
+CLASS_DOMAIN = classDomainBDD.ml
+else
+CLASS_DOMAIN = classDomainPtrees.ml
+endif
+
+MODULES = safe wlist jProgram jControlFlow classDomain XTA jNativeStubs jCRA	\
+	jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml
+
+MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain XTA		\
+	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install remove clean cleanall cleandoc doc
 
 all: sawja.cma sawja.cmxa
+
+META: META.source ../Makefile.config
+	if [ "$(BUDDY)" = "yes" ]; then \
+		sed 's/requires = "javalib"/requires = "javalib,buddy"/' $< > $@ ; \
+	else cp $< $@ ; fi
 
 install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) $(MODULE_INTERFACES:=.cmi)
 	$(INSTALL) sawja $^ bir.cmi sawja.a
@@ -58,11 +71,17 @@ jNativeStubs.cmo:jNativeStubs.ml
 jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
 	$(OCAMLOPT) $(INCLUDE) $(PP) -c $<
 
+classDomain.ml:$(CLASS_DOMAIN)
+	cp $< $@
+
 jPrintHtml.cmo:jPrintHtml.ml
 	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
 	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+
+safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
+	cat $^ > $@
 
 .ml.cmo:
 	$(OCAMLC) $(INCLUDE) -c $<
@@ -87,8 +106,9 @@ doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 
 clean:
-	$(RM) .depend *.cmo *.cmx *.annot *.obj *.o *~ 
+	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ 
 cleanall: clean
+	$(RM) ocaml *.cma *.cmxa *.a *.cmi
 	$(RM) ocaml *.cmi *.cma *.cmxa *.a
 cleandoc:
 	$(RM) -r $(DOCDIR)

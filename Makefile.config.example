@@ -17,43 +17,51 @@
 # License along with this program.  If not, see 
 # <http://www.gnu.org/licenses/>.
 
-DOCDIR                  = doc/api
-
 # set to yes to keep debugging information in native library or to prof to
 # profile (with gprof) your program
 #
-# DEBUG = no
-# DEBUG = prof
-DEBUG                   = yes
+# DEBUG = {no|yes|prof}
+DEBUG = yes
 
-# Uncomment the following line if you have recode on your system (otherwise,
-# some name and other characters in the documentation will not appear the right
-# way)
-# RECODE                  = -pp "recode UTF-8..Latin-1 <"
+# set to yes if you have the Buddy BDD library or to know if you do not have the
+# library or do not want to use it
+# BUDDY = {yes|no}
+BUDDY = no
 
-PERL                    = perl
+# Comment the following line if you do not have recode on your system
+# (otherwise, some name and other characters in the documentation will not
+# appear the right way)
+RECODE = -pp "recode UTF-8..Latin-1 <"
 
-FLAGS			= -w Ae -dtypes -g
+# directory where the documentation will be put
+DOCDIR = doc/api
+
+
+PERL = perl
+
+FLAGS = -w Ae -dtypes -g
 
 ifeq ($(DEBUG),yes)
-OPT_FLAGS               = -g
+OPT_FLAGS = -g
 else
 ifeq ($(DEBUG),prof)
-OPT_FLAGS               = -p -noassert -ccopt -O3
+OPT_FLAGS = -p -noassert -ccopt -O3
 else
-OPT_FLAGS               = -noassert -ccopt -O3
+OPT_FLAGS = -noassert -ccopt -O3
 endif
 endif
 
-OCAMLC                  = ocamlfind ocamlc $(FLAGS)
-OCAMLOPT                = ocamlfind ocamlopt $(OPT_FLAGS)
-OCAMLDOC                = ocamlfind ocamldoc
-OCAMLDEP                = ocamlfind ocamldep
-OCAMLMKTOP              = ocamlfind ocamlmktop
+OCAMLC = ocamlfind ocamlc $(FLAGS)
+OCAMLOPT = ocamlfind ocamlopt $(OPT_FLAGS)
+OCAMLDOC = ocamlfind ocamldoc
+OCAMLDEP = ocamlfind ocamldep
+OCAMLMKTOP = ocamlfind ocamlmktop
 INSTALL			= ocamlfind install
 
-INCLUDE                 = -package javalib
+ifeq ($(BUDDY),yes)
+INCLUDE = -package javalib,buddy
+else
+INCLUDE = -package javalib
+endif
 
-# you can remove .opt if you only have camlp4o
-PP                      = -pp camlp4o
-
+PP = -package camlp4 -syntax camlp4o
