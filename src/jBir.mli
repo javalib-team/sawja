@@ -48,8 +48,18 @@ val var_orig : var -> bool
 (** [var_equal v1 v2] tests the equality of variables [v1] and [v2]. *)
 val var_equal : var -> var -> bool
 
-(** [var_name v] returns a string representation of the variable [v]. If the initial class was compiled using debug information, original variable names are build on this information. *)
+(** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
+
+(** [var_name_debug v] returns, if possible the original variable names of [v], 
+    if the initial class was compiled using debug information. *)
+val var_name_debug : var -> string option
+
+(** [var_name_g v] returns a string representation of the variable [v]. 
+    If the initial class was compiled using debug information, original 
+    variable names are build on this information. It is equivalent to
+    [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
+val var_name_g : var -> string
 
 (** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
 val bcvar : int -> var
