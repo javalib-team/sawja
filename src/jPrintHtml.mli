@@ -70,15 +70,13 @@ type param
 
 val simple_param : string -> param
 
-(* val html_param : html_tree list -> param *)
-
 val value_param : ?dim:int -> 'a program -> value_type -> class_name -> param
 
-val get_param : class_name -> class_name -> field_signature -> param
+val get_param : ?called_cname:string -> 'a program -> class_name -> class_name
+  -> field_signature -> param
 
-val invoke_param : 'a program -> class_name -> method_signature -> invoke -> param
-
-val local_param : 'a program -> class_name -> method_signature -> int -> int -> param
+val invoke_param : ?called_cname:string -> ?called_mname:string -> 'a program ->
+  class_name -> method_signature -> invoke -> param
 
 module type HTMLPrinter =
 sig

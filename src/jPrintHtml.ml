@@ -530,16 +530,51 @@ let value_param ?dim program v cs =
 	(SimpleExpr ((valuetype2html program v cs)
 		      @ [PCData (" " ^ (string_of_int n))]))
 
-let get_param cs ccs fs =
-  let file = get_relative_file cs ccs in
-  let anchor = fs2anchorname ccs fs in
-  let href =
-    if (cn_equal cs ccs) then "#" ^ anchor
-    else file ^ "#" ^ anchor in
+let get_param ?called_cname program cs ccs fs =
+  let callcname = match called_cname with
+    | Some x -> x
+    | None -> cn_name ccs in
   let fname = fs_name fs in
-    SimpleExpr ([gen_hyperlink href fname])
+    try
+      let node = get_node program ccs in
+      let rclist = JControlFlow.resolve_field fs node in
+	match rclist with
+	  | [c] -> let rcs = get_name c in
+	    let rcname = match called_cname with
+	      | Some x -> x
+	      | None -> cn_name rcs in
+	    let file = get_relative_file cs rcs in
+	    let anchor = fs2anchorname rcs fs in
+	    let href =
+	      if (cn_equal cs rcs) then "#" ^ anchor
+	      else file ^ "#" ^ anchor in
+	      SimpleExpr [gen_hyperlink href (rcname ^ "." ^ fname)]
+	  | _ ->
+	      let flookuphtml = List.map
+		(fun node ->
+		   let rcs = get_name node in
+		   let rcname = match called_cname with
+		     | Some x -> x
+		     | None -> cn_name rcs in
+		   let file = get_relative_file cs rcs in
+		   let anchor = fs2anchorname rcs fs in
+		   let href =
+		     if (cn_equal cs rcs) then "#" ^ anchor
+		     else file ^ "#" ^ anchor in
+		     [gen_hyperlink href (rcname ^ "." ^ fname)]
+		) rclist in
+		DynamicExpr ([gen_titled_span
+				[PCData (callcname ^ "." ^ fname)] [] ""],
+			     match flookuphtml with
+			       | [] -> [[PCData "No reachable result."]]
+			       | _ -> flookuphtml)
+    with Not_found ->
+      let callcname = match called_cname with
+	| Some x -> x
+	| None -> cn_name ccs in
+	SimpleExpr [PCData (callcname ^ "." ^ fname)]
       
-let invoke_param program cs ms invoke =
+let invoke_param ?called_cname ?called_mname program cs ms invoke =
   let mlookups =
     try List.map cms_split
       (ClassMethodSet.elements (program.static_lookup_method cs ms invoke))
@@ -554,8 +589,12 @@ let invoke_param program cs ms invoke =
        let rmsig = htmlize (JPrint.method_signature rms) in
 	 [gen_titled_hyperlink href (rcname ^ "." ^ rmname) rmsig]
     ) mlookups in
-  let callcname = cn_name callcs in
-  let callmname = htmlize (ms_name callms) in
+  let callcname = match called_cname with
+    | Some x -> x
+    | None -> cn_name callcs in
+  let callmname = match called_mname with
+    | Some x -> htmlize x
+    | None -> htmlize (ms_name callms) in
   let callmsig = htmlize (JPrint.method_signature callms) in
     DynamicExpr ([gen_titled_span
 		    [PCData (callcname ^ "." ^ callmname)] [] callmsig],
@@ -777,12 +816,12 @@ module JCodePrinter = Make(
 	  | OpGetStatic (ccs,fs) | OpPutStatic (ccs,fs)
 	  | OpGetField (ccs,fs) | OpPutField (ccs,fs) ->
 	      let ftype = fs_type fs in
-		Some [simple_param inst; get_param cs ccs fs;
+		Some [simple_param inst; get_param program cs ccs fs;
 		      simple_param " : "; value_param program ftype cs]
-	  | OpInvoke ((`Virtual (TClass ccs)),cms) ->
+	  | OpInvoke ((`Virtual o),cms) ->
 	      Some
 		[simple_param inst;
-		 invoke_param program cs ms ((`Virtual (TClass ccs)),cms);
+		 invoke_param program cs ms ((`Virtual o),cms);
 		 method_args_param program cs ms]
 	  | OpInvoke ((`Interface ccs),cms) ->
 	      Some
@@ -821,46 +860,95 @@ module JBirPrinter = Make(
 	    ) code.JBir.code
       with
 	  _ -> ()
+    let print_list_sep sep f l =
+      let ml = List.map f l in
+	String.concat sep ml
     let inst_html program cs ms _pp op =
-      let inst = print_instr op in
-	match op with
-	  | JBir.New (_,ccs,_,_) ->
-	      let v = TObject (TClass ccs) in
-	      let inst_params = Str.bounded_split
-		(Str.regexp "new .+(") inst 2 in
-	      let p1 = simple_param ((List.hd inst_params) ^ "new") in
-	      let p2 = value_param program v cs in
-	      let p3 = simple_param ("(" ^ (List.hd (List.tl inst_params))) in
-		Some [p1; p2; p3]
-	| JBir.NewArray (_,v,_) ->
-	      let inst_params = Str.bounded_split
-		(Str.regexp "new .+\\[") inst 2 in
-	      let p1 = simple_param ((List.hd inst_params) ^ "new") in
-	      let p2 = value_param program v cs in
-	      let p3 = simple_param ("[" ^ (List.hd (List.tl inst_params))) in
-		Some [p1; p2; p3]
-	| JBir.InvokeVirtual (_,_,JBir.VirtualCall (TClass ccs),cms,_) ->
-	      if ExtString.String.exists inst ":=" then
-		let inst_params =
-		  Str.bounded_split (Str.regexp ":=.+(") inst 2 in
-		let p1 = simple_param ((List.hd inst_params) ^ " :=") in
-		let p2 = invoke_param program cs ms ((`Virtual (TClass ccs)),cms) in
-		  (* To modify... *)
-		let p3 = try
-		  simple_param ("(" ^ (List.hd (List.tl inst_params)))
-		with _ -> simple_param "" in
-		  Some [p1; p2; p3]
-	      else
-		let inst_params =
-		  Str.bounded_split (Str.regexp ".+(") inst 1 in
-		let p1 = invoke_param program cs ms ((`Virtual (TClass ccs)),cms) in
-		let p2 = simple_param ("(" ^ (List.hd inst_params)) in
-		  Some [p1; p2]
-	(* | JBir.InvokeVirtual (_,_,JBir.InterfaceCall ccs,cms,_) -> *)
-	(*     let inst_params = Str.bounded_split (Str.regexp ".+(") inst 1 in *)
-	(*     let p1 = invoke_param program cs ms ((`Interface ccs),cms) in *)
-	(*     let p2 = simple_param ("(" ^ (List.hd inst_params)) in *)
-	(*       Some [p1; p2] *)
+      match op with
+	| JBir.AffectStaticField (ccs,fs,e) ->
+	    let p1 = get_param program cs ccs fs in
+	    let p2 = simple_param
+	      (Printf.sprintf ":= %s" (JBir.print_expr e)) in
+	      Some [p1;p2]
+	| JBir.AffectField (e1,ccs,fs,e2) ->
+	    let p1 = get_param program ~called_cname:(JBir.print_expr e1)
+	      cs ccs fs in
+	    let p2 = simple_param
+	      (Printf.sprintf ":= %s" (JBir.print_expr e2)) in
+	      Some [p1;p2]
+	| JBir.New (x,ccs,_,le) ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_param
+	      (Printf.sprintf "%s := new" (JBir.var_name x)) in
+	    let p2 = value_param program v cs in
+	    let p3 = simple_param
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " JBir.print_expr le)) in
+	      Some [p1;p2;p3]
+	| JBir.NewArray (x,v,le) ->
+	    let p1 = simple_param
+	      (Printf.sprintf "%s := new" (JBir.var_name x)) in
+	    let p2 = value_param program v cs in
+	    let p3 = simple_param
+	      (Printf.sprintf "%s"
+		 (print_list_sep ""
+		    (fun e -> 
+		       Printf.sprintf "[%s]" (JBir.print_expr e)) le)
+	      ) in
+	      Some [p1;p2;p3]
+	| JBir.InvokeStatic (None,ccs,cms,le) ->
+	    let p1 = invoke_param program cs ms ((`Static ccs),cms) in
+	    let p2 = simple_param
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
+	      Some [p1;p2]
+	| JBir.InvokeStatic (Some x,ccs,cms,le) ->
+	    let p1 = simple_param
+	      (Printf.sprintf "%s :=" (JBir.var_name x)) in
+	    let p2 = invoke_param program cs ms ((`Static ccs),cms) in
+	    let p3 = simple_param
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
+	      Some [p1;p2;p3]
+	| JBir.InvokeVirtual (r,e1,k,cms,le) ->
+	    let p2 =
+	      (match k with
+		 | JBir.VirtualCall o ->
+		     invoke_param ~called_cname:(JBir.print_expr e1) program
+		       cs ms ((`Virtual o),cms)
+		 | JBir.InterfaceCall ccs ->
+		     invoke_param ~called_cname:(JBir.print_expr e1) program
+		       cs ms ((`Interface ccs),cms)
+	      ) in
+	    let p3 = simple_param
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " (JBir.print_expr) le)) in
+	      (match r with
+		 | None -> Some [p2;p3]
+		 | Some x ->
+		     let p1 = simple_param
+		       (Printf.sprintf "%s :="  (JBir.var_name x)) in
+		       Some [p1;p2;p3]
+	      )
+	| JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
+	    let p1 = simple_param
+	      (match r with
+		 | None -> (JBir.print_expr e1) ^ "."
+		 | Some x -> Printf.sprintf "%s := %s." (JBir.var_name x)
+		     (JBir.print_expr e1)
+	      ) in
+	    let p2 = invoke_param program cs ms ((`Special ccs),cms) in
+	    let p3 = simple_param
+	      (Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
+	      Some [p1;p2;p3]
+	| JBir.MayInit ccs ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_param "mayinit" in
+	    let p2 = value_param program v cs in
+	      Some [p1;p2]
+	| JBir.Check (JBir.CheckCast (e,t)) ->
+	    let p1 = simple_param
+	      (Printf.sprintf "checkcast %s:" (JBir.print_expr e)) in
+	    let p2 = value_param program (TObject t) cs in
+	      Some [p1;p2]
 	| _ -> None
     let get_callgraph _ = []
   end)

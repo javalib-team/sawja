@@ -24,3 +24,5 @@ open JCode
 
 
 include Bir
+
+let print_expr = print_expr true

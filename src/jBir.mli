@@ -169,6 +169,9 @@ type t = {
 
 (** {2 Printing functions} *)
 
+(** [print_expr e] returns a string representation for expression [e]. *)
+val print_expr : expr -> string
+
 (** [print_instr ins] returns a string representation for instruction [ins]. *)
 val print_instr : instr -> string
 
