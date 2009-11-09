@@ -412,111 +412,12 @@ let methodname2html cs ms info mname =
       [gen_span [PCData mname]
 	 [("class",methodname_class ^ " " ^ clickable_class);
 	  ("onclick","showInfoList(this)")]]
-	
-let get_local_variable_ident i _pp m =
-  match m with
-    | AbstractMethod _
-    | ConcreteMethod {cm_implementation = Native} -> string_of_int i
-    | ConcreteMethod {cm_implementation = Java _code} ->
-	(* to modify : change signature of get_local_variable_info to be
-	   independant of code *)
-	string_of_int i
-          (* let v = get_local_variable_info i pp (Lazy.force code) in *)
-          (*   match v with *)
-          (*     | None -> string_of_int i *)
-          (*     | Some (name,_) -> name *)
-	  
-let get_local_variable_signature _i _pp m =
-  match m with
-    | AbstractMethod _
-    | ConcreteMethod {cm_implementation = Native} -> None
-    | ConcreteMethod {cm_implementation = Java _code} ->
-	(* to modify : change signature of get_local_variable_info to be
-	   independant of code *)
-	None
-          (* let v = get_local_variable_info i pp (Lazy.force code) in *)
-          (*   match v with *)
-          (*     | None -> None *)
-          (*     | Some (_,signature) -> Some signature *)
 
-let methodparameters2html ?(sign=false) program cs ms =
-  let m = get_method (get_node program cs) ms in
-  let mparameters = ms_args ms in
-  let list_concat l =
-    match l with
-      | [] -> []
-      | hd :: tl ->
-	  List.fold_left (fun x y -> x @ [PCData ", "] @ y) hd tl in
-  let prms =
-    list_concat (ExtList.List.mapi
-		   (fun i x ->
-		      let v = (valuetype2html program x cs) in
-		      if sign then
-			v @ [PCData (" "
-				     ^ (get_local_variable_ident i 0 m))]
-		      else v) mparameters
-		) in
-    [PCData "("] @ prms @ [PCData ")"]
-      
-let methodsignature2html program cs ms info =
-  let meth = get_method (get_node program cs) ms in
-  let mname = ms_name ms in
-  let mreturntype = ms_rtype ms in
-  let header =
-    match meth with
-      | AbstractMethod am ->
-	  (access2string am.am_access) ^ " abstract"
-      | ConcreteMethod cm ->
-	  (access2string cm.cm_access)
-	  ^ (if cm.cm_static then " static" else "")
-	  ^ (if cm.cm_final then " final" else "")
-	  ^ (match cm.cm_implementation with Native -> " native" | _ -> "")
-	  ^ (if cm.cm_synchronized then " synchronized" else "") in
-  let mname2html = methodname2html cs ms info in
-  let mparams2html = methodparameters2html ~sign:true program cs ms in
-    if (mname = "<clinit>") then
-      let mname = mname2html "clinit" in
-	(PCData (header ^ " ")) :: mname @ [PCData ("{};")]
-    else if (mname = "<init>") then
-      let mname = mname2html (cn_simple_name cs) in
-	(PCData (header ^ " ")) :: mname
-	@ mparams2html
-	@ [PCData ";"]
-    else
-      let mname = mname2html mname in
-	(PCData (header ^ " "))
-	:: (returntype2html program mreturntype cs)
-	@ (PCData (" ") :: mname)
-	@ mparams2html
-	@ [PCData ";"]
-	  
-let iocsignature2html program cs =
-  let ioc = get_node program cs in
-    match ioc with
-      | Class _ ->
-	  [PCData ("Class " ^ (cn_name cs))]
-      | Interface _ ->
-	  [PCData ("Interface " ^ (cn_name cs))]
-	    
-let field2html program cs fs annots =
-  gen_field (fs2anchorname cs fs) (fieldsignature2html program cs fs) annots
-    
-let method2html program cs ms info insts =
-  let method_annots = info.p_data.p_method cs ms in
-  let method_signature = methodsignature2html program cs ms info in
-  let callers = methodcallers2html cs ms info in
-    gen_method (ms2anchorname cs ms) method_signature callers
-      method_annots insts
-      
-let get_fields_indexes program cs =
-  let ioc = get_node program cs in
-  let l = ref [] in
-    (match ioc with
-       | Class c ->
-	   FieldMap.iter (fun i _ -> l := i :: !l) c.c_info.c_fields
-       | Interface i ->
-	   FieldMap.iter (fun i _ -> l := i :: !l) i.i_info.i_fields
-    ); !l
+let list_concat l =
+  match l with
+    | [] -> []
+    | hd :: tl ->
+	List.fold_left (fun x y -> x @ [PCData ", "] @ y) hd tl
 
 let simple_param s = SimpleExpr [PCData s]
 
@@ -603,20 +504,13 @@ let invoke_param ?called_cname ?called_mname program cs ms invoke =
 		   | _ -> mlookupshtml)
 
 let method_args_param program cs ms =
-  html_param (methodparameters2html program cs ms)
-
-let local_param program cs ms pp n =      
-  let ioc = get_node program cs in
-  let meth = get_method ioc ms in
-  let prm = get_local_variable_ident n pp meth in
-  let signature = get_local_variable_signature n pp meth in
-    SimpleExpr ((PCData prm)
-		 :: match signature with
-		   | None -> []
-		   | Some s ->				       
-		       (PCData " : ")
-		       :: (valuetype2html program s cs)
-		)
+  let mparameters = ms_args ms in
+  let prms =
+    list_concat
+      (List.map
+	 (fun x -> (valuetype2html program x cs)) mparameters
+      ) in
+    html_param ([PCData "("] @ prms @ [PCData ")"])
 
 module type HTMLPrinter =
 sig
@@ -634,6 +528,8 @@ sig
   type code
   val print_instr : instr -> string
   val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val method_param_names : code program -> class_name -> method_signature
+    -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> param list option
   val get_callgraph : code program -> callgraph
@@ -642,7 +538,83 @@ end
 module Make (S : PrintInterface) =
 struct
   type code = S.code
-      	    
+      
+  let methodparameters2html program cs ms =
+    let mparameters = ms_args ms in
+    let pnames = S.method_param_names program cs ms in
+    let prms =
+      list_concat
+	(ExtList.List.mapi
+	   (fun i x ->
+	      let v = (valuetype2html program x cs) in
+		match pnames with
+		  | None -> v @ [PCData (" " ^ (string_of_int i))]
+		  | Some names ->
+		      v @ [PCData (" " ^ (List.nth names i))]
+	   ) mparameters
+	) in
+      [PCData "("] @ prms @ [PCData ")"]
+
+  let methodsignature2html program cs ms info =
+    let meth = get_method (get_node program cs) ms in
+    let mname = ms_name ms in
+    let mreturntype = ms_rtype ms in
+    let header =
+      match meth with
+	| AbstractMethod am ->
+	    (access2string am.am_access) ^ " abstract"
+	| ConcreteMethod cm ->
+	    (access2string cm.cm_access)
+	    ^ (if cm.cm_static then " static" else "")
+	    ^ (if cm.cm_final then " final" else "")
+	    ^ (match cm.cm_implementation with Native -> " native" | _ -> "")
+	    ^ (if cm.cm_synchronized then " synchronized" else "") in
+    let mname2html = methodname2html cs ms info in
+    let mparams2html = methodparameters2html program cs ms in
+      if (mname = "<clinit>") then
+	let mname = mname2html "clinit" in
+	  (PCData (header ^ " ")) :: mname @ [PCData ("{};")]
+      else if (mname = "<init>") then
+	let mname = mname2html (cn_simple_name cs) in
+	  (PCData (header ^ " ")) :: mname
+	  @ mparams2html
+	  @ [PCData ";"]
+      else
+	let mname = mname2html mname in
+	  (PCData (header ^ " "))
+	  :: (returntype2html program mreturntype cs)
+	  @ (PCData (" ") :: mname)
+	  @ mparams2html
+	  @ [PCData ";"]
+	  
+  let iocsignature2html program cs =
+    let ioc = get_node program cs in
+      match ioc with
+	| Class _ ->
+	    [PCData ("Class " ^ (cn_name cs))]
+	| Interface _ ->
+	    [PCData ("Interface " ^ (cn_name cs))]
+	    
+  let field2html program cs fs annots =
+    gen_field (fs2anchorname cs fs) (fieldsignature2html program cs fs) annots
+    
+  let method2html program cs ms info insts =
+    let method_annots = info.p_data.p_method cs ms in
+    let method_signature = methodsignature2html program cs ms info in
+    let callers = methodcallers2html cs ms info in
+      gen_method (ms2anchorname cs ms) method_signature callers
+	method_annots insts
+      
+  let get_fields_indexes program cs =
+    let ioc = get_node program cs in
+    let l = ref [] in
+      (match ioc with
+	 | Class c ->
+	     FieldMap.iter (fun i _ -> l := i :: !l) c.c_info.c_fields
+	 | Interface i ->
+	     FieldMap.iter (fun i _ -> l := i :: !l) i.i_info.i_fields
+      ); !l
+	    
   let inst2html program cs ms pp inst =
     let inststr = (S.print_instr inst) in
     let params = S.inst_html program cs ms pp inst in
@@ -794,6 +766,25 @@ module JCodePrinter = Make(
 	       | OpInvalid -> ()
 	       | _ -> f pp opcode
 	  ) code.c_code
+
+    let method_param_names program cn ms =
+      let m = get_method (get_node program cn) ms in
+	match m with
+	  | AbstractMethod _
+	  | ConcreteMethod {cm_implementation = Native} -> None
+	  | ConcreteMethod ({cm_implementation = Java code} as cm) ->
+	      let is_static = cm.cm_static in
+		Some
+		  (ExtList.List.mapi
+		     (fun i _ ->
+			let n = if is_static then i else i + 1 in
+			let v = get_local_variable_info n 0 (Lazy.force code) in
+			  match v with
+			    | None -> string_of_int i
+			    | Some (name,_) -> name
+		     ) (ms_args ms)
+		  )
+
     let inst_html program cs ms pp op =
       let inst_params = print_instr op in
       let inst =
@@ -839,8 +830,19 @@ module JCodePrinter = Make(
 		 invoke_param program cs ms ((`Special ccs),cms);
 		 method_args_param program cs ms]
 	  | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
-	      Some [simple_param inst; local_param program cs ms pp n]
+	      let m = get_method (get_node program cs) ms in
+	      let locname =
+		match m with
+		  | AbstractMethod _
+		  | ConcreteMethod {cm_implementation = Native} -> string_of_int n
+		  | ConcreteMethod {cm_implementation = Java code} ->
+		      let v = get_local_variable_info n pp (Lazy.force code) in
+			match v with
+			  | None -> string_of_int n
+			  | Some (name,_) -> name in
+		Some [simple_param (inst ^ " " ^ locname)]
 	  | _ -> None
+		
     let get_callgraph = JProgram.get_callgraph 
   end)
 
@@ -863,6 +865,26 @@ module JBirPrinter = Make(
     let print_list_sep sep f l =
       let ml = List.map f l in
 	String.concat sep ml
+
+    let method_param_names program cn ms =
+      let m = get_method (get_node program cn) ms in
+	match m with
+	  | AbstractMethod _
+	  | ConcreteMethod {cm_implementation = Native} -> None
+	  | ConcreteMethod ({cm_implementation = Java code} as cm) ->
+	      try
+		let code = Lazy.force code in
+		let is_static = cm.cm_static in
+		  Some
+		    (ExtList.List.mapi
+		       (fun i _ ->
+			  let n = if is_static then i else i + 1 in
+			  let var = snd (List.nth code.JBir.params n) in
+			    JBir.var_name_g var
+		       ) (ms_args ms)
+		    )
+	      with _ -> None
+
     let inst_html program cs ms _pp op =
       match op with
 	| JBir.AffectStaticField (ccs,fs,e) ->
@@ -879,7 +901,7 @@ module JBirPrinter = Make(
 	| JBir.New (x,ccs,_,le) ->
 	    let v = TObject (TClass ccs) in
 	    let p1 = simple_param
-	      (Printf.sprintf "%s := new" (JBir.var_name x)) in
+	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
 	    let p2 = value_param program v cs in
 	    let p3 = simple_param
 	      (Printf.sprintf "(%s)"
@@ -887,7 +909,7 @@ module JBirPrinter = Make(
 	      Some [p1;p2;p3]
 	| JBir.NewArray (x,v,le) ->
 	    let p1 = simple_param
-	      (Printf.sprintf "%s := new" (JBir.var_name x)) in
+	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
 	    let p2 = value_param program v cs in
 	    let p3 = simple_param
 	      (Printf.sprintf "%s"
@@ -903,7 +925,7 @@ module JBirPrinter = Make(
 	      Some [p1;p2]
 	| JBir.InvokeStatic (Some x,ccs,cms,le) ->
 	    let p1 = simple_param
-	      (Printf.sprintf "%s :=" (JBir.var_name x)) in
+	      (Printf.sprintf "%s :=" (JBir.var_name_g x)) in
 	    let p2 = invoke_param program cs ms ((`Static ccs),cms) in
 	    let p3 = simple_param
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
@@ -925,14 +947,14 @@ module JBirPrinter = Make(
 		 | None -> Some [p2;p3]
 		 | Some x ->
 		     let p1 = simple_param
-		       (Printf.sprintf "%s :="  (JBir.var_name x)) in
+		       (Printf.sprintf "%s :="  (JBir.var_name_g x)) in
 		       Some [p1;p2;p3]
 	      )
 	| JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
 	    let p1 = simple_param
 	      (match r with
 		 | None -> (JBir.print_expr e1) ^ "."
-		 | Some x -> Printf.sprintf "%s := %s." (JBir.var_name x)
+		 | Some x -> Printf.sprintf "%s := %s." (JBir.var_name_g x)
 		     (JBir.print_expr e1)
 	      ) in
 	    let p2 = invoke_param program cs ms ((`Special ccs),cms) in

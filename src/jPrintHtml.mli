@@ -106,6 +106,8 @@ sig
   type code
   val print_instr : instr -> string
   val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val method_param_names : code program -> class_name -> method_signature
+    -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> param list option
   val get_callgraph : code program -> callgraph
