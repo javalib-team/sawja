@@ -423,7 +423,7 @@ let simple_elem s = SimpleExpr [PCData s]
 
 let html_elem ht = SimpleExpr ht
 
-let value_elem ?dim program v cs =
+let value_elem ?dim program cs v =
   match dim with
     | None ->
 	SimpleExpr (valuetype2html program v cs)
@@ -516,8 +516,6 @@ module type HTMLPrinter =
 sig
   type code
     
-  val css:string
-  val js:string
   val print_program :
     ?css:string -> ?js:string -> ?info:info -> code program -> string -> unit
 end
@@ -526,12 +524,11 @@ module type PrintInterface =
 sig
   type instr
   type code
-  val print_instr : instr -> string
   val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
   val method_param_names : code program -> class_name -> method_signature
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
-    -> instr -> elem list option
+    -> instr -> elem list
   val get_callgraph : code program -> callgraph
 end
   
@@ -615,13 +612,6 @@ struct
 	     FieldMap.iter (fun i _ -> l := i :: !l) i.i_info.i_fields
       ); !l
 	    
-  let inst2html program cs ms pp inst =
-    let inststr = (S.print_instr inst) in
-    let params = S.inst_html program cs ms pp inst in
-      match params with
-	| Some params -> params
-	| None -> [SimpleExpr [PCData inststr]]
-	  
   let ioc2html program cs info =
     let ioc = get_node program cs in
     let fields =
@@ -654,7 +644,7 @@ struct
 				 let insts =
 				   List.rev_map
 				     (fun inst ->
-					inst2html program cs ms pp inst) insts in
+					S.inst_html program cs ms pp inst) insts in
 				   (insts, annots)
 			      ) !map
 		   )
@@ -695,9 +685,9 @@ struct
 	      
   (* WARNING: do not edit the next line, the CSS comment will be
      replaced by the actual CSS. (cf. Makefile) *)
-  let css = "(* CSS *)"
+  let default_css = "(* CSS *)"
     
-  let js = "function showInfoList(e){
+  let default_js = "function showInfoList(e){
     var siblings = e.parentNode.childNodes;
     var len = siblings.length;
 
@@ -718,17 +708,28 @@ struct
 }"
     
   let print_program
-      ?(css=css) ?(js=js) ?(info=void_info) program outputdir =
-    let copy_file src dst =
+      ?css ?js ?(info=void_info) program outputdir =
+    let copy_file default src dst =
       let outchan = open_out dst in
-	output_string outchan src;
+	(match src with
+	   | Some f ->
+	       let inchan = open_in f in
+		 (try
+		    while (true) do
+		      let line = input_line inchan in
+			output_string outchan line
+		    done
+		  with End_of_file -> close_in inchan)
+	   | None ->
+	       output_string outchan default
+	);
 	close_out outchan
     and stylefile = "style.css"
     and jsfile = "actions.js"
     in
       if (Sys.is_directory outputdir) then
-	(copy_file css (outputdir ^ "/" ^ stylefile);
-	 copy_file js (outputdir ^ "/" ^ jsfile)
+	(copy_file default_css css (outputdir ^ "/" ^ stylefile);
+	 copy_file default_js js (outputdir ^ "/" ^ jsfile)
 	)
       else invalid_arg "Last argument must be an existing directory";
       let cg = S.get_callgraph program in
@@ -757,7 +758,7 @@ module JCodePrinter = Make(
   struct
     type instr = JCode.jopcode
     type code = JCode.jcode
-    let print_instr = Javalib.JPrint.jopcode ~jvm:true
+
     let iter_code f lazy_code =
       let code = Lazy.force lazy_code in
 	Array.iteri
@@ -786,7 +787,7 @@ module JCodePrinter = Make(
 		  )
 
     let inst_html program cs ms pp op =
-      let inst_params = print_instr op in
+      let inst_params = Javalib.JPrint.jopcode ~jvm:true op in
       let inst =
 	try
 	  let n = (String.index inst_params ' ') + 1 in
@@ -795,40 +796,36 @@ module JCodePrinter = Make(
 	match op with
 	  | OpNew ccs ->
 	      let v = TObject (TClass ccs) in
-		Some [simple_elem inst; value_elem program v cs]
+		[simple_elem inst; value_elem program cs v]
 	  | OpNewArray v ->
-	      Some [simple_elem inst; value_elem program v cs]
+	      [simple_elem inst; value_elem program cs v]
 	  | OpAMultiNewArray (o,i) ->
 	      let v = TObject o in
-		Some [simple_elem inst; value_elem ~dim:i program v cs]
+		[simple_elem inst; value_elem ~dim:i program cs v]
 	  | OpCheckCast o | OpInstanceOf o ->
 	      let v = TObject o in
-		Some [simple_elem inst; value_elem program v cs]
+		[simple_elem inst; value_elem program cs v]
 	  | OpGetStatic (ccs,fs) | OpPutStatic (ccs,fs)
 	  | OpGetField (ccs,fs) | OpPutField (ccs,fs) ->
 	      let ftype = fs_type fs in
-		Some [simple_elem inst; field_elem program cs ccs fs;
-		      simple_elem " : "; value_elem program ftype cs]
+		[simple_elem inst; field_elem program cs ccs fs;
+		 simple_elem " : "; value_elem program cs ftype]
 	  | OpInvoke ((`Virtual o),cms) ->
-	      Some
-		[simple_elem inst;
-		 invoke_elem program cs ms ((`Virtual o),cms);
-		 method_args_elem program cs ms]
+	      [simple_elem inst;
+	       invoke_elem program cs ms ((`Virtual o),cms);
+	       method_args_elem program cs ms]
 	  | OpInvoke ((`Interface ccs),cms) ->
-	      Some
-		[simple_elem inst; 
-		 invoke_elem program cs ms ((`Interface ccs),cms);
-		 method_args_elem program cs ms]
+	      [simple_elem inst; 
+	       invoke_elem program cs ms ((`Interface ccs),cms);
+	       method_args_elem program cs ms]
 	  | OpInvoke ((`Static ccs),cms) ->
-	      Some
-		[simple_elem inst; 
-		 invoke_elem program cs ms ((`Static ccs),cms);
-		 method_args_elem program cs ms]
+	      [simple_elem inst; 
+	       invoke_elem program cs ms ((`Static ccs),cms);
+	       method_args_elem program cs ms]
 	  | OpInvoke ((`Special ccs),cms) ->
-	      Some
-		[simple_elem inst; 
-		 invoke_elem program cs ms ((`Special ccs),cms);
-		 method_args_elem program cs ms]
+	      [simple_elem inst; 
+	       invoke_elem program cs ms ((`Special ccs),cms);
+	       method_args_elem program cs ms]
 	  | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
 	      let m = get_method (get_node program cs) ms in
 	      let locname =
@@ -840,8 +837,8 @@ module JCodePrinter = Make(
 			match v with
 			  | None -> string_of_int n
 			  | Some (name,_) -> name in
-		Some [simple_elem (inst ^ " " ^ locname)]
-	  | _ -> None
+		[simple_elem (inst ^ " " ^ locname)]
+	  | _ -> [simple_elem inst_params]
 		
     let get_callgraph = JProgram.get_callgraph 
   end)
@@ -852,7 +849,7 @@ module JBirPrinter = Make(
   struct
     type instr = JBir.instr
     type code = JBir.t
-    let print_instr = JBir.print_instr
+
     let iter_code f lazy_code =
       try
 	let code = Lazy.force lazy_code in
@@ -891,45 +888,45 @@ module JBirPrinter = Make(
 	    let p1 = field_elem program cs ccs fs in
 	    let p2 = simple_elem
 	      (Printf.sprintf ":= %s" (JBir.print_expr e)) in
-	      Some [p1;p2]
+	      [p1;p2]
 	| JBir.AffectField (e1,ccs,fs,e2) ->
 	    let p1 = field_elem program ~called_cname:(JBir.print_expr e1)
 	      cs ccs fs in
 	    let p2 = simple_elem
 	      (Printf.sprintf ":= %s" (JBir.print_expr e2)) in
-	      Some [p1;p2]
+	      [p1;p2]
 	| JBir.New (x,ccs,_,le) ->
 	    let v = TObject (TClass ccs) in
 	    let p1 = simple_elem
 	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	    let p2 = value_elem program v cs in
+	    let p2 = value_elem program cs v in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)"
 		 (print_list_sep ", " JBir.print_expr le)) in
-	      Some [p1;p2;p3]
+	      [p1;p2;p3]
 	| JBir.NewArray (x,v,le) ->
 	    let p1 = simple_elem
 	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	    let p2 = value_elem program v cs in
+	    let p2 = value_elem program cs v in
 	    let p3 = simple_elem
 	      (Printf.sprintf "%s"
 		 (print_list_sep ""
 		    (fun e -> 
 		       Printf.sprintf "[%s]" (JBir.print_expr e)) le)
 	      ) in
-	      Some [p1;p2;p3]
+	      [p1;p2;p3]
 	| JBir.InvokeStatic (None,ccs,cms,le) ->
 	    let p1 = invoke_elem program cs ms ((`Static ccs),cms) in
 	    let p2 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
-	      Some [p1;p2]
+	      [p1;p2]
 	| JBir.InvokeStatic (Some x,ccs,cms,le) ->
 	    let p1 = simple_elem
 	      (Printf.sprintf "%s :=" (JBir.var_name_g x)) in
 	    let p2 = invoke_elem program cs ms ((`Static ccs),cms) in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
-	      Some [p1;p2;p3]
+	      [p1;p2;p3]
 	| JBir.InvokeVirtual (r,e1,k,cms,le) ->
 	    let p2 =
 	      (match k with
@@ -944,11 +941,11 @@ module JBirPrinter = Make(
 	      (Printf.sprintf "(%s)"
 		 (print_list_sep ", " (JBir.print_expr) le)) in
 	      (match r with
-		 | None -> Some [p2;p3]
+		 | None -> [p2;p3]
 		 | Some x ->
 		     let p1 = simple_elem
 		       (Printf.sprintf "%s :="  (JBir.var_name_g x)) in
-		       Some [p1;p2;p3]
+		       [p1;p2;p3]
 	      )
 	| JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
 	    let p1 = simple_elem
@@ -960,18 +957,19 @@ module JBirPrinter = Make(
 	    let p2 = invoke_elem program cs ms ((`Special ccs),cms) in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
-	      Some [p1;p2;p3]
+	      [p1;p2;p3]
 	| JBir.MayInit ccs ->
 	    let v = TObject (TClass ccs) in
 	    let p1 = simple_elem "mayinit" in
-	    let p2 = value_elem program v cs in
-	      Some [p1;p2]
+	    let p2 = value_elem program cs v in
+	      [p1;p2]
 	| JBir.Check (JBir.CheckCast (e,t)) ->
 	    let p1 = simple_elem
 	      (Printf.sprintf "checkcast %s:" (JBir.print_expr e)) in
-	    let p2 = value_elem program (TObject t) cs in
-	      Some [p1;p2]
-	| _ -> None
+	    let p2 = value_elem program cs (TObject t) in
+	      [p1;p2]
+	| _ -> [simple_elem (JBir.print_instr op)]
+
     let get_callgraph _ = []
   end)
 

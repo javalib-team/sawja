@@ -54,23 +54,49 @@ val void_info : info
 
 (** {2 Printing a JCode.jcode program.} *)
 
+(** [print_program ~css ~js ~info program outputdir] generates html
+    files representing the [JCode.jcode] program [p] in the output
+    directory [outputdir], given the annotation information [info]
+    ([void_info] by default), an optional Cascading Style Sheet (CSS)
+    file [css] and an optional JavaScript file [js]. If [css] or [js]
+    is not provided, a default CSS or JavaScript file is generated.
+    @raise Sys_error if the output directory [outputdir] does not
+    exist. @raise Invalid_argument if the name corresponding to
+    [outputdir] is a file. *)
 val print_program : ?css:string -> ?js:string -> ?info:info
   -> JCode.jcode program -> string -> unit
 
 (** {2 Printing a JBir.t program.} *)
 
+(** [print_program ~css ~js ~info program outputdir] generates html
+    files representing the {!JBir.t} program [p] in the output
+    directory [outputdir], given the annotation information [info]
+    ([void_info] by default), an optional Cascading Style Sheet (CSS)
+    file [css] and an optional JavaScript file [js]. If [css] or [js]
+    is not provided, a default CSS or JavaScript file is generated.
+    @raise Sys_error if the output directory [outputdir] does not
+    exist. @raise Invalid_argument if the name corresponding to
+    [outputdir] is a file. *)
 val print_jbir_program : ?css:string -> ?js:string -> ?info:info
   -> JBir.t program -> string -> unit
 
 (** {2 Building a Printer for any program representation.} *)
 
-(* type html_tree *)
-  
+(** Abstract type representing basic elements to build html instructions. *)
 type elem
 
+(** [simple_elem s] Builds an [elem] from a string [s]. No html effect
+    is provided. *)
 val simple_elem : string -> elem
 
-val value_elem : ?dim:int -> 'a program -> value_type -> class_name -> elem
+(** [value_elem ~dim p cn v] builds an [elem] from a value_type [v].
+    An optional parameter [~dim] can be provided if the value_type is
+    a multidimensional array whose size have to be displayed. If the
+    value_type represents a class or a class array, an hyperlink will
+    be displayed, referencing the corresponding class in the generated
+    html files. The program [p] and the current class_name [cn] are
+    essential to build a relative hyperlink. *)
+val value_elem : ?dim:int -> 'a program -> class_name -> value_type -> elem
 
 val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
   -> field_signature -> elem
@@ -84,20 +110,15 @@ module type HTMLPrinter =
 sig
   type code
     
-  val css:string
-  val js:string
-
-  (** [print_program ~css ~js ~info program
-      outputdir] generates html files representing the program [p] in
-      the output directory [outputdir], given the annotation
-      information [info] ([void_info] by default), an optional
-      Cascading Style Sheet (CSS) [css] and an optional JavaScript
-      file [js]. If [css] or [js] is not provided, {!css} and {!js}
-      are used when [css] or [js] is not provided. @raise Sys_error if
-      the output directory [outputdir] does not exist. @raise
-      Invalid_argument if the name corresponding to [outputdir] is
-      a file.
-  *)
+  (** [print_program ~css ~js ~info program outputdir] generates html
+      files representing the program [p] in the output directory
+      [outputdir], given the annotation information [info]
+      ([void_info] by default), an optional Cascading Style Sheet
+      (CSS) [css] and an optional JavaScript file [js]. If [css] or
+      [js] is not provided, a default CSS or JavaScript file is
+      generated. @raise Sys_error if the output directory [outputdir]
+      does not exist. @raise Invalid_argument if the name
+      corresponding to [outputdir] is a file. *)
   val print_program :
     ?css:string -> ?js:string -> ?info:info -> code program -> string -> unit
 end
@@ -106,12 +127,11 @@ module type PrintInterface =
 sig
   type instr
   type code
-  val print_instr : instr -> string
   val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
   val method_param_names : code program -> class_name -> method_signature
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
-    -> instr -> elem list option
+    -> instr -> elem list
   val get_callgraph : code program -> callgraph
 end
 
