@@ -99,9 +99,8 @@ sawja.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 	$(OCAMLOPT) -a $(MODULES:=.cmx) -o $@
 
 JAVALIB=`ocamlfind query javalib`
-doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
+doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
-
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) \
 		$(JAVALIB)/{javalib,jBasics,jCode}.mli
@@ -110,7 +109,6 @@ doc: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.ml) ../intro.ocamldoc
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ 
 cleanall: clean
-	$(RM) ocaml *.cma *.cmxa *.a *.cmi
-	$(RM) ocaml *.cmi *.cma *.cmxa *.a
+	$(RM) ocaml *.cma *.cmxa *.a *.cmi META
 cleandoc:
 	$(RM) -r $(DOCDIR)
