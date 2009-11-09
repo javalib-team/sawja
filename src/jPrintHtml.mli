@@ -66,17 +66,19 @@ val print_jbir_program : ?css:string -> ?js:string -> ?info:info
 
 (* type html_tree *)
   
-type param
+type elem
 
-val simple_param : string -> param
+val simple_elem : string -> elem
 
-val value_param : ?dim:int -> 'a program -> value_type -> class_name -> param
+val value_elem : ?dim:int -> 'a program -> value_type -> class_name -> elem
 
-val get_param : ?called_cname:string -> 'a program -> class_name -> class_name
-  -> field_signature -> param
+val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
+  -> field_signature -> elem
 
-val invoke_param : ?called_cname:string -> ?called_mname:string -> 'a program ->
-  class_name -> method_signature -> invoke -> param
+val invoke_elem : ?called_cname:string -> ?called_mname:string -> 'a program ->
+  class_name -> method_signature -> invoke -> elem
+
+val method_args_elem : 'a program -> class_name -> method_signature -> elem
 
 module type HTMLPrinter =
 sig
@@ -109,7 +111,7 @@ sig
   val method_param_names : code program -> class_name -> method_signature
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
-    -> instr -> param list option
+    -> instr -> elem list option
   val get_callgraph : code program -> callgraph
 end
 

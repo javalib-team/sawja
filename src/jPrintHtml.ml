@@ -145,8 +145,8 @@ let gen_hidden_list hlist =
       ) hlist in
     gen_custom_tag "ul" [("class",clickable_class)] ullist
       
-type param = | SimpleExpr of html_tree list
-	     | DynamicExpr of (html_tree list) * ((html_tree list) list)
+type elem = | SimpleExpr of html_tree list
+	    | DynamicExpr of (html_tree list) * ((html_tree list) list)
 		 
 let gen_inst inst_params =
   let (visible_parameters, hidden_parameters) =
@@ -419,11 +419,11 @@ let list_concat l =
     | hd :: tl ->
 	List.fold_left (fun x y -> x @ [PCData ", "] @ y) hd tl
 
-let simple_param s = SimpleExpr [PCData s]
+let simple_elem s = SimpleExpr [PCData s]
 
-let html_param ht = SimpleExpr ht
+let html_elem ht = SimpleExpr ht
 
-let value_param ?dim program v cs =
+let value_elem ?dim program v cs =
   match dim with
     | None ->
 	SimpleExpr (valuetype2html program v cs)
@@ -431,7 +431,7 @@ let value_param ?dim program v cs =
 	(SimpleExpr ((valuetype2html program v cs)
 		      @ [PCData (" " ^ (string_of_int n))]))
 
-let get_param ?called_cname program cs ccs fs =
+let field_elem ?called_cname program cs ccs fs =
   let callcname = match called_cname with
     | Some x -> x
     | None -> cn_name ccs in
@@ -475,7 +475,7 @@ let get_param ?called_cname program cs ccs fs =
 	| None -> cn_name ccs in
 	SimpleExpr [PCData (callcname ^ "." ^ fname)]
       
-let invoke_param ?called_cname ?called_mname program cs ms invoke =
+let invoke_elem ?called_cname ?called_mname program cs ms invoke =
   let mlookups =
     try List.map cms_split
       (ClassMethodSet.elements (program.static_lookup_method cs ms invoke))
@@ -503,14 +503,14 @@ let invoke_param ?called_cname ?called_mname program cs ms invoke =
 		   | [] -> [[PCData "No reachable result."]]
 		   | _ -> mlookupshtml)
 
-let method_args_param program cs ms =
+let method_args_elem program cs ms =
   let mparameters = ms_args ms in
   let prms =
     list_concat
       (List.map
 	 (fun x -> (valuetype2html program x cs)) mparameters
       ) in
-    html_param ([PCData "("] @ prms @ [PCData ")"])
+    html_elem ([PCData "("] @ prms @ [PCData ")"])
 
 module type HTMLPrinter =
 sig
@@ -531,7 +531,7 @@ sig
   val method_param_names : code program -> class_name -> method_signature
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
-    -> instr -> param list option
+    -> instr -> elem list option
   val get_callgraph : code program -> callgraph
 end
   
@@ -795,40 +795,40 @@ module JCodePrinter = Make(
 	match op with
 	  | OpNew ccs ->
 	      let v = TObject (TClass ccs) in
-		Some [simple_param inst; value_param program v cs]
+		Some [simple_elem inst; value_elem program v cs]
 	  | OpNewArray v ->
-	      Some [simple_param inst; value_param program v cs]
+	      Some [simple_elem inst; value_elem program v cs]
 	  | OpAMultiNewArray (o,i) ->
 	      let v = TObject o in
-		Some [simple_param inst; value_param ~dim:i program v cs]
+		Some [simple_elem inst; value_elem ~dim:i program v cs]
 	  | OpCheckCast o | OpInstanceOf o ->
 	      let v = TObject o in
-		Some [simple_param inst; value_param program v cs]
+		Some [simple_elem inst; value_elem program v cs]
 	  | OpGetStatic (ccs,fs) | OpPutStatic (ccs,fs)
 	  | OpGetField (ccs,fs) | OpPutField (ccs,fs) ->
 	      let ftype = fs_type fs in
-		Some [simple_param inst; get_param program cs ccs fs;
-		      simple_param " : "; value_param program ftype cs]
+		Some [simple_elem inst; field_elem program cs ccs fs;
+		      simple_elem " : "; value_elem program ftype cs]
 	  | OpInvoke ((`Virtual o),cms) ->
 	      Some
-		[simple_param inst;
-		 invoke_param program cs ms ((`Virtual o),cms);
-		 method_args_param program cs ms]
+		[simple_elem inst;
+		 invoke_elem program cs ms ((`Virtual o),cms);
+		 method_args_elem program cs ms]
 	  | OpInvoke ((`Interface ccs),cms) ->
 	      Some
-		[simple_param inst; 
-		 invoke_param program cs ms ((`Interface ccs),cms);
-		 method_args_param program cs ms]
+		[simple_elem inst; 
+		 invoke_elem program cs ms ((`Interface ccs),cms);
+		 method_args_elem program cs ms]
 	  | OpInvoke ((`Static ccs),cms) ->
 	      Some
-		[simple_param inst; 
-		 invoke_param program cs ms ((`Static ccs),cms);
-		 method_args_param program cs ms]
+		[simple_elem inst; 
+		 invoke_elem program cs ms ((`Static ccs),cms);
+		 method_args_elem program cs ms]
 	  | OpInvoke ((`Special ccs),cms) ->
 	      Some
-		[simple_param inst; 
-		 invoke_param program cs ms ((`Special ccs),cms);
-		 method_args_param program cs ms]
+		[simple_elem inst; 
+		 invoke_elem program cs ms ((`Special ccs),cms);
+		 method_args_elem program cs ms]
 	  | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
 	      let m = get_method (get_node program cs) ms in
 	      let locname =
@@ -840,7 +840,7 @@ module JCodePrinter = Make(
 			match v with
 			  | None -> string_of_int n
 			  | Some (name,_) -> name in
-		Some [simple_param (inst ^ " " ^ locname)]
+		Some [simple_elem (inst ^ " " ^ locname)]
 	  | _ -> None
 		
     let get_callgraph = JProgram.get_callgraph 
@@ -888,30 +888,30 @@ module JBirPrinter = Make(
     let inst_html program cs ms _pp op =
       match op with
 	| JBir.AffectStaticField (ccs,fs,e) ->
-	    let p1 = get_param program cs ccs fs in
-	    let p2 = simple_param
+	    let p1 = field_elem program cs ccs fs in
+	    let p2 = simple_elem
 	      (Printf.sprintf ":= %s" (JBir.print_expr e)) in
 	      Some [p1;p2]
 	| JBir.AffectField (e1,ccs,fs,e2) ->
-	    let p1 = get_param program ~called_cname:(JBir.print_expr e1)
+	    let p1 = field_elem program ~called_cname:(JBir.print_expr e1)
 	      cs ccs fs in
-	    let p2 = simple_param
+	    let p2 = simple_elem
 	      (Printf.sprintf ":= %s" (JBir.print_expr e2)) in
 	      Some [p1;p2]
 	| JBir.New (x,ccs,_,le) ->
 	    let v = TObject (TClass ccs) in
-	    let p1 = simple_param
+	    let p1 = simple_elem
 	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	    let p2 = value_param program v cs in
-	    let p3 = simple_param
+	    let p2 = value_elem program v cs in
+	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)"
 		 (print_list_sep ", " JBir.print_expr le)) in
 	      Some [p1;p2;p3]
 	| JBir.NewArray (x,v,le) ->
-	    let p1 = simple_param
+	    let p1 = simple_elem
 	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	    let p2 = value_param program v cs in
-	    let p3 = simple_param
+	    let p2 = value_elem program v cs in
+	    let p3 = simple_elem
 	      (Printf.sprintf "%s"
 		 (print_list_sep ""
 		    (fun e -> 
@@ -919,57 +919,57 @@ module JBirPrinter = Make(
 	      ) in
 	      Some [p1;p2;p3]
 	| JBir.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = invoke_param program cs ms ((`Static ccs),cms) in
-	    let p2 = simple_param
+	    let p1 = invoke_elem program cs ms ((`Static ccs),cms) in
+	    let p2 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
 	      Some [p1;p2]
 	| JBir.InvokeStatic (Some x,ccs,cms,le) ->
-	    let p1 = simple_param
+	    let p1 = simple_elem
 	      (Printf.sprintf "%s :=" (JBir.var_name_g x)) in
-	    let p2 = invoke_param program cs ms ((`Static ccs),cms) in
-	    let p3 = simple_param
+	    let p2 = invoke_elem program cs ms ((`Static ccs),cms) in
+	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
 	      Some [p1;p2;p3]
 	| JBir.InvokeVirtual (r,e1,k,cms,le) ->
 	    let p2 =
 	      (match k with
 		 | JBir.VirtualCall o ->
-		     invoke_param ~called_cname:(JBir.print_expr e1) program
+		     invoke_elem ~called_cname:(JBir.print_expr e1) program
 		       cs ms ((`Virtual o),cms)
 		 | JBir.InterfaceCall ccs ->
-		     invoke_param ~called_cname:(JBir.print_expr e1) program
+		     invoke_elem ~called_cname:(JBir.print_expr e1) program
 		       cs ms ((`Interface ccs),cms)
 	      ) in
-	    let p3 = simple_param
+	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)"
 		 (print_list_sep ", " (JBir.print_expr) le)) in
 	      (match r with
 		 | None -> Some [p2;p3]
 		 | Some x ->
-		     let p1 = simple_param
+		     let p1 = simple_elem
 		       (Printf.sprintf "%s :="  (JBir.var_name_g x)) in
 		       Some [p1;p2;p3]
 	      )
 	| JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	    let p1 = simple_param
+	    let p1 = simple_elem
 	      (match r with
 		 | None -> (JBir.print_expr e1) ^ "."
 		 | Some x -> Printf.sprintf "%s := %s." (JBir.var_name_g x)
 		     (JBir.print_expr e1)
 	      ) in
-	    let p2 = invoke_param program cs ms ((`Special ccs),cms) in
-	    let p3 = simple_param
+	    let p2 = invoke_elem program cs ms ((`Special ccs),cms) in
+	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
 	      Some [p1;p2;p3]
 	| JBir.MayInit ccs ->
 	    let v = TObject (TClass ccs) in
-	    let p1 = simple_param "mayinit" in
-	    let p2 = value_param program v cs in
+	    let p1 = simple_elem "mayinit" in
+	    let p2 = value_elem program v cs in
 	      Some [p1;p2]
 	| JBir.Check (JBir.CheckCast (e,t)) ->
-	    let p1 = simple_param
+	    let p1 = simple_elem
 	      (Printf.sprintf "checkcast %s:" (JBir.print_expr e)) in
-	    let p2 = value_param program (TObject t) cs in
+	    let p2 = value_elem program (TObject t) cs in
 	      Some [p1;p2]
 	| _ -> None
     let get_callgraph _ = []
