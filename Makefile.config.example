@@ -56,7 +56,7 @@ OCAMLOPT = ocamlfind ocamlopt $(OPT_FLAGS)
 OCAMLDOC = ocamlfind ocamldoc
 OCAMLDEP = ocamlfind ocamldep
 OCAMLMKTOP = ocamlfind ocamlmktop
-INSTALL			= ocamlfind install
+INSTALL = ocamlfind install
 
 ifeq ($(BUDDY),yes)
 INCLUDE = -package javalib,buddy
