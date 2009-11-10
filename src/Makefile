@@ -58,7 +58,8 @@ ocaml:sawja.cma
 	$(OCAMLMKTOP) $(INCLUDE) -linkpkg -o $@ sawja.cma
 
 .depend:$(MODULE_INTERFACES:=.mli) $(MODULES:=.ml)
-	$(OCAMLDEP) $(PP) $^ > $@
+	$(OCAMLDEP) $(patsubst jNativeStubs.%,,$^) > $@
+	$(OCAMLDEP) $(PP) jNativeStubs.ml jNativeStubs.mli >> $@
 
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),cleanall)
@@ -83,7 +84,14 @@ jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
 	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
-	cat $^ > $@
+	$(RM) $@
+	for i in $^; do \
+	  $(ECHO) `basename $$i .ml` | \
+	    awk 'BEGIN{ORS="";OFS="";}{print "module " toupper(substr($$0,6,1)) substr($$0,7,length($$0)-6) "= struct\n";}' >> $@;\
+	  $(ECHO) "# 1 \""$$i"\"" >> $@;\
+	  cat $$i >> $@;\
+	  $(ECHO) " end">> $@;\
+	done
 
 .ml.cmo:
 	$(OCAMLC) $(INCLUDE) -c $<

@@ -579,3 +579,136 @@ let invoke_static_lookup c ms =
     match m with
       | AbstractMethod _ -> assert false
       | ConcreteMethod cm -> (rc,cm)
+
+
+(** returns the possible methods that may be invoked from the current program
+    point. For the static initialization, only the topmost class initializer is
+    return, and the successors of a clinit methods includes the clinit methods
+    that are beneath. *)
+let get_successors
+    (program:JCode.jcode program)
+    (node:JCode.jcode node)
+    (m:JCode.jcode concrete_method)
+    : ClassMethodSet.t =
+  let ppinit = PP.get_pp node m 0
+  and successors = ref ClassMethodSet.empty in
+  let get_class_to_initialize caller = function
+    | Interface _ as callee ->
+        if defines_method callee clinit_signature
+        then Some (make_cms (get_name callee) clinit_signature)
+        else None
+    | Class callee ->
+        let caller =
+          match caller with
+            | Interface {i_super = caller}
+            | Class caller
+              -> caller
+        in
+        let rec find_first_cl_with_clinit callee :'a class_node option=
+          if defines_method (Class callee) clinit_signature
+          then Some callee
+          else match callee.c_super with
+            | None -> None
+            | Some s -> find_first_cl_with_clinit s
+        in
+          match find_first_cl_with_clinit callee with
+            | None -> None
+            | Some callee ->
+                let rec find_last_cl_with_clinit prev callee =
+                  match callee.c_super with
+                    | Some s_callee when (extends_class caller s_callee) -> prev
+                    | Some s_callee
+                        when defines_method (Class s_callee) clinit_signature
+                          -> find_last_cl_with_clinit (Some s_callee) s_callee
+                    | Some s_callee -> find_last_cl_with_clinit prev s_callee
+                    | None -> prev
+                in
+                  match find_last_cl_with_clinit None callee with
+                    | None -> None
+                    | Some c ->
+                        Some (make_cms c.c_info.c_name clinit_signature)
+  in
+    if m.cm_signature = clinit_signature
+    then
+      begin
+        let rec add_c_children_clinit class_node =
+          try
+            successors :=
+              ClassMethodSet.add
+                (get_class_method_signature
+                   (get_method (Class class_node) clinit_signature))
+                !successors
+          with _ ->
+            List.iter add_c_children_clinit class_node.c_children
+        in
+          match node with
+            | Class class_node ->
+                List.iter add_c_children_clinit class_node.c_children
+            | Interface _ -> ()
+      end;
+    begin
+      match m.cm_implementation with
+        | Native -> ()
+        | Java c ->
+            Array.iteri
+              (fun pc opcode -> match opcode with
+                 | JCode.OpNew cn' ->
+                     let c'= (get_node program cn') in
+                       begin
+                         match (get_class_to_initialize node c') with
+                           | None -> ()
+                           | Some c ->
+                               successors := ClassMethodSet.add c !successors
+                       end
+                 | JCode.OpGetStatic (cn',fs')
+                 | JCode.OpPutStatic (cn',fs') ->
+                     (* successeur : clinit du plus haut parant de cn' n'ayant
+                        peut-être pas déjà été initialisé.
+                        java.lang.Object.<clinit> est donc correct, mais (TODO)
+                        on pourrait être plus précis (entre autre, inutile
+                        d'initialisé une super-classe de la classe
+                        courrante). *)
+                     let c'= (get_node program cn')
+                     in
+                       List.iter
+                         (fun c' ->
+                            match (get_class_to_initialize node c') with
+                              | None -> ()
+                              | Some c ->
+                                  successors := ClassMethodSet.add c !successors
+                         )
+                         (resolve_field fs' c')
+                 | JCode.OpInvoke (kind,ms) ->
+                     begin
+                       match kind with
+                         | `Static cn' ->
+                             let c' = match get_node program cn' with
+                               | Class c' -> c'
+                               | Interface _ -> raise IncompatibleClassChangeError
+                             in
+                             let c' = resolve_method' ms c' in
+                               (match (get_class_to_initialize node (Class c')) with
+                                  | None -> ()
+                                  | Some c ->
+                                      successors :=
+                                        ClassMethodSet.add c !successors)
+                         | _ -> ()
+                     end;
+                     let targets =
+                       let pp = PP.goto_absolute ppinit pc
+                       in static_lookup' program pp
+                     in
+                       successors :=
+                         List.fold_left
+                           (fun successors pp ->
+                              let cms =
+                                (PP.get_meth pp).cm_class_method_signature
+                              in
+                                ClassMethodSet.add cms successors)
+                           !successors
+                           targets
+                 | _ -> ()
+              )
+              (Lazy.force c).JCode.c_code
+    end;
+    !successors

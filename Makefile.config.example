@@ -36,8 +36,8 @@ RECODE = -pp "recode UTF-8..Latin-1 <"
 # directory where the documentation will be put
 DOCDIR = doc/api
 
-
 PERL = perl
+ECHO = /bin/echo
 
 FLAGS = -w Ae -dtypes -g
 
