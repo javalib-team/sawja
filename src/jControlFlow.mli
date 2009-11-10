@@ -181,6 +181,12 @@ val overridden_by_methods : method_signature -> 'a node -> 'a class_node list
 *)
 val implements_methods : method_signature -> 'a class_node -> 'a interface_node list
 
+(** [static_lookup_special program c cs ms] returns the defining class
+    of the method that would be reached by executing "invokespecial
+    cs.ms" with c as the current class. *)
+val static_lookup_special :
+  'a program -> 'a node -> class_name -> method_signature -> 'a class_node
+
 (** [static_lookup program pp] returns the highest methods in the hierarchy
     that may be called from program point [pp]. All methods that may be
     called at execution time are known to implement or extend one of

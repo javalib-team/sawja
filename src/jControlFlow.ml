@@ -340,18 +340,18 @@ let static_lookup_interface prog cs ms : 'a node list =
 	    in c::il
 	  with _ -> il
 
-let static_lookup_special prog pp cs cms ms =
+let static_lookup_special prog cl cs ms =
   match resolve_class prog cs with
     | Interface _ -> raise IncompatibleClassChangeError
     | Class c ->
 	let c' = resolve_method ms c in
-	  match pp.cl,c' with
-	    | _, Class c2 when (ms_name cms) = "<init>" ->
+	  match cl,c' with
+	    | _, Class c2 when (ms_name ms) = "<init>" ->
 		c2
 	    | Class c1, Class c2 when c1 == c2 || not (extends_class c1 c2) ->
 		c2
 	    | _ ->
-		match super_class pp.cl with
+		match super_class cl with
 		  | None -> raise AbstractMethodError
 		  | Some c -> lookup_virtual_method ms c
 
@@ -397,7 +397,7 @@ let static_lookup program pp =
     | OpInvoke (`Static cs, ms) ->
         Some ([static_lookup_static program cs ms],ms)
     | OpInvoke (`Special cs, ms) ->
-        Some ([Class (static_lookup_special program pp cs ms ms)],ms)
+        Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
     | OpInvoke (`Interface cs, ms) ->
 	Some (static_lookup_interface program cs ms,ms)
     | _ -> None
