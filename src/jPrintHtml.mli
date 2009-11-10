@@ -89,21 +89,45 @@ type elem
     is provided. *)
 val simple_elem : string -> elem
 
-(** [value_elem ~dim p cn v] builds an [elem] from a value_type [v].
-    An optional parameter [~dim] can be provided if the value_type is
-    a multidimensional array whose size have to be displayed. If the
-    value_type represents a class or a class array, an hyperlink will
-    be displayed, referencing the corresponding class in the generated
-    html files. The program [p] and the current class_name [cn] are
-    essential to build a relative hyperlink. *)
+(** [value_elem ~dim p cn v] builds an [elem] from a program [p],
+    a current class [cn] and a value type [v]. An optional parameter
+    [~dim] can be provided [v] is a multidimensional array whose size
+    have to be displayed. If the [v] represents a class or an array of
+    classes, an hyperlink will be generated, referencing the
+    corresponding class in the generated html files. Otherwise, raw
+    text corresponding to [v] is returned. If [v] contains a class,
+    the program [p] is necessary to know if this class is in the
+    program. If it is not the case, no hyperlink will be generated.
+    The current class_name [cn] is necessary to build a relative
+    hyperlink. *)
 val value_elem : ?dim:int -> 'a program -> class_name -> value_type -> elem
 
+(** [field_elem ~called_cname p cn fcn fs] builds an [elem] from
+    a program [p], a current class name [cn], a field class name [fcn]
+    and a field signature [fs]. The field will be represented by an
+    hyperlink with text [A.f] where [f] is the field name. By default
+    [A] corresponds to [cn] class name. If you want to specify the [A]
+    string, you can provide the optional parameter [~called_cname].
+*)
 val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
   -> field_signature -> elem
 
-val invoke_elem : ?called_cname:string -> ?called_mname:string -> 'a program ->
-  class_name -> method_signature -> invoke -> elem
+(** [invoke_elem ~called_cname p cn ms k] builds an [elem] from
+    a program [p], a current class name [cn], a current method
+    signature [ms] and a kind of invoke [k]. The invoke call will be
+    represented by a dynamic link with text [A.m] where [m] is the
+    called method name (contained in [k]). By default, [A] corresponds
+    to [cn] class name. If you want to specify the [A] string, you can
+    provide the optional parameter [~called_cname].
+*)
+val invoke_elem : ?called_cname:string -> 'a program -> class_name ->
+  method_signature -> invoke -> elem
 
+(** [method_args_elem p cn ms] builds an [elem] from a program [p],
+    a current class name [cn] and a method signature [ms]. The
+    generated [elem] is a list of method parameters [(A,B,int)] where
+    class references are hyperlinks (if they are present in [p]).
+*)
 val method_args_elem : 'a program -> class_name -> method_signature -> elem
 
 module type HTMLPrinter =
@@ -125,13 +149,30 @@ end
 
 module type PrintInterface =
 sig
+  (** Type of the instructions. *)
   type instr
+
+  (** Type of the code. *)
   type code
+
+  (** Function to provide in order to iter on the code structure. The
+  function passed to [iter_code] expects as paramters a program point
+  (in the code representation) and the corresponding instruction. *)
   val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+
+  (** Function to provide in order to display the source variable
+      names in the method signatures. *)
   val method_param_names : code program -> class_name -> method_signature
     -> string list option
+
+  (** Function to provide in order to display instructions. Given
+  a context constituted by the program, the current class name, the
+  current method signature, the instruction you want to display and
+  its program point, you must provide a list of [elem] by using the
+  functions defined in {!JPrintHtml} module. *)
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
+
   val get_callgraph : code program -> callgraph
 end
 

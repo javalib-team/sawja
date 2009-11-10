@@ -475,7 +475,7 @@ let field_elem ?called_cname program cs ccs fs =
 	| None -> cn_name ccs in
 	SimpleExpr [PCData (callcname ^ "." ^ fname)]
       
-let invoke_elem ?called_cname ?called_mname program cs ms invoke =
+let invoke_elem ?called_cname program cs ms invoke =
   let mlookups =
     try List.map cms_split
       (ClassMethodSet.elements (program.static_lookup_method cs ms invoke))
@@ -493,9 +493,7 @@ let invoke_elem ?called_cname ?called_mname program cs ms invoke =
   let callcname = match called_cname with
     | Some x -> x
     | None -> cn_name callcs in
-  let callmname = match called_mname with
-    | Some x -> htmlize x
-    | None -> htmlize (ms_name callms) in
+  let callmname = htmlize (ms_name callms) in
   let callmsig = htmlize (JPrint.method_signature callms) in
     DynamicExpr ([gen_titled_span
 		    [PCData (callcname ^ "." ^ callmname)] [] callmsig],
@@ -728,8 +726,8 @@ struct
     and jsfile = "actions.js"
     in
       if (Sys.is_directory outputdir) then
-	(copy_file default_css css (outputdir ^ "/" ^ stylefile);
-	 copy_file default_js js (outputdir ^ "/" ^ jsfile)
+	(copy_file default_css css (Filename.concat outputdir stylefile);
+	 copy_file default_js js (Filename.concat outputdir jsfile)
 	)
       else invalid_arg "Last argument must be an existing directory";
       let cg = S.get_callgraph program in
@@ -746,8 +744,10 @@ struct
 	     let doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n" in
 	       create_package_dir outputdir package;
 	       let out =
-		 open_out (outputdir ^ "/" ^
-			     String.concat "/" (package @ [cname ^ ".html"])) in
+		 open_out (Filename.concat outputdir
+			     (List.fold_left
+				Filename.concat "" (package @ [cname ^ ".html"])))
+	       in
 		 output_string out doctype;
 		 print_html_tree doc out;
 		 close_out out

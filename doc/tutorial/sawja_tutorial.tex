@@ -1,0 +1,342 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage[mathletters]{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{hyperref}
+% \usepackage{listings}
+% \setlength{\parskip}{6pt plus 2pt minus 1pt}
+
+\title{Sawja Tutorial}
+\author{Nicolas Barré}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+\section{Introduction}
+
+\emph{Sawja} is a library written in \emph{OCaml}, relying on the
+\emph{Javalib} to provide a high level representation of
+\emph{Java} byte-code programs. Whereas \emph{Javalib} is dedicated
+to class per class loading, \emph{Sawja} introduces a notion of
+program thanks to control flow algorithms. For instance, a program
+can be loaded using various algorithms like
+\emph{Class Reachability Analysis} (\emph{CRA}), a variant of
+\emph{Class Hierarchy Analysis} algorithm (\emph{CHA}) or
+\emph{Rapid Type Analysis} (\emph{RTA}). For now, \emph{RTA} is the
+best compromise between loading time and precision of the call
+graph. A version of \emph{XTA} is coming soon. To get more
+information about control flow graph algorithms and their
+complexity, you can consult the paper of Frank Tip and Jens
+Palsberg%
+\footnote{F. Tip, J. Palsberg.
+\emph{Scalable Propagation-Based Call Graph Construction Algorithms}.
+OOPSLA 2000. See
+\href{http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf}{http://www.cs.ucla.edu/\ensuremath{\sim}palsberg/paper/oopsla00.pdf}.}.
+
+In \emph{Sawja}, classes and interfaces are represented by
+interconnected nodes belonging to a common hierarchy. For example,
+given a class node, it's easy to access its super class, its
+implemented interfaces or its children classes. The next chapters
+will give more information about the nodes and program data
+structures.
+
+Moreover, \emph{Sawja} provides some stack-less intermediate
+representations of code, called \emph{JBir} and \emph{A3Bir}. Such
+representations open the way to many analyses which can be built
+upon them more naturally, better than with the byte-code
+representation (e.g. \emph{Live Variable Analysis}). The
+transformation algorithm, common to these representations, has been
+formalized and proved%
+\footnote{D. Demange, T. Jensen and D. Pichardie.
+\emph{A Provably Correct Stackless Intermediate Representation For Java Bytecode}.
+Research Report 7021, INRIA, 2009. See
+\href{http://irisa.fr/celtique/ext/bir}{http://irisa.fr/celtique/ext/bir}.}.
+
+\emph{Sawja} also provides functions to map a program using a
+particular code representation to another.
+
+\section{Global architecture}
+
+In this section, we present the different modules of \emph{Sawja}
+and how they interact together. While reading the next sections, we
+recommend you to have a look at \emph{Sawja} API at the same time.
+
+\subsection{\emph{JProgram} module}
+
+This module defines:
+
+\begin{itemize}
+\item
+  the types representing the class hierarchy.
+\item
+  the program structure.
+\item
+  some functions to access classes, methods and fields (similar to
+  \emph{Javalib} functions).
+\item
+  some functions to browse the class hierarchy.
+\item
+  a large set of program manipulations.
+\end{itemize}
+Classes and interfaces are represented by \textbf{class\_node} and
+\textbf{interface\_node} record types, respectively. These types
+are parametrized by the code representation type, like in
+\emph{Javalib}. These types are private and cannot be modified by
+the user. The only way to create them is to use the functions
+\textbf{make\_class\_node} and \textbf{make\_interface\_node} with
+consistent arguments. In practice, you will never need to build
+them because the class hierarchy is automatically generated when
+loading a program. You only need a read access to these record
+fields.
+
+The program structure contains:
+
+\begin{itemize}
+\item
+  a map of all the classes referenced in the loaded program. These
+  classes are linked together through the node structure.
+\item
+  a map of parsed methods. This map depends on the algorithm used to
+  load the program (\emph{CRA}, \emph{RTA}, \ldots{}).
+\item
+  a static lookup method. Given the calling class name, the calling
+  method signature, the invoke kind (virtual, static, \ldots{}), the
+  invoked class name and method signature, it returns a set of
+  potential couples of (\textbf{class\_name},
+  \textbf{method\_signature}) that may be called.
+\end{itemize}
+\subsection{\emph{JCRA}, \emph{JRTA} and \emph{JRRTA} modules}
+
+Each of these modules implements a function \textbf{parse\_program}
+(the signature varies) which returns a program parametrized by the
+\textbf{Javalib.jcode} representation.
+
+In \emph{RTA}, the function \textbf{parse\_program} takes at least,
+as parameters, a class-path string and a program entry point. The
+\textbf{default\_entrypoints} value represents the methods that are
+always called by \emph{Sun JVM} before any program is launched.
+
+In \emph{CRA}, the function \textbf{parse\_program} takes at least,
+as parameters, a class-path string and a list of classes acting as
+entry points. The \textbf{default\_classes} value represents the
+classes that are always loaded by \emph{Sun JVM}.
+
+\emph{JRRTA} is a refinement of \emph{RTA}. It first calls
+\emph{RTA} and then prunes the call graph.
+
+If we compare these algorithms according to their precision on the
+call-graph, and their cost (time and memory consumption), we get
+the following order : \emph{CRA} \textless{} \emph{RTA} \textless{}
+\emph{RRTA} \textless{} \emph{XTA}.
+
+\subsection{\emph{JNativeStubs} module}
+
+This module allows to define stubs for native methods, containing
+information about native method calls and native object
+allocations. Stubs can be stored in files, loaded and merged. The
+format to describe stubs looks like:
+
+\begin{verbatim}
+    Method{type="Native" class="Ljava/lang/String;"
+           name="intern" signature="()Ljava/lang/String;"}{
+      VMAlloc{
+        "Ljava/lang/String;"
+        "[C"
+      }
+    }
+
+
+    Method{type="Native" class="Ljava/io/UnixFileSystem;"
+           name="getLength" signature="(Ljava/io/File;)J"}{
+      Invokes{
+        Method{type="Java" class="Ljava/lang/String;"
+               name="getBytes" signature="(Ljava/lang/String;)[B"}
+        }
+    }
+\end{verbatim}
+\emph{JRTA} admits a stub file as optional argument to handle
+native methods.
+
+\subsection{\emph{JControlFlow} module}
+
+\emph{JControlFlow} provides many functions related to class, field
+an method resolution. Static lookup functions for
+\textbf{invokevirtual}, \textbf{invokeinterface},
+\textbf{invokestatic} and \textbf{invokespecial} are also present.
+
+This module also contains an internal module \textbf{PP} which
+allows to navigate through the control flow graph of a program.
+
+\subsection{\emph{JBir} and \emph{A3Bir} modules}
+
+These modules both declare a type \textbf{t} defining an
+intermediate code representation. Both representations are
+stack-less. \emph{A3Bir} looks like a three-address code
+representation whereas expressions in \emph{JBir} can have
+arbitrary depths.
+
+Each module defines a function \textbf{transform} which takes as
+parameters a concrete method and its associated
+\textbf{JCode.code}, and returns a representation of type
+\textbf{t}. This function coupled with
+\textbf{JProgram.map\_program2} can be used to transform a whole
+program loaded with \emph{RTA} algorithm for example.
+
+\subsection{\emph{JPrintHtml} module}
+
+This module provides a main function
+\textbf{pp\_print\_program\_to\_html\_files} to dump a program into
+a set of \textbf{.html} files (one per class) related together by
+the control flow graph. This function takes as parameters the
+program, the name of the output directory and a type \textbf{info}.
+The type \textbf{info} is used to insert custom annotations at
+different levels : class, method, field and program point. A value
+\textbf{void\_info} is also given and can be used by default.
+
+\section{Tutorial}
+
+To begin this tutorial, open an \emph{OCaml} toplevel, for instance
+using the \emph{Emacs} \textbf{tuareg-mode}, and load the following
+libraries in the given order:
+
+\begin{verbatim}
+    #load "str.cma"
+    #load "unix.cma"
+    #load "extLib.cma"
+    #load "zip.cma"
+    #load "ptrees.cma"
+    #load "javalib.cma"
+    #load "sawja.cma"
+\end{verbatim}
+Don't forget the associated \textbf{\#directory} directives that
+allow you to specify the paths where to find these libraries.
+
+You can also build a toplevel including all these libraries using
+the command \textbf{make ocaml} in the sources repository of
+\emph{Sawja}. This command builds an executable named
+\textbf{ocaml} which is the result of the \textbf{ocamlmktop}
+command.
+
+\subsection{Loading and printing a program}
+
+In this section, we present how to load a program with \emph{Sawja}
+and some basic manipulations we can do on it to recover interesting
+information.
+
+In order to test the efficiency of \emph{Sawja}, we like to work on
+huge programs. For instance we will use \emph{Soot}, a
+\emph{Java Optimization Framework} written in \emph{Java}, which
+can be found at
+\href{http://www.sable.mcgill.ca/soot}{http://www.sable.mcgill.ca/soot}.
+Once you have downloaded \emph{Soot} and its dependencies, make
+sure that the \textbf{\$CLASSPATH} environment variable contains
+the corresponding \textbf{.jar} files and the \emph{Java Runtime}
+\textbf{rt.jar}. The following sample of code loads \emph{Soot}
+program, given its main entry point:
+
+\begin{verbatim}
+    open Javalib
+    open JBasics
+    open JProgram
+    let (prta,instantiated_classes) =
+      JRTA.parse_program (Sys.getenv "CLASSPATH")
+         (JBasics.make_cn "soot.Main", JProgram.main_signature)
+\end{verbatim}
+It can be interesting to generate the \textbf{.html} files
+corresponding to the parsed program \textbf{prta}. We first need to
+build an \textbf{info} type.
+
+\begin{verbatim}
+    (* p_class annots a class, saying if it may be instantiated
+       or not. *)
+    let p_class =
+      (fun cn ->
+        let ioc = get_node prta cn in
+          match ioc with
+           | Class c ->
+             if ClassMap.mem (get_name ioc) instantiated_classes then
+               ["Instantiated"] else ["Not instantiatied"]
+           | _ -> []
+      )
+\end{verbatim}
+\begin{verbatim}
+    (* p_method annots a method, saying if it is concrete or abstract,
+       and if it has been parsed or not (by RTA). *)
+    let p_method =
+      (fun cn ms ->
+        let m = get_method (get_node prta cn) ms in
+           match m with
+            | AbstractMethod _ -> ["Abstract Method"]
+            | ConcreteMethod cm ->
+              let cms = make_cms cn ms in
+              let parse =
+                if ClassMethodMap.mem cms prta.parsed_methods then
+                  "Parsed" else "Not parsed" in
+                ["Concrete Method "; parse]
+      )
+\end{verbatim}
+\begin{verbatim}
+    (* There is no field annotation. *)
+    let p_field = (fun _ _ -> [])
+
+    (* There is no program point annotation. *)
+    let p_pp = (fun _ _ _ -> [])
+
+    (* This is the info type. *)
+    let simple_info = 
+      { JPrintHtml.p_class = p_class;
+        JPrintHtml.p_field = p_field;
+        JPrintHtml.p_method = p_method;
+        JPrintHtml.p_pp = p_pp }
+\end{verbatim}
+Then we just need to call the printing function:
+
+\begin{verbatim}
+    let output = "./soot"
+    let () =
+      JPrintHtml.pp_print_program_to_html_files ~info:simple_info
+        prta output
+\end{verbatim}
+\begin{description}
+\item[Note:]
+The destination directory must exist, otherwise an exception will
+be raised.
+\end{description}
+\subsection{Transforming a program with \emph{Bir}}
+
+In this section we present a sample of code transforming a program
+loaded with \emph{RTA} to \emph{JBir} representation. The procedure
+to obtain the \emph{A3Bir} representation is exactly the same.
+
+\begin{verbatim}
+    let pbir = JProgram.map_program2
+      (fun _ -> JBir.transform ~compress:false) prta
+\end{verbatim}
+\begin{description}
+\item[Warning:]
+Subroutines are not yet handled in \emph{JBir} and \emph{A3Bir}. If
+some transformed code contains such subroutines, the exception
+\textbf{JBir.Subroutine} or \textbf{AB3Bir.Subroutine} will be
+raised, respectively. However, when transforming a whole program
+with the above function, no exception will be raised because of the
+\emph{lazy} evaluation of code.
+\end{description}
+To see how \emph{JBir} representation looks like, we can
+pretty-print one class, for instance \textbf{java.lang.Object}:
+
+\begin{verbatim}
+    let obj = JProgram.get_node pbir JBasics.java_lang_object
+    let () = JPrint.print_class (JProgram.to_ioc obj)
+        JBir.print stdout
+\end{verbatim}
+\begin{description}
+\item[Note:]
+We can't dump the whole program using \emph{JPrintHtml} module yet,
+because it depends on \emph{JCode.code} representation.
+\end{description}
+
+\end{document}
