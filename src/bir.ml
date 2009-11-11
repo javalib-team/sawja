@@ -1429,7 +1429,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 	end
   | OpThrow ->
       let r = topE s in [], [Check (CheckNullPointer r); Throw r]
-  | OpCheckCast t -> s, [Check (CheckCast (topE s,t))]
+  | OpCheckCast t -> to_addr3_unop mode (Cast t) s [Check (CheckCast (topE s,t))]
   | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) s []
   | OpMonitorEnter ->
       let r = topE s in

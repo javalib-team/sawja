@@ -70,6 +70,7 @@ type unop =
   | Conv of conv
   | ArrayLength
   | InstanceOf of JBasics.object_type
+  | Cast of JBasics.object_type
 
 val print_unop : unop -> string
 

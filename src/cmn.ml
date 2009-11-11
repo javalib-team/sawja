@@ -42,6 +42,7 @@ type unop =
   | Conv of conv
   | ArrayLength
   | InstanceOf of JBasics.object_type
+  | Cast of JBasics.object_type
 
 type comp =  DG | DL | FG | FL | L
 
@@ -101,6 +102,7 @@ let print_unop = function
       end
   | ArrayLength -> "ArrayLength"
   | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
+  | Cast ot -> Printf.sprintf "%s" (Javalib.JPrint.object_type ot)
 
 let print_typ t =
   let bt2ss = function
