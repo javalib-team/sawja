@@ -867,9 +867,9 @@ let run_dummy code =
 		 | `Object -> TObject (TClass java_lang_object)))
 	 
 
-let run dummy ?(verbose=false) cm code =
-  if dummy then run_dummy code
-  else run verbose cm code
+let run bcv ?(verbose=false) cm code =
+  if bcv then run verbose cm code
+  else run_dummy code
 
 
 end
