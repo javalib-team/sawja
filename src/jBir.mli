@@ -77,6 +77,7 @@ type unop =
   | Conv of conv
   | ArrayLength
   | InstanceOf of JBasics.object_type
+  | Cast of JBasics.object_type
 
 (** Comparison operators *)
 type comp = DG | DL | FG | FL | L

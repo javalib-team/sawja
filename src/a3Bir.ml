@@ -67,6 +67,7 @@ and type_of_expr = function
   | BasicExpr e -> type_of_basic_expr e
   | Field (_,_,f) 
   | StaticField (_,f) -> fs_type f
+  | Unop (Cast t,_) -> TObject t
   | Unop (u,_) -> 
       TBasic 
 	(match u with
@@ -78,7 +79,8 @@ and type_of_expr = function
 		  | I2D | L2D | F2D -> `Double
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
 	   | ArrayLength 
-	   | InstanceOf _ -> `Int)
+	   | InstanceOf _ -> `Int
+	   | _ -> assert false)
   | Binop (ArrayLoad t,_,_) -> t
   | Binop (b,_,_) -> 
       TBasic

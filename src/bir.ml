@@ -153,6 +153,7 @@ let rec print_expr first_level = function
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
+  | Unop (Cast t,e) -> Printf.sprintf "(%s)%s" (print_unop (Cast t)) (print_expr true e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
   | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2)
   | Binop (Add _,e1,e2) -> bracket first_level
@@ -895,6 +896,7 @@ let rec type_of_expr = function
 	| `Float _ -> TBasic `Float
 	| `Long  _ -> TBasic `Long
     end
+  | Unop (Cast t,_) -> TObject t
   | Unop (u,_) ->
       TBasic
 	(match u with
@@ -906,7 +908,8 @@ let rec type_of_expr = function
 		  | I2D | L2D | F2D -> `Double
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
 	   | ArrayLength
-	   | InstanceOf _ -> `Int)
+	   | InstanceOf _ -> `Int
+	   | _ -> assert false)
   | Binop (ArrayLoad t,_,_) -> t
   | Binop (b,_,_) ->
       TBasic
