@@ -82,24 +82,24 @@ struct
       | Class _ -> failwith "to_interface_node applied on class !"
       | Interface i -> i
 
-  and get_class_info p cs =
+  and get_class_info ?(check_name=true) p cs =
     try
       ClassMap.find cs p.classes
     with
       | Not_found ->
-	  add_class p cs;
-	  try
-	    ClassMap.find cs p.classes
-	  with _ ->
-	    failwith ("Can't load class or interface "
-		      ^ (cn_name cs))
+	  add_class ~check_name p cs
 
-  and add_class p cs =
+  and add_class ?(check_name=true) p cs =
     (* We assume that a call to add_class is done only when a class has never *)
     (* been loaded in the program. Loading a class implies loading all its *)
     (* superclasses recursively. *)
     let ioc = Javalib.get_class p.classpath cs in
+    let cs' = Javalib.get_name ioc in
+    if check_name && cs' <> cs then
+      failwith "class name does not match the file name";
+    let cs = cs' in
     let rta_methods = methods2rta_methods ioc in
+    let ioc_info =
       match ioc with
 	| JClass c ->
 	    let (super_class,super_classes) =
@@ -137,7 +137,6 @@ struct
 		       (ClassSet.add cs ClassSet.empty) p.interfaces
 		) super_implemented_interfaces;
 	      let node = make_class_node c super_class implemented_interfaces in
-	      let ioc_info =
 		{ class_data = Class node;
 		  is_instantiated = false;
 		  instantiated_subclasses = ClassMap.empty;
@@ -147,8 +146,7 @@ struct
 		  super_interfaces = super_implemented_interfaces;
 		  methods = rta_methods;
 		  memorized_virtual_calls = MethodSet.empty;
-		  memorized_interface_calls = MethodSet.empty } in
-		p.classes <- ClassMap.add cs ioc_info p.classes
+		  memorized_interface_calls = MethodSet.empty }
 	| JInterface i ->
 	    let (interfaces,super_interfaces) =
 	      List.fold_right
@@ -163,7 +161,6 @@ struct
 	    let object_node =
 	      to_class_node (get_class_info p java_lang_object).class_data in
 	    let node = make_interface_node i object_node interfaces in
-	    let ioc_info =
 	      { class_data = Interface node;
 		is_instantiated = false;
 		(* An interface will never be instantiated *)
@@ -173,8 +170,9 @@ struct
 		methods = rta_methods;
 		memorized_virtual_calls = MethodSet.empty;
 		memorized_interface_calls = MethodSet.empty }
-	    in
-	      p.classes <- ClassMap.add cs ioc_info p.classes
+    in
+      p.classes <- ClassMap.add cs ioc_info p.classes;
+      ioc_info
 
   and add_clinit p cs =
     let ioc_info = get_class_info p cs in
@@ -526,8 +524,10 @@ struct
     in
       List.iter
 	(fun (cs,ms) ->
+	   let c = get_class_info ~check_name:false p cs in
+	   let cs = get_name c.class_data in
 	   add_class_clinits p cs;
-	   if defines_method (get_class_info p cs).class_data ms
+	   if defines_method c.class_data ms
 	   then add_to_workset p (cs,ms))
 	entrypoints;
       p
