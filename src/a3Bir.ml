@@ -28,7 +28,7 @@ open JCode
 include Cmn
 
 type binop =
-  | ArrayLoad  of JBasics.jvm_array_type
+  | ArrayLoad  of JBasics.value_type
   | Add of jvm_basic_type
   | Sub of jvm_basic_type 
   | Mult of jvm_basic_type
@@ -79,7 +79,7 @@ and type_of_expr = function
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
 	   | ArrayLength 
 	   | InstanceOf _ -> `Int)
-  | Binop (ArrayLoad t,e,_) -> type_of_array_content t  e
+  | Binop (ArrayLoad t,_,_) -> t
   | Binop (b,_,_) -> 
       TBasic
       (match b with
@@ -97,16 +97,6 @@ and type_of_expr = function
 	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
 	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
 	 | CMP _ -> `Int)
-and type_of_array_content t e =
-  match type_of_basic_expr e with
-    | TObject (TArray t) -> t 
-    | _ -> (* we use the type found in the OpArrayLoad argument *)
-	(match t with
-	   | `Int | `Short | `Char | `ByteBool -> TBasic `Int
-	   | `Long -> TBasic `Long
-	   | `Float -> TBasic `Float
-	   | `Double -> TBasic `Double
-	   | `Object -> TObject (TClass java_lang_object))
 
 type virtual_call_kind =
   | VirtualCall of object_type
@@ -376,8 +366,8 @@ let bir2a3bir  bir =
 
 
 (** Concrete method transformation. *) 
-let transform ?(compress=false) j_m j_code =
-  let code = Bir.transform_addr3 ~compress:compress j_m j_code in 
+let transform ?(bcv=false) ?(compress=false) j_m j_code =
+  let code = Bir.transform_addr3 ~bcv:bcv ~compress:compress j_m j_code in 
     bir2a3bir code
       
       

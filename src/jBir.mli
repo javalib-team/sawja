@@ -84,7 +84,7 @@ type comp = DG | DL | FG | FL | L
 
 (** Binary operators *)
 type binop =
-    ArrayLoad of JBasics.jvm_array_type
+    ArrayLoad of JBasics.value_type
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -185,7 +185,7 @@ val print : t -> string list
 
 (** [transform b cm jcode] transforms the code [jcode] into its JBir representation. The transformation is performed in the context of a given concrete method [cm]. According to the boolean [~compress:b], all program points made of a single [Nop] instruction are removed from the obtained JBir representation. 
 [transform b cm jcode] can raise several exceptions. See exceptions below for details. *) 
-val transform : ?compress:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+val transform : ?bcv:bool -> ?compress:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 val flatten_code : t -> instr array * int array * int Ptmap.t * JCode.exception_handler list
 

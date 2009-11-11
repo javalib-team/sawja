@@ -27,7 +27,7 @@ include Cmn
 (*********** TYPES *************)
 
 type binop =
-  | ArrayLoad of JBasics.jvm_array_type
+  | ArrayLoad of JBasics.value_type
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -826,18 +826,45 @@ let run verbose cm code =
 	     (match types.(i) with
 		| Some (_, l) -> to_value_type (get l n)
 		| _ -> assert false)
+	 | _ -> assert false),
+    (fun _ i -> 
+       match code.c_code.(i) with
+	 | OpArrayLoad _ ->
+	     (match types.(i) with
+		| Some (_::t::_, _) -> to_value_type t
+		| _ -> assert false)
 	 | _ -> assert false)
 
-let run_dummy code i =
-  match code.c_code.(i) with
-    | OpLoad (t,_) ->
-	(match t with
-	   | `Long -> TBasic `Long
-	   | `Float -> TBasic `Float
-	   | `Double -> TBasic `Double
-	   | `Int2Bool -> TBasic `Int
-	   | `Object -> TObject (TClass java_lang_object))
-    | _ -> assert false
+
+let array_type_to_value_type = function
+  | `Long -> TBasic `Long
+  | `Float -> TBasic `Float
+  | `Double -> TBasic `Double
+  | `Int2Bool -> TBasic `Int
+  | `Object -> TObject (TClass java_lang_object)
+
+let run_dummy code =
+  (fun i ->
+     match code.c_code.(i) with
+       | OpLoad (t,_) -> 
+	   (match t with
+	      | `Long -> TBasic `Long
+	      | `Float -> TBasic `Float
+	      | `Double -> TBasic `Double
+	      | `Int2Bool -> TBasic `Int
+	      | `Object -> TObject (TClass java_lang_object))
+       | _ -> assert false),
+  (fun t _ -> (match t with
+		 | `Long -> TBasic `Long
+		 | `Float -> TBasic `Float
+		 | `Double -> TBasic `Double
+		 | `Int -> TBasic `Int
+		 | `Short -> TBasic `Short
+		 | `Char ->  TBasic `Char
+		 | `ByteBool -> TBasic `Byte
+		 | `Int2Bool -> TBasic `Int
+		 | `Object -> TObject (TClass java_lang_object)))
+	 
 
 let run dummy ?(verbose=false) cm code =
   if dummy then run_dummy code
@@ -880,7 +907,7 @@ let rec type_of_expr = function
 		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
 	   | ArrayLength
 	   | InstanceOf _ -> `Int)
-  | Binop (ArrayLoad t,e,_) -> type_of_array_content t e
+  | Binop (ArrayLoad t,_,_) -> t
   | Binop (b,_,_) ->
       TBasic
       (match b with
@@ -898,16 +925,6 @@ let rec type_of_expr = function
 	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
 	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
 	 | CMP _ -> `Int)
-and type_of_array_content t e =
-  match type_of_expr e with
-    | TObject (TArray t) -> t (* can this happen ? *)
-    | _ -> (* we use the type found in the OpArrayLoad argument *)
-	(match t with
-	   | `Int | `Short | `Char | `ByteBool -> TBasic `Int
-	   | `Long -> TBasic `Long
-	   | `Float -> TBasic `Float
-	   | `Double -> TBasic `Double
-	   | `Object -> TObject (TClass java_lang_object))
 
 
 (**************** GENERATION *************)
@@ -1113,6 +1130,16 @@ let make_tempvar s next_store =
 	  | None -> x
       end
 
+and type_of_array_content t e =
+  match type_of_expr e with
+    | TObject (TArray t) -> t (* can this happen ? *)
+    | _ -> (* we use the type found in the OpArrayLoad argument *)
+	(match t with
+	   | `Int | `Short | `Char | `ByteBool -> TBasic `Int
+	   | `Long -> TBasic `Long
+	   | `Float -> TBasic `Float
+	   | `Double -> TBasic `Double
+	   | `Object -> TObject (TClass java_lang_object))
 
 (* Maps each opcode to a function of a stack that modifies its
  * according to opcode, and returns grimp corresponding instructions if any
@@ -1121,7 +1148,7 @@ let make_tempvar s next_store =
  * next : progression along instruction bytecode index
  * mode : normal , flat , 3add
  *)
-let bc2bir_instr mode pp_var i bctype tos s next_store = function
+let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = function
   | OpNop -> s, []
   | OpConst c -> 
       begin
@@ -1133,15 +1160,16 @@ let bc2bir_instr mode pp_var i bctype tos s next_store = function
 	  | _ -> E (Const c)::s, []
       end
   | OpLoad (_,n) ->
-      E (Var (bctype i,OriginalVar (n,pp_var i n)))::s, []
+      E (Var (load_type i,OriginalVar (n,pp_var i n)))::s, []
   | OpArrayLoad t ->
       let a = topE (pop s) in
       let idx = topE s in
+      let t = arrayload_type t i in
 	begin
 	match mode with
 	  | Addr3 ->
 	      let x = make_tempvar (pop2 s) next_store in
-		E (Var (type_of_array_content t a,x))::(pop2 s),
+		E (Var (t,x))::(pop2 s),
 		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]
 	  | _ ->
 	      E (Binop(ArrayLoad t,a,idx))::(pop2 s),
@@ -1494,7 +1522,7 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-let bc2ir flat pp_var jump_target bctype code =
+let bc2ir flat pp_var jump_target load_type arrayload_type code =
   let rec loop as_ts_jump ins ts_in as_in pc =
 
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
@@ -1519,7 +1547,7 @@ let bc2ir flat pp_var jump_target bctype code =
       else (ts_in,as_in)
     in
     let ts_out = type_next code.c_code.(pc) ts_in in
-    let (as_out,instrs) = bc2bir_instr flat pp_var pc bctype ts_in as_in next_store code.c_code.(pc)  in
+    let (as_out,instrs) = bc2bir_instr flat pp_var pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
 
       (* fail on backward branchings on a non-empty stack *)
       if List.length as_out>0 then
@@ -1615,7 +1643,7 @@ let compress_ir handlers ir jump_target =
     | (pc,instrs)::q -> (pc,instrs)::(aux q)
   in aux ir
 
-let jcode2bir mode compress cm jcode =
+let jcode2bir mode compress bcv cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
@@ -1630,8 +1658,8 @@ let jcode2bir mode compress cm jcode =
 		) code.c_code; *)
 	  let pp_var = search_name_localvar cm.cm_static code in
 	  let jump_target = compute_jump_target code in
-	  let bctype = BCV.run ~verbose:true true cm code in
-	  let res = bc2ir mode pp_var jump_target bctype code in
+	  let (load_type,arrayload_type) = BCV.run ~verbose:true bcv cm code in
+	  let res = bc2ir mode pp_var jump_target load_type arrayload_type code in
 	    { params = gen_params pp_var cm;
 	      code = if compress then compress_ir code.c_exc_tbl (List.rev res) jump_target else (List.rev res);
 	      exc_tbl = code.c_exc_tbl;
@@ -1639,9 +1667,9 @@ let jcode2bir mode compress cm jcode =
 	      jump_target = jump_target }
       | None -> raise Subroutine
 
-let transform ?(compress=false) = jcode2bir Normal compress
-let transform_flat ?(compress=false) = jcode2bir Flat compress
-let transform_addr3 ?(compress=false) = jcode2bir Addr3 compress
+let transform ?(bcv=false) ?(compress=false) = jcode2bir Normal compress bcv
+let transform_flat ?(bcv=false) ?(compress=false) = jcode2bir Flat compress bcv
+let transform_addr3 ?(bcv=false) ?(compress=false) = jcode2bir Addr3 compress bcv
 
 let rec last = function
     [] -> assert false
