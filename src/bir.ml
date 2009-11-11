@@ -806,12 +806,14 @@ let run verbose cm code =
     else
       let i = Ptset.min_elt ws in
       let ws = Ptset.remove i ws in
-      let sl = match types.(i) with Some sl -> sl | None -> assert false in
-      let sl' = next i code.c_code.(i) sl in
-      let ws = List.fold_left (upd sl') ws (normal_next code i) in
-      let sl' = ([Object],snd sl') in
-      let ws = List.fold_left (upd sl') ws (compute_handlers code i) in
-	loop ws
+      match types.(i) with
+	  Some sl -> 
+	    let sl' = next i code.c_code.(i) sl in
+	    let ws = List.fold_left (upd sl') ws (normal_next code i) in
+	    let sl' = ([Object],snd sl') in
+	    let ws = List.fold_left (upd sl') ws (compute_handlers code i) in
+	      loop ws
+	| None -> loop ws
   in
     assert ((Array.length types)>0);
     types.(0) <- Some (init cm);
@@ -1661,7 +1663,7 @@ let jcode2bir mode compress bcv cm jcode =
 		) code.c_code; *)
 	  let pp_var = search_name_localvar cm.cm_static code in
 	  let jump_target = compute_jump_target code in
-	  let (load_type,arrayload_type) = BCV.run ~verbose:true bcv cm code in
+	  let (load_type,arrayload_type) = BCV.run bcv cm code in
 	  let res = bc2ir mode pp_var jump_target load_type arrayload_type code in
 	    { params = gen_params pp_var cm;
 	      code = if compress then compress_ir code.c_exc_tbl (List.rev res) jump_target else (List.rev res);
