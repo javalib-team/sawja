@@ -1,4 +1,3 @@
-module State = struct
 module type S = sig
   module Var:Var.S
 
@@ -423,7 +422,5 @@ struct
 	  failwith ("type error: failure when trying to join incompatible"
 		    ^" data type (the var type does not match the data type)")
 
-
-end
 
 end

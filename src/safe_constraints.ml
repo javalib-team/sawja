@@ -1,6 +1,4 @@
 
-module Constraints = struct
-
 module type S = sig
 
   module State:State.S
@@ -66,4 +64,3 @@ module Make (State:State.S) = struct
 
 end
 
-end

@@ -27,8 +27,6 @@ module EmptyContext = struct
   let pprint fmt () = Format.pp_print_string fmt "()"
 end
 
-module Var = struct
-
 (* module PP = struct *)
 (*   type t = JBasics.class_method_signature * int *)
 (*   let equal = (=) *)
@@ -249,5 +247,4 @@ module Make = functor (Context:CONTEXT) -> struct
     | `Method _ as v -> hash_method v
     | `PP _ as v -> hash_pp v
 
-end
 end

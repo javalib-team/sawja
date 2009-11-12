@@ -1,4 +1,7 @@
-module type TRADUCTOR_ANALYSIS =
+
+module Domain : sig
+
+  module type TRADUCTOR_ANALYSIS =
   sig
     type localID
     type localDomain
@@ -10,20 +13,18 @@ module type TRADUCTOR_ANALYSIS =
     val glo2locDomain : globalDomain -> localDomain
   end
 
-module Trad_Identity :
-  functor (TYPE : sig type id type dom end) ->
-    sig
-      type localID = TYPE.id
-      type localDomain = TYPE.dom
-      type globalID = TYPE.id
-      type globalDomain = TYPE.dom
-      val loc2gloID : localID -> globalID
-      val loc2gloDomain : localDomain -> globalDomain
-      val glo2locID : globalID -> localID
-      val glo2locDomain : globalDomain -> localDomain
-    end
-
-module Domain : sig
+  module Trad_Identity :
+    functor (TYPE : sig type id type dom end) ->
+  sig
+    type localID = TYPE.id
+    type localDomain = TYPE.dom
+    type globalID = TYPE.id
+    type globalDomain = TYPE.dom
+    val loc2gloID : localID -> globalID
+    val loc2gloDomain : localDomain -> globalDomain
+    val glo2locID : globalID -> localID
+    val glo2locDomain : globalDomain -> localDomain
+  end
 
   module type S = sig
     type t
@@ -54,11 +55,11 @@ module Domain : sig
     module Trad_Left : functor (Trad : TRADUCTOR_ANALYSIS
                                 with type globalID = Left.analysisID
                                 and type globalDomain = Left.analysisDomain) ->
-        (TRADUCTOR_ANALYSIS
-         with type localID = Trad.localID
-         and type localDomain = Trad.localDomain
-         and type globalID = analysisID
-         and type globalDomain = analysisDomain)
+      (TRADUCTOR_ANALYSIS
+       with type localID = Trad.localID
+       and type localDomain = Trad.localDomain
+       and type globalID = analysisID
+       and type globalDomain = analysisDomain)
     module Trad_Right :
       functor (Trad : TRADUCTOR_ANALYSIS
                with type globalID = Right.analysisID
@@ -73,7 +74,10 @@ module Domain : sig
 end
 
 
-module type CONTEXT =
+
+module Var : sig
+
+  module type CONTEXT =
   sig
     type context
     val compare : context -> context -> int
@@ -82,9 +86,8 @@ module type CONTEXT =
     val to_string : context -> string
     val pprint : Format.formatter -> context -> unit
   end
-module EmptyContext : (CONTEXT with type context = unit)
+  module EmptyContext : (CONTEXT with type context = unit)
 
-module Var : sig
   module type S = sig
     module Context : CONTEXT
     type ioc = JBasics.class_name

@@ -22,7 +22,6 @@ module Trad_Identity (TYPE:sig type id type dom end)= struct
   let glo2locDomain : globalDomain -> localDomain = fun x -> x
 end
 
-module Domain = struct
 module type S = sig
   (* combined sub-analysis domains (eg. D1.t * D2.t)*)
   type t
@@ -302,4 +301,3 @@ module Empty : S = struct
   let pprint fmt () = Format.pp_print_string fmt "()"
 end
 
-end

@@ -138,7 +138,7 @@ let get_XTA_program
   in
   let module XTADom = ClassDomain.Make(struct let nb_bits = nb_bits end) in
   let module ED = Domain.Empty in
-  let module XTAVar = Var.Make(EmptyContext) in
+  let module XTAVar = Var.Make(Var.EmptyContext) in
   let module XTAState = State.Make(XTAVar)(XTADom)(XTADom)(XTADom)(XTADom)(Domain.Empty) in
   let module XTAConstraints = Constraints.Make(XTAState) in
 

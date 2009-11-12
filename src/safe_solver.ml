@@ -1,5 +1,3 @@
-module Solver = struct
-
 module Make (Constraints:Constraints.S) :sig
 
   (** [debug_level] defines the debugging level (verbosity) of the
@@ -178,7 +176,6 @@ end = struct
     work_set constraints var_init abState
 end
 
-end
 (* module MakeB (Constraints:Constraints.S) :sig *)
 
 (*   (\** [debug_level] defines the debugging level (verbosity) of the *)
