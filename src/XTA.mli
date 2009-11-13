@@ -12,10 +12,9 @@
 
 (** [get_XTA_program field_analysis program entry_points] returns the same
     program where the control flow function has been improved with the result of
-    an XTA analysis.  The
-    parameter [field_analysis] specifies which sensitivity should be used for
-    abstraction of fields. [`Field] is more precise than [`Class] which is more
-    precise than [`Global].   *)
+    an XTA analysis.  The parameter [field_analysis] specifies which sensitivity
+    should be used for abstraction of fields. [`Field] is more precise than
+    [`Class] which is more precise than [`Global]. *)
 val get_XTA_program :
   [< `Field | `Class | `Global ] ->
   JCode.jcode JProgram.program ->

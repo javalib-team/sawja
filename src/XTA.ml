@@ -145,14 +145,19 @@ let get_XTA_program
   let module XTASolver = Solver.Make(XTAConstraints) in
 
   let compute_csts field_analysis program node m : XTAConstraints.cst list =
-    (** [refine_with_type program type_list abm] returns the abstract value
+    (** [refine_with_type program type_list abm] returns the some abstract value
         [abm] where the classes in [abm] that cannot be of a type of [type_list]
         have been removed. Partial applications with a program and a type_list
-        are encourage as it should speed up the computation. *)
+        are encourage as it should speed up the computation.
+
+        As an optimization, [refine_with_type program type_list] may return
+        [None] to encode a function that would otherwise always returns
+        [XTADom.bot] *)
     (* TODO : also return a boolean so no constraint is built when
        refine_with_type always return Bot *)
-    let refine_with_type program (typs:value_type list) : XTADom.t -> XTADom.t =
+    let refine_with_type program (typs:value_type list) : (XTADom.t -> XTADom.t) option =
       let object_found = ref false in
+      let return_None = ref true in
       let typs =
         List.fold_left
           (fun acc -> function
@@ -160,11 +165,14 @@ let get_XTA_program
                  acc
              | TObject (TArray _) ->
                  object_found := true;
+                 return_None := false;
                  acc
              | TObject (TClass cn) when cn_equal cn java_lang_object ->
                  object_found := true;
+                 return_None := false;
                  acc
              | TObject (TClass cn) ->
+                 return_None := false;
                  try
                    lazy (XTADom.join
                            (Lazy.force acc)
@@ -178,10 +186,13 @@ let get_XTA_program
           typs
       in
         if !object_found
-        then function abm -> abm
+        then Some (function abm -> abm)
         else
-          function abm ->
-            XTADom.meet (Lazy.force typs) abm
+          if !return_None then None
+          else
+            Some
+              (function abm ->
+                 XTADom.meet (Lazy.force typs) abm)
     in
 
     let cn = get_name node
@@ -235,56 +246,59 @@ let get_XTA_program
                XTAConstraints.transferFun =
                   (fun state ->
                      `MethodDomain (XTAState.get_global state global_var))}
-    and cst_field_written (cn,fs) : XTAConstraints.cst =
-      let refine = lazy (refine_with_type program [fs_type fs]) in
-        match field_analysis with
-          | `Field ->
-              let field_var = `Field ((),cn,fs)
-              in
-                (* prolog> *)
-                (* XTA(field_var,S):-XTA(current_method,S),refine([fs_type fs],S). *)
-                (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),refine([%s],S).@]@]@." *)
-                (*   XTAVar.pprint field_var *)
-                (*   XTAVar.pprint current_method *)
-                (*   (JPrint.value_type (fs_type fs)); *)
-                (* <prolog *)
-                {XTAConstraints.dependencies = [current_method];
-                 XTAConstraints.target = field_var;
-                 XTAConstraints.transferFun =
-                    (fun state ->
-                       let abm = XTAState.get_method state current_method in
-                       let abf = (Lazy.force refine) abm in `FieldDomain abf)}
-          | `Class ->
-              let class_var = `IOC ((),cn)
-              in
-                (* prolog> *)
-                (* XTA(class_var,S):-XTA(current_method,S),refine([fs_type fs],S). *)
-                (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),refine([%s],S).@]@]@." *)
-                (*   XTAVar.pprint class_var *)
-                (*   XTAVar.pprint current_method *)
-                (*   (JPrint.value_type (fs_type fs)); *)
-                (* <prolog *)
-                {XTAConstraints.dependencies = [current_method];
-                 XTAConstraints.target = class_var;
-                 XTAConstraints.transferFun =
-                    (fun state ->
-                       let abm = XTAState.get_method state current_method in
-                       let abf = (Lazy.force refine) abm in `IOCDomain abf)}
-          | `Global ->
-              let global_var = `Global (())
-              in
-                (* prolog> *)
-                (* XTA(global,S):-XTA(current_method,S),refine([fs_type fs],S). *)
-                (* Format.fprintf output "@[XTA(global,S):- @[XTA(%a,S),refine([%s],S).@]@]@." *)
-                (*   XTAVar.pprint current_method *)
-                (*   (JPrint.value_type (fs_type fs)); *)
-                (* <prolog *)
-                {XTAConstraints.dependencies = [current_method];
-                 XTAConstraints.target = global_var;
-                 XTAConstraints.transferFun =
-                    (fun state ->
-                       let abm = XTAState.get_method state current_method in
-                       let abf = (Lazy.force refine) abm in `GlobalDomain abf)}
+    and cst_field_written (cn,fs) : XTAConstraints.cst option =
+      match refine_with_type program [fs_type fs] with
+        | None -> None
+        | Some refine ->
+            Some
+              (match field_analysis with
+                 | `Field ->
+                     let field_var = `Field ((),cn,fs)
+                     in
+                       (* prolog> *)
+                       (* XTA(field_var,S):-XTA(current_method,S),refine([fs_type fs],S). *)
+                       (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),refine([%s],S).@]@]@." *)
+                       (*   XTAVar.pprint field_var *)
+                       (*   XTAVar.pprint current_method *)
+                       (*   (JPrint.value_type (fs_type fs)); *)
+                       (* <prolog *)
+                       {XTAConstraints.dependencies = [current_method];
+                        XTAConstraints.target = field_var;
+                        XTAConstraints.transferFun =
+                           (fun state ->
+                              let abm = XTAState.get_method state current_method in
+                              let abf = refine abm in `FieldDomain abf)}
+                 | `Class ->
+                     let class_var = `IOC ((),cn)
+                     in
+                       (* prolog> *)
+                       (* XTA(class_var,S):-XTA(current_method,S),refine([fs_type fs],S). *)
+                       (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),refine([%s],S).@]@]@." *)
+                       (*   XTAVar.pprint class_var *)
+                       (*   XTAVar.pprint current_method *)
+                       (*   (JPrint.value_type (fs_type fs)); *)
+                       (* <prolog *)
+                       {XTAConstraints.dependencies = [current_method];
+                        XTAConstraints.target = class_var;
+                        XTAConstraints.transferFun =
+                           (fun state ->
+                              let abm = XTAState.get_method state current_method in
+                              let abf = refine abm in `IOCDomain abf)}
+                 | `Global ->
+                     let global_var = `Global (())
+                     in
+                       (* prolog> *)
+                       (* XTA(global,S):-XTA(current_method,S),refine([fs_type fs],S). *)
+                       (* Format.fprintf output "@[XTA(global,S):- @[XTA(%a,S),refine([%s],S).@]@]@." *)
+                       (*   XTAVar.pprint current_method *)
+                       (*   (JPrint.value_type (fs_type fs)); *)
+                       (* <prolog *)
+                       {XTAConstraints.dependencies = [current_method];
+                        XTAConstraints.target = global_var;
+                        XTAConstraints.transferFun =
+                           (fun state ->
+                              let abm = XTAState.get_method state current_method in
+                              let abf = refine abm in `GlobalDomain abf)})
     and cst_new cn : XTAConstraints.cst =
       (* prolog> *)
       (* XTA(current_method,cn) *)
@@ -305,12 +319,17 @@ let get_XTA_program
             | AbstractMethod _ -> assert false
         with Not_found -> assert false
       and caller_var = current_method
-      and refine_this =
-        lazy (refine_with_type program [TObject (TClass cn)])
-      and refine_parameters =
-        lazy (refine_with_type program (ms_args ms))
+      and refine_this = refine_with_type program [TObject (TClass cn)]
+      and refine_parameters = refine_with_type program (ms_args ms)
+      and refine_return =
+        match ms_rtype ms with
+          | None
+          | Some (TBasic _)
+            -> None
+          | Some rtype -> 
+              refine_with_type program [rtype]
       in
-      let cst_call =
+      let cst_call refine_this refine_parameters =
         (* prolog> *)
         (* XTA(callee_var,S):-isNotStatic(callee_var),XTA(caller_var,S2),refineType([callee_class],S2),
            XTA(caller_var,S),refineType([callee_class;ms_parameters],S). *)
@@ -344,7 +363,7 @@ let get_XTA_program
                     from [this]. *)
                  if callee.cm_static
                  then XTADom.bot
-                 else (Lazy.force refine_this) abm
+                 else refine_this abm
                in
                  if (not callee.cm_static) && XTADom.is_empty this
                  then
@@ -354,42 +373,55 @@ let get_XTA_program
                    let params =
                      (* TODO: it is also possible to refine the parameters with
                         the corresponding stack map. *)
-                     (Lazy.force refine_parameters) abm
+                     refine_parameters abm
                    in
                      `MethodDomain (XTADom.join params this))}
-      and cst_ret rtype =
-        let refine_return = lazy (refine_with_type program [rtype])
-        in
-          (* prolog> *)
-          (* XTA(caller_var,S):-XTA(callee_var,S),refineType([rtype],S). *)
-          (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),@ refineType([%s],S).@]@]@." *)
-          (*   XTAVar.pprint caller_var *)
-          (*   XTAVar.pprint callee_var *)
-          (*   (JPrint.value_type rtype); *)
-          (* <prolog *)
-          {XTAConstraints.dependencies = [caller_var;callee_var];
-           XTAConstraints.target = caller_var;
-           XTAConstraints.transferFun =
-              (fun state ->
-                 (* if callee can be called form caller, we propagate
-                    the abstract value of callee to caller, while refining
-                    by the return type of callee. *)
-                 let callee_unreachable () =
-                   let ab_caller = XTAState.get_method state caller_var in
-                     XTADom.is_empty
-                       ((Lazy.force refine_this) ab_caller)
-                 in
-                   if (not callee.cm_static) && callee_unreachable ()
-                   then `MethodDomain XTADom.bot
-                   else
-                     let ab_callee = XTAState.get_method state callee_var in
-                       `MethodDomain ((Lazy.force refine_return) ab_callee))}
+      and cst_ret refine_this refine_return =
+        (* prolog> *)
+        (* XTA(caller_var,S):-XTA(callee_var,S),refineType([rtype],S). *)
+        (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),@ refineType([%s],S).@]@]@." *)
+        (*   XTAVar.pprint caller_var *)
+        (*   XTAVar.pprint callee_var *)
+        (*   (JPrint.value_type rtype); *)
+        (* <prolog *)
+        {XTAConstraints.dependencies = [caller_var;callee_var];
+         XTAConstraints.target = caller_var;
+         XTAConstraints.transferFun =
+            (fun state ->
+               (* if callee can be called form caller, we propagate
+                  the abstract value of callee to caller, while refining
+                  by the return type of callee. *)
+               let callee_unreachable () =
+                 let ab_caller = XTAState.get_method state caller_var
+                 in XTADom.is_empty (refine_this ab_caller)
+               in
+                 if (not callee.cm_static) && callee_unreachable ()
+                 then `MethodDomain XTADom.bot
+                 else
+                   let ab_callee = XTAState.get_method state callee_var in
+                     `MethodDomain (refine_return ab_callee))}
       in
-        match ms_rtype ms with
-          | None
-          | Some (TBasic _)
-            -> [cst_call]
-          | Some t -> [cst_call;cst_ret t]
+      let refine_this =
+        match refine_this with
+          | None -> (fun _ -> XTADom.bot) (* should never *)
+          | Some _ when callee.cm_static -> (fun _ -> XTADom.bot)
+          | Some refine_this -> refine_this
+      in
+        match refine_parameters, refine_return with
+          | None, None ->
+              if callee.cm_static
+              then []
+              else [cst_call refine_this (fun _ -> XTADom.bot)]
+          | None, Some refine_return ->
+              if callee.cm_static
+              then [cst_ret refine_this refine_return]
+              else [cst_call refine_this (fun _ -> XTADom.bot);
+                    cst_ret refine_this refine_return]
+          | Some refine_parameters, None ->
+              [cst_call refine_this refine_parameters]
+          | Some refine_parameters, Some refine_return ->
+              [cst_call refine_this refine_parameters;
+               cst_ret refine_this refine_return]
     in let csts = []
     in let csts =
         ClassSet.fold
@@ -408,12 +440,20 @@ let get_XTA_program
           csts
     in let csts =
         ClassFieldSet.fold
-          (fun cfs csts -> (cst_field_written (cfs_split cfs))::csts)
+          (fun cfs csts ->
+             Option.map_default
+               (fun e -> e::csts)
+               csts
+               (cst_field_written (cfs_split cfs)))
           instance_fields_written
           csts
     in let csts =
         ClassFieldSet.fold
-          (fun cfs csts -> (cst_field_written (cfs_split cfs))::csts)
+          (fun cfs csts ->
+             Option.map_default
+               (fun e -> e::csts)
+               csts
+               (cst_field_written (cfs_split cfs)))
           static_fields_written
           csts
     in let csts =

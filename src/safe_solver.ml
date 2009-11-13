@@ -85,52 +85,49 @@ end = struct
       (* and prev_time = ref (Unix.time ()) *)
     in
     let var_csts =
+      (* array which associates to each node the list of constraints that depends
+         on it *)
+      let var_csts2 = DynArray.create () in
       let var_indices = HashVar.create nb_constraints in
       let get_var var =
+        (* get the index of the node/var/target [var] *)
         try HashVar.find var_indices var
         with Not_found ->
           let new_var = HashVar.length var_indices in
             HashVar.add var_indices var new_var;
-            new_var
+            let length = DynArray.length var_csts2 in
+              if new_var >= length
+              then
+                DynArray.append
+                  (DynArray.init (new_var+1-length) (fun _ -> []))
+                  var_csts2;
+              new_var
       in
-      let module VarMap = Ptmap in
       let current_cst = ref 0 in
-      let map_var_csts =
-        List.fold_left
-          (fun map_var_csts cst ->
+        List.iter
+          (fun cst ->
              let target = get_var (Constraints.get_target cst) in
              let dep = Constraints.get_dependencies cst in
              let id_cst = !current_cst in
                incr current_cst;
-	       if dep = [] then
-                 (add_to_work_stack [{id = id_cst; target = target; cst = cst}];
-                  map_var_csts)
-	       else
-	         List.fold_left
-                   (fun map_var_csts v ->
-                      let v = get_var v in
-                        VarMap.add
-                          ~merge:List.rev_append
-                          v
-                          [{id = id_cst; target=target; cst = cst}]
-                          map_var_csts)
-                   map_var_csts
-                   dep)
-          VarMap.empty
-          constraints
-      in
-      let var_csts = Array.create (HashVar.length var_indices) []
-      in
-        VarMap.iter
-          (fun var csts ->
-             var_csts.(var) <- csts)
-          map_var_csts;
+               let cst = {id = id_cst; target = target; cst = cst} in
+	         if dep = [] then
+                   add_to_work_stack [cst]
+                 else
+                   List.iter
+                     (fun v ->
+                        let v = get_var v in
+                          DynArray.set var_csts2 v (cst::DynArray.get var_csts2 v)
+                     )
+                     dep
+          )
+          constraints;
         List.iter
 	  (fun v ->
              let v = get_var v in
-               add_to_work_stack var_csts.(v))
+               add_to_work_stack (DynArray.get var_csts2 v))
 	  var_init;
-        var_csts
+        DynArray.to_array var_csts2
     in
       print_debug 3 "start iterating";
       print_times ();
@@ -141,17 +138,17 @@ end = struct
 	while true do
           let cst = get_from_work_stack () in
           let modifies = ref false in
-          (* let start = (Unix.times ()).Unix.tms_utime in *)
+            (* let start = (Unix.times ()).Unix.tms_utime in *)
             Constraints.apply_cst ~modifies !abState cst.cst;
             if !modifies then
               ((* time_to_modify := *)
-               (*   !time_to_modify +. ((Unix.times ()).Unix.tms_utime -. start); *)
-               incr did_modified;
-	       add_to_work_stack (var_csts.(cst.target)))
+                (*   !time_to_modify +. ((Unix.times ()).Unix.tms_utime -. start); *)
+                incr did_modified;
+	        add_to_work_stack (var_csts.(cst.target)))
 	    else
               ((* time_to_idle := *)
-               (*   !time_to_idle +. ((Unix.times ()).Unix.tms_utime -. start); *)
-               incr didnt_modified;)
+                (*   !time_to_idle +. ((Unix.times ()).Unix.tms_utime -. start); *)
+                incr didnt_modified;)
 	done;
 	assert false;
       with Failure "get_from_work_stack" ->
