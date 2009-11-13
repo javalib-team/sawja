@@ -143,22 +143,8 @@ let rec get_all_children_classes c =
 	    List.rev_append r (get_all_children_classes c)
 	 ) direct_children [])
 
-type invoke =
-    [ `Interface of JBasics.class_name
-    | `Special of JBasics.class_name
-    | `Static of JBasics.class_name
-    | `Virtual of JBasics.object_type ] * JBasics.method_signature
-
-let invoke_cnms (invoke:invoke) =
-  match invoke with
-    | (`Interface cn, ms) -> (cn,ms)
-    | (`Special cn, ms) -> (cn,ms)
-    | (`Static cn, ms) -> (cn,ms)
-    | (`Virtual (TClass cn),ms) -> (cn,ms)
-    | (`Virtual (TArray _),ms) -> (JBasics.java_lang_object,ms)
-
-type 'a static_lookup_method = class_name -> method_signature -> invoke ->
-	ClassMethodSet.t
+type 'a static_lookup_method = class_name -> method_signature -> int ->
+  ClassMethodSet.t
 
 type 'a program = { classes : 'a node ClassMap.t;
 		    parsed_methods : ('a node *
@@ -290,8 +276,8 @@ let get_method_calls p cs cm =
 	      Array.iteri
 		(fun pp op ->
 		   match op with
-		     | OpInvoke (a,b) ->
-			 let lookup = (f_lookup cs ms (a,b)) in
+		     | OpInvoke _ ->
+			 let lookup = (f_lookup cs ms pp) in
 			   l := Ptmap.add pp lookup !l
 		     | _ -> ())
 		(Lazy.force code).c_code

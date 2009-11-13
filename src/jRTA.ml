@@ -587,13 +587,13 @@ let static_special_lookup special_lookup_map cs ccs cms =
   ClassMethMap.find (ccs,cms) (ClassMap.find cs special_lookup_map)
 
 let static_lookup_method p :
-    class_name -> method_signature -> invoke -> ClassMethodSet.t =
+    class_name -> method_signature -> int -> ClassMethodSet.t =
   let virtual_lookup_map = p.Program.static_virtual_lookup
   and special_lookup_map = p.Program.static_special_lookup
   and static_lookup_map = p.Program.static_static_lookup
   and interfaces_map = p.Program.interfaces
   and classes_map = p.Program.classes in
-    fun cs ms invoke ->
+    fun cs ms pp ->
       let ioc = to_ioc (ClassMap.find cs classes_map).Program.class_data in
       let m = Javalib.get_method ioc ms in
 	match m with
@@ -601,22 +601,24 @@ let static_lookup_method p :
 	  | ConcreteMethod cm ->
 	      (match cm.cm_implementation with
 		 | Native -> failwith "Can't call static_lookup on Native methods"
-		 | Java _ ->
-		     (match invoke with
-			| (`Interface ccs,cms) ->
-			    static_interface_lookup virtual_lookup_map
-			      interfaces_map ccs cms
-			| (`Virtual (TClass ccs),cms) ->
-			    static_virtual_lookup virtual_lookup_map ccs cms
-			| (`Virtual (TArray _),cms) ->
-			    (* should only happen with [clone()] *)
-			    static_virtual_lookup virtual_lookup_map
-			      java_lang_object cms
-			| (`Static ccs,cms) ->
-			    static_static_lookup static_lookup_map ccs cms
-			| (`Special ccs,cms) ->
-			    static_special_lookup special_lookup_map cs ccs cms
-		     )
+		 | Java code ->
+		     let opcode = (Lazy.force code).c_code.(pp) in
+		       (match opcode with
+			  | OpInvoke (`Interface ccs,cms) ->
+			      static_interface_lookup virtual_lookup_map
+				interfaces_map ccs cms
+			  | OpInvoke (`Virtual (TClass ccs),cms) ->
+			      static_virtual_lookup virtual_lookup_map ccs cms
+			  | OpInvoke (`Virtual (TArray _),cms) ->
+			      (* should only happen with [clone()] *)
+			      static_virtual_lookup virtual_lookup_map
+				java_lang_object cms
+			  | OpInvoke (`Static ccs,cms) ->
+			      static_static_lookup static_lookup_map ccs cms
+			  | OpInvoke (`Special ccs,cms) ->
+			      static_special_lookup special_lookup_map cs ccs cms
+			  | _ -> raise Not_found
+		       )
 	      )
 
 let pcache2jprogram p =

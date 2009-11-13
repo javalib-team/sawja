@@ -71,15 +71,7 @@ val make_interface_node : 'a jinterface -> 'a class_node
 
 (** {2 The [program] structure.} *)
 
-type invoke =
-    [ `Interface of JBasics.class_name
-    | `Special of JBasics.class_name
-    | `Static of JBasics.class_name
-    | `Virtual of JBasics.object_type ] * JBasics.method_signature
-
-val invoke_cnms : invoke -> class_name * method_signature
-
-type 'a static_lookup_method = class_name -> method_signature -> invoke ->
+type 'a static_lookup_method = class_name -> method_signature -> int ->
   ClassMethodSet.t
 
 (** A program is a record containing a map of class files identified by

@@ -112,16 +112,18 @@ val value_elem : ?dim:int -> 'a program -> class_name -> value_type -> elem
 val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
   -> field_signature -> elem
 
-(** [invoke_elem ~called_cname p cn ms k] builds an [elem] from
-    a program [p], a current class name [cn], a current method
-    signature [ms] and a kind of invoke [k]. The invoke call will be
-    represented by a dynamic link with text [A.m] where [m] is the
-    called method name (contained in [k]). By default, [A] corresponds
-    to [cn] class name. If you want to specify the [A] string, you can
-    provide the optional parameter [~called_cname].
+(** [invoke_elem ~called_cname p cn ms pp ccn cms] builds an [elem]
+    from a program [p], a current class name [cn], a current method
+    signature [ms], a program point [pp] where the invoke occurs,
+    a called class name [ccn] and a called method signature [cms]. The
+    invoke call will be represented by a dynamic link with text [A.m]
+    where [m] is the called method name (contained in [k]). By
+    default, [A] corresponds to [cn] class name. If you want to
+    specify the [A] string, you can provide the optional parameter
+    [~called_cname].
 *)
 val invoke_elem : ?called_cname:string -> 'a program -> class_name ->
-  method_signature -> invoke -> elem
+  method_signature -> int -> class_name -> method_signature -> elem
 
 (** [method_args_elem p cn ms] builds an [elem] from a program [p],
     a current class name [cn] and a method signature [ms]. The
@@ -173,7 +175,9 @@ sig
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
 
-  val get_callgraph : code program -> callgraph
+  (** Function to provide in order to associate an intermediate
+  representation program point to a JCode.jcode program point. *)
+  val jcode_pp : ('a program -> int -> int) option
 end
 
 module Make (S : PrintInterface) : HTMLPrinter

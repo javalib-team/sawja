@@ -250,26 +250,6 @@ type info_internal =
       (** Prints information about the possible method callers. *)
       p_callers : class_name -> method_signature -> ClassMethSet.t;
     }
-      
-let revert_callgraph cg =
-  List.fold_left
-    (fun cmmap ((cs,ms,_),(ccs,cms)) ->
-       let ccmsig = make_cms ccs cms in
-       let cmset =
-	 try ClassMethodMap.find ccmsig cmmap
-	 with _ -> ClassMethSet.empty in
-	 ClassMethodMap.add ccmsig (ClassMethSet.add (cs,ms) cmset) cmmap
-    ) ClassMethodMap.empty cg
-      
-let get_callers rcg cs ms =
-  let cmsig = make_cms cs ms in
-    try ClassMethodMap.find cmsig rcg
-    with _ -> ClassMethSet.empty
-      
-let get_internal_info info callgraph = {
-  p_data = info;
-  p_callers = get_callers (revert_callgraph callgraph)
-}
   
 let rec get_relative_path frompackage topackage =
   match (frompackage,topackage) with
@@ -475,12 +455,11 @@ let field_elem ?called_cname program cs ccs fs =
 	| None -> cn_name ccs in
 	SimpleExpr [PCData (callcname ^ "." ^ fname)]
       
-let invoke_elem ?called_cname program cs ms invoke =
+let invoke_elem ?called_cname program cs ms pp callcs callms =
   let mlookups =
     try List.map cms_split
-      (ClassMethodSet.elements (program.static_lookup_method cs ms invoke))
+      (ClassMethodSet.elements (program.static_lookup_method cs ms pp))
     with _ -> [] in
-  let (callcs,callms) = invoke_cnms invoke in
   let mlookupshtml = List.map
     (fun (rcs,rms) ->
        let anchor = ms2anchorname rcs rms in
@@ -527,13 +506,53 @@ sig
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
-  val get_callgraph : code program -> callgraph
+  val jcode_pp : ('a program -> int -> int) option
 end
   
 module Make (S : PrintInterface) =
 struct
   type code = S.code
       
+  let revert_callgraph program f =
+    ClassMethodMap.fold
+      (fun _ (c,cm) cmmap ->
+	 match cm.cm_implementation with
+	   | Native -> cmmap
+	   | Java code ->
+	       let cn = get_name c in
+	       let ms = cm.cm_signature in
+	       let rmmap = ref cmmap in
+		 S.iter_code
+		   (fun pp _ ->
+		      let jcode_pp = f program pp in
+			try
+			  let cmset =
+			    program.static_lookup_method cn ms jcode_pp in
+			    ClassMethodSet.iter
+			      (fun ccms ->
+				 let rcmset =
+				   try ClassMethodMap.find ccms !rmmap
+				   with Not_found -> ClassMethSet.empty in
+				   rmmap := ClassMethodMap.add ccms
+				     (ClassMethSet.add (cn,ms) rcmset) !rmmap
+			      ) cmset
+			with Not_found -> ()
+		   ) code;
+		 !rmmap
+      ) program.parsed_methods ClassMethodMap.empty
+      
+  let get_callers rcg cs ms =
+    let cmsig = make_cms cs ms in
+      try ClassMethodMap.find cmsig rcg
+      with _ -> ClassMethSet.empty
+      
+  let get_internal_info program info = {
+    p_data = info;
+    p_callers = match S.jcode_pp with
+      | Some f -> get_callers (revert_callgraph program f)
+      | None -> fun _ _ -> ClassMethSet.empty
+  }
+
   let methodparameters2html program cs ms =
     let mparameters = ms_args ms in
     let pnames = S.method_param_names program cs ms in
@@ -730,8 +749,7 @@ struct
 	 copy_file default_js js (Filename.concat outputdir jsfile)
 	)
       else invalid_arg "Last argument must be an existing directory";
-      let cg = S.get_callgraph program in
-      let info = get_internal_info info cg in
+      let info = get_internal_info program info in
 	ClassMap.iter
 	  (fun cs ioc ->
 	     let cn = get_name ioc in
@@ -811,20 +829,23 @@ module JCodePrinter = Make(
 		[simple_elem inst; field_elem program cs ccs fs;
 		 simple_elem " : "; value_elem program cs ftype]
 	  | OpInvoke ((`Virtual o),cms) ->
-	      [simple_elem inst;
-	       invoke_elem program cs ms ((`Virtual o),cms);
-	       method_args_elem program cs ms]
+	      let ccs = match o with
+		| TClass ccs -> ccs
+		| _ -> JBasics.java_lang_object in
+		[simple_elem inst;
+		 invoke_elem program cs ms pp ccs cms;
+		 method_args_elem program cs ms]
 	  | OpInvoke ((`Interface ccs),cms) ->
 	      [simple_elem inst; 
-	       invoke_elem program cs ms ((`Interface ccs),cms);
+	       invoke_elem program cs ms pp ccs cms;
 	       method_args_elem program cs ms]
 	  | OpInvoke ((`Static ccs),cms) ->
 	      [simple_elem inst; 
-	       invoke_elem program cs ms ((`Static ccs),cms);
+	       invoke_elem program cs ms pp ccs cms;
 	       method_args_elem program cs ms]
 	  | OpInvoke ((`Special ccs),cms) ->
 	      [simple_elem inst; 
-	       invoke_elem program cs ms ((`Special ccs),cms);
+	       invoke_elem program cs ms pp ccs cms;
 	       method_args_elem program cs ms]
 	  | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
 	      let m = get_method (get_node program cs) ms in
@@ -840,7 +861,7 @@ module JCodePrinter = Make(
 		[simple_elem (inst ^ " " ^ locname)]
 	  | _ -> [simple_elem inst_params]
 		
-    let get_callgraph = JProgram.get_callgraph 
+    let jcode_pp = Some (fun _ x -> x)
   end)
 
 let print_program = JCodePrinter.print_program
@@ -882,7 +903,7 @@ module JBirPrinter = Make(
 		    )
 	      with _ -> None
 
-    let inst_html program cs ms _pp op =
+    let inst_html program cs ms pp op =
       match op with
 	| JBir.AffectStaticField (ccs,fs,e) ->
 	    let p1 = field_elem program cs ccs fs in
@@ -916,14 +937,14 @@ module JBirPrinter = Make(
 	      ) in
 	      [p1;p2;p3]
 	| JBir.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = invoke_elem program cs ms ((`Static ccs),cms) in
+	    let p1 = invoke_elem program cs ms pp ccs cms in
 	    let p2 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
 	      [p1;p2]
 	| JBir.InvokeStatic (Some x,ccs,cms,le) ->
 	    let p1 = simple_elem
 	      (Printf.sprintf "%s :=" (JBir.var_name_g x)) in
-	    let p2 = invoke_elem program cs ms ((`Static ccs),cms) in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
 	      [p1;p2;p3]
@@ -931,11 +952,14 @@ module JBirPrinter = Make(
 	    let p2 =
 	      (match k with
 		 | JBir.VirtualCall o ->
-		     invoke_elem ~called_cname:(JBir.print_expr e1) program
-		       cs ms ((`Virtual o),cms)
+		     let ccs = match o with
+		       | TClass ccs -> ccs
+		       | _ -> JBasics.java_lang_object in
+		       invoke_elem ~called_cname:(JBir.print_expr e1) program
+			 cs ms pp ccs cms
 		 | JBir.InterfaceCall ccs ->
 		     invoke_elem ~called_cname:(JBir.print_expr e1) program
-		       cs ms ((`Interface ccs),cms)
+		       cs ms pp ccs cms
 	      ) in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)"
@@ -954,7 +978,7 @@ module JBirPrinter = Make(
 		 | Some x -> Printf.sprintf "%s := %s." (JBir.var_name_g x)
 		     (JBir.print_expr e1)
 	      ) in
-	    let p2 = invoke_elem program cs ms ((`Special ccs),cms) in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
 	      [p1;p2;p3]
@@ -970,7 +994,8 @@ module JBirPrinter = Make(
 	      [p1;p2]
 	| _ -> [simple_elem (JBir.print_instr op)]
 
-    let get_callgraph _ = []
+    let jcode_pp = Some (fun _ x -> x)
   end)
 
 let print_jbir_program = JBirPrinter.print_program
+

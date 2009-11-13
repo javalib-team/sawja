@@ -379,40 +379,61 @@ let iter_workset pvta =
     Wlist.iter_to_head
       (fun (ioc,mvta) -> parse_vta_method pvta ioc mvta) tail
 
-let static_lookup_method virtual_lookup_map interface_lookup_map
-    static_lookup_map special_lookup_map cs ms invoke =
-  (match invoke with
-     | (`Interface ccs,cms) ->
-	 let cms = make_cms cs ms
-	 and ccms = make_cms ccs cms in
-	 let cmmap = ClassMethodMap.find cms interface_lookup_map in
-	   ClassMethodMap.find ccms cmmap
-     | (`Virtual (TClass ccs),cms) ->
-	 let cms = make_cms cs ms
-	 and ccms = make_cms ccs cms in
-	 let cmmap = ClassMethodMap.find cms virtual_lookup_map in
-	   ClassMethodMap.find ccms cmmap
-     | (`Virtual (TArray _),cms) ->
-	 (* should only happen with [clone()] *)
-	 let cms = make_cms cs ms
-	 and ccms = make_cms (JBasics.java_lang_object) cms in
-	 let cmmap = ClassMethodMap.find cms virtual_lookup_map in
-	   ClassMethodMap.find ccms cmmap
-     | (`Static ccs,cms) ->
-	 let cms = make_cms cs ms
-	 and ccms = make_cms ccs cms in
-	 let cmmap = ClassMethodMap.find cms static_lookup_map in
-	 let cm = ClassMethodMap.find ccms cmmap in
-	   ClassMethodSet.add cm.cm_class_method_signature
-	     ClassMethodSet.empty
-     | (`Special ccs,cms) ->
-	 let cms = make_cms cs ms
-	 and ccms = make_cms ccs cms in
-	 let cmmap = ClassMethodMap.find cms special_lookup_map in
-	 let cm = ClassMethodMap.find ccms cmmap in
-	   ClassMethodSet.add cm.cm_class_method_signature
-	     ClassMethodSet.empty
-  )
+let static_lookup_method pvta =
+  let virtual_lookup_map =
+    ClassMethodMap.map
+      (fun mvta -> mvta.static_lookup_virtual) pvta.methods in
+  let interface_lookup_map =
+    ClassMethodMap.map
+      (fun mvta -> mvta.static_lookup_interface) pvta.methods in
+  let special_lookup_map =
+    ClassMethodMap.map
+      (fun mvta -> mvta.static_lookup_special) pvta.methods in
+  let static_lookup_map =
+    ClassMethodMap.map
+      (fun mvta -> mvta.static_lookup_static) pvta.methods in
+  let concrete_methods =
+    ClassMethodMap.map
+      (fun mvta -> mvta.c_method) pvta.methods in
+    fun cs ms pp ->
+      let cm = ClassMethodMap.find (make_cms cs ms) concrete_methods in
+	match cm.cm_implementation with
+	  | Native -> failwith "Can't call static_lookup on Native methods"
+	  | Java code ->
+	      let opcode = (Lazy.force code).c_code.(pp) in
+		(match opcode with
+		   | OpInvoke (`Interface ccs,cms) ->
+		       let cms = make_cms cs ms
+		       and ccms = make_cms ccs cms in
+		       let cmmap = ClassMethodMap.find cms interface_lookup_map in
+			 ClassMethodMap.find ccms cmmap
+		   | OpInvoke (`Virtual (TClass ccs),cms) ->
+		       let cms = make_cms cs ms
+		       and ccms = make_cms ccs cms in
+		       let cmmap = ClassMethodMap.find cms virtual_lookup_map in
+			 ClassMethodMap.find ccms cmmap
+		   | OpInvoke (`Virtual (TArray _),cms) ->
+		       (* should only happen with [clone()] *)
+		       let cms = make_cms cs ms
+		       and ccms = make_cms (JBasics.java_lang_object) cms in
+		       let cmmap = ClassMethodMap.find cms virtual_lookup_map in
+			 ClassMethodMap.find ccms cmmap
+		   | OpInvoke (`Static ccs,cms) ->
+		       let cms = make_cms cs ms
+		       and ccms = make_cms ccs cms in
+		       let cmmap = ClassMethodMap.find cms static_lookup_map in
+		       let cm = ClassMethodMap.find ccms cmmap in
+			 ClassMethodSet.add cm.cm_class_method_signature
+			   ClassMethodSet.empty
+		   | OpInvoke (`Special ccs,cms) ->
+		       let cms = make_cms cs ms
+		       and ccms = make_cms ccs cms in
+		       let cmmap = ClassMethodMap.find cms special_lookup_map in
+		       let cm = ClassMethodMap.find ccms cmmap in
+			 ClassMethodSet.add cm.cm_class_method_signature
+			   ClassMethodSet.empty
+		   | _ -> raise Not_found
+		)
 
 let parse_program_from_rta prta instantiated_classes csms =
   let pvta = { p = prta;
@@ -437,26 +458,9 @@ let parse_program_from_rta prta instantiated_classes csms =
 	     )
     );
     iter_workset pvta;
-    let static_virtual_lookup_map =
-      ClassMethodMap.map
-	(fun mvta -> mvta.static_lookup_virtual) pvta.methods in
-    let static_interface_lookup_map =
-      ClassMethodMap.map
-	(fun mvta -> mvta.static_lookup_interface) pvta.methods in
-    let static_special_lookup_map =
-      ClassMethodMap.map
-	(fun mvta -> mvta.static_lookup_special) pvta.methods in
-    let static_static_lookup_map =
-      ClassMethodMap.map
-	(fun mvta -> mvta.static_lookup_static) pvta.methods in
-      { prta with parsed_methods = pvta.pvta_parsed_methods;
-	  static_lookup_method =
-	  static_lookup_method
-	    static_virtual_lookup_map
-	    static_interface_lookup_map
-	    static_static_lookup_map
-	    static_special_lookup_map
-      }
+    { prta with parsed_methods = pvta.pvta_parsed_methods;
+	static_lookup_method = static_lookup_method pvta
+    }
 
 let default_entrypoints = JRTA.default_entrypoints
 

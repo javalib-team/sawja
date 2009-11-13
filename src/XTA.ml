@@ -527,64 +527,75 @@ let get_XTA_program
                     cache := ClassMethodMap.add cms res !cache;
                     res
         in
-          fun cn ms ->
+          fun cn ms pp ->
             let instances = lazy (get_classes cn ms)
-            and caller_c = lazy (ClassMap.find cn classes)
-            in function
-              | `Virtual (TClass callee_cn),callee_ms ->
-                  let callee = match ClassMap.find callee_cn classes with
-                    | Class c -> c
-                    | Interface _ -> raise IncompatibleClassChangeError
-                  in
-                  let instances =
-                    ClassMap.filter
-                      (fun c -> extends_class c callee)
-                      (Lazy.force instances)
-                  in
-                    ClassMethodMaptoSet.to_set
-                      (JControlFlow.invoke_virtual_lookup
-                         ~c:(Some callee) callee_ms instances)
-              | `Virtual (TArray _),ms ->
-                  ClassMethodSet.singleton (make_cms java_lang_object ms)
-              | `Interface iname, callee_ms ->
-                  let callee = match ClassMap.find iname classes with
-                    | Interface i -> i
-                    | Class _ -> raise IncompatibleClassChangeError
-                  in
-                  let instances =
-                    ClassMap.filter
-                      (fun c -> implements c callee)
-                      (Lazy.force instances)
-                  in
-                    ClassMethodMaptoSet.to_set
-                      (JControlFlow.invoke_interface_lookup
-                         ~i:(Some callee) callee_ms instances)
-              | `Special cn, ms ->
-                  let callee = match ClassMap.find cn classes with
-                    | Class c -> c
-                    | Interface _ -> raise IncompatibleClassChangeError
-                  in let (_c,cm) =
-                      JControlFlow.invoke_special_lookup
-                        (Lazy.force caller_c) callee ms
-                  in
-                    ClassMethodSet.singleton cm.cm_class_method_signature
-              | `Static cn, ms ->
-                  let callee = match ClassMap.find cn classes with
-                    | Class c -> c
-                    | Interface _ -> raise IncompatibleClassChangeError
-                  in let (_c,cm) =
-                      JControlFlow.invoke_static_lookup callee ms
-                  in
-                    ClassMethodSet.singleton cm.cm_class_method_signature
+            and caller_c = lazy (ClassMap.find cn classes) in
+	    let m = get_method (Lazy.force caller_c) ms in
+	      match m with
+		| AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
+		| ConcreteMethod cm ->
+		    (match cm.cm_implementation with
+		       | Native -> failwith "Can't call static_lookup on Native methods"
+		       | Java code ->
+			   let opcode = (Lazy.force code).JCode.c_code.(pp) in
+			     (match opcode with
+				| JCode.OpInvoke (`Virtual (TClass callee_cn),callee_ms) ->
+				    let callee = match ClassMap.find callee_cn classes with
+				      | Class c -> c
+				      | Interface _ -> raise IncompatibleClassChangeError
+				    in
+				    let instances =
+				      ClassMap.filter
+					(fun c -> extends_class c callee)
+					(Lazy.force instances)
+				    in
+				      ClassMethodMaptoSet.to_set
+					(JControlFlow.invoke_virtual_lookup
+					   ~c:(Some callee) callee_ms instances)
+				| JCode.OpInvoke (`Virtual (TArray _),ms) ->
+				    ClassMethodSet.singleton (make_cms java_lang_object ms)
+				| JCode.OpInvoke (`Interface iname, callee_ms) ->
+				    let callee = match ClassMap.find iname classes with
+				      | Interface i -> i
+				      | Class _ -> raise IncompatibleClassChangeError
+				    in
+				    let instances =
+				      ClassMap.filter
+					(fun c -> implements c callee)
+					(Lazy.force instances)
+				    in
+				      ClassMethodMaptoSet.to_set
+					(JControlFlow.invoke_interface_lookup
+					   ~i:(Some callee) callee_ms instances)
+				| JCode.OpInvoke (`Special cn, ms) ->
+				    let callee = match ClassMap.find cn classes with
+				      | Class c -> c
+				      | Interface _ -> raise IncompatibleClassChangeError
+				    in let (_c,cm) =
+					JControlFlow.invoke_special_lookup
+					  (Lazy.force caller_c) callee ms
+				    in
+				      ClassMethodSet.singleton cm.cm_class_method_signature
+				| JCode.OpInvoke (`Static cn, ms) ->
+				    let callee = match ClassMap.find cn classes with
+				      | Class c -> c
+				      | Interface _ -> raise IncompatibleClassChangeError
+				    in let (_c,cm) =
+					JControlFlow.invoke_static_lookup callee ms
+				    in
+				      ClassMethodSet.singleton cm.cm_class_method_signature
+				| _ -> raise Not_found
+			     )
+		    )
   in
 
   let get_XTA_program xtastate program = {
     program with
       static_lookup_method =
       static_lookup
-        program.static_lookup_method
-        xtastate
-        program.classes}
+	program.static_lookup_method
+	xtastate
+	program.classes}
   in
 
   let entry_points =

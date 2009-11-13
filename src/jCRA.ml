@@ -272,73 +272,70 @@ let static_lookup_method =
   and static_lookup_map = ref ClassMethMap.empty
   and special_lookup_map = ref ClassMap.empty
   and children_classes = ref ClassMap.empty in
-    fun classes_map interfaces cs ms invoke ->
+    fun classes_map interfaces cs ms pp ->
       let m = get_method (ClassMap.find cs classes_map) ms in
 	match m with
 	  | AbstractMethod _ -> failwith "Can't call static_lookup on Abstract Methods"
 	  | ConcreteMethod cm ->
 	      (match cm.cm_implementation with
 		 | Native -> failwith "Can't call static_lookup on Native methods"
-		 | Java _ ->
-		     (match invoke with
-			| (`Interface ccs, cms) ->
-			    let cc =
-			      let ioc =
-			     	(ClassMap.find ccs
-			     	   classes_map) in
-			     	match ioc with
-			     	  | Class _ ->
-			     	      failwith "Impossible InvokeInterface"
-			     	  | Interface i -> i in
-			      static_interface_lookup interface_lookup_map
-			     	classes_map interfaces children_classes cc cms
-			| (`Virtual (TClass ccs), cms) ->
-			    let cc =
-			      let ioc =
-			     	(ClassMap.find ccs
-			     	   classes_map) in
-			     	match ioc with
-			     	  | Interface _ ->
-			     	      failwith "Impossible InvokeVirtual"
-			     	  | Class c -> c in
-			      static_virtual_lookup virtual_lookup_map
-				children_classes cc cms
-			| (`Virtual (TArray _), cms) ->
-			    (* should only happen with [clone()] *)
-			    let cobj =
-			      let ioc =
-			     	(ClassMap.find java_lang_object
-			     	   classes_map) in
-			     	match ioc with
-			     	  | Interface _ ->
-			     	      failwith "Impossible InvokeVirtual"
-			     	  | Class c -> c in
-			      static_virtual_lookup virtual_lookup_map
-				children_classes cobj cms
-			| (`Static ccs, cms) ->
-			    let cc =
-			      let ioc =
-				(ClassMap.find ccs
-				   classes_map) in
-				match ioc with
-				  | Interface _ ->
-				      failwith "Impossible InvokeStatic"
-				  | Class c -> c in
-			      static_static_lookup static_lookup_map cc cms
-			| (`Special ccs, cms) ->
-			    let cc =
-			      let ioc =
-				(ClassMap.find ccs
-				   classes_map) in
-				match ioc with
-				  | Interface _ ->
-				      failwith "Impossible InvokeSpecial"
-				  | Class c -> c in
-			    let current_class =
-			      (ClassMap.find cs classes_map) in
-			      static_special_lookup special_lookup_map
-				current_class cc cms
-		     )
+		 | Java code ->
+		     let opcode = (Lazy.force code).c_code.(pp) in
+		       (match opcode with
+			  | OpInvoke (`Interface ccs, cms) ->
+			      let cc =
+				let ioc =
+			     	  (ClassMap.find ccs classes_map) in
+			     	  match ioc with
+			     	    | Class _ ->
+			     		failwith "Impossible InvokeInterface"
+			     	    | Interface i -> i in
+				static_interface_lookup interface_lookup_map
+			     	  classes_map interfaces children_classes cc cms
+			  | OpInvoke (`Virtual (TClass ccs), cms) ->
+			      let cc =
+				let ioc =
+			     	  (ClassMap.find ccs classes_map) in
+			     	  match ioc with
+			     	    | Interface _ ->
+			     		failwith "Impossible InvokeVirtual"
+			     	    | Class c -> c in
+				static_virtual_lookup virtual_lookup_map
+				  children_classes cc cms
+			  | OpInvoke (`Virtual (TArray _), cms) ->
+			      (* should only happen with [clone()] *)
+			      let cobj =
+				let ioc =
+			     	  (ClassMap.find java_lang_object classes_map) in
+			     	  match ioc with
+			     	    | Interface _ ->
+			     		failwith "Impossible InvokeVirtual"
+			     	    | Class c -> c in
+				static_virtual_lookup virtual_lookup_map
+				  children_classes cobj cms
+			  | OpInvoke (`Static ccs, cms) ->
+			      let cc =
+				let ioc =
+				  (ClassMap.find ccs classes_map) in
+				  match ioc with
+				    | Interface _ ->
+					failwith "Impossible InvokeStatic"
+				    | Class c -> c in
+				static_static_lookup static_lookup_map cc cms
+			  | OpInvoke (`Special ccs, cms) ->
+			      let cc =
+				let ioc =
+				  (ClassMap.find ccs classes_map) in
+				  match ioc with
+				    | Interface _ ->
+					failwith "Impossible InvokeSpecial"
+				    | Class c -> c in
+			      let current_class =
+				(ClassMap.find cs classes_map) in
+				static_special_lookup special_lookup_map
+				  current_class cc cms
+			  | _ -> raise Not_found
+		       )
 	      )
 
 let default_classes = List.map make_cn
