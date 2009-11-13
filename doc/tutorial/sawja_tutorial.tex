@@ -54,7 +54,7 @@ representations open the way to many analyses which can be built
 upon them more naturally, better than with the byte-code
 representation (e.g. \emph{Live Variable Analysis}). The
 transformation algorithm, common to these representations, has been
-formalized and proved%
+formalized and proved to be semantics-preserving%
 \footnote{D. Demange, T. Jensen and D. Pichardie.
 \emph{A Provably Correct Stackless Intermediate Representation For Java Bytecode}.
 Research Report 7021, INRIA, 2009. See
@@ -192,14 +192,22 @@ program loaded with \emph{RTA} algorithm for example.
 
 \subsection{\emph{JPrintHtml} module}
 
-This module provides a main function
-\textbf{pp\_print\_program\_to\_html\_files} to dump a program into
-a set of \textbf{.html} files (one per class) related together by
-the control flow graph. This function takes as parameters the
-program, the name of the output directory and a type \textbf{info}.
-The type \textbf{info} is used to insert custom annotations at
-different levels : class, method, field and program point. A value
-\textbf{void\_info} is also given and can be used by default.
+This module provides one function per code representation to dump a
+program into a set of \textbf{.html} files (one per class) related
+together by the control flow graph. Each printing function takes as
+parameters the program, the name of the output directory and a type
+\textbf{info}. The type \textbf{info} is used to insert custom
+annotations at different levels : class, method, field and program
+point. A value \textbf{void\_info} is also given and can be used by
+default.
+
+In order to print your own code representations, this module also
+provides a functor \emph{Make} that can be instantiated by a module
+of signature \emph{PrintInterface}. This functor generates a module
+of signature \emph{HTMLPrinter} containing a function
+\textbf{print\_program}, similar to the others printing functions
+present in \emph{JPrintHtml}. We will give an example in the
+tutorial.
 
 \section{Tutorial}
 
@@ -300,10 +308,8 @@ build an \textbf{info} type.
 Then we just need to call the printing function:
 
 \begin{verbatim}
-    let output = "./soot"
-    let () =
-      JPrintHtml.pp_print_program_to_html_files ~info:simple_info
-        prta output
+    let output = "./prta"
+    let () = JPrintHtml.print_program ~info:simple_info prta output
 \end{verbatim}
 \begin{description}
 \item[Note:]
@@ -318,16 +324,17 @@ to obtain the \emph{A3Bir} representation is exactly the same.
 
 \begin{verbatim}
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~compress:false) prta
+      (fun _ -> JBir.transform ~bcv:false ~compress:false) prta
 \end{verbatim}
 \begin{description}
 \item[Warning:]
-Subroutines are not yet handled in \emph{JBir} and \emph{A3Bir}. If
-some transformed code contains such subroutines, the exception
-\textbf{JBir.Subroutine} or \textbf{AB3Bir.Subroutine} will be
-raised, respectively. However, when transforming a whole program
-with the above function, no exception will be raised because of the
-\emph{lazy} evaluation of code.
+Subroutines inlining is not totally handled in \emph{JBir} and
+\emph{A3Bir}. If some transformed code contains such subroutines,
+the exception \textbf{JBir.Subroutine} or
+\textbf{AB3Bir.Subroutine} will be raised, respectively. However,
+when transforming a whole program with the above function, no
+exception will be raised because of the \emph{lazy} evaluation of
+code.
 \end{description}
 To see how \emph{JBir} representation looks like, we can
 pretty-print one class, for instance \textbf{java.lang.Object}:
@@ -337,10 +344,20 @@ pretty-print one class, for instance \textbf{java.lang.Object}:
     let () = JPrint.print_class (JProgram.to_ioc obj)
         JBir.print stdout
 \end{verbatim}
+Or generate the \emph{.html} files corresponding to \emph{JBir}
+program:
+
+\begin{verbatim}
+    let output = "./pbir"
+    let () = JPrintHtml.print_jbir_program pbir output
+\end{verbatim}
 \begin{description}
 \item[Note:]
-We can't dump the whole program using \emph{JPrintHtml} module yet,
-because it depends on \emph{JCode.code} representation.
+If some exceptions occur during \emph{JBir} transformation, the
+incriminated methods won't have any body in the \emph{.html}
+representation.
 \end{description}
+\subsection{Writing your own HTML printer}
+
 
 \end{document}

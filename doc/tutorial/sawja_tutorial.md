@@ -19,12 +19,13 @@ node, it's easy to access its super class, its implemented interfaces
 or its children classes. The next chapters will give more information
 about the nodes and program data structures.
 
-Moreover, *Sawja* provides some stack-less intermediate representations
-of code, called *JBir* and *A3Bir*. Such representations open the way
-to many analyses which can be built upon them more naturally, better
-than with the byte-code representation (e.g. *Live Variable
-Analysis*). The transformation algorithm, common to these
-representations, has been formalized and proved [^2].
+Moreover, *Sawja* provides some stack-less intermediate
+representations of code, called *JBir* and *A3Bir*. Such
+representations open the way to many analyses which can be built upon
+them more naturally, better than with the byte-code representation
+(e.g. *Live Variable Analysis*). The transformation algorithm, common
+to these representations, has been formalized and proved to be
+semantics-preserving[^2].
 
 *Sawja* also provides functions to map a program using a particular
 code representation to another.
@@ -160,14 +161,20 @@ loaded with *RTA* algorithm for example.
 *JPrintHtml* module
 -------------------
 
-This module provides a main function
-**pp_print_program_to_html_files** to dump a program into a set of
-**.html** files (one per class) related together by the control flow
-graph. This function takes as parameters the program, the name of the
-output directory and a type **info**. The type **info** is used to
-insert custom annotations at different levels : class, method, field
-and program point. A value **void_info** is also given and can be used
-by default.
+This module provides one function per code representation to dump
+a program into a set of **.html** files (one per class) related
+together by the control flow graph. Each printing function takes as
+parameters the program, the name of the output directory and a type
+**info**. The type **info** is used to insert custom annotations at
+different levels : class, method, field and program point. A value
+**void_info** is also given and can be used by default.
+
+In order to print your own code representations, this module also
+provides a functor *Make* that can be instantiated by a module of
+signature *PrintInterface*. This functor generates a module of
+signature *HTMLPrinter* containing a function **print_program**,
+similar to the others printing functions present in *JPrintHtml*. We
+will give an example in the tutorial.
 
 Tutorial
 ========
@@ -271,10 +278,8 @@ the parsed program **prta**. We first need to build an **info** type.
 Then we just need to call the printing function:
 
 ~~~~~
-    let output = "./soot"
-    let () =
-      JPrintHtml.pp_print_program_to_html_files ~info:simple_info
-        prta output
+    let output = "./prta"
+    let () = JPrintHtml.print_program ~info:simple_info prta output
 ~~~~~
 
 Note:
@@ -289,11 +294,11 @@ the *A3Bir* representation is exactly the same.
 
 ~~~~~
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~compress:false) prta
+      (fun _ -> JBir.transform ~bcv:false ~compress:false) prta
 ~~~~~
 
 Warning:
-:    Subroutines are not yet handled in *JBir* and *A3Bir*. If some transformed code contains such subroutines, the exception **JBir.Subroutine** or **AB3Bir.Subroutine** will be raised, respectively. However, when transforming a whole program with the above function, no exception will be raised because of the *lazy* evaluation of code.
+:    Subroutines inlining is not totally handled in *JBir* and *A3Bir*. If some transformed code contains such subroutines, the exception **JBir.Subroutine** or **AB3Bir.Subroutine** will be raised, respectively. However, when transforming a whole program with the above function, no exception will be raised because of the *lazy* evaluation of code.
 
 To see how *JBir* representation looks like, we can pretty-print one
 class, for instance **java.lang.Object**:
@@ -304,5 +309,16 @@ class, for instance **java.lang.Object**:
         JBir.print stdout
 ~~~~~
 
+Or generate the *.html* files corresponding to *JBir* program:
+
+~~~~~
+    let output = "./pbir"
+    let () = JPrintHtml.print_jbir_program pbir output
+~~~~~
+
 Note:
-:    We can't dump the whole program using *JPrintHtml* module yet, because it depends on *JCode.code* representation.
+:    If some exceptions occur during *JBir* transformation, the incriminated methods won't have any body in the *.html* representation.
+
+     
+Writing your own HTML printer
+-----------------------------

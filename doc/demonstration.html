@@ -38,8 +38,7 @@
   raised.</p>
 
 <pre><code>    let outputdir = "./test"
-    let () =
-      JPrintHtml.pp_print_program_to_html_files prta outputdir;;
+    let () = JPrintHtml.print_program prta outputdir;;
 </code></pre>
 
 <p>You can open the file <strong>./test/Test.html</strong> with a web
@@ -51,14 +50,12 @@
 <p>We transform the previously loaded program.</p>
 
 <pre><code>    let pbir = JProgram.map_program2
-      (fun _ -&gt; JBir.transform ~compress:false) prta;;
+      (fun _ -&gt; JBir.transform ~bcv:false ~compress:false) prta;;
 </code></pre>
 
 
-<p>To see how <em>JBir</em> representation looks like, we can
-  pretty-print one class to the standard output, for
-  instance <strong>java.lang.Object</strong>.</p>
+<p>To see how <em>JBir</em> representation looks like, we can generate
+the corresponding <strong>.html</strong> files.</p>
 
-<pre><code>    let obj = JProgram.get_node pbir JBasics.java_lang_object
-    let () = Javalib.JPrint.print_class (JProgram.to_ioc obj) JBir.print stdout;;
+<pre><code>    let () = JPrintHtml.print_jbir_program pbir output;;
 </code></pre>

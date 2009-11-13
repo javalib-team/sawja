@@ -39,6 +39,8 @@ module</a></li>
 a program</a></li>
 <li><a href="#transforming-a-program-with-bir">Transforming a
 program with <em>Bir</em></a></li>
+<li><a href="#writing-your-own-html-printer">Writing your own HTML
+printer</a></li>
 </ul>
 </li>
 </ul>
@@ -71,8 +73,8 @@ Such representations open the way to many analyses which can be
 built upon them more naturally, better than with the byte-code
 representation (e.g. <em>Live Variable Analysis</em>). The
 transformation algorithm, common to these representations, has been
-formalized and proved <a href="#fn2" class="footnoteRef" id=
-"fnref2" name="fnref2"><sup>2</sup></a>.</p>
+formalized and proved to be semantics-preserving<a href="#fn2"
+class="footnoteRef" id="fnref2" name="fnref2"><sup>2</sup></a>.</p>
 <p><em>Sawja</em> also provides functions to map a program using a
 particular code representation to another.</p>
 </div>
@@ -196,15 +198,22 @@ whole program loaded with <em>RTA</em> algorithm for example.</p>
 </div>
 <div id="jprinthtml-module">
 <h2><a href="#TOC"><em>JPrintHtml</em> module</a></h2>
-<p>This module provides a main function
-<strong>pp_print_program_to_html_files</strong> to dump a program
-into a set of <strong>.html</strong> files (one per class) related
-together by the control flow graph. This function takes as
-parameters the program, the name of the output directory and a type
-<strong>info</strong>. The type <strong>info</strong> is used to
-insert custom annotations at different levels : class, method,
-field and program point. A value <strong>void_info</strong> is also
-given and can be used by default.</p>
+<p>This module provides one function per code representation to
+dump a program into a set of <strong>.html</strong> files (one per
+class) related together by the control flow graph. Each printing
+function takes as parameters the program, the name of the output
+directory and a type <strong>info</strong>. The type
+<strong>info</strong> is used to insert custom annotations at
+different levels : class, method, field and program point. A value
+<strong>void_info</strong> is also given and can be used by
+default.</p>
+<p>In order to print your own code representations, this module
+also provides a functor <em>Make</em> that can be instantiated by a
+module of signature <em>PrintInterface</em>. This functor generates
+a module of signature <em>HTMLPrinter</em> containing a function
+<strong>print_program</strong>, similar to the others printing
+functions present in <em>JPrintHtml</em>. We will give an example
+in the tutorial.</p>
 </div>
 </div>
 <div id="tutorial">
@@ -306,10 +315,8 @@ first need to build an <strong>info</strong> type.</p>
 </pre>
 <p>Then we just need to call the printing function:</p>
 <pre>
-<code>    let output = "./soot"
-    let () =
-      JPrintHtml.pp_print_program_to_html_files ~info:simple_info
-        prta output
+<code>    let output = "./prta"
+    let () = JPrintHtml.print_program ~info:simple_info prta output
 </code>
 </pre>
 <dl>
@@ -327,14 +334,14 @@ The procedure to obtain the <em>A3Bir</em> representation is
 exactly the same.</p>
 <pre>
 <code>    let pbir = JProgram.map_program2
-      (fun _ -&gt; JBir.transform ~compress:false) prta
+      (fun _ -&gt; JBir.transform ~bcv:false ~compress:false) prta
 </code>
 </pre>
 <dl>
 <dt>Warning:</dt>
-<dd>Subroutines are not yet handled in <em>JBir</em> and
-<em>A3Bir</em>. If some transformed code contains such subroutines,
-the exception <strong>JBir.Subroutine</strong> or
+<dd>Subroutines inlining is not totally handled in <em>JBir</em>
+and <em>A3Bir</em>. If some transformed code contains such
+subroutines, the exception <strong>JBir.Subroutine</strong> or
 <strong>AB3Bir.Subroutine</strong> will be raised, respectively.
 However, when transforming a whole program with the above function,
 no exception will be raised because of the <em>lazy</em> evaluation
@@ -349,12 +356,22 @@ pretty-print one class, for instance
         JBir.print stdout
 </code>
 </pre>
+<p>Or generate the <em>.html</em> files corresponding to
+<em>JBir</em> program:</p>
+<pre>
+<code>    let output = "./pbir"
+    let () = JPrintHtml.print_jbir_program pbir output
+</code>
+</pre>
 <dl>
 <dt>Note:</dt>
-<dd>We can't dump the whole program using <em>JPrintHtml</em>
-module yet, because it depends on <em>JCode.code</em>
+<dd>If some exceptions occur during <em>JBir</em> transformation,
+the incriminated methods won't have any body in the <em>.html</em>
 representation.</dd>
 </dl>
+</div>
+<div id="writing-your-own-html-printer">
+<h2><a href="#TOC">Writing your own HTML printer</a></h2>
 </div>
 </div>
 <div class="footnotes">
