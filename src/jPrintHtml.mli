@@ -80,6 +80,20 @@ val print_program : ?css:string -> ?js:string -> ?info:info
 val print_jbir_program : ?css:string -> ?js:string -> ?info:info
   -> JBir.t program -> string -> unit
 
+(** {2 Printing an A3Bir.t program.} *)
+
+(** [print_program ~css ~js ~info program outputdir] generates html
+    files representing the {!A3Bir.t} program [p] in the output
+    directory [outputdir], given the annotation information [info]
+    ([void_info] by default), an optional Cascading Style Sheet (CSS)
+    file [css] and an optional JavaScript file [js]. If [css] or [js]
+    is not provided, a default CSS or JavaScript file is generated.
+    @raise Sys_error if the output directory [outputdir] does not
+    exist. @raise Invalid_argument if the name corresponding to
+    [outputdir] is a file. *)
+val print_a3bir_program : ?css:string -> ?js:string -> ?info:info
+  -> A3Bir.t program -> string -> unit
+
 (** {2 Building a Printer for any program representation.} *)
 
 (** Abstract type representing basic elements to build html instructions. *)

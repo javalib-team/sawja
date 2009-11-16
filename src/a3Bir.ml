@@ -339,7 +339,6 @@ let rec print_code_intra = function
   | [] -> []
   | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (Bir.print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
 
-
 let print_fbir_intra m = 
   print_code_intra m.a3_code
 
@@ -372,5 +371,6 @@ let transform ?(bcv=false) ?(compress=false) j_m j_code =
   let code = Bir.transform_addr3 ~bcv:bcv ~compress:compress j_m j_code in 
     bir2a3bir code
       
-      
-  
+
+(* Redefining print_expr to be exported in the mli. *)
+let print_expr = print_expr true

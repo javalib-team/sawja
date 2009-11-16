@@ -999,3 +999,135 @@ module JBirPrinter = Make(
 
 let print_jbir_program = JBirPrinter.print_program
 
+module A3BirPrinter = Make(
+  struct
+    type instr = A3Bir.instr
+    type code = A3Bir.t
+
+    let iter_code f lazy_code =
+      try
+	let code = Lazy.force lazy_code in
+	  List.iter
+	    (fun (pp,l) ->
+	       List.iter (fun inst -> f pp inst) l
+	    ) code.A3Bir.a3_code
+      with
+	  _ -> ()
+    let print_list_sep sep f l =
+      let ml = List.map f l in
+	String.concat sep ml
+
+    let method_param_names program cn ms =
+      let m = get_method (get_node program cn) ms in
+	match m with
+	  | AbstractMethod _
+	  | ConcreteMethod {cm_implementation = Native} -> None
+	  | ConcreteMethod ({cm_implementation = Java code} as cm) ->
+	      try
+		let code = Lazy.force code in
+		let is_static = cm.cm_static in
+		  Some
+		    (ExtList.List.mapi
+		       (fun i _ ->
+			  let n = if is_static then i else i + 1 in
+			  let var = snd (List.nth code.A3Bir.a3_params n) in
+			    A3Bir.var_name_g var
+		       ) (ms_args ms)
+		    )
+	      with _ -> None
+
+    let inst_html program cs ms pp op =
+      match op with
+	| A3Bir.AffectStaticField (ccs,fs,e) ->
+	    let p1 = field_elem program cs ccs fs in
+	    let p2 = simple_elem
+	      (Printf.sprintf ":= %s" (A3Bir.print_expr e)) in
+	      [p1;p2]
+	| A3Bir.AffectField (e1,ccs,fs,e2) ->
+	    let p1 = field_elem program ~called_cname:(A3Bir.print_basic_expr e1)
+	      cs ccs fs in
+	    let p2 = simple_elem
+	      (Printf.sprintf ":= %s" (A3Bir.print_basic_expr e2)) in
+	      [p1;p2]
+	| A3Bir.New (x,ccs,_,le) ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s := new" (A3Bir.var_name_g x)) in
+	    let p2 = value_elem program cs v in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " A3Bir.print_basic_expr le)) in
+	      [p1;p2;p3]
+	| A3Bir.NewArray (x,v,le) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s := new" (A3Bir.var_name_g x)) in
+	    let p2 = value_elem program cs v in
+	    let p3 = simple_elem
+	      (Printf.sprintf "%s"
+		 (print_list_sep ""
+		    (fun e -> 
+		       Printf.sprintf "[%s]" (A3Bir.print_basic_expr e)) le)
+	      ) in
+	      [p1;p2;p3]
+	| A3Bir.InvokeStatic (None,ccs,cms,le) ->
+	    let p1 = invoke_elem program cs ms pp ccs cms in
+	    let p2 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
+	      [p1;p2]
+	| A3Bir.InvokeStatic (Some x,ccs,cms,le) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s :=" (A3Bir.var_name_g x)) in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
+	      [p1;p2;p3]
+	| A3Bir.InvokeVirtual (r,e1,k,cms,le) ->
+	    let p2 =
+	      (match k with
+		 | A3Bir.VirtualCall o ->
+		     let ccs = match o with
+		       | TClass ccs -> ccs
+		       | _ -> JBasics.java_lang_object in
+		       invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
+			 cs ms pp ccs cms
+		 | A3Bir.InterfaceCall ccs ->
+		     invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
+		       cs ms pp ccs cms
+	      ) in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
+	      (match r with
+		 | None -> [p2;p3]
+		 | Some x ->
+		     let p1 = simple_elem
+		       (Printf.sprintf "%s :="  (A3Bir.var_name_g x)) in
+		       [p1;p2;p3]
+	      )
+	| A3Bir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
+	    let p1 = simple_elem
+	      (match r with
+		 | None -> (A3Bir.print_basic_expr e1) ^ "."
+		 | Some x -> Printf.sprintf "%s := %s." (A3Bir.var_name_g x)
+		     (A3Bir.print_basic_expr e1)
+	      ) in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " A3Bir.print_basic_expr le)) in
+	      [p1;p2;p3]
+	| A3Bir.MayInit ccs ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_elem "mayinit" in
+	    let p2 = value_elem program cs v in
+	      [p1;p2]
+	| A3Bir.Check (A3Bir.CheckCast (e,t)) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "checkcast %s:" (A3Bir.print_basic_expr e)) in
+	    let p2 = value_elem program cs (TObject t) in
+	      [p1;p2]
+	| _ -> [simple_elem (A3Bir.print_instr op)]
+
+    let jcode_pp = Some (fun _ x -> x)
+  end)
+
+let print_a3bir_program = A3BirPrinter.print_program
