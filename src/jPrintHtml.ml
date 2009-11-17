@@ -28,7 +28,7 @@ open Javalib
 open JProgram
   
 type info =
-
+    
     { p_class : class_name -> string list;
       (** Prints class information that is printed inside the class,
 	  along with other attributes of the class. *)
@@ -148,7 +148,7 @@ let gen_hidden_list hlist =
       
 type elem = | SimpleExpr of html_tree list
 	    | DynamicExpr of (html_tree list) * ((html_tree list) list)
-		 
+		
 let gen_inst inst_params =
   let (visible_parameters, hidden_parameters) =
     List.fold_right
@@ -173,21 +173,18 @@ let gen_inst inst_params =
       
 let gen_code insts =
   let ollist =
-    let map =
-      Ptmap.map
-	(fun (insts,insts_annots) ->
-	   (List.map 
+    List.fold_left
+      (fun l (pp,(insts,insts_annots)) ->
+	 let insts_html =
+	   (List.rev_map 
 	      (fun inst_params -> gen_inst inst_params) insts)
-	   @ [gen_div [(gen_annots insts_annots)] []]
-	) insts in
-    let l = Ptmap.fold
-      (fun pp insts l ->
-	 l @ [(pp,gen_custom_tag "li" [("value",string_of_int pp)] insts)]
-      ) map [] in
-      snd (List.split (List.sort (fun (a,_) (b,_) -> compare a b) l)) in
-    if (insts = Ptmap.empty) then PCData ""
-    else gen_custom_tag "ol" [("class",code_class)] ollist
-      
+	   @ [gen_div [(gen_annots insts_annots)] []] in
+	   (gen_custom_tag "li" [("value",string_of_int pp)] insts_html) :: l
+      ) [] insts in
+    match ollist with
+      | [] -> PCData ""
+      | _ :: tl -> gen_custom_tag "ol" [("class",code_class)] tl
+	  
 let add_anchor anchor_name anchor_info htmllist =
   if (anchor_name <> "") then
     (gen_anchor anchor_name anchor_info) :: htmllist
@@ -244,14 +241,14 @@ let print_html_tree htmltree out =
     Format.pp_set_formatter_out_channel fmt out;
     print_html_tree_to_fmt htmltree fmt;
     Format.pp_print_flush fmt ();
-      
+    
 type info_internal = 
     {
       p_data : info;
       (** Prints information about the possible method callers. *)
       p_callers : class_name -> method_signature -> ClassMethSet.t option;
     }
-  
+      
 let rec get_relative_path frompackage topackage =
   match (frompackage,topackage) with
     | ([],[]) -> "./"
@@ -360,7 +357,7 @@ let fieldsignature2html program cs fs =
   let ftype = fs_type fs in
     (PCData (header ^ " ")) :: (valuetype2html program ftype cs)
     @ [PCData (" " ^ fname ^ ";")]
-    
+      
 let htmlize s =
   ExtString.String.replace_chars
     (fun c ->
@@ -368,7 +365,7 @@ let htmlize s =
 	 | '<' -> "&lt;"
 	 | '>' -> "&gt;"
 	 | _ -> String.make 1 c) s
-
+    
 let methodcallers2html cs ms info =
   match info.p_callers cs ms with
     | None -> []
@@ -383,7 +380,7 @@ let methodcallers2html cs ms info =
 	       [gen_titled_hyperlink href (ccname ^ "." ^ cmname) cmsig] :: l
 	  ) callers [] in
 	  [gen_hidden_list hl]
-	  
+	    
 let methodname2html cs ms info mname =
   match info.p_callers cs ms with
     | None ->
@@ -392,25 +389,25 @@ let methodname2html cs ms info mname =
 	[gen_span [PCData mname]
 	   [("class",methodname_class ^ " " ^ clickable_class);
 	    ("onclick","showInfoList(this)")]]
-
+	  
 let list_concat l =
   match l with
     | [] -> []
     | hd :: tl ->
 	List.fold_left (fun x y -> x @ [PCData ", "] @ y) hd tl
-
+	  
 let simple_elem s = SimpleExpr [PCData s]
-
+  
 let html_elem ht = SimpleExpr ht
-
+  
 let value_elem ?dim program cs v =
   match dim with
     | None ->
 	SimpleExpr (valuetype2html program v cs)
     | Some n ->
 	(SimpleExpr ((valuetype2html program v cs)
-		      @ [PCData (" " ^ (string_of_int n))]))
-
+		     @ [PCData (" " ^ (string_of_int n))]))
+	  
 let field_elem ?called_cname program cs ccs fs =
   let callcname = match called_cname with
     | Some x -> x
@@ -454,7 +451,7 @@ let field_elem ?called_cname program cs ccs fs =
 	| Some x -> x
 	| None -> cn_name ccs in
 	SimpleExpr [PCData (callcname ^ "." ^ fname)]
-      
+	  
 let invoke_elem ?called_cname program cs ms pp callcs callms =
   let mlookupshtml =
     try ClassMethodSet.fold
@@ -479,7 +476,7 @@ let invoke_elem ?called_cname program cs ms pp callcs callms =
 		 match mlookupshtml with
 		   | [] -> [[PCData "No reachable result."]]
 		   | _ -> mlookupshtml)
-
+      
 let method_args_elem program cs ms =
   let mparameters = ms_args ms in
   let prms =
@@ -488,7 +485,7 @@ let method_args_elem program cs ms =
 	 (fun x -> (valuetype2html program x cs)) mparameters
       ) in
     html_elem ([PCData "("] @ prms @ [PCData ")"])
-
+      
 module type HTMLPrinter =
 sig
   type code
@@ -496,7 +493,7 @@ sig
   val print_program :
     ?css:string -> ?js:string -> ?info:info -> code program -> string -> unit
 end
-
+  
 module type PrintInterface =
 sig
   type instr
@@ -545,14 +542,14 @@ struct
     let cmsig = make_cms cs ms in
       try Some (ClassMethodMap.find cmsig rcg)
       with _ -> None
-      
+	
   let get_internal_info program info = {
     p_data = info;
     p_callers = match S.jcode_pp with
       | Some f -> get_callers (revert_callgraph program f)
       | None -> fun _ _ -> None
   }
-
+    
   let methodparameters2html program cs ms =
     let mparameters = ms_args ms in
     let pnames = S.method_param_names program cs ms in
@@ -568,7 +565,7 @@ struct
 	   ) mparameters
 	) in
       [PCData "("] @ prms @ [PCData ")"]
-
+	
   let methodsignature2html program cs ms info =
     let meth = get_method (get_node program cs) ms in
     let mname = ms_name ms in
@@ -600,7 +597,7 @@ struct
 	  @ (PCData (" ") :: mname)
 	  @ mparams2html
 	  @ [PCData ";"]
-	  
+	    
   let iocsignature2html program cs =
     let ioc = get_node program cs in
       match ioc with
@@ -608,17 +605,17 @@ struct
 	    [PCData ("Class " ^ (cn_name cs))]
 	| Interface _ ->
 	    [PCData ("Interface " ^ (cn_name cs))]
-	    
+	      
   let field2html program cs fs annots =
     gen_field (fs2anchorname cs fs) (fieldsignature2html program cs fs) annots
-    
+      
   let method2html program cs ms info insts =
     let method_annots = info.p_data.p_method cs ms in
     let method_signature = methodsignature2html program cs ms info in
     let callers = methodcallers2html cs ms info in
       gen_method (ms2anchorname cs ms) method_signature callers
 	method_annots insts
-      
+	
   let ioc2html program cs info =
     let ioc = get_node program cs in
     let fields =
@@ -628,35 +625,41 @@ struct
 	[] (FieldMap.key_elements (get_fields (get_node program cs))) in
     let methods =
       MethodMap.fold
-	(fun _ m l ->
+	(fun _ m methods ->
 	   let ms = get_method_signature m in
 	   let insts =
 	     match m with
-	       | AbstractMethod _ -> Ptmap.empty
+	       | AbstractMethod _ -> []
 	       | ConcreteMethod cm ->
 		   (match cm.cm_implementation with
-		      | Native -> Ptmap.empty
+		      | Native -> []
 		      | Java code ->
-			  let map = ref Ptmap.empty in
+			  (* Sorry for the side effects... Maybe more
+			     functions than iter_code should be
+			     given (at least first_code_pp). *)
+			  let l = ref [] in
+			  let last_pp = ref (-42) in
+			  let last_insts = ref [] in
+			  let last_annots = ref [] in
 			    S.iter_code
 			      (fun pp inst ->
-				 let l =
-				   try Ptmap.find pp !map
-				   with _ -> [] in
-				   map := Ptmap.add pp (inst :: l) !map
+				 let inst_html =
+				   S.inst_html program cs ms pp inst in
+				   if (pp = !last_pp) then
+				     last_insts := inst_html :: !last_insts
+				   else
+				     (l :=
+					(!last_pp, (!last_insts, !last_annots)) :: !l;
+				      last_insts := [inst_html];
+				      last_annots := (info.p_data.p_pp cs ms pp);
+				      last_pp := pp
+				     )
 			      ) code;
-			    Ptmap.mapi
-			      (fun pp insts ->
-				 let annots = (info.p_data.p_pp cs ms pp) in
-				 let insts =
-				   List.rev_map
-				     (fun inst ->
-					S.inst_html program cs ms pp inst) insts in
-				   (insts, annots)
-			      ) !map
+			    l := (!last_pp, (!last_insts, !last_annots)) :: !l;
+			    !l
 		   )
 	   in
-	     (method2html program cs ms info insts) :: l)
+	     (method2html program cs ms info insts) :: methods)
 	(get_methods ioc) [] in
     let content = List.rev_append fields methods in
       gen_class (cn2anchorname cs)
@@ -762,12 +765,12 @@ struct
 	       	 close_out out
 	  ) program.classes;
 end
-
+  
 module JCodePrinter = Make(
   struct
     type instr = JCode.jopcode
     type code = JCode.jcode
-
+	
     let iter_code f lazy_code =
       let code = Lazy.force lazy_code in
 	Array.iteri
@@ -776,7 +779,7 @@ module JCodePrinter = Make(
 	       | OpInvalid -> ()
 	       | _ -> f pp opcode
 	  ) code.c_code
-
+	  
     let method_param_names program cn ms =
       let m = get_method (get_node program cn) ms in
       	match m with
@@ -794,74 +797,74 @@ module JCodePrinter = Make(
       			    | Some (name,_) -> name
       		     ) (ms_args ms)
       		  )
-
-      let inst_html program cs ms pp op =
-	let inst_params = Javalib.JPrint.jopcode ~jvm:true op in
-	let inst =
-      	  try
-      	    let n = (String.index inst_params ' ') + 1 in
-      	      String.sub inst_params 0 n
-      	  with Not_found -> inst_params in
-	  match op with
-	    | OpNew ccs ->
-		let v = TObject (TClass ccs) in
-	  	  [simple_elem inst; value_elem program cs v]
-	    | OpNewArray v ->
-		[simple_elem inst; value_elem program cs v]
-	    | OpAMultiNewArray (o,i) ->
-		let v = TObject o in
-	  	  [simple_elem inst; value_elem ~dim:i program cs v]
-	    | OpCheckCast o | OpInstanceOf o ->
-		let v = TObject o in
-	  	  [simple_elem inst; value_elem program cs v]
-	    | OpGetStatic (ccs,fs) | OpPutStatic (ccs,fs)
-	    | OpGetField (ccs,fs) | OpPutField (ccs,fs) ->
-		let ftype = fs_type fs in
-	  	  [simple_elem inst; field_elem program cs ccs fs;
-	  	   simple_elem " : "; value_elem program cs ftype]
-	    | OpInvoke ((`Virtual o),cms) ->
-		let ccs = match o with
-	  	  | TClass ccs -> ccs
-	  	  | _ -> JBasics.java_lang_object in
-	  	  [simple_elem inst;
-	  	   invoke_elem program cs ms pp ccs cms;
-	  	   method_args_elem program cs ms]
-	    | OpInvoke ((`Interface ccs),cms) ->
-		[simple_elem inst;
-		 invoke_elem program cs ms pp ccs cms;
-		 method_args_elem program cs ms]
-	    | OpInvoke ((`Static ccs),cms) ->
-		[simple_elem inst;
-		 invoke_elem program cs ms pp ccs cms;
-		 method_args_elem program cs ms]
-	    | OpInvoke ((`Special ccs),cms) ->
-		[simple_elem inst;
-		 invoke_elem program cs ms pp ccs cms;
-		 method_args_elem program cs ms]
-	    | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
-		let m = get_method (get_node program cs) ms in
-		let locname =
-	  	  match m with
-	  	    | AbstractMethod _
-	  	    | ConcreteMethod {cm_implementation = Native} -> string_of_int n
-	  	    | ConcreteMethod {cm_implementation = Java code} ->
-	  		let v = get_local_variable_info n pp (Lazy.force code) in
-	  		  match v with
-	  		    | None -> string_of_int n
-	  		    | Some (name,_) -> name in
-	  	  [simple_elem (inst ^ " " ^ locname)]
-	    | _ -> [simple_elem inst_params]
-		
+		  
     let jcode_pp = Some (fun _ _ _ x -> x)
+      
+    let inst_html program cs ms pp op =
+      let inst_params = Javalib.JPrint.jopcode ~jvm:true op in
+      let inst =
+      	try
+      	  let n = (String.index inst_params ' ') + 1 in
+      	    String.sub inst_params 0 n
+      	with Not_found -> inst_params in
+	match op with
+	  | OpNew ccs ->
+	      let v = TObject (TClass ccs) in
+	  	[simple_elem inst; value_elem program cs v]
+	  | OpNewArray v ->
+	      [simple_elem inst; value_elem program cs v]
+	  | OpAMultiNewArray (o,i) ->
+	      let v = TObject o in
+	  	[simple_elem inst; value_elem ~dim:i program cs v]
+	  | OpCheckCast o | OpInstanceOf o ->
+	      let v = TObject o in
+	  	[simple_elem inst; value_elem program cs v]
+	  | OpGetStatic (ccs,fs) | OpPutStatic (ccs,fs)
+	  | OpGetField (ccs,fs) | OpPutField (ccs,fs) ->
+	      let ftype = fs_type fs in
+	  	[simple_elem inst; field_elem program cs ccs fs;
+	  	 simple_elem " : "; value_elem program cs ftype]
+	  | OpInvoke ((`Virtual o),cms) ->
+	      let ccs = match o with
+	  	| TClass ccs -> ccs
+	  	| _ -> JBasics.java_lang_object in
+	  	[simple_elem inst;
+	  	 invoke_elem program cs ms pp ccs cms;
+	  	 method_args_elem program cs ms]
+	  | OpInvoke ((`Interface ccs),cms) ->
+	      [simple_elem inst;
+	       invoke_elem program cs ms pp ccs cms;
+	       method_args_elem program cs ms]
+	  | OpInvoke ((`Static ccs),cms) ->
+	      [simple_elem inst;
+	       invoke_elem program cs ms pp ccs cms;
+	       method_args_elem program cs ms]
+	  | OpInvoke ((`Special ccs),cms) ->
+	      [simple_elem inst;
+	       invoke_elem program cs ms pp ccs cms;
+	       method_args_elem program cs ms]
+	  | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
+	      let m = get_method (get_node program cs) ms in
+	      let locname =
+	  	match m with
+	  	  | AbstractMethod _
+	  	  | ConcreteMethod {cm_implementation = Native} -> string_of_int n
+	  	  | ConcreteMethod {cm_implementation = Java code} ->
+	  	      let v = get_local_variable_info n pp (Lazy.force code) in
+	  		match v with
+	  		  | None -> string_of_int n
+	  		  | Some (name,_) -> name in
+	  	[simple_elem (inst ^ " " ^ locname)]
+	  | _ -> [simple_elem inst_params]
   end)
-
+  
 let print_program = JCodePrinter.print_program
   
 module JBirPrinter = Make(
   struct
     type instr = JBir.instr
     type code = JBir.t
-
+	
     let iter_code f lazy_code =
       try
 	let code = Lazy.force lazy_code in
@@ -874,7 +877,7 @@ module JBirPrinter = Make(
     let print_list_sep sep f l =
       let ml = List.map f l in
 	String.concat sep ml
-
+	  
     let method_param_names program cn ms =
       let m = get_method (get_node program cn) ms in
 	match m with
@@ -893,7 +896,11 @@ module JBirPrinter = Make(
 		       ) (ms_args ms)
 		    )
 	      with _ -> None
-
+		
+    let jcode_pp = Some (fun _ _ _ x -> x)
+      
+    (* TODO: invoke_elem function need to be called with the program point
+       returned by jcode_pp. *)
     let inst_html program cs ms pp op =
       match op with
 	| JBir.AffectStaticField (ccs,fs,e) ->
@@ -984,17 +991,15 @@ module JBirPrinter = Make(
 	    let p2 = value_elem program cs (TObject t) in
 	      [p1;p2]
 	| _ -> [simple_elem (JBir.print_instr op)]
-
-    let jcode_pp = Some (fun _ _ _ x -> x)
   end)
-
+  
 let print_jbir_program = JBirPrinter.print_program
-
+  
 module A3BirPrinter = Make(
   struct
     type instr = A3Bir.instr
     type code = A3Bir.t
-
+	
     let iter_code f lazy_code =
       try
 	let code = Lazy.force lazy_code in
@@ -1007,7 +1012,7 @@ module A3BirPrinter = Make(
     let print_list_sep sep f l =
       let ml = List.map f l in
 	String.concat sep ml
-
+	  
     let method_param_names program cn ms =
       let m = get_method (get_node program cn) ms in
 	match m with
@@ -1026,7 +1031,11 @@ module A3BirPrinter = Make(
 		       ) (ms_args ms)
 		    )
 	      with _ -> None
+		
+    let jcode_pp = Some (fun _ _ _ x -> x)
 
+    (* TODO: invoke_elem function need to be called with the program point
+       returned by jcode_pp. *)      
     let inst_html program cs ms pp op =
       match op with
 	| A3Bir.AffectStaticField (ccs,fs,e) ->
@@ -1117,8 +1126,6 @@ module A3BirPrinter = Make(
 	    let p2 = value_elem program cs (TObject t) in
 	      [p1;p2]
 	| _ -> [simple_elem (A3Bir.print_instr op)]
-
-    let jcode_pp = Some (fun _ _ _ x -> x)
   end)
-
+  
 let print_a3bir_program = A3BirPrinter.print_program
