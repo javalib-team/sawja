@@ -155,7 +155,7 @@ let rec print_expr first_level = function
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr false e)
   | Unop (Cast t,e) -> Printf.sprintf "(%s)%s" (print_unop (Cast t)) (print_expr true e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr true e)
-  | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_expr false e1) (print_expr true e2)
+  | Binop (ArrayLoad t,e1,e2) -> Printf.sprintf "%s[%s]:%s" (print_expr false e1) (print_expr true e2) (print_typ t)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_expr false e1) (print_expr false e2))
   | Binop (Sub _,e1,e2) -> bracket first_level
@@ -834,7 +834,7 @@ let run verbose cm code =
        match code.c_code.(i) with
 	 | OpArrayLoad _ ->
 	     (match types.(i) with
-		| Some (_::t::_, _) -> to_value_type t
+		| Some (_::(Array t)::_, _) -> t
 		| _ -> assert false)
 	 | _ -> assert false)
 

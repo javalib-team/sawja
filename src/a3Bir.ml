@@ -269,7 +269,7 @@ and print_expr first_level = function
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_basic_expr e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_basic_expr  e)
-  | Binop (ArrayLoad _,e1,e2) -> Printf.sprintf "%s[%s]" (print_basic_expr  e1) (print_basic_expr e2) 
+  | Binop (ArrayLoad t,e1,e2) -> Printf.sprintf "%s[%s]:%s" (print_basic_expr  e1) (print_basic_expr e2) (print_typ t)
   | Binop (Add _,e1,e2) -> bracket first_level
       (Printf.sprintf "%s+%s" (print_basic_expr  e1) (print_basic_expr  e2))
   | Binop (Sub _,e1,e2) -> bracket first_level
