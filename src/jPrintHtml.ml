@@ -373,16 +373,15 @@ let methodcallers2html cs ms info =
   match info.p_callers cs ms with
     | None -> []
     | Some callers ->
-	let callerslist = ClassMethSet.elements callers in
-	let hl = List.map
-	  (fun (ccs,cms) ->
+	let hl = ClassMethSet.fold
+	  (fun (ccs,cms) l ->
 	     let anchor = ms2anchorname ccs cms in
 	     let href = (get_relative_file cs ccs) ^ "#" ^ anchor in
 	     let ccname = cn_name ccs in
 	     let cmname = htmlize (ms_name cms) in
 	     let cmsig = htmlize (JPrint.method_signature cms) in
-	       [gen_titled_hyperlink href (ccname ^ "." ^ cmname) cmsig]
-	  ) callerslist in
+	       [gen_titled_hyperlink href (ccname ^ "." ^ cmname) cmsig] :: l
+	  ) callers [] in
 	  [gen_hidden_list hl]
 	  
 let methodname2html cs ms info mname =
@@ -457,19 +456,19 @@ let field_elem ?called_cname program cs ccs fs =
 	SimpleExpr [PCData (callcname ^ "." ^ fname)]
       
 let invoke_elem ?called_cname program cs ms pp callcs callms =
-  let mlookups =
-    try List.map cms_split
-      (ClassMethodSet.elements (program.static_lookup_method cs ms pp))
+  let mlookupshtml =
+    try ClassMethodSet.fold
+      (fun cms l ->
+	 let (rcs,rms) = cms_split cms in
+	 let anchor = ms2anchorname rcs rms in
+	 let href = (get_relative_file cs rcs) ^ "#" ^ anchor in
+	 let rcname = cn_name rcs in
+	 let rmname = htmlize (ms_name rms) in
+	 let rmsig = htmlize (JPrint.method_signature rms) in
+	   [gen_titled_hyperlink href (rcname ^ "." ^ rmname) rmsig] :: l
+      )
+      (program.static_lookup_method cs ms pp) []
     with _ -> [] in
-  let mlookupshtml = List.map
-    (fun (rcs,rms) ->
-       let anchor = ms2anchorname rcs rms in
-       let href = (get_relative_file cs rcs) ^ "#" ^ anchor in
-       let rcname = cn_name rcs in
-       let rmname = htmlize (ms_name rms) in
-       let rmsig = htmlize (JPrint.method_signature rms) in
-	 [gen_titled_hyperlink href (rcname ^ "." ^ rmname) rmsig]
-    ) mlookups in
   let callcname = match called_cname with
     | Some x -> x
     | None -> cn_name callcs in
@@ -507,7 +506,7 @@ sig
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
-  val jcode_pp : ('a program -> int -> int) option
+  val jcode_pp : ('a program -> class_name -> method_signature -> int -> int) option
 end
   
 module Make (S : PrintInterface) =
@@ -525,7 +524,7 @@ struct
 	       let rmmap = ref cmmap in
 		 S.iter_code
 		   (fun pp _ ->
-		      let jcode_pp = f program pp in
+		      let jcode_pp = f program cn ms pp in
 			try
 			  let cmset =
 			    program.static_lookup_method cn ms jcode_pp in
@@ -853,7 +852,7 @@ module JCodePrinter = Make(
 	  	  [simple_elem (inst ^ " " ^ locname)]
 	    | _ -> [simple_elem inst_params]
 		
-    let jcode_pp = Some (fun _ x -> x)
+    let jcode_pp = Some (fun _ _ _ x -> x)
   end)
 
 let print_program = JCodePrinter.print_program
@@ -986,7 +985,7 @@ module JBirPrinter = Make(
 	      [p1;p2]
 	| _ -> [simple_elem (JBir.print_instr op)]
 
-    let jcode_pp = Some (fun _ x -> x)
+    let jcode_pp = Some (fun _ _ _ x -> x)
   end)
 
 let print_jbir_program = JBirPrinter.print_program
@@ -1119,7 +1118,7 @@ module A3BirPrinter = Make(
 	      [p1;p2]
 	| _ -> [simple_elem (A3Bir.print_instr op)]
 
-    let jcode_pp = Some (fun _ x -> x)
+    let jcode_pp = Some (fun _ _ _ x -> x)
   end)
 
 let print_a3bir_program = A3BirPrinter.print_program

@@ -322,3 +322,122 @@ Note:
      
 Writing your own HTML printer
 -----------------------------
+
+Here we study the case of **JCode.jcode** printer, and show in details
+how it is implemented.
+
+We remember that the module interface to implement is *PrintInterface*
+whose signature is given below.
+
+~~~~~
+module type PrintInterface =
+sig
+  type instr
+  type code
+  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val method_param_names : code program -> class_name ->
+     method_signature -> string list option
+  val inst_html : code program -> class_name -> method_signature ->
+    int -> instr -> elem list
+  val jcode_pp :
+    ('a program -> class_name -> method_signature -> int -> int) option
+end
+~~~~~
+
+The type **instr** represents the instructions in your code
+representation type **code**. Here, **instr** corresponds to
+**JCode.jopcode** and **code** is **JCode.jcode**.
+
+Then, you need to give an iterator on you code structure. This
+function is really easy to write.
+
+~~~~~
+    let iter_code f lazy_code =
+      let code = Lazy.force lazy_code in
+        Array.iteri
+          (fun pp opcode ->
+            match opcode with
+              | OpInvalid -> ()
+              | _ -> f pp opcode
+          ) code.c_code
+~~~~~
+
+You also need to provide a function that may associate names to method
+parameters in the signature. Then, when generating the html
+instructions you need to be consistent with those names. In our
+implementation *JCodePrinter* in *jPrintHtml.ml*, we use the source
+variables names when the local variable table exists in the considered
+method. If you want to test your printer very quickly, you can define:
+
+~~~~~
+    let method_param_names _ _ _ = None
+~~~~~
+
+Now, we need to define how to display the instructions in html. In
+order to do that, some html elements can be created by using
+predefined functions in *JPrintHtml*. These functions are
+**simple_elem**, **value_elem**, **field_elem**, **invoke_elem** and
+**method_args_elem**. The sample of code below will help you to
+understand how you can use these functions. You are also recommended
+to read the *API* documentation.
+
+~~~~~
+    let inst_html program cs ms pp op =
+      match op with
+        | OpNew ccs ->
+          let v = TObject (TClass ccs) in
+            [simple_elem "new"; value_elem program cs v]
+        | OpNewArray v ->
+            [simple_elem "newarray"; value_elem program cs v]
+        | OpGetField (ccs,fs) ->
+          let ftype = fs_type fs in
+            [simple_elem "getfield";
+             field_elem program cs ccs fs;
+             simple_elem " : ";
+             value_elem program cs ftype]
+        | OpInvoke ((`Virtual o),cms) ->
+          let ccs = match o with
+            | TClass ccs -> ccs
+            | _ -> JBasics.java_lang_object in
+              [simple_elem inst;
+               invoke_elem program cs ms pp ccs cms;
+               method_args_elem program cs ms]
+        | ... -> ...
+        | _ ->
+          let inst =
+            Javalib.JPrint.jopcode ~jvm:true op in
+            [simple_elem inst]
+~~~~~
+
+The html elements have to be concatenated in a list and will be
+displayed in the given order. The element returned by **simple_elem**
+is raw text. The element returned by **value_elem** refers to an html
+class file. The element returned by **field_elem** is a link to the
+field definition in the corresponding html class file. Field
+resolution is done by the function **resolve_field** of
+*JControlFlow*. If more than one field is resolved (it can happen with
+interface fields), a list of possible links is displayed. The element
+returned by **invoke_elem** is a list of links refering to html class
+file methods that have been resolved by the **static_lookup_method**
+function of **JProgram.program**. The element returned by
+**method_args_elem** is a list of **value_elem** elements
+corresponding to the method parameters. They are separated by commas
+and encapsulated by parentheses, ready to be displayed.
+
+If you don't want any html effect, the above function
+becomes very simple:
+
+~~~~~
+    let inst_html program _ _ _ op =
+      let inst =
+        Javalib.JPrint.jopcode ~jvm:true op in
+        [simple_elem inst]
+~~~~~
+
+Finally, we need to define the **jcode_pp** function, which associates
+a program point in the **code** representation, to a program point in
+the **JCode.code** representation. Here, we have the identity.
+
+~~~~~
+    let jcode_pp _ _ _ x = x
+~~~~~

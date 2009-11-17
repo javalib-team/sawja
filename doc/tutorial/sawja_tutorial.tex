@@ -359,5 +359,124 @@ representation.
 \end{description}
 \subsection{Writing your own HTML printer}
 
+Here we study the case of \textbf{JCode.jcode} printer, and show in
+details how it is implemented.
+
+We remember that the module interface to implement is
+\emph{PrintInterface} whose signature is given below.
+
+\begin{verbatim}
+module type PrintInterface =
+sig
+  type instr
+  type code
+  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val method_param_names : code program -> class_name ->
+     method_signature -> string list option
+  val inst_html : code program -> class_name -> method_signature ->
+    int -> instr -> elem list
+  val jcode_pp :
+    ('a program -> class_name -> method_signature -> int -> int) option
+end
+\end{verbatim}
+The type \textbf{instr} represents the instructions in your code
+representation type \textbf{code}. Here, \textbf{instr} corresponds
+to \textbf{JCode.jopcode} and \textbf{code} is
+\textbf{JCode.jcode}.
+
+Then, you need to give an iterator on you code structure. This
+function is really easy to write.
+
+\begin{verbatim}
+    let iter_code f lazy_code =
+      let code = Lazy.force lazy_code in
+        Array.iteri
+          (fun pp opcode ->
+            match opcode with
+              | OpInvalid -> ()
+              | _ -> f pp opcode
+          ) code.c_code
+\end{verbatim}
+You also need to provide a function that may associate names to
+method parameters in the signature. Then, when generating the html
+instructions you need to be consistent with those names. In our
+implementation \emph{JCodePrinter} in \emph{jPrintHtml.ml}, we use
+the source variables names when the local variable table exists in
+the considered method. If you want to test your printer very
+quickly, you can define:
+
+\begin{verbatim}
+    let method_param_names _ _ _ = None
+\end{verbatim}
+Now, we need to define how to display the instructions in html. In
+order to do that, some html elements can be created by using
+predefined functions in \emph{JPrintHtml}. These functions are
+\textbf{simple\_elem}, \textbf{value\_elem}, \textbf{field\_elem},
+\textbf{invoke\_elem} and \textbf{method\_args\_elem}. The sample
+of code below will help you to understand how you can use these
+functions. You are also recommended to read the \emph{API}
+documentation.
+
+\begin{verbatim}
+    let inst_html program cs ms pp op =
+      match op with
+        | OpNew ccs ->
+          let v = TObject (TClass ccs) in
+            [simple_elem "new"; value_elem program cs v]
+        | OpNewArray v ->
+            [simple_elem "newarray"; value_elem program cs v]
+        | OpGetField (ccs,fs) ->
+          let ftype = fs_type fs in
+            [simple_elem "getfield";
+             field_elem program cs ccs fs;
+             simple_elem " : ";
+             value_elem program cs ftype]
+        | OpInvoke ((`Virtual o),cms) ->
+          let ccs = match o with
+            | TClass ccs -> ccs
+            | _ -> JBasics.java_lang_object in
+              [simple_elem inst;
+               invoke_elem program cs ms pp ccs cms;
+               method_args_elem program cs ms]
+        | ... -> ...
+        | _ ->
+          let inst =
+            Javalib.JPrint.jopcode ~jvm:true op in
+            [simple_elem inst]
+\end{verbatim}
+The html elements have to be concatenated in a list and will be
+displayed in the given order. The element returned by
+\textbf{simple\_elem} is raw text. The element returned by
+\textbf{value\_elem} refers to an html class file. The element
+returned by \textbf{field\_elem} is a link to the field definition
+in the corresponding html class file. Field resolution is done by
+the function \textbf{resolve\_field} of \emph{JControlFlow}. If
+more than one field is resolved (it can happen with interface
+fields), a list of possible links is displayed. The element
+returned by \textbf{invoke\_elem} is a list of links refering to
+html class file methods that have been resolved by the
+\textbf{static\_lookup\_method} function of
+\textbf{JProgram.program}. The element returned by
+\textbf{method\_args\_elem} is a list of \textbf{value\_elem}
+elements corresponding to the method parameters. They are separated
+by commas and encapsulated by parentheses, ready to be displayed.
+
+If you don't want any html effect, the above function becomes very
+simple:
+
+\begin{verbatim}
+    let inst_html program _ _ _ op =
+      let inst =
+        Javalib.JPrint.jopcode ~jvm:true op in
+        [simple_elem inst]
+\end{verbatim}
+Finally, we need to define the \textbf{jcode\_pp} function, which
+associates a program point in the \textbf{code} representation, to
+a program point in the \textbf{JCode.code} representation. Here, we
+have the identity.
+
+\begin{verbatim}
+    let jcode_pp _ _ _ x = x
+\end{verbatim}
 
 \end{document}

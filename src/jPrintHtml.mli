@@ -191,7 +191,7 @@ sig
 
   (** Function to provide in order to associate an intermediate
   representation program point to a JCode.jcode program point. *)
-  val jcode_pp : ('a program -> int -> int) option
+  val jcode_pp : ('a program -> class_name -> method_signature -> int -> int) option
 end
 
 module Make (S : PrintInterface) : HTMLPrinter

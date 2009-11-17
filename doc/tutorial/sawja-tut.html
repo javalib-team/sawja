@@ -372,7 +372,125 @@ representation.</dd>
 </div>
 <div id="writing-your-own-html-printer">
 <h2><a href="#TOC">Writing your own HTML printer</a></h2>
-</div>
+<p>Here we study the case of <strong>JCode.jcode</strong> printer,
+and show in details how it is implemented.</p>
+<p>We remember that the module interface to implement is
+<em>PrintInterface</em> whose signature is given below.</p>
+<pre>
+<code>module type PrintInterface =
+sig
+  type instr
+  type code
+  val iter_code : (int -&gt; instr -&gt; unit) -&gt; code Lazy.t -&gt; unit
+  val method_param_names : code program -&gt; class_name -&gt;
+     method_signature -&gt; string list option
+  val inst_html : code program -&gt; class_name -&gt; method_signature -&gt;
+    int -&gt; instr -&gt; elem list
+  val jcode_pp :
+    ('a program -&gt; class_name -&gt; method_signature -&gt; int -&gt; int) option
+end
+</code>
+</pre>
+<p>The type <strong>instr</strong> represents the instructions in
+your code representation type <strong>code</strong>. Here,
+<strong>instr</strong> corresponds to
+<strong>JCode.jopcode</strong> and <strong>code</strong> is
+<strong>JCode.jcode</strong>.</p>
+<p>Then, you need to give an iterator on you code structure. This
+function is really easy to write.</p>
+<pre>
+<code>    let iter_code f lazy_code =
+      let code = Lazy.force lazy_code in
+        Array.iteri
+          (fun pp opcode -&gt;
+            match opcode with
+              | OpInvalid -&gt; ()
+              | _ -&gt; f pp opcode
+          ) code.c_code
+</code>
+</pre>
+<p>You also need to provide a function that may associate names to
+method parameters in the signature. Then, when generating the html
+instructions you need to be consistent with those names. In our
+implementation <em>JCodePrinter</em> in <em>jPrintHtml.ml</em>, we
+use the source variables names when the local variable table exists
+in the considered method. If you want to test your printer very
+quickly, you can define:</p>
+<pre>
+<code>    let method_param_names _ _ _ = None
+</code>
+</pre>
+<p>Now, we need to define how to display the instructions in html.
+In order to do that, some html elements can be created by using
+predefined functions in <em>JPrintHtml</em>. These functions are
+<strong>simple_elem</strong>, <strong>value_elem</strong>,
+<strong>field_elem</strong>, <strong>invoke_elem</strong> and
+<strong>method_args_elem</strong>. The sample of code below will
+help you to understand how you can use these functions. You are
+also recommended to read the <em>API</em> documentation.</p>
+<pre>
+<code>    let inst_html program cs ms pp op =
+      match op with
+        | OpNew ccs -&gt;
+          let v = TObject (TClass ccs) in
+            [simple_elem "new"; value_elem program cs v]
+        | OpNewArray v -&gt;
+            [simple_elem "newarray"; value_elem program cs v]
+        | OpGetField (ccs,fs) -&gt;
+          let ftype = fs_type fs in
+            [simple_elem "getfield";
+             field_elem program cs ccs fs;
+             simple_elem " : ";
+             value_elem program cs ftype]
+        | OpInvoke ((`Virtual o),cms) -&gt;
+          let ccs = match o with
+            | TClass ccs -&gt; ccs
+            | _ -&gt; JBasics.java_lang_object in
+              [simple_elem inst;
+               invoke_elem program cs ms pp ccs cms;
+               method_args_elem program cs ms]
+        | ... -&gt; ...
+        | _ -&gt;
+          let inst =
+            Javalib.JPrint.jopcode ~jvm:true op in
+            [simple_elem inst]
+</code>
+</pre>
+<p>The html elements have to be concatenated in a list and will be
+displayed in the given order. The element returned by
+<strong>simple_elem</strong> is raw text. The element returned by
+<strong>value_elem</strong> refers to an html class file. The
+element returned by <strong>field_elem</strong> is a link to the
+field definition in the corresponding html class file. Field
+resolution is done by the function <strong>resolve_field</strong>
+of <em>JControlFlow</em>. If more than one field is resolved (it
+can happen with interface fields), a list of possible links is
+displayed. The element returned by <strong>invoke_elem</strong> is
+a list of links refering to html class file methods that have been
+resolved by the <strong>static_lookup_method</strong> function of
+<strong>JProgram.program</strong>. The element returned by
+<strong>method_args_elem</strong> is a list of
+<strong>value_elem</strong> elements corresponding to the method
+parameters. They are separated by commas and encapsulated by
+parentheses, ready to be displayed.</p>
+<p>If you don't want any html effect, the above function becomes
+very simple:</p>
+<pre>
+<code>    let inst_html program _ _ _ op =
+      let inst =
+        Javalib.JPrint.jopcode ~jvm:true op in
+        [simple_elem inst]
+</code>
+</pre>
+<p>Finally, we need to define the <strong>jcode_pp</strong>
+function, which associates a program point in the
+<strong>code</strong> representation, to a program point in the
+<strong>JCode.code</strong> representation. Here, we have the
+identity.</p>
+<pre>
+<code>    let jcode_pp _ _ _ x = x
+</code>
+</pre></div>
 </div>
 <div class="footnotes">
 <hr />
