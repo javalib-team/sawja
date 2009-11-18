@@ -449,8 +449,8 @@ let normal_next code i =
 
 let compute_handlers code i =
   let handlers = code.c_exc_tbl in
-  let handlers = List.filter (fun e -> e.e_start <= i && i < e.e_end) handlers in
-  let handlers = List.map (fun e -> e.e_handler) handlers in
+  let handlers = List.filter (fun e -> e.JCode.e_start <= i && i < e.JCode.e_end) handlers in
+  let handlers = List.map (fun e -> e.JCode.e_handler) handlers in
     handlers
 
 let succs code i =
@@ -1074,33 +1074,55 @@ let temp_in_opexpr acc = function
 let temp_in_stack s =
   List.fold_left temp_in_opexpr Ptset.empty s
 
-let fresh_in_stack s =
-  let set = temp_in_stack s in
-  if Ptset.is_empty set then 0
-  else (Ptset.max_elt set)  +1
+let fresh_in_stack ssa fresh_counter s =
+  if ssa then 
+    let x = !fresh_counter in
+      incr fresh_counter; x
+  else
+    let set = temp_in_stack s in
+      if Ptset.is_empty set then 0
+      else (Ptset.max_elt set)  +1
 
-let clean test s instrs =
-  let rec aux fresh = function
-    | [] -> [], instrs, fresh
-    | e::s ->
-	let (s,instrs,fresh) = aux fresh s in
-	  match e with
-	    | Uninit _ -> e::s, instrs , fresh
-	    | E e ->
-		if test e then
-		  let x = TempVar fresh in
-		  let t = type_of_expr e in
-		    E (Var (t,x))::s, (AffectVar (x,e))::instrs, fresh +1
-		else
-		  E e::s, instrs, fresh
-  in
-  let (s,instrs,_) = aux (fresh_in_stack s) s in
-    (s,instrs)
+let clean ssa fresh_counter test s instrs =
+  if ssa then
+    let rec aux = function
+      | [] -> [], instrs
+      | e::s ->
+	  let (s,instrs) = aux s in
+	    match e with
+	      | Uninit _ -> e::s, instrs 
+	      | E e ->
+		  if test e then
+		    let x = TempVar !fresh_counter in
+		    let _ = incr fresh_counter in
+		    let t = type_of_expr e in
+		      E (Var (t,x))::s, (AffectVar (x,e))::instrs
+		  else
+		    E e::s, instrs
+    in
+      aux s 
+  else
+    let rec aux fresh = function
+      | [] -> [], instrs, fresh
+      | e::s ->
+	  let (s,instrs,fresh) = aux fresh s in
+	    match e with
+	      | Uninit _ -> e::s, instrs , fresh
+	      | E e ->
+		  if test e then
+		    let x = TempVar fresh in
+		    let t = type_of_expr e in
+		      E (Var (t,x))::s, (AffectVar (x,e))::instrs, fresh +1
+		  else
+		    E e::s, instrs, fresh
+    in
+    let (s,instrs,_) = aux (fresh_in_stack ssa fresh_counter s) s in
+      (s,instrs)
 
 
-let to_addr3_binop mode binop s =
+let to_addr3_binop mode binop ssa fresh_counter s =
   match mode with
-    | Addr3 -> 	let x = TempVar (fresh_in_stack s)
+    | Addr3 -> 	let x = TempVar (fresh_in_stack ssa fresh_counter s)
       in 
 	(match binop with 
 	   | Div _ 
@@ -1117,21 +1139,21 @@ let to_addr3_binop mode binop s =
 	       end)
     | _ -> E (Binop (binop,topE (pop s), topE s))::(pop2 s), []
 	
-let to_addr3_unop mode unop s instrs =
+let to_addr3_unop mode unop ssa fresh_counter s instrs =
   match mode with
-    | Addr3 -> let x = TempVar (fresh_in_stack s) in
+    | Addr3 -> let x = TempVar (fresh_in_stack ssa fresh_counter s) in
 	begin
 	  let e = Unop (unop,topE s) in
 	    E (Var (type_of_expr e,x))::(pop s), instrs@[AffectVar(x,e)]
 	end
     | _ ->E (Unop (unop,topE s))::(pop s), instrs
 
-let make_tempvar s next_store =
+let make_tempvar ssa fresh_counter s next_store =
   match next_store with
-    | None -> TempVar (fresh_in_stack s)
+    | None -> TempVar (fresh_in_stack ssa fresh_counter s)
     | Some x -> begin
 	match is_var_in_stack x s with
-	  | Some _ -> TempVar (fresh_in_stack s)
+	  | Some _ -> TempVar (fresh_in_stack ssa fresh_counter s)
 	  | None -> x
       end
 
@@ -1153,13 +1175,13 @@ and type_of_array_content t e =
  * next : progression along instruction bytecode index
  * mode : normal , flat , 3add
  *)
-let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = function
+let bc2bir_instr mode pp_var ssa fresh_counter i load_type arrayload_type tos s next_store = function
   | OpNop -> s, []
   | OpConst c -> 
       begin
 	match c with
 	  | `Class _ | `String _ -> 
-	      let x = make_tempvar s next_store in
+	      let x = make_tempvar ssa fresh_counter s next_store in
 		E (Var (TObject (TClass java_lang_object),x))::s,
 		[AffectVar(x,Const c)]
 	  | _ -> E (Const c)::s, []
@@ -1173,7 +1195,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 	begin
 	match mode with
 	  | Addr3 ->
-	      let x = make_tempvar (pop2 s) next_store in
+	      let x = make_tempvar ssa fresh_counter (pop2 s) next_store in
 		E (Var (t,x))::(pop2 s),
 		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]
 	  | _ ->
@@ -1189,7 +1211,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 		begin
 		  match is_var_in_stack y (pop s) with
 		    | Some t ->
-			let x = make_tempvar s None in
+			let x = make_tempvar ssa fresh_counter s None in
 			  replace_var_in_stack y x (pop s),
 			  [AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
 		    | None ->
@@ -1201,7 +1223,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 	begin
 	  match is_var_in_stack a s with
 	    | Some t ->
-		let x = make_tempvar s None in
+		let x = make_tempvar ssa fresh_counter s None in
 		  replace_var_in_stack a x s,
 		  [AffectVar(x,Var (t,a));
 		   AffectVar (a,Binop(Add `Int2Bool,Var (TBasic `Int,a),Const (`Int (Int32.of_int b))))]
@@ -1209,7 +1231,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 	end
   | OpPutField (c, f) ->
       let r = topE (pop s) in
-	clean (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
+	clean ssa fresh_counter (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
   | OpArrayStore _ ->
       let v = topE s in
       let a = topE (pop2 s) in
@@ -1218,7 +1240,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 		  Check (CheckArrayBound (a,idx));
 		  Check (CheckArrayStore (a,v));
 		  AffectArray (a, idx, v)]
-      in clean is_array_in_expr (pop3 s) inss
+      in clean ssa fresh_counter is_array_in_expr (pop3 s) inss
   | OpPop -> pop s, []
   | OpPop2 ->
       (match (top tos) with
@@ -1250,46 +1272,46 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 		| Op32 -> (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
 		| Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[]))
   | OpSwap -> (top (pop s))::(top s)::(pop2 s),[]
-  | OpAdd k -> to_addr3_binop mode (Add k) s
-  | OpSub k -> to_addr3_binop mode (Sub k) s 
-  | OpMult k -> to_addr3_binop mode (Mult k) s 
-  | OpDiv k ->  to_addr3_binop mode (Div k) s
-  | OpRem k -> to_addr3_binop mode (Rem k) s 
-  | OpNeg k -> to_addr3_unop mode (Neg k) s []  
-  | OpIShl ->  to_addr3_binop mode IShl s 
-  | OpIShr ->  to_addr3_binop mode IShr s
-  | OpLShl ->  to_addr3_binop mode LShl s
-  | OpLShr -> to_addr3_binop mode LShr s 
-  | OpIAnd -> to_addr3_binop mode IAnd s 
-  | OpIOr -> to_addr3_binop mode IOr s
-  | OpIXor -> to_addr3_binop mode IXor s 
-  | OpIUShr -> to_addr3_binop mode IUshr s
-  | OpLAnd -> to_addr3_binop mode LAnd s
-  | OpLOr -> to_addr3_binop mode LOr s 
-  | OpLXor -> to_addr3_binop mode LXor s 
-  | OpLUShr  -> to_addr3_binop mode LUshr s 
-  | OpI2L -> to_addr3_unop mode (Conv I2L) s []  
-  | OpI2F -> to_addr3_unop mode (Conv I2F) s []  
-  | OpI2D ->to_addr3_unop mode (Conv I2D) s []  
-  | OpL2I ->to_addr3_unop mode (Conv L2I) s []  
-  | OpL2F ->to_addr3_unop mode (Conv L2F) s []  
-  | OpL2D ->to_addr3_unop mode (Conv L2D) s []  
-  | OpF2I ->to_addr3_unop mode (Conv F2I) s []  
-  | OpF2L ->to_addr3_unop mode (Conv F2L) s []  
-  | OpF2D ->to_addr3_unop mode (Conv F2D) s []  
-  | OpD2I ->to_addr3_unop mode (Conv D2I) s []  
-  | OpD2L ->to_addr3_unop mode (Conv D2L) s []  
-  | OpD2F ->to_addr3_unop mode (Conv D2F) s []  
-  | OpI2B ->to_addr3_unop mode (Conv I2B) s []  
-  | OpI2C ->to_addr3_unop mode (Conv I2C) s []  
-  | OpI2S ->to_addr3_unop mode (Conv I2S) s []  
+  | OpAdd k -> to_addr3_binop mode (Add k) ssa fresh_counter s
+  | OpSub k -> to_addr3_binop mode (Sub k) ssa fresh_counter s 
+  | OpMult k -> to_addr3_binop mode (Mult k) ssa fresh_counter s 
+  | OpDiv k ->  to_addr3_binop mode (Div k) ssa fresh_counter s
+  | OpRem k -> to_addr3_binop mode (Rem k) ssa fresh_counter s 
+  | OpNeg k -> to_addr3_unop mode (Neg k) ssa fresh_counter s []  
+  | OpIShl ->  to_addr3_binop mode IShl ssa fresh_counter s 
+  | OpIShr ->  to_addr3_binop mode IShr ssa fresh_counter s
+  | OpLShl ->  to_addr3_binop mode LShl ssa fresh_counter s
+  | OpLShr -> to_addr3_binop mode LShr ssa fresh_counter s 
+  | OpIAnd -> to_addr3_binop mode IAnd ssa fresh_counter s 
+  | OpIOr -> to_addr3_binop mode IOr ssa fresh_counter s
+  | OpIXor -> to_addr3_binop mode IXor ssa fresh_counter s 
+  | OpIUShr -> to_addr3_binop mode IUshr ssa fresh_counter s
+  | OpLAnd -> to_addr3_binop mode LAnd ssa fresh_counter s
+  | OpLOr -> to_addr3_binop mode LOr ssa fresh_counter s 
+  | OpLXor -> to_addr3_binop mode LXor ssa fresh_counter s 
+  | OpLUShr  -> to_addr3_binop mode LUshr ssa fresh_counter s 
+  | OpI2L -> to_addr3_unop mode (Conv I2L) ssa fresh_counter s []  
+  | OpI2F -> to_addr3_unop mode (Conv I2F) ssa fresh_counter s []  
+  | OpI2D ->to_addr3_unop mode (Conv I2D) ssa fresh_counter s []  
+  | OpL2I ->to_addr3_unop mode (Conv L2I) ssa fresh_counter s []  
+  | OpL2F ->to_addr3_unop mode (Conv L2F) ssa fresh_counter s []  
+  | OpL2D ->to_addr3_unop mode (Conv L2D) ssa fresh_counter s []  
+  | OpF2I ->to_addr3_unop mode (Conv F2I) ssa fresh_counter s []  
+  | OpF2L ->to_addr3_unop mode (Conv F2L) ssa fresh_counter s []  
+  | OpF2D ->to_addr3_unop mode (Conv F2D) ssa fresh_counter s []  
+  | OpD2I ->to_addr3_unop mode (Conv D2I) ssa fresh_counter s []  
+  | OpD2L ->to_addr3_unop mode (Conv D2L) ssa fresh_counter s []  
+  | OpD2F ->to_addr3_unop mode (Conv D2F) ssa fresh_counter s []  
+  | OpI2B ->to_addr3_unop mode (Conv I2B) ssa fresh_counter s []  
+  | OpI2C ->to_addr3_unop mode (Conv I2C) ssa fresh_counter s []  
+  | OpI2S ->to_addr3_unop mode (Conv I2S) ssa fresh_counter s []  
   | OpCmp op -> 
       (match op with 
-	 | `DG -> to_addr3_binop mode (CMP DG) s 
-	 | `DL -> to_addr3_binop mode (CMP DL) s 
-	 | `FG -> to_addr3_binop mode (CMP FG) s 
-	 | `FL ->to_addr3_binop mode (CMP FL) s 
-	 | `L ->to_addr3_binop mode (CMP L) s 
+	 | `DG -> to_addr3_binop mode (CMP DG) ssa fresh_counter s 
+	 | `DL -> to_addr3_binop mode (CMP DL) ssa fresh_counter s 
+	 | `FG -> to_addr3_binop mode (CMP FG) ssa fresh_counter s 
+	 | `FL ->to_addr3_binop mode (CMP FL) ssa fresh_counter s 
+	 | `L ->to_addr3_binop mode (CMP L) ssa fresh_counter s 
       )	
   | OpIf ( x , n) ->  
       let guard = 
@@ -1346,7 +1368,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 	  match mode with
 	    | Normal -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)]
 	    | _ ->
-		let x = make_tempvar s next_store in
+		let x = make_tempvar ssa fresh_counter s next_store in
 		  E (Var (fs_type f,x))::(pop s),
 		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
 	end
@@ -1354,14 +1376,14 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
       begin
 	  match mode with 
 	    | Addr3 -> 
-		let x = make_tempvar s next_store in
+		let x = make_tempvar ssa fresh_counter s next_store in
 		  E (Var (fs_type f,x))::s, [MayInit c ; AffectVar(x,StaticField (c,f))]
 	    | _ -> E (StaticField (c, f))::s, [MayInit c]
 	    
 	end
   | OpPutStatic (c, f) ->
       if is_static_in_stack c f (pop s) then begin
-	let x = make_tempvar s None in
+	let x = make_tempvar ssa fresh_counter s None in
 	  replace_static_in_stack c f x (pop s),
 	[MayInit c;
 	 AffectVar(x,StaticField(c,f));
@@ -1375,12 +1397,12 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 	       (match ms_rtype ms with
 		  | None ->
 		      let params = param (List.length  (ms_args ms)) s in
-		      clean is_heap_sensible_element_in_expr
+		      clean ssa fresh_counter is_heap_sensible_element_in_expr
 			(popn (List.length (ms_args ms)) s)
 			[InvokeStatic (None,c,ms,params)]
 		  | Some t ->
-		      let x = make_tempvar s next_store in
-		      clean is_heap_sensible_element_in_expr
+		      let x = make_tempvar ssa fresh_counter s next_store in
+		      clean ssa fresh_counter is_heap_sensible_element_in_expr
 			(E (Var (t,x))::(popn (List.length (ms_args ms)) s))
 			[InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)])
 	   | x ->
@@ -1388,9 +1410,9 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 		 let popn_s = popn (List.length (ms_args ms)) s in
 		   (match top popn_s  with
 		      | Uninit (c,j) ->
-			  let x = make_tempvar s next_store in
+			  let x = make_tempvar ssa fresh_counter s next_store in
 			  let e' = E (Var (TObject (TClass java_lang_object),x)) in
-			    clean is_heap_sensible_element_in_expr
+			    clean ssa fresh_counter is_heap_sensible_element_in_expr
 			      (List.map
 				 (function e -> if e = Uninit (c,j) then e' else e)
 				 (pop popn_s))
@@ -1409,30 +1431,30 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
 			  in
 			    (match ms_rtype ms with
 			       | None ->
-				   clean is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
+				   clean ssa fresh_counter is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
 			       | Some t ->
-				   let y = make_tempvar s next_store in
-				     clean is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
+				   let y = make_tempvar ssa fresh_counter s next_store in
+				     clean ssa fresh_counter is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
 			    ))
 	       end)
 	end
   | OpNew c -> (Uninit (c,i))::s, [MayInit c]
   | OpNewArray t ->
-      let x = make_tempvar s next_store in
+      let x = make_tempvar ssa fresh_counter s next_store in
       let dim = topE s in
 	E (Var (TObject (TArray t),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
   | OpArrayLength ->
       let a = topE s in begin
 	  match mode with
 	    | Addr3 ->
-		let x = make_tempvar s next_store in
+		let x = make_tempvar ssa fresh_counter s next_store in
 		  E (Var (TBasic `Int,x))::(pop s), [Check (CheckNullPointer a);AffectVar(x,Unop (ArrayLength,a))]
 	    | _ -> E (Unop (ArrayLength,a))::(pop s),[Check (CheckNullPointer a)]
 	end
   | OpThrow ->
       let r = topE s in [], [Check (CheckNullPointer r); Throw r]
-  | OpCheckCast t -> to_addr3_unop mode (Cast t) s [Check (CheckCast (topE s,t))]
-  | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) s []
+  | OpCheckCast t -> to_addr3_unop mode (Cast t) ssa fresh_counter s [Check (CheckCast (topE s,t))]
+  | OpInstanceOf c -> to_addr3_unop mode (InstanceOf c) ssa fresh_counter s []
   | OpMonitorEnter ->
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorEnter r]
@@ -1440,7 +1462,7 @@ let bc2bir_instr mode pp_var i load_type arrayload_type tos s next_store = funct
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorExit r]
   | OpAMultiNewArray (cn,dim) ->
-      let x = make_tempvar s next_store in
+      let x = make_tempvar ssa fresh_counter s next_store in
       let params = param dim s in
 	E (Var (TObject cn,x))::(popn dim s),
 	(List.map (fun e -> Check (CheckNegativeArraySize e)) params)
@@ -1527,8 +1549,8 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-let bc2ir flat pp_var jump_target load_type arrayload_type code =
-  let rec loop as_ts_jump ins ts_in as_in pc =
+let bc2ir flat ssa pp_var jump_target load_type arrayload_type code =
+  let rec loop as_ts_jump ins ts_in as_in pc fresh_counter =
 
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
@@ -1543,16 +1565,16 @@ let bc2ir flat pp_var jump_target load_type arrayload_type code =
 	try MapPc.find pc as_ts_jump
 	with Not_found ->
 	  (* no predecessor of pc have been visited before *)
-	  if List.exists (fun e -> pc = e.e_handler) code.c_exc_tbl then
+	  if List.exists (fun e -> pc = e.JCode.e_handler) code.c_exc_tbl then
 	    (* this is a handler point *)
-	    ([Op32],[E (Var (TObject (TClass java_lang_object),catch_var))])
+	    ([Op32],[E (Var (TObject (TClass java_lang_object),CatchVar pc))])
 	  else
 	    (* this is a back jump target *)
 	    ([],[])
       else (ts_in,as_in)
     in
     let ts_out = type_next code.c_code.(pc) ts_in in
-    let (as_out,instrs) = bc2bir_instr flat pp_var pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
+    let (as_out,instrs) = bc2bir_instr flat pp_var ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
 
       (* fail on backward branchings on a non-empty stack *)
       if List.length as_out>0 then
@@ -1588,10 +1610,10 @@ let bc2ir flat pp_var jump_target load_type arrayload_type code =
 	as_ts_jump
 	jump_succs in
       try
-	loop as_ts_jump ins ts_out as_out (next code.c_code pc)
+	loop as_ts_jump ins ts_out as_out (next code.c_code pc) fresh_counter
       with End_of_method ->  ins
   in
-    loop MapPc.empty [] [] [] 0
+    loop MapPc.empty [] [] [] 0 (ref 0)
 
 let varname = Cmn.varname
 
@@ -1605,7 +1627,7 @@ let bcvar i = OriginalVar (i,None)
 
 let compute_jump_target code =
   let jump_target = Array.make (Array.length code.c_code) false in
-    List.iter (fun e -> jump_target.(e.e_handler) <- true) code.c_exc_tbl;
+    List.iter (fun e -> jump_target.(e.JCode.e_handler) <- true) code.c_exc_tbl;
     Array.iteri
       (fun i instr ->
 	 match instr with
@@ -1636,7 +1658,7 @@ let gen_params pp_var cm =
 	 (ms_args cm.cm_signature))
 
 let compress_ir handlers ir jump_target =
-  let h_ends = List.fold_right (fun e s -> Ptset.add e.e_end (Ptset.add e.e_start s)) handlers Ptset.empty in
+  let h_ends = List.fold_right (fun e s -> Ptset.add e.JCode.e_end (Ptset.add e.JCode.e_start s)) handlers Ptset.empty in
   let rec aux0 pc0 = function
     | [] -> [pc0,[Nop]]
     | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[Nop])::(aux l)
@@ -1648,7 +1670,16 @@ let compress_ir handlers ir jump_target =
     | (pc,instrs)::q -> (pc,instrs)::(aux q)
   in aux ir
 
-let jcode2bir mode compress bcv cm jcode =
+let make_exception_handler e =
+  {
+    e_start = e.JCode.e_start;
+    e_end = e.JCode.e_end;
+    e_handler = e.JCode.e_handler;
+    e_catch_type = e.JCode.e_catch_type;
+    e_catch_var = CatchVar e.JCode.e_handler;
+  }
+
+let jcode2bir mode compress bcv ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
@@ -1664,17 +1695,17 @@ let jcode2bir mode compress bcv cm jcode =
 	  let pp_var = search_name_localvar cm.cm_static code in
 	  let jump_target = compute_jump_target code in
 	  let (load_type,arrayload_type) = BCV.run bcv cm code in
-	  let res = bc2ir mode pp_var jump_target load_type arrayload_type code in
+	  let res = bc2ir mode ssa pp_var jump_target load_type arrayload_type code in
 	    { params = gen_params pp_var cm;
 	      code = if compress then compress_ir code.c_exc_tbl (List.rev res) jump_target else (List.rev res);
-	      exc_tbl = code.c_exc_tbl;
+	      exc_tbl = List.map make_exception_handler code.c_exc_tbl;
 	      line_number_table = code.c_line_number_table;
 	      jump_target = jump_target }
       | None -> raise Subroutine
 
-let transform ?(bcv=false) ?(compress=false) = jcode2bir Normal compress bcv
-let transform_flat ?(bcv=false) ?(compress=false) = jcode2bir Flat compress bcv
-let transform_addr3 ?(bcv=false) ?(compress=false) = jcode2bir Addr3 compress bcv
+let transform ?(bcv=false) ?(compress=false) ?(ir_ssa=false) = jcode2bir Normal compress bcv ir_ssa
+let transform_flat ?(bcv=false) ?(compress=false) ?(ir_ssa=false) = jcode2bir Flat compress bcv ir_ssa
+let transform_addr3 ?(bcv=false) ?(compress=false) ?(ir_ssa=false) = jcode2bir Addr3 compress bcv ir_ssa
 
 let rec last = function
     [] -> assert false
@@ -1705,6 +1736,7 @@ let flatten_code code =
 	     e_start = find e.e_start;
 	     e_end = find e.e_end; (* It may be outside the range ?  *)
 	     e_handler = find e.e_handler;
-	     e_catch_type = e.e_catch_type
+	     e_catch_type = e.e_catch_type;
+	     e_catch_var = e.e_catch_var
 	   }) code.exc_tbl
 	

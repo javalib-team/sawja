@@ -40,12 +40,9 @@ val varname : string
 type var =
   | OriginalVar of int * string option  (* register number, name (debug if available) *)
   | TempVar of int
-  | RetVar
+  | CatchVar of int
   | BranchVar of int * int
   | BranchVar2 of int * int
-
-(** Catched exception are store in [catch_var] *)
-val catch_var : var
 
 (** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program *)
 val var_orig : var -> bool
@@ -105,3 +102,11 @@ val print_typ : JBasics.value_type -> string
 (*   } *)
 
 type mode = Normal | Flat | Addr3
+
+type exception_handler = {
+	e_start : int;
+	e_end : int;
+	e_handler : int;
+	e_catch_type : JBasics.class_name option;
+	e_catch_var : var
+}

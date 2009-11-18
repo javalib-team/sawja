@@ -39,9 +39,6 @@ type const =
 (** Abstract data type for variables *)
 type var
 
-(** Catched exception are store in [catch_var]. *)
-val catch_var : var
-
 (** [var_orig v] is [true] if and only if the variable [v] was already used at bytecode level. *)
 val var_orig : var -> bool
 
@@ -157,12 +154,21 @@ type instr =
   | MayInit of JBasics.class_name (** [MayInit c] initializes the class [c] whenever it is required. *)
   | Check of check (** [Check c] evaluates the assertion [c]. *)
 
+
+type exception_handler = {
+	e_start : int;
+	e_end : int;
+	e_handler : int;
+	e_catch_type : JBasics.class_name option;
+	e_catch_var : var
+}
+
 (** [t] is the parameter type for JBir methods. *)
 type t = {
   params : (JBasics.value_type * var) list; (** [params] contains the method parameters (including the receiver this for virtual methods). *)
   code : (int * instr list) list; (** Each element of [code] is a pair [(pc,instrs)] where 
 				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
-  exc_tbl : JCode.exception_handler list; (** [exc_tbl] is the exception table of the method code. *)
+  exc_tbl : exception_handler list; (** [exc_tbl] is the exception table of the method code. *)
   line_number_table : (int * int) list option; (** [line_number_table] contains debug information. It is a list of pairs [(i,j)] meaning the code line [i] corresponds to the line [j] at the java source level. *) 
   jump_target : bool array (** [jump_target] indicates whether program points are join points or not. *) 
 }
@@ -186,9 +192,9 @@ val print : t -> string list
 
 (** [transform b cm jcode] transforms the code [jcode] into its JBir representation. The transformation is performed in the context of a given concrete method [cm]. According to the boolean [~compress:b], all program points made of a single [Nop] instruction are removed from the obtained JBir representation. 
 [transform b cm jcode] can raise several exceptions. See exceptions below for details. *) 
-val transform : ?bcv:bool -> ?compress:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+val transform : ?bcv:bool -> ?compress:bool -> ?ir_ssa:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
-val flatten_code : t -> instr array * int array * int Ptmap.t * JCode.exception_handler list
+val flatten_code : t -> instr array * int array * int Ptmap.t * exception_handler list
 
 (** {2 Exceptions} *)
 

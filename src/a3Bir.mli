@@ -39,9 +39,6 @@ type const =
 (** Abstract data type for variables *)
 type var
 
-(** Catched exception are store in [catch_var]. *)
-val catch_var : var
-
 (** [var_orig v] is [true] if and only if the variable [v] was already used at bytecode level. *)
 val var_orig : var -> bool
 
@@ -165,12 +162,20 @@ type instr =
   | MayInit of JBasics.class_name (** [MayInit c] initializes the class [c] whenever it is required. *)
   | Check of check (** [Check c] evaluates the assertion [c]. *)
 
+type exception_handler = {
+	e_start : int;
+	e_end : int;
+	e_handler : int;
+	e_catch_type : JBasics.class_name option;
+	e_catch_var : var
+}
+
 (** [t] is the parameter type for A3Bir methods. *)
 type t = {
   a3_params : (JBasics.value_type * var) list; (** [a3_params] contains the method parameters (including the receiver this for virtual methods). *)
   a3_code : (int * instr list) list; (** Each element of [a3_code] is a pair [(pc,instrs)] where 
 				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
-  a3_exc_tbl : JCode.exception_handler list; (** [a3_exc_tbl] is the exception table of the method code. *)
+  a3_exc_tbl : exception_handler list; (** [a3_exc_tbl] is the exception table of the method code. *)
   a3_line_number_table : (int * int) list option; (** [a3_line_number_table] contains debug information. It is a list of pairs [(i,j)] meaning the code line [i] corresponds to the line [j] at the java source level. *) 
   a3_jump_target : bool array (** [a3_jump_target] indicates whether program points are join points or not. *) 
 }

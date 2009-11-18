@@ -225,9 +225,10 @@ let bir2a3bir_instr = function
 type t = {
   a3_params : (value_type * var) list; 
   a3_code : (int * instr list) list; 
-  a3_exc_tbl : JCode.exception_handler list;
+  a3_exc_tbl : exception_handler list;
   a3_line_number_table : (int * int) list option;
   a3_jump_target : bool array ;
+
 }
 
 

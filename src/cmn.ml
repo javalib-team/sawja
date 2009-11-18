@@ -51,11 +51,9 @@ type typ = Ref | Num
 type var =
   | OriginalVar of int * string option  (* register number, name (debug if available) *)
   | TempVar of int
-  | RetVar
+  | CatchVar of int
   | BranchVar of int * int
   | BranchVar2 of int * int
-
-let catch_var = TempVar 0
 
 let print_const = function
   | `ANull -> "null"
@@ -80,7 +78,7 @@ let var_name_debug = function
 let var_name = function
   | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
   | TempVar i -> Printf.sprintf "%s%d" tempname i
-  | RetVar -> "RetVar"
+  | CatchVar i -> Printf.sprintf "CatchVar%d" i
   | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
   | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
 
@@ -133,4 +131,12 @@ let var_equal tvar svar =
 let var_orig = function
   | OriginalVar _ -> true
   | _ -> false
+
+type exception_handler = {
+	e_start : int;
+	e_end : int;
+	e_handler : int;
+	e_catch_type : class_name option;
+	e_catch_var : var
+}
 
