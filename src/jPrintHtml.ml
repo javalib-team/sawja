@@ -52,7 +52,7 @@ let void_info =
 let html_indent = 3
 let class_class = "class"
 let classname_class = "classname"
-let methodname_class = "methodname"
+let methodname_class = "methodname clickable"
 let field_class = "field"
 let field_signature_class = "field_signature"
 let method_class = "method"
@@ -60,7 +60,7 @@ let method_signature_class = "method_signature"
 let code_class = "code"
 let annot_class = "annot"
 let instruction_class = "instruction"
-let parameter_class = "parameter"
+let parameter_class = "parameter clickable"
 let clickable_class = "clickable"
   
 type html_tree = | CustomTag of string * (html_tree list) * string
@@ -163,7 +163,7 @@ let gen_inst inst_params =
 	   | DynamicExpr (label,l) ->
 	       let ve =
 		 (gen_span label
-		    [("class",parameter_class ^ " " ^ clickable_class);
+		    [("class",parameter_class);
 		     ("onclick","showInfoList(this)")]) in
 	       let he = gen_hidden_list l in
 		 (ve :: vl, he :: hl)
@@ -216,37 +216,20 @@ let gen_class anchor_name classname annots content =
     gen_div (add_anchor anchor_name "" class_body)
       [("class", class_class)]
       
-let rec print_html_tree_to_fmt ?(isroot=true) htmltree fmt =
-  match htmltree with
-    | CustomTag (opening,tree,closing) ->
-	if not isroot then
-	  Format.pp_force_newline fmt ();
-	Format.pp_open_vbox fmt html_indent;
-	Format.pp_print_string fmt opening;
-	let memsimpledata = ref false in
-	  List.iter (fun tree ->
-		       print_html_tree_to_fmt ~isroot:false tree fmt;
-		       match tree with
-			 | SimpleTag _ -> memsimpledata := false
-			 | PCData _ -> memsimpledata := true
-			 | _ -> memsimpledata := false
-		    ) tree;
-	  Format.pp_close_box fmt ();
-	  if not !memsimpledata then
-	    Format.pp_force_newline fmt ();
-	  Format.pp_print_string fmt closing
-    | SimpleTag tag ->
-	Format.pp_force_newline fmt ();
-	Format.pp_print_string fmt tag
-    | PCData data ->
-	Format.pp_print_string fmt data
-	  
 let print_html_tree htmltree out =
-  let b = Buffer.create 1024 in
-  let fmt = Format.formatter_of_buffer b in
-    Format.pp_set_formatter_out_channel fmt out;
-    print_html_tree_to_fmt htmltree fmt;
-    Format.pp_print_flush fmt ();
+  let out = IO.output_channel out in
+  let rec print htmltree =
+    match htmltree with
+      | CustomTag (opening,tree,closing) ->
+	  IO.nwrite out opening;
+	  List.iter (fun tree -> print tree) tree;
+	  IO.nwrite out closing;
+	  IO.write out '\n'
+      | SimpleTag tag ->
+	  IO.nwrite out tag
+      | PCData data ->
+	  IO.nwrite out data in
+    print htmltree
     
 type info_internal = 
     {
@@ -270,7 +253,7 @@ let rec get_relative_path frompackage topackage =
 	  (String.concat "/" l) ^ "/"
     | ([], _ :: _) ->
 	"./" ^ (String.concat "/" topackage) ^ "/"
-	  
+
 let get_relative_file fromclass toclass =
   let p1 = cn_package fromclass
   and p2 = cn_package toclass
@@ -393,7 +376,7 @@ let methodname2html cs ms info mname =
 	[gen_span [PCData mname] []]
     | Some _ ->
 	[gen_span [PCData mname]
-	   [("class",methodname_class ^ " " ^ clickable_class);
+	   [("class",methodname_class);
 	    ("onclick","showInfoList(this)")]]
 	  
 let list_concat l =
@@ -758,7 +741,7 @@ struct
 		 output_string out doctype;
 		 print_html_tree doc out;
 		 close_out out
-	  ) program.classes;
+	  ) program.classes
 end
   
 module JCodePrinter = Make(
