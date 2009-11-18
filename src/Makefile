@@ -78,10 +78,10 @@ classDomain.ml:$(CLASS_DOMAIN)
 	cp $< $@
 
 jPrintHtml.cmo:jPrintHtml.ml
-	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
-	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
 	$(RM) $@
