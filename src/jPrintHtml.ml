@@ -134,9 +134,9 @@ let gen_annots annots =
 	 gen_custom_tag "li" [] [PCData annot]
       ) annots in
     match annots with
-      | [] -> PCData ""
+      | [] -> []
       | _ ->
-	  gen_custom_tag "ul" [("class",annot_class)] ullist
+	  [gen_custom_tag "ul" [("class",annot_class)] ullist]
 	    
 let gen_hidden_list hlist =
   let ullist =
@@ -173,17 +173,23 @@ let gen_inst inst_params =
       
 let gen_code insts =
   let ollist =
-    List.fold_left
-      (fun l (pp,(insts,insts_annots)) ->
+    List.rev_map
+      (fun (pp,(insts,insts_annots)) ->
 	 let insts_html =
-	   (List.rev_map 
-	      (fun inst_params -> gen_inst inst_params) insts)
-	   @ [gen_div [(gen_annots insts_annots)] []] in
-	   (gen_custom_tag "li" [("value",string_of_int pp)] insts_html) :: l
-      ) [] insts in
+	   List.fold_right
+	     (fun inst_params l ->
+		(gen_inst inst_params) :: l
+	     ) insts (gen_annots insts_annots) in
+	   match insts_html with
+	     | [] ->
+		 (gen_custom_tag "li" [("value",string_of_int pp)]
+		    [PCData "<br/>"])
+	     | _ ->
+		 (gen_custom_tag "li" [("value",string_of_int pp)] insts_html)
+      ) insts in
     match ollist with
       | [] -> PCData ""
-      | _ :: tl -> gen_custom_tag "ol" [("class",code_class)] tl
+      | _ -> gen_custom_tag "ol" [("class",code_class)] ollist
 	  
 let add_anchor anchor_name anchor_info htmllist =
   if (anchor_name <> "") then
@@ -192,7 +198,7 @@ let add_anchor anchor_name anchor_info htmllist =
     htmllist
       
 let gen_method anchor_name method_signature callers method_annots insts =
-  let meth_sig = gen_div (method_signature @ [gen_annots method_annots]
+  let meth_sig = gen_div (method_signature @ (gen_annots method_annots)
 			  @ callers) [("class", method_signature_class)] in
   let meth_body = [meth_sig; gen_code insts] in
     gen_div (add_anchor anchor_name "" meth_body)
@@ -201,12 +207,12 @@ let gen_method anchor_name method_signature callers method_annots insts =
 let gen_field anchor_name field_signature annots =
   let field_sig = gen_span field_signature
     [("class", field_signature_class)] in
-  let field_body = [field_sig; gen_annots annots] in
+  let field_body = field_sig :: (gen_annots annots) in
     gen_div (add_anchor anchor_name "" field_body) [("class",field_class)]
       
 let gen_class anchor_name classname annots content =
   let class_name = gen_div classname [("class",classname_class)] in
-  let class_body = (class_name :: (gen_annots annots) :: content) in
+  let class_body = (class_name :: (gen_annots annots) @ content) in
     gen_div (add_anchor anchor_name "" class_body)
       [("class", class_class)]
       
@@ -498,7 +504,7 @@ module type PrintInterface =
 sig
   type instr
   type code
-  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit
   val method_param_names : code program -> class_name -> method_signature
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
@@ -619,10 +625,10 @@ struct
   let ioc2html program cs info =
     let ioc = get_node program cs in
     let fields =
-      List.fold_left
-	(fun l fs ->
+      FieldMap.fold
+	(fun fs _ l ->
 	   (field2html program cs fs (info.p_data.p_field cs fs)) :: l)
-	[] (FieldMap.key_elements (get_fields (get_node program cs))) in
+	(get_fields (get_node program cs)) [] in
     let methods =
       MethodMap.fold
 	(fun _ m methods ->
@@ -634,28 +640,17 @@ struct
 		   (match cm.cm_implementation with
 		      | Native -> []
 		      | Java code ->
-			  (* Sorry for the side effects... Maybe more
-			     functions than iter_code should be
-			     given (at least first_code_pp). *)
 			  let l = ref [] in
-			  let last_pp = ref (-42) in
-			  let last_insts = ref [] in
-			  let last_annots = ref [] in
 			    S.iter_code
-			      (fun pp inst ->
-				 let inst_html =
-				   S.inst_html program cs ms pp inst in
-				   if (pp = !last_pp) then
-				     last_insts := inst_html :: !last_insts
-				   else
-				     (l :=
-					(!last_pp, (!last_insts, !last_annots)) :: !l;
-				      last_insts := [inst_html];
-				      last_annots := (info.p_data.p_pp cs ms pp);
-				      last_pp := pp
-				     )
+			      (fun pp insts ->
+				 let insts_html =
+				   List.map
+				     (fun inst ->
+					S.inst_html program cs ms pp inst
+				     ) insts in
+				 let insts_annots = info.p_data.p_pp cs ms pp in
+				   l := (pp, (insts_html, insts_annots)) :: !l
 			      ) code;
-			    l := (!last_pp, (!last_insts, !last_annots)) :: !l;
 			    !l
 		   )
 	   in
@@ -737,6 +732,7 @@ struct
 	close_out outchan
     and stylefile = "style.css"
     and jsfile = "actions.js"
+    and doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n"
     in
       if (Sys.is_directory outputdir) then
 	(copy_file default_css css (Filename.concat outputdir stylefile);
@@ -753,16 +749,15 @@ struct
 	     and relative_js = (get_relative_path package []) ^ jsfile in
 	     let doc = gen_class_document program cs info
 	       relative_css relative_js in
-	     let doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n" in
 	       create_package_dir outputdir package;
 	       let out =
-	       	 open_out (Filename.concat outputdir
+		 open_out (Filename.concat outputdir
 	       		     (List.fold_left
 	       			Filename.concat "" (package @ [cname ^ ".html"])))
 	       in
-	       	 output_string out doctype;
-	       	 print_html_tree doc out;
-	       	 close_out out
+		 output_string out doctype;
+		 print_html_tree doc out;
+		 close_out out
 	  ) program.classes;
 end
   
@@ -777,7 +772,7 @@ module JCodePrinter = Make(
 	  (fun pp opcode ->
 	     match opcode with
 	       | OpInvalid -> ()
-	       | _ -> f pp opcode
+	       | _ -> f pp [opcode]
 	  ) code.c_code
 	  
     let method_param_names program cn ms =
@@ -870,7 +865,7 @@ module JBirPrinter = Make(
 	let code = Lazy.force lazy_code in
 	  List.iter
 	    (fun (pp,l) ->
-	       List.iter (fun inst -> f pp inst) l
+	       f pp l
 	    ) code.JBir.code
       with
 	  _ -> ()
@@ -1005,7 +1000,7 @@ module A3BirPrinter = Make(
 	let code = Lazy.force lazy_code in
 	  List.iter
 	    (fun (pp,l) ->
-	       List.iter (fun inst -> f pp inst) l
+	       f pp l
 	    ) code.A3Bir.a3_code
       with
 	  _ -> ()

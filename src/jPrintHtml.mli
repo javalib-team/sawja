@@ -172,9 +172,11 @@ sig
   type code
 
   (** Function to provide in order to iter on the code structure. The
-  function passed to [iter_code] expects as paramters a program point
-  (in the code representation) and the corresponding instruction. *)
-  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+      function passed to [iter_code] expects as paramters a program point
+      (in the code representation) and the corresponding list of
+      instructions. In {JCode.jcode} representation, this list only
+      contains one element. *)
+  val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit
 
   (** Function to provide in order to display the source variable
       names in the method signatures. *)

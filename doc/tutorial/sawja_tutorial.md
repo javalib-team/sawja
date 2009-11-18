@@ -334,7 +334,7 @@ module type PrintInterface =
 sig
   type instr
   type code
-  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit
   val method_param_names : code program -> class_name ->
      method_signature -> string list option
   val inst_html : code program -> class_name -> method_signature ->
@@ -358,7 +358,7 @@ function is really easy to write.
           (fun pp opcode ->
             match opcode with
               | OpInvalid -> ()
-              | _ -> f pp opcode
+              | _ -> f pp [opcode]
           ) code.c_code
 ~~~~~
 
