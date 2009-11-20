@@ -238,27 +238,26 @@ type info_internal =
       p_callers : class_name -> method_signature -> ClassMethSet.t option;
     }
       
-let rec get_relative_path frompackage topackage =
-  match (frompackage,topackage) with
-    | ([],[]) -> "./"
-    | (fc :: t1, tc :: t2)->
-	if (fc = tc) then get_relative_path t1 t2
-	else
-	  let s = ".." in
-	  let l = List.map (fun _ -> s) frompackage in
-	    (String.concat "/" l) ^ "/" ^ (String.concat "/" topackage) ^ "/"
-    | (_ :: _, []) ->
-	let s = ".." in
-	let l = List.map (fun _ -> s) frompackage in
-	  (String.concat "/" l) ^ "/"
-    | ([], _ :: _) ->
-	"./" ^ (String.concat "/" topackage) ^ "/"
+let get_relative_path frompath topath =
+  let nbsep = ref 0 in
+    String.iter (fun c -> if c = '/' then nbsep := !nbsep + 1) frompath;
+    let s = ref "" in
+      for i = 1 to !nbsep do
+	s := !s ^ "../"
+      done;
+      !s ^ topath
 
-let get_relative_file fromclass toclass =
-  let p1 = cn_package fromclass
-  and p2 = cn_package toclass
-  and c = cn_simple_name toclass  in
-    (get_relative_path p1 p2) ^ c ^ ".html"
+let get_relative_file ?(strict=false) fromclass toclass =
+  if (cn_equal fromclass toclass) then
+    if strict then (cn_simple_name toclass) ^ ".html"
+    else ""
+  else
+    let frompath = ExtString.String.map
+      (fun c -> if c = '.' then '/' else c) (cn_name fromclass) in
+    let topath = ExtString.String.map
+      (fun c -> if c = '.' then '/' else c) (cn_name toclass) in
+    let path = get_relative_path frompath topath in
+      path ^ ".html"
       
 let rec valuetype2html program t currentclass =
   match t with
@@ -267,7 +266,7 @@ let rec valuetype2html program t currentclass =
 	(match o with
 	   | TClass cs ->
 	       if (ClassMap.mem cs program.classes) then
-		 [gen_hyperlink (get_relative_file currentclass cs)
+		 [gen_hyperlink (get_relative_file ~strict:true currentclass cs)
 		    (cn_name cs)]
 	       else
 		 [PCData (cn_name cs)]
@@ -728,8 +727,10 @@ struct
 	     let cn = get_name ioc in
 	     let package = cn_package cn
 	     and cname = cn_simple_name cn in
-	     let relative_css = (get_relative_path package []) ^ stylefile
-	     and relative_js = (get_relative_path package []) ^ jsfile in
+	     let cpath = ExtString.String.map
+	       (fun c -> if c = '.' then '/' else c) (cn_name cn) in
+	     let relative_css = (get_relative_path cpath "") ^ stylefile
+	     and relative_js = (get_relative_path cpath "") ^ jsfile in
 	     let doc = gen_class_document program cs info
 	       relative_css relative_js in
 	       create_package_dir outputdir package;
