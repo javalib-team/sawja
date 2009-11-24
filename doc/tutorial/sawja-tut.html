@@ -251,10 +251,11 @@ which can be found at <a href=
 "http://www.sable.mcgill.ca/soot">http://www.sable.mcgill.ca/soot</a>.
 Once you have downloaded <em>Soot</em> and its dependencies, make
 sure that the <strong>$CLASSPATH</strong> environment variable
-contains the corresponding <strong>.jar</strong> files and the
-<em>Java Runtime</em> <strong>rt.jar</strong>. The following sample
-of code loads <em>Soot</em> program, given its main entry
-point:</p>
+contains the corresponding <strong>.jar</strong> files, the
+<em>Java Runtime</em> <strong>rt.jar</strong> and the <em>Java
+Cryptographic Extension</em> <strong>jce.jar</strong>. The
+following sample of code loads <em>Soot</em> program, given its
+main entry point:</p>
 <pre>
 <code>    open Javalib
     open JBasics
@@ -381,7 +382,7 @@ and show in details how it is implemented.</p>
 sig
   type instr
   type code
-  val iter_code : (int -&gt; instr -&gt; unit) -&gt; code Lazy.t -&gt; unit
+  val iter_code : (int -&gt; instr list -&gt; unit) -&gt; code Lazy.t -&gt; unit
   val method_param_names : code program -&gt; class_name -&gt;
      method_signature -&gt; string list option
   val inst_html : code program -&gt; class_name -&gt; method_signature -&gt;
@@ -405,7 +406,7 @@ function is really easy to write.</p>
           (fun pp opcode -&gt;
             match opcode with
               | OpInvalid -&gt; ()
-              | _ -&gt; f pp opcode
+              | _ -&gt; f pp [opcode]
           ) code.c_code
 </code>
 </pre>

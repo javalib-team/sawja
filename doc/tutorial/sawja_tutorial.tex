@@ -246,8 +246,9 @@ can be found at
 \href{http://www.sable.mcgill.ca/soot}{http://www.sable.mcgill.ca/soot}.
 Once you have downloaded \emph{Soot} and its dependencies, make
 sure that the \textbf{\$CLASSPATH} environment variable contains
-the corresponding \textbf{.jar} files and the \emph{Java Runtime}
-\textbf{rt.jar}. The following sample of code loads \emph{Soot}
+the corresponding \textbf{.jar} files, the \emph{Java Runtime}
+\textbf{rt.jar} and the \emph{Java Cryptographic Extension}
+\textbf{jce.jar}. The following sample of code loads \emph{Soot}
 program, given its main entry point:
 
 \begin{verbatim}
@@ -370,7 +371,7 @@ module type PrintInterface =
 sig
   type instr
   type code
-  val iter_code : (int -> instr -> unit) -> code Lazy.t -> unit
+  val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit
   val method_param_names : code program -> class_name ->
      method_signature -> string list option
   val inst_html : code program -> class_name -> method_signature ->
@@ -394,7 +395,7 @@ function is really easy to write.
           (fun pp opcode ->
             match opcode with
               | OpInvalid -> ()
-              | _ -> f pp opcode
+              | _ -> f pp [opcode]
           ) code.c_code
 \end{verbatim}
 You also need to provide a function that may associate names to
