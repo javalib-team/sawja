@@ -214,8 +214,9 @@ Framework* written in *Java*, which can be found at
 [http://www.sable.mcgill.ca/soot](http://www.sable.mcgill.ca/soot).
 Once you have downloaded *Soot* and its dependencies, make sure that
 the **$CLASSPATH** environment variable contains the corresponding
-**.jar** files and the *Java Runtime* **rt.jar**. The following sample
-of code loads *Soot* program, given its main entry point:
+**.jar** files, the *Java Runtime* **rt.jar** and the *Java
+Cryptographic Extension* **jce.jar**. The following sample of code
+loads *Soot* program, given its main entry point:
 
 ~~~~~
     open Javalib
