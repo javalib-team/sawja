@@ -65,7 +65,11 @@ end
 type pp = JCode.jcode PP.t
 
 val get_opcode : pp -> JCode.jopcode
+
+(** returns the next instruction if there is one.  If there is not, the
+    behavior is unspecified (specially if compiled with -unsafe...) *)
 val next_instruction : pp -> pp
+
 val normal_successors : pp -> pp list
 val handlers : JCode.jcode program -> pp -> JCode.exception_handler list
 val exceptional_successors : JCode.jcode program -> pp -> pp list
@@ -94,7 +98,7 @@ val resolve_method : method_signature -> 'a class_node -> 'a node
 val resolve_method' : method_signature -> 'a class_node -> 'a class_node
   (** only look for the method in the superclasses. *)
 
-(** [mplements_method c ms] returns [true] iff the class has a method with the
+(** [implements_method c ms] returns [true] iff the class has a method with the
     signature [ms] and which is not abstract. (Note: The method can be native.)
 *)
 val implements_method : 'a class_node -> method_signature -> bool
@@ -116,11 +120,11 @@ val resolve_interface_method : method_signature -> 'a interface_node -> 'a node
 val resolve_interface_method' :
   ?acc:'a interface_node list -> method_signature -> 'a node -> 'a interface_node list
 
-(** [resolve_all_interface_methods ms c] return the list of interfaces
-    of [c] that defines the method [ms].  The list is ordered by
-    increasing distant in the inheritance hierarchy.  The caller is
-    responsible to check that the interface and the method defined in
-    the interface are visible from the current class.
+(** [resolve_all_interface_methods ms c] return the list of interfaces of [c]
+    that defines the method [ms].  The list is ordered by increasing distance in
+    the inheritance hierarchy.  The caller is responsible to check that the
+    interface and the method defined in the interface are visible from the
+    current class.
 *)
 val resolve_all_interface_methods : method_signature -> 'a interface_node -> 'a interface_node list
 
