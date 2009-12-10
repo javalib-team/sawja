@@ -523,7 +523,8 @@ struct
 	native_methods_info = native_methods_info }
     in
       List.iter
-	(fun (cs,ms) ->
+	(fun cms ->
+           let cs,ms = cms_split cms in
 	   let c = get_class_info ~check_name:false p cs in
 	   let cs = get_name c.class_data in
 	   add_class_clinits p cs;
@@ -650,7 +651,7 @@ let default_entrypoints =
      make_ms "initializeSystemClass" [] None)
   in
     List.map
-      (fun (cn,ms) -> (make_cn cn, ms))
+      (fun (cn,ms) -> make_cms (make_cn cn) ms)
       (("java.lang.Object",clinit_signature)::
 	 ("java.lang.String",clinit_signature)::
 	 ("java.lang.System",clinit_signature)::

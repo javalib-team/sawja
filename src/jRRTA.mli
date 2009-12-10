@@ -51,18 +51,18 @@ open JProgram
     get more precise on the callgraph.
 *)
 
-(** [parse_program ~other_entrypoints classpath (cs,ms)] first returns a
+(** [parse_program ~other_entrypoints classpath cms] first returns a
     [program] composed of all the code found in [classpath] and that
     may be accessible from at least one method of
-    [(cs,ms)::entrypoints].  [classpath] is a list of directories and
+    [cms::entrypoints].  [classpath] is a list of directories and
     [.jar] files separated with ':'.  If [entrypoints] is not
     specified, the default methods are the methods invoked natively by
     the JVM during its initialization. (cf {!default_entrypoints}).
     The second return parameter is the set of instantiated classes
     calculated by RTA algorithm. *)
 val parse_program :
-  ?other_entrypoints:(class_name * method_signature) list ->
-  string -> class_name * method_signature ->
+  ?other_entrypoints:class_method_signature list ->
+  string -> class_method_signature ->
   JCode.jcode program * JCode.jcode class_node ClassMap.t
 
 (** Sun's JVM calls some methods natively during the JVM
@@ -70,4 +70,4 @@ val parse_program :
     complete but without guarantee). Some of the method listed may not
     exists (as <clinit> method are optionals) but there should be
     executed in this order. *)
-val default_entrypoints : (class_name * method_signature) list
+val default_entrypoints : class_method_signature list

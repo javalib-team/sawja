@@ -36,9 +36,9 @@ open JProgram
     parameter is the set of instantiated classes calculated by RTA
     algorithm. *)
 val parse_program :
-  ?other_entrypoints:(class_name * method_signature) list ->
+  ?other_entrypoints:class_method_signature list ->
   ?native_stubs:string option ->
-  string -> class_name * method_signature ->
+  string -> class_method_signature ->
   JCode.jcode program * JCode.jcode class_node ClassMap.t
 
 (** Sun's JVM calls some methods natively during the JVM
@@ -46,11 +46,11 @@ val parse_program :
     complete but without guarantee). Some of the method listed may not
     exists (as <clinit> method are optionals) but there should be
     executed in this order. *)
-val default_entrypoints : (class_name * method_signature) list
+val default_entrypoints : class_method_signature list
 
 
 (**/**)
 
 val parse_program_bench :
-  ?other_entrypoints:(class_name * method_signature) list ->
-  string -> class_name * method_signature -> unit
+  ?other_entrypoints:class_method_signature list ->
+  string -> class_method_signature -> unit

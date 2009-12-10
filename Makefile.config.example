@@ -47,7 +47,7 @@ else
 ifeq ($(DEBUG),prof)
 OPT_FLAGS = -p -noassert -ccopt -O3
 else
-OPT_FLAGS = -noassert -ccopt -O3
+OPT_FLAGS = -g -noassert -ccopt -O3
 endif
 endif
 

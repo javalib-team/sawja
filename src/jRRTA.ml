@@ -435,7 +435,8 @@ let static_lookup_method pvta =
 		   | _ -> raise Not_found
 		)
 
-let parse_program_from_rta prta instantiated_classes csms =
+(* TODO: an entry point can be in an interface if the method is a clinit method *)
+let parse_program_from_rta prta instantiated_classes cmsl =
   let pvta = { p = prta;
 	       rta_instantiated_classes = instantiated_classes;
 	       methods = ClassMethodMap.empty;
@@ -443,20 +444,35 @@ let parse_program_from_rta prta instantiated_classes csms =
 	       pvta_parsed_methods = ClassMethodMap.empty;
 	       rta_instantiated_subclasses = ClassMap.empty;
 	       rta_implemented_interfaces = ClassMap.empty
-	     } in
-  let (cs,ms) = csms in
-  let ioc = get_node prta cs in
-    (match ioc with
-       | Interface _ -> failwith "An entry point can't be an interface method."
-       | Class c ->
-	   let m = get_method ioc ms in
-	     (match m with
-		| AbstractMethod _ -> failwith "An entry point can't be an abstract method."
-		| ConcreteMethod cm ->
-		    let mvta = get_vta_method pvta cm in
-		      Wlist.add (Class c,mvta) pvta.workset
-	     )
-    );
+	     }
+  in
+    List.iter
+      (fun cms ->
+         let (cs,ms) = cms_split cms in
+         let ioc = get_node prta cs in
+           (match ioc with
+              | Interface _ -> failwith "An entry point can't be an interface method."
+              | Class c ->
+                  try
+	            let m =
+                      get_method ioc ms
+                    in
+	              (match m with
+		         | AbstractMethod _ ->
+                             failwith "An entry point can't be an abstract method."
+		         | ConcreteMethod cm ->
+		             let mvta = get_vta_method pvta cm in
+		               Wlist.add (Class c,mvta) pvta.workset
+	              )
+                  with Not_found ->
+                    if ms_compare ms clinit_signature <> 0
+                    then
+                      failwith ("The method entry point "
+                                ^ JPrint.method_signature ms
+                                ^ " cannot be found in "
+                                ^ JPrint.class_name cs)
+           ))
+      cmsl;
     iter_workset pvta;
     { prta with parsed_methods = pvta.pvta_parsed_methods;
 	static_lookup_method = static_lookup_method pvta
@@ -464,8 +480,9 @@ let parse_program_from_rta prta instantiated_classes csms =
 
 let default_entrypoints = JRTA.default_entrypoints
 
-let parse_program ?(other_entrypoints=default_entrypoints) classpath csms =
+let parse_program ?(other_entrypoints=default_entrypoints) classpath cms =
   let (prta, instantiated_classes) =
-    JRTA.parse_program ~other_entrypoints:other_entrypoints classpath csms in
-  let pvta = parse_program_from_rta prta instantiated_classes csms in
+    JRTA.parse_program ~other_entrypoints:other_entrypoints classpath cms in
+  let pvta =
+    parse_program_from_rta prta instantiated_classes (cms::other_entrypoints) in
     (pvta, instantiated_classes)

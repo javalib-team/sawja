@@ -216,7 +216,7 @@ module Make = functor (Context:CONTEXT) -> struct
 
   let equal (v1:t) (v2:t) : bool =
     if v1==v2 then true
-    else match v2,v2 with
+    else match v1,v2 with
       | `PP _ as v1, (`PP _ as v2) ->
 	  equal_pp v1 v2
       | `Method _ as v1, (`Method _ as v2) ->

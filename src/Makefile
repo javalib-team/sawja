@@ -30,10 +30,10 @@ else
 CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
-MODULES = safe wlist jProgram jControlFlow classDomain XTA jNativeStubs jCRA	\
-	jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml
+MODULES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA	\
+	jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml
 
-MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain XTA	\
+MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain XTA		\
 	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli

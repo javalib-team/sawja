@@ -30,7 +30,7 @@ open JBasics
 val parse_program :
   ?other_classes:class_name list -> string -> class_name list -> JCode.jcode JProgram.program
 
-(** classes always loaded (natively) by the JVM. *)
+(** classes always loaded (natively) by Sun's JVM HotSpot. *)
 val default_classes : class_name list
 
 (**/**)

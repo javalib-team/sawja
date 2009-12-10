@@ -23,15 +23,16 @@ end = struct
   type cst_to_apply = {
     id:int; (* identifier for the constraint *)
     target: int;
+    dep: int list;
     cst:Constraints.cst; (* the constraint *)
   }
 
   exception Found of (cst_to_apply)
 
-  let print_times () =()
-    (* let times = Unix.times () *)
-    (* in Printf.eprintf "utime: %f\nstime: %f\n%!" *)
-    (*      times.Unix.tms_utime times.Unix.tms_stime *)
+  let print_times () =
+    let times = Unix.times ()
+    in Printf.eprintf "utime: %f\nstime: %f\n%!"
+         times.Unix.tms_utime times.Unix.tms_stime
 
   let debug_level = ref 0
   let print_debug level string =
@@ -89,12 +90,29 @@ end = struct
          on it *)
       let var_csts2 = DynArray.create () in
       let var_indices = HashVar.create nb_constraints in
+      let var_current = ref 0 in
+      let dico = ref Ptmap.empty in
       let get_var var =
         (* get the index of the node/var/target [var] *)
-        try HashVar.find var_indices var
+        try 
+          let vari = HashVar.find var_indices var in
+            assert (0 = Var.compare var (Ptmap.find vari !dico));
+            (* if 0 <> Var.compare var var' *)
+            (* then *)
+            (*   Format.fprintf Format.std_formatter *)
+            (*     "%i associated with %a in var_indices and %a in dico" *)
+            (*     vari Var.pprint var Var.pprint var'; *)
+            vari
         with Not_found ->
-          let new_var = HashVar.length var_indices in
+          let new_var = !var_current in
+            incr var_current;
             HashVar.add var_indices var new_var;
+            (* Format.fprintf Format.std_formatter "associates %i with %a@." *)
+            (*   new_var Var.pprint var; *)
+            assert (not (Ptmap.mem new_var !dico));
+            (* using assert on the next line so to remove this code when
+               compiling with -noassert *)
+            assert (dico := Ptmap.add new_var var !dico; true);
             let length = DynArray.length var_csts2 in
               if new_var >= length
               then
@@ -106,20 +124,23 @@ end = struct
       let current_cst = ref 0 in
         List.iter
           (fun cst ->
-             let target = get_var (Constraints.get_target cst) in
-             let dep = Constraints.get_dependencies cst in
+             let target' = get_var (Constraints.get_target cst) in
+             let dep = List.map get_var (Constraints.get_dependencies cst) in
              let id_cst = !current_cst in
+               assert (target' = HashVar.find var_indices (Constraints.get_target cst));
                incr current_cst;
-               let cst = {id = id_cst; target = target; cst = cst} in
+               let cst = {id = id_cst; target = target'; dep= dep; cst = cst} in
 	         if dep = [] then
                    add_to_work_stack [cst]
                  else
                    List.iter
-                     (fun v ->
-                        let v = get_var v in
-                          DynArray.set var_csts2 v (cst::DynArray.get var_csts2 v)
-                     )
-                     dep
+                     (fun vari ->
+                        DynArray.set var_csts2 vari
+                          (cst::DynArray.get var_csts2 vari))
+                     dep;
+                 assert
+                   (cst.target =
+                       HashVar.find var_indices (Constraints.get_target cst.cst))
           )
           constraints;
         List.iter
@@ -127,6 +148,38 @@ end = struct
              let v = get_var v in
                add_to_work_stack (DynArray.get var_csts2 v))
 	  var_init;
+
+        if !debug_level > 1 then
+          begin
+            Format.pp_print_string Format.std_formatter "dictionnary :";
+            Format.pp_print_newline Format.std_formatter ();
+            HashVar.iter
+              (fun var index ->
+                 Format.pp_print_string Format.std_formatter (string_of_int index ^" <-| ");
+                 Var.pprint Format.std_formatter var;
+                 Format.pp_print_newline Format.std_formatter ())
+              var_indices;
+            let print_cst cst =
+              print_string ("{id:"^string_of_int cst.id
+                            ^ ", target:"^string_of_int cst.target
+                            ^ ", dep:"^String.concat "," (List.map string_of_int cst.dep)
+                            ^ ", cst:");
+              flush stdout;
+              Constraints.pprint Format.std_formatter cst.cst;
+              Format.pp_print_string  Format.std_formatter "}";
+              Format.pp_print_newline Format.std_formatter ()
+            in
+              DynArray.iteri
+                (fun i cstl ->
+                   print_int i;
+                   print_string " |-> ";
+                   List.iter
+                     (fun cst -> print_cst cst; print_string "; ")
+                     cstl;
+                   print_newline ();
+                )
+                var_csts2;
+          end;
         DynArray.to_array var_csts2
     in
       print_debug 3 "start iterating";
@@ -135,19 +188,54 @@ end = struct
       print_debug 3 (string_of_int (List.length !work_list)
                      ^ " constraints in the work list at the beginning");
       try
+
 	while true do
           let cst = get_from_work_stack () in
           let modifies = ref false in
             (* let start = (Unix.times ()).Unix.tms_utime in *)
+            (* if !debug_level > 1 then *)
+            (*   Constraints.pprint Format.std_formatter cst.cst; *)
             Constraints.apply_cst ~modifies !abState cst.cst;
+            (let print_cst cst =
+               print_string ("{id:"^string_of_int cst.id
+                             ^ ", target:"^string_of_int cst.target
+                             ^ ", dep:"^String.concat "," (List.map string_of_int cst.dep)
+                             ^ ", cst:");
+               flush stdout;
+               Constraints.pprint Format.std_formatter cst.cst;
+               Format.pp_print_string  Format.std_formatter "}";
+               Format.pp_print_newline Format.std_formatter ()
+             in
+               print_string "applying : ";
+               print_cst cst;
+               if !modifies then
+                 Format.fprintf Format.std_formatter
+                   "state modified. New State:@. %a@."
+                   State.pprint !abState);
             if !modifies then
               ((* time_to_modify := *)
                 (*   !time_to_modify +. ((Unix.times ()).Unix.tms_utime -. start); *)
+                (* if !debug_level > 1 then *)
+                (*   (Format.pp_print_string Format.std_formatter " modified"; *)
+                (*    Format.pp_print_newline Format.std_formatter ()); *)
                 incr did_modified;
-	        add_to_work_stack (var_csts.(cst.target)))
+                (* if !debug_level > 1 then *)
+                (*   print_endline ("target:"^string_of_int cst.target); *)
+                let csts_to_apply = var_csts.(cst.target)
+                in
+                  assert(
+                    List.for_all
+                      (fun cst' ->
+                         List.exists
+                           (fun dep -> 0 = Var.compare dep (Constraints.get_target cst.cst))
+                           (Constraints.get_dependencies cst'.cst))
+                      csts_to_apply);
+	          add_to_work_stack csts_to_apply)
 	    else
               ((* time_to_idle := *)
                 (*   !time_to_idle +. ((Unix.times ()).Unix.tms_utime -. start); *)
+                (* if !debug_level > 1 then *)
+                (*   Format.pp_print_string Format.std_formatter " did not modify\n"; *)
                 incr didnt_modified;)
 	done;
 	assert false;

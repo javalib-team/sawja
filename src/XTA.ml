@@ -125,6 +125,7 @@ let get_XTA_program
   (*   let out = Format.formatter_of_out_channel outchannel in *)
   (*     Format.pp_set_margin out max_int; *)
   (*     (out,outchannel) *)
+  (* in *)
 
   let nb_bits =
     int_of_float (ceil (log
@@ -153,8 +154,6 @@ let get_XTA_program
         As an optimization, [refine_with_type program type_list] may return
         [None] to encode a function that would otherwise always returns
         [XTADom.bot] *)
-    (* TODO : also return a boolean so no constraint is built when
-       refine_with_type always return Bot *)
     let refine_with_type program (typs:value_type list) : (XTADom.t -> XTADom.t) option =
       let object_found = ref false in
       let return_None = ref true in
@@ -198,6 +197,8 @@ let get_XTA_program
     let cn = get_name node
     and ms = m.cm_signature
     and successors = JControlFlow.get_successors program node m in
+      (* TODO : remove (node,m) from the successors as simple recursions
+         (constraints from m to m) are useless *)
     let (instance_fields_read,instance_fields_written,
          static_fields_read,static_fields_written,
          classes_instantiated) = get_relevant_operations program m
@@ -382,7 +383,7 @@ let get_XTA_program
         (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),@ refineType([%s],S).@]@]@." *)
         (*   XTAVar.pprint caller_var *)
         (*   XTAVar.pprint callee_var *)
-        (*   (JPrint.value_type rtype); *)
+        (*   (match ms_rtype ms with None -> "V" | Some rtype -> JPrint.value_type rtype); *)
         (* <prolog *)
         {XTAConstraints.dependencies = [caller_var;callee_var];
          XTAConstraints.target = caller_var;
@@ -589,13 +590,17 @@ let get_XTA_program
 		    )
   in
 
-  let get_XTA_program xtastate program = {
-    program with
-      static_lookup_method =
-      static_lookup
-	program.static_lookup_method
-	xtastate
-	program.classes}
+  let get_XTA_program xtastate program =
+    let program = {
+      program with
+        static_lookup_method =
+        static_lookup
+	  program.static_lookup_method
+	  xtastate
+	  program.classes}
+    in {program with
+          parsed_methods =
+          ReachableMethods.compute_reachable_methods program entry_points }
   in
 
   let entry_points =
@@ -606,6 +611,8 @@ let get_XTA_program
   let csts = get_csts field_analysis program
   and state = initial_state program entry_points in
   let state =
+    (* XTASolver.debug_level := 4; *)
     XTASolver.solve_constraints program csts state (entry_points:>XTAVar.t list)
-  in get_XTA_program state program
+  in
+    get_XTA_program state program
 
