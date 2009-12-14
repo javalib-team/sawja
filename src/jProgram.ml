@@ -288,6 +288,9 @@ let get_method_calls p cs cm =
 type callgraph = ((class_name * method_signature * int)
 		  * (class_name * method_signature)) list
 
+
+(*TODO : add edge from methods that trigger a <clinit> to corresponding <clinit> methods
+  (for the moment <clinit> methods have no caller method in the callgraph)*)
 let get_callgraph p =
   let methodcalls2callsite cs ms calls =
     let l = ref [] in
