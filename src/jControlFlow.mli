@@ -72,6 +72,14 @@ val next_instruction : pp -> pp
 
 val normal_successors : pp -> pp list
 val handlers : JCode.jcode program -> pp -> JCode.exception_handler list
+
+(** [exceptional_successors p pp] return the list of program points that may be
+    executed after [pp] if an exception (or error) occurs during the execution
+    of [pp].  Note that its uses the [throws] annotation of the method, which is
+    checked by the compiler but not by the bytecode verifier: for security
+    analyses, the [throws] annotation should be checked by the analyses. *)
+(* TODO: implement a checker which checks if that the method declares all the
+   exception it may throw (except subtypes of Error and RuntimeException). *)
 val exceptional_successors : JCode.jcode program -> pp -> pp list
 
 
