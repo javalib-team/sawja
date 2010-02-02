@@ -9,7 +9,7 @@ module Make (Constraints:Constraints.S) :sig
       applying the constraints that depends on nothing or on initial
       variables [init]. *)
   val solve_constraints :
-    'a JProgram.program ->
+    'a ->
     Constraints.cst list ->
     Constraints.State.t ->
     Constraints.State.Var.t list -> Constraints.State.t
@@ -252,7 +252,7 @@ end = struct
   (* TODO : compute the predecessors of each pp and if a pp contains
      only one predecessors then do not join the values *)
   let solve_constraints
-      (_prog:'a JProgram.program)
+      (not_used_anymore:'a)
       (constraints:Constraints.cst list)
       (abState:State.t)
       (var_init:Var.t list) : State.t =

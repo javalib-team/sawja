@@ -224,7 +224,7 @@ module Solver : sig
   module Make : functor (Constraints : Constraints.S) -> sig
     val debug_level : int ref
     val solve_constraints :
-      'a JProgram.program ->
+      'a ->
       Constraints.cst list ->
       Constraints.State.t ->
       Constraints.State.Var.t list -> Constraints.State.t
