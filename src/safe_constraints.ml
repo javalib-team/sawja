@@ -32,6 +32,12 @@ module Make (State:State.S) = struct
   let get_dependencies cst = cst.dependencies
   let get_target cst = cst.target
 
+  (** [apply_cst ?modifies abst cst] apply the Constraint [cst] on the
+  current State.t [abst]. A Domain.S.join is done between the current
+  value of the Domain in [abst] for the [cst].target Var and the new
+  Domain value given by [cst].transferFun.  [modifies] value must be
+  at true if the application of constraint modified the State [abst]
+  for the current Domain*)
   let apply_cst : ?modifies:bool ref -> State.t -> cst -> unit =
     fun ?(modifies=ref false) abst cst ->
       let target = get_target cst in
