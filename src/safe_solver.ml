@@ -252,7 +252,7 @@ end = struct
   (* TODO : compute the predecessors of each pp and if a pp contains
      only one predecessors then do not join the values *)
   let solve_constraints
-      (not_used_anymore:'a)
+      (_:'a)                            (* not used anymore *)
       (constraints:Constraints.cst list)
       (abState:State.t)
       (var_init:Var.t list) : State.t =

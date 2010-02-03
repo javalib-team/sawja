@@ -356,7 +356,7 @@ struct
 	end
 
 
-  (* a modify function in hashtbl would improve performances *)
+  (* TODO: a modify function in hashtbl would improve performances *)
   let join_ad ?(modifies=ref false) (abs:abData) (data:analysisDomain) : abData =
     match abs, data with
       | `Global abs, `GlobalDomain v ->
@@ -373,7 +373,7 @@ struct
 	  failwith ("type error: failure when trying to join incompatible"
 		    ^" data type (the var type does not match the data type)")
 
-  (* a modify function in hashtbl would improve performances *)
+  (* TODO: a modify function in hashtbl would improve performances *)
   let join_ad' ?(modifies=ref false) t (var:Var.t) (data:analysisDomain) : abData =
     match var, data with
       | `Global _ as var, `GlobalDomain v ->
@@ -405,7 +405,7 @@ struct
 	  failwith ("type error: failure when trying to join incompatible"
 		    ^" data type (the var type does not match the data type)")
 
-  (* a modify function in hashtbl would improve performances *)
+  (* TODO: a modify function in hashtbl would improve performances *)
   let join ?(modifies=ref false) t var data =
     match var, join_ad' ~modifies t var data with
       | `Global _ as var, (`Global new_v) ->
