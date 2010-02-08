@@ -49,7 +49,7 @@ type comp =  DG | DL | FG | FL | L
 type typ = Ref | Num
 
 type var =
-  | OriginalVar of int * string option  (* register number, name (debug if available) *)
+  | OriginalVar of int * string option (* register number, name (debug if available) *)
   | TempVar of int
   | CatchVar of int
   | BranchVar of int * int
@@ -122,7 +122,10 @@ let print_typ t =
   in vt2ss t
 
 (* Tests if two variable expressions denote the same variable *)
-(* todo : compare reg number then strings, true is conservative *)
+(* compares reg number then strings *)
+(* Todo : if only one of both has a debug name, don't mind of debug info *)
+(* maybe more convenient to be able to choose debug info all along
+   -> provide a use_debug parm ? *)
 let var_equal tvar svar =
     match tvar, svar with
       | OriginalVar (n,s1), OriginalVar (m,s2) ->  m = n && s1 = s2

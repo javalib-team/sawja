@@ -267,7 +267,6 @@ let rec popn n s =
   if n=0 then s
   else pop (popn (n-1) s)
 
-(* Pops 2, 3 elements off the stack *)
 let pop2 s = popn 2 s
 let pop3 s = popn 3 s
 
@@ -284,6 +283,7 @@ let param n l = param_acc n l []
 
 exception Uninit_is_not_expr
 
+(* Extracts, when possible, the expression from a stack element *)
 let topE = function
   | [] -> raise Bad_stack
   | (Uninit _)::_ -> raise Uninit_is_not_expr
@@ -299,13 +299,13 @@ let param n l = List.map getE (param n l)
 exception Subroutine
 
 let convert_type = function
-  | `Int | `Short| `Char
-  | `Byte  | `Int2Bool  | `ByteBool
-  | `Bool   | `Float   | `Object -> Op32
-  | `Long  | `Double -> Op64
+  | `Int  | `Short   | `Char
+  | `Byte | `Int2Bool| `ByteBool
+  | `Bool | `Float   | `Object -> Op32
+  | `Long | `Double -> Op64
 
 let convert_const = function
-  | `String _   | `Class _   | `ANull
+  | `String _  | `Class _   | `ANull
   | `Byte _  | `Short _  | `Float _
   | `Int _ -> Op32
   | `Long _   | `Double _ -> Op64
@@ -409,7 +409,6 @@ let type_next = function
 	(match ms_rtype ms with
 	   | None -> s
 	   | Some t -> (convert_field_type t)::s))
-
   | OpNew _ -> (function s -> Op32::s)
   | OpNewArray _ -> (function s -> Op32::(pop s))
   | OpArrayLength -> (function s -> Op32::(pop s))
@@ -423,6 +422,7 @@ let type_next = function
   | OpInvalid -> failwith "invalid"
 
 exception End_of_method
+
 let next c i =
   try
     let k = ref (i+1) in
@@ -461,7 +461,7 @@ let mapi f g =
       [] -> []
     | x::q -> (f i x)::(aux (g i x) q)
   in  aux 0
-
+	
 module BCV = struct
 
 type typ =
@@ -525,9 +525,9 @@ let to_value_type = function
   | Array v -> TObject (TArray v)
 
 
-exception GetNotFound
+exception GetNotFound (* this exn is never raised *)
 let get l n =
-  try Ptmap.find n l
+  try Ptmap.find n l 
   with Not_found -> assert false
 
 let get l n =
@@ -568,7 +568,7 @@ let is32_basic = function
   | `Byte
   | `Bool
   | `Float -> true
-  | `Long -> false
+  | `Long 
   | `Double -> false
 
 let rec leq_value_type v1 v2 =
@@ -868,12 +868,9 @@ let run_dummy code =
 		 | `Int2Bool -> TBasic `Int
 		 | `Object -> TObject (TClass java_lang_object)))
 	 
-
 let run bcv ?(verbose=false) cm code =
   if bcv then run verbose cm code
-  else run_dummy code
-
-
+  else (run_dummy code)
 end
 
 let basic_to_num = function
@@ -930,7 +927,6 @@ let rec type_of_expr = function
 	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
 	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
 	 | CMP _ -> `Int)
-
 
 (**************** GENERATION *************)
 
@@ -1119,7 +1115,6 @@ let clean ssa fresh_counter test s instrs =
     let (s,instrs,_) = aux (fresh_in_stack ssa fresh_counter s) s in
       (s,instrs)
 
-
 let to_addr3_binop mode binop ssa fresh_counter s =
   match mode with
     | Addr3 -> 	let x = TempVar (fresh_in_stack ssa fresh_counter s)
@@ -1169,11 +1164,8 @@ and type_of_array_content t e =
 	   | `Object -> TObject (TClass java_lang_object))
 
 (* Maps each opcode to a function of a stack that modifies its
- * according to opcode, and returns grimp corresponding instructions if any
- * tos : type operand stack
- * i : current index of bytecode
- * next : progression along instruction bytecode index
- * mode : normal , flat , 3add
+ * according to opcode, and returns corresponding instructions if any
+ * TODO : comment arguments...
  *)
 let bc2bir_instr mode pp_var ssa fresh_counter i load_type arrayload_type tos s next_store = function
   | OpNop -> s, []
@@ -1732,8 +1724,7 @@ let flatten_code code =
       map,
       List.map
 	(fun e -> 
-	   {
-	     e_start = find e.e_start;
+	   { e_start = find e.e_start;
 	     e_end = find e.e_end; (* It may be outside the range ?  *)
 	     e_handler = find e.e_handler;
 	     e_catch_type = e.e_catch_type;

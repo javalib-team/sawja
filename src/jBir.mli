@@ -48,7 +48,7 @@ val var_equal : var -> var -> bool
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
 
-(** [var_name_debug v] returns, if possible the original variable names of [v], 
+(** [var_name_debug v] returns, if possible, the original variable name of [v], 
     if the initial class was compiled using debug information. *)
 val var_name_debug : var -> string option
 
@@ -58,7 +58,7 @@ val var_name_debug : var -> string option
     [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
 val var_name_g : var -> string
 
-(** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
+(** [bcvar i] returns the canonic variable name associated with the [i]th local var. *)
 val bcvar : int -> var
 
 (** Conversion operators *)
@@ -80,14 +80,9 @@ type unop =
 type comp = DG | DL | FG | FL | L
 
 
-(** Binary operators *)
+(** Binary operators. *)
 type binop =
     ArrayLoad of JBasics.value_type
-      (** [Binop (ArrayLoad vt, e1, e2)] loads an index, represented
-	  by expression [e2], from an array reference, represented by
-	  expression [e1]. 
-	  The value type [vt] represents the type of the
-	  loaded value. *)
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
@@ -106,6 +101,7 @@ type expr =
       (** variables are given a type information *)
   | Unop of unop * expr
   | Binop of binop * expr * expr
+      (** [Binop (ArrayLoad vt, e1, e2)] denotes [e1\[e2\]], whose type is  [vt] *)
   | Field of expr * JBasics.class_name * JBasics.field_signature
       (** Reading fields of arbitrary expressions *)
   | StaticField of JBasics.class_name * JBasics.field_signature
