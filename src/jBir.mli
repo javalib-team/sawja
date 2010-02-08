@@ -83,7 +83,11 @@ type comp = DG | DL | FG | FL | L
 (** Binary operators *)
 type binop =
     ArrayLoad of JBasics.value_type
-      (* TODO: what is the meaning of (Binop (ArrayLoad, e1,e2))? *)
+      (** [Binop (ArrayLoad vt, e1, e2)] loads an index, represented
+	  by expression [e2], from an array reference, represented by
+	  expression [e1]. 
+	  The value type [vt] represents the type of the
+	  loaded value. *)
   | Add of JBasics.jvm_basic_type
   | Sub of JBasics.jvm_basic_type
   | Mult of JBasics.jvm_basic_type
