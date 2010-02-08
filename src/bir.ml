@@ -1708,26 +1708,29 @@ let flatten_code code =
   let rec aux i map = function
       [] -> [], [], map
     | (pc,instrs)::q ->
-	  let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
-	    instrs@instrs',(List.map (fun _ -> pc) instrs)@pc_list,Ptmap.add pc i map
+	let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
+	  instrs@instrs',(List.map (fun _ -> pc) instrs)@pc_list,Ptmap.add pc i map
   in 
   let (instrs,pc_list,map) = aux 0 Ptmap.empty code.code in
   let rec find i = 
     try Ptmap.find i map
-    with Not_found -> assert (i=1+(last code.code)); List.length instrs in
+    with Not_found -> assert (i=1+(last code.code)); List.length instrs
+  in
+  let instrs =
     Array.of_list
       (List.map (function 
 		   | Goto pc -> Goto (Ptmap.find pc map)
 		   | Ifd (g, pc) -> Ifd (g, Ptmap.find pc map)
-		   | ins -> ins) instrs),
-      Array.of_list pc_list,
-      map,
-      List.map
-	(fun e -> 
-	   { e_start = find e.e_start;
-	     e_end = find e.e_end; (* It may be outside the range ?  *)
-	     e_handler = find e.e_handler;
-	     e_catch_type = e.e_catch_type;
-	     e_catch_var = e.e_catch_var
-	   }) code.exc_tbl
-	
+		   | ins -> ins) instrs)
+  and exc_tbl =
+    List.map
+      (fun e -> 
+         { e_start = find e.e_start;
+	   e_end = find e.e_end; (* It may be outside the range ?  *)
+	   e_handler = find e.e_handler;
+	   e_catch_type = e.e_catch_type;
+	   e_catch_var = e.e_catch_var
+         }) code.exc_tbl
+  in
+    (instrs, Array.of_list pc_list, map, exc_tbl)
+)

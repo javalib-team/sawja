@@ -204,12 +204,22 @@ type exception_handler = {
 
 (** [t] is the parameter type for JBir methods. *)
 type t = {
-  params : (JBasics.value_type * var) list; (** [params] contains the method parameters (including the receiver this for virtual methods). *)
-  code : (int * instr list) list; (** Each element of [code] is a pair [(pc,instrs)] where 
-				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
-  exc_tbl : exception_handler list; (** [exc_tbl] is the exception table of the method code. *)
-  line_number_table : (int * int) list option; (** [line_number_table] contains debug information. It is a list of pairs [(i,j)] meaning the code line [i] corresponds to the line [j] at the java source level. *) 
-  jump_target : bool array (** [jump_target] indicates whether program points are join points or not. *) 
+  params : (JBasics.value_type * var) list;
+  (** [params] contains the method parameters (including the receiver this for
+      virtual methods). *)
+  code : (int * instr list) list;
+  (** Each element of [code] is a pair [(pc,instrs)] where each [pc] indexes an
+      [instr] list corresponding to the instructions generated from the bytecode
+      at [pc]. *)
+  exc_tbl : exception_handler list;
+  (** [exc_tbl] is the exception table of the method code. *)
+  line_number_table : (int * int) list option;
+  (** [line_number_table] contains debug information. It is a list of pairs
+      [(i,j)] meaning the code line [i] corresponds to the line [j] at the java
+      source level. *)
+  jump_target : bool array;
+  (** [jump_target] indicates whether program points are join points or
+      not. *)
 }
 
 

@@ -57,6 +57,50 @@ module Domain : sig
 
   module Empty : S
     
+  (** Builds a domain for local variables given the domain of the variables.  *)
+  module Local : functor (Var:S) -> sig
+    type t
+    type analysisID = Var.analysisID
+    type analysisDomain = t
+    val bot : t
+    val isBot : analysisDomain -> bool
+    val join : ?modifies:bool ref -> t -> t -> t
+    val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+    val equal : t -> t -> bool
+    val get_analysis : analysisID -> t -> analysisDomain
+    val pprint : Format.formatter -> t -> unit
+    val get_var : int -> analysisDomain -> Var.t
+    val set_var : int -> Var.t -> analysisDomain -> analysisDomain
+  end
+
+  module Stack : functor (Var:S) -> sig
+    type t
+    type analysisID = Var.analysisID
+    type analysisDomain = t
+    val bot : t
+    val isBot : analysisDomain -> bool
+    val join : ?modifies:bool ref -> t -> t -> t
+    val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+    val equal : t -> t -> bool
+    val get_analysis : analysisID -> t -> analysisDomain
+    val pprint : Format.formatter -> t -> unit
+    val init : t
+      (** initial (empty) stack *)
+    val push : Var.t -> t -> t
+    val pop_n : int -> t -> t
+    val pop : t -> t
+    val first : t -> Var.t
+      (** raise [Invalid_argument] if the stack is empty. raise Failure if the
+          stack is Top. *)
+    val dup : t -> t
+    val dupX1 : t -> t
+    val dupX2 : t -> t
+    val dup2 : t -> t
+    val dup2X1 : t -> t
+    val dup2X2 : t -> t
+    val swap : t -> t
+  end
+
   module Combine : functor (Left : S) -> functor (Right : S) -> sig
     include S
     module Trad_Left : functor (Trad : TRADUCTOR_ANALYSIS

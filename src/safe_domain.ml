@@ -42,9 +42,35 @@ module type S = sig
 end
 
 
-module Stack(Var:S) = struct
+module Stack(Var:S) : sig
+  type t
+  type analysisID = Var.analysisID
+  type analysisDomain = t
+  val bot : t
+  val isBot : analysisDomain -> bool
+  val join : ?modifies:bool ref -> t -> t -> t
+  val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+  val equal : t -> t -> bool
+  val get_analysis : analysisID -> t -> analysisDomain
+  val pprint : Format.formatter -> t -> unit
+  val init : t
+    (** initial (empty) stack *)
+  val push : Var.t -> t -> t
+  val pop_n : int -> t -> t
+  val pop : t -> t
+  val first : t -> Var.t
+    (** raise [Invalid_argument] if the stack is empty. raise Failure if the
+        stack is Top. *)
+  val dup : t -> t
+  val dupX1 : t -> t
+  val dupX2 : t -> t
+  val dup2 : t -> t
+  val dup2X1 : t -> t
+  val dup2X2 : t -> t
+  val swap : t -> t
+end = struct
   type t = Bot | Top | Stack of Var.t list
-  type analysisID = unit
+  type analysisID = Var.analysisID
   type analysisDomain = t
   let get_analysis _ v = v
   let bot = Bot
@@ -130,11 +156,24 @@ module Stack(Var:S) = struct
 
 end
 
-module Local (Var:S) = struct
-  type t = Bot | Local of Var.t Ptmap.t
-  type analysisID = unit
+module Local (Var:S) :sig
+  type t
+  type analysisID = Var.analysisID
   type analysisDomain = t
-  let get_analysis () v = v
+  val bot : t
+  val isBot : analysisDomain -> bool
+  val join : ?modifies:bool ref -> t -> t -> t
+  val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+  val equal : t -> t -> bool
+  val get_analysis : analysisID -> t -> analysisDomain
+  val pprint : Format.formatter -> t -> unit
+  val get_var : int -> analysisDomain -> Var.t
+  val set_var : int -> Var.t -> analysisDomain -> analysisDomain
+end = struct
+  type t = Bot | Local of Var.t Ptmap.t
+  type analysisID = Var.analysisID
+  type analysisDomain = t
+  let get_analysis _ v = v
 
   let bot = Bot
   let isBot = function Bot -> true | _ -> false

@@ -39,7 +39,7 @@ DOCDIR = doc/api
 PERL = perl
 ECHO = /bin/echo
 
-FLAGS = -w Ae -dtypes -g
+FLAGS = -w Ae -annot -g
 
 ifeq ($(DEBUG),yes)
 OPT_FLAGS = -g
