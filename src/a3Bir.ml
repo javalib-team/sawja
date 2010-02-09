@@ -223,12 +223,12 @@ let bir2a3bir_instr = function
   | Bir.Check c -> Check (check2check c)
       
 type t = {
-  a3_vars : var array;  
-  a3_params : (value_type * var) list; 
-  a3_code : (int * instr list) list; 
-  a3_exc_tbl : exception_handler list;
-  a3_line_number_table : (int * int) list option;
-  a3_jump_target : bool array ;
+  vars : var array;  
+  params : (value_type * var) list; 
+  code : (int * instr list) list; 
+  exc_tbl : exception_handler list;
+  line_number_table : (int * int) list option;
+  jump_target : bool array ;
 
 }
 
@@ -342,7 +342,7 @@ let rec print_code_intra = function
   | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (Bir.print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
 
 let print_fbir_intra m = 
-  print_code_intra m.a3_code
+  print_code_intra m.code
 
 let rec print_code = function
   | [] -> []
@@ -355,15 +355,15 @@ let rec print_code = function
       in
 	first@(print_code q)
 
-let print m = print_code m.a3_code
+let print m = print_code m.code
 
-let bir2a3bir  bir = 
-  { a3_params = bir.Bir.params ;
-    a3_vars = bir.Bir.vars;
-    a3_code = List.map (fun (i,instrl) -> (i, List.map bir2a3bir_instr instrl)) bir.Bir.code  ;
-    a3_exc_tbl = bir.Bir.exc_tbl ;
-    a3_line_number_table = bir.Bir.line_number_table ;
-    a3_jump_target = bir.Bir.jump_target ;
+let bir2a3bir bir = 
+  { params = bir.Bir.params ;
+    vars = bir.Bir.vars;
+    code = List.map (fun (i,instrl) -> (i, List.map bir2a3bir_instr instrl)) bir.Bir.code  ;
+    exc_tbl = bir.Bir.exc_tbl ;
+    line_number_table = bir.Bir.line_number_table ;
+    jump_target = bir.Bir.jump_target ;
   }
 
 

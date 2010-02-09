@@ -985,7 +985,7 @@ module A3BirPrinter = Make(
 	  List.iter
 	    (fun (pp,l) ->
 	       f pp l
-	    ) code.A3Bir.a3_code
+	    ) code.A3Bir.code
       with
 	  _ -> ()
     let print_list_sep sep f l =
@@ -1005,7 +1005,7 @@ module A3BirPrinter = Make(
 		    (ExtList.List.mapi
 		       (fun i _ ->
 			  let n = if is_static then i else i + 1 in
-			  let var = snd (List.nth code.A3Bir.a3_params n) in
+			  let var = snd (List.nth code.A3Bir.params n) in
 			    A3Bir.var_name_g var
 		       ) (ms_args ms)
 		    )

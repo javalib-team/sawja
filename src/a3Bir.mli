@@ -172,14 +172,14 @@ type exception_handler = {
 
 (** [t] is the parameter type for A3Bir methods. *)
 type t = {
-  a3_vars : var array;
+  vars : var array;
   (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
-  a3_params : (JBasics.value_type * var) list; (** [a3_params] contains the method parameters (including the receiver this for virtual methods). *)
-  a3_code : (int * instr list) list; (** Each element of [a3_code] is a pair [(pc,instrs)] where 
-				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
-  a3_exc_tbl : exception_handler list; (** [a3_exc_tbl] is the exception table of the method code. *)
-  a3_line_number_table : (int * int) list option; (** [a3_line_number_table] contains debug information. It is a list of pairs [(i,j)] meaning the code line [i] corresponds to the line [j] at the java source level. *) 
-  a3_jump_target : bool array (** [a3_jump_target] indicates whether program points are join points or not. *) 
+  params : (JBasics.value_type * var) list; (** [a3_params] contains the method parameters (including the receiver this for virtual methods). *)
+  code : (int * instr list) list; (** Each element of [a3_code] is a pair [(pc,instrs)] where 
+  				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)
+  exc_tbl : exception_handler list; (** [a3_exc_tbl] is the exception table of the method code. *)
+  line_number_table : (int * int) list option; (** [a3_line_number_table] contains debug information. It is a list of pairs [(i,j)] meaning the code line [i] corresponds to the line [j] at the java source level. *) 
+  jump_target : bool array (** [a3_jump_target] indicates whether program points are join points or not. *) 
 }
   
 (** {2 Printing functions} *)
