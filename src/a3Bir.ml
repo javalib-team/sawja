@@ -223,6 +223,7 @@ let bir2a3bir_instr = function
   | Bir.Check c -> Check (check2check c)
       
 type t = {
+  a3_vars : var array;  
   a3_params : (value_type * var) list; 
   a3_code : (int * instr list) list; 
   a3_exc_tbl : exception_handler list;
@@ -358,6 +359,7 @@ let print m = print_code m.a3_code
 
 let bir2a3bir  bir = 
   { a3_params = bir.Bir.params ;
+    a3_vars = bir.Bir.vars;
     a3_code = List.map (fun (i,instrl) -> (i, List.map bir2a3bir_instr instrl)) bir.Bir.code  ;
     a3_exc_tbl = bir.Bir.exc_tbl ;
     a3_line_number_table = bir.Bir.line_number_table ;

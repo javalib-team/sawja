@@ -25,4 +25,4 @@ open JCode
 
 include Bir
 
-let print_expr = print_expr true
+let print_expr ?(show_type=true) = print_expr ~show_type:show_type true

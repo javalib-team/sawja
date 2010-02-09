@@ -37,17 +37,20 @@ val print_const : const -> string
 
 val varname : string
 
-type var =
-  | OriginalVar of int * string option  (* register number, name (debug if available) *)
+type unindexed_var =
+  | OriginalVar of int * string option (* register number, name (debug if available) *)
   | TempVar of int
   | CatchVar of int
   | BranchVar of int * int
   | BranchVar2 of int * int
 
-(** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program *)
+type var = int * unindexed_var
+
+(** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program. Does not depend on debug information. *)
 val var_orig : var -> bool
 
-(** [var_name v] returns the string identifying the variable [v] *)
+(** [var_name v] returns the string identifying the variable [v].
+    Does not use debug information. *) 
 val var_name : var -> string
 
 (** [var_name_debug v] returns, if possible the original variable names of [v], if the initial class was compiled using debug information. *)
@@ -56,8 +59,24 @@ val var_name_debug : var -> string option
 (** [var_name_g v] returns the string identifying the variable [v], according to the local variable table provided in the class file from which it has been created *)
 val var_name_g : var -> string
 
-(** [var_equal v1 v2] tests the equality of variables [v1] and [v2] *)
-val var_equal : var -> var -> bool
+(** [bc_num v] returns the local var number if the variable comes from the initial bytecode program. *)
+val bc_num : var -> int option
+
+(** [index v] returns the hash value of the given variable. *)
+val index : var -> int
+
+(** mutable dictionary used to give unique index to variables. *)
+type dictionary
+
+(** build an empty dictionary. *)
+val make_dictionary : unit -> dictionary
+
+(** [make_var d v] return the indexified versino of [v]. Add it to [d] if necessary. *)
+val make_var : dictionary -> unindexed_var -> var
+
+(** [make_array_var d] build the array of all variables that appear in [d].
+    [vars.(i)] is the variable of index [i]. *)
+val make_array_var : dictionary -> var array
 
 
 type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S

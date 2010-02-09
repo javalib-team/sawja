@@ -42,9 +42,6 @@ type var
 (** [var_orig v] is [true] if and only if the variable [v] was already used at bytecode level. *)
 val var_orig : var -> bool
 
-(** [var_equal v1 v2] tests the equality of variables [v1] and [v2]. *)
-val var_equal : var -> var -> bool
-
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
 
@@ -58,8 +55,11 @@ val var_name_debug : var -> string option
     [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
 val var_name_g : var -> string
 
-(** [bcvar i] returns the canonic var name associated with the [i]th local var. *)
-val bcvar : int -> var
+(** [bc_num v] returns the local var number if the variable comes from the initial bytecode program. *)
+val bc_num : var -> int option
+
+(** [index v] returns the hash value of the given variable. *)
+val index : var -> int
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
@@ -172,6 +172,8 @@ type exception_handler = {
 
 (** [t] is the parameter type for A3Bir methods. *)
 type t = {
+  a3_vars : var array;
+  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
   a3_params : (JBasics.value_type * var) list; (** [a3_params] contains the method parameters (including the receiver this for virtual methods). *)
   a3_code : (int * instr list) list; (** Each element of [a3_code] is a pair [(pc,instrs)] where 
 				      each [pc] indexes an [instr] list corresponding to the instructions generated from the  bytecode  at [pc]. *)

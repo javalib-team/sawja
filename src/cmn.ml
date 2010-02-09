@@ -48,12 +48,14 @@ type comp =  DG | DL | FG | FL | L
 
 type typ = Ref | Num
 
-type var =
+type unindexed_var =
   | OriginalVar of int * string option (* register number, name (debug if available) *)
   | TempVar of int
   | CatchVar of int
   | BranchVar of int * int
   | BranchVar2 of int * int
+
+type var = int * unindexed_var
 
 let print_const = function
   | `ANull -> "null"
@@ -71,17 +73,19 @@ let tempname =  "$irvar"
 let branchvarname =  "$T"
 let branchvarname2 =  "$T'"
 
-let var_name_debug = function
-  | OriginalVar (_,s) -> s
-  | _ -> None
+let var_name_debug (_,v) =
+  match v with
+    | OriginalVar (_,s) -> s
+    | _ -> None
 
-let var_name = function
-  | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
-  | TempVar i -> Printf.sprintf "%s%d" tempname i
-  | CatchVar i -> Printf.sprintf "CatchVar%d" i
-  | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
-  | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
-
+let var_name (_,v) = 
+  match v with
+    | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
+    | TempVar i -> Printf.sprintf "%s%d" tempname i
+    | CatchVar i -> Printf.sprintf "CatchVar%d" i
+    | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
+    | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
+	
 let var_name_g x =
   match var_name_debug x with
     | Some s -> s
@@ -121,19 +125,43 @@ let print_typ t =
     | TObject t -> ot2ss t
   in vt2ss t
 
-(* Tests if two variable expressions denote the same variable *)
-(* compares reg number then strings *)
-(* Todo : if only one of both has a debug name, don't mind of debug info *)
-(* maybe more convenient to be able to choose debug info all along
-   -> provide a use_debug parm ? *)
-let var_equal tvar svar =
-    match tvar, svar with
-      | OriginalVar (n,s1), OriginalVar (m,s2) ->  m = n && s1 = s2
-      | x, y  -> x=y
+let bc_num (_,v) = 
+  match v with
+    | OriginalVar (j,_) -> Some j
+    |  _ -> None
 
-let var_orig = function
-  | OriginalVar _ -> true
-  | _ -> false
+module VarMap = Map.Make(struct type t=unindexed_var let compare = compare end)
+
+type dictionary =
+    { mutable var_map : var VarMap.t;
+      mutable var_next : int }
+
+let make_dictionary () =
+  { var_map = VarMap.empty;
+    var_next = 0}
+
+let make_var (d:dictionary) : unindexed_var -> var =
+  function v ->
+    try
+      VarMap.find v d.var_map
+    with Not_found -> 
+      let new_v = (d.var_next,v) in
+	d.var_map <- VarMap.add v new_v d.var_map;
+	d.var_next <- 1+ d.var_next;
+	new_v
+
+let make_array_var d =
+  let dummy = (-1,(TempVar (-1))) in
+  let t = Array.make d.var_next dummy in
+    VarMap.iter (fun _  v -> t.(fst v) <- v) d.var_map;
+    t
+
+let index (i,_) = i
+
+let var_orig  (_,v) = 
+  match v with
+    | OriginalVar _ -> true
+    | _ -> false
 
 type exception_handler = {
 	e_start : int;

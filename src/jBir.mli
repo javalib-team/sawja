@@ -42,9 +42,6 @@ type var
 (** [var_orig v] is [true] if and only if the variable [v] was already used at bytecode level. *)
 val var_orig : var -> bool
 
-(** [var_equal v1 v2] tests the equality of variables [v1] and [v2]. *)
-val var_equal : var -> var -> bool
-
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
 
@@ -58,8 +55,11 @@ val var_name_debug : var -> string option
     [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
 val var_name_g : var -> string
 
-(** [bcvar i] returns the canonic variable name associated with the [i]th local var. *)
-val bcvar : int -> var
+(** [bc_num v] returns the local var number if the variable comes from the initial bytecode program. *)
+val bc_num : var -> int option
+
+(** [index v] returns the hash value of the given variable. *)
+val index : var -> int
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
@@ -204,6 +204,8 @@ type exception_handler = {
 
 (** [t] is the parameter type for JBir methods. *)
 type t = {
+  vars : var array;  
+  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
   params : (JBasics.value_type * var) list;
   (** [params] contains the method parameters (including the receiver this for
       virtual methods). *)
@@ -225,11 +227,14 @@ type t = {
 
 (** {2 Printing functions} *)
 
+(** [print_handler exc] returns a string representation for exception handler [exc]. *)
+val print_handler : exception_handler -> string
+
 (** [print_expr e] returns a string representation for expression [e]. *)
-val print_expr : expr -> string
+val print_expr : ?show_type:bool -> expr -> string
 
 (** [print_instr ins] returns a string representation for instruction [ins]. *)
-val print_instr : instr -> string
+val print_instr : ?show_type:bool -> instr -> string
 
 (** [print_instrs (pc,insl)] returns a string representation for instructions [insl] at program point [pc]. *)
 val print_instrs : (int * instr list) -> string
