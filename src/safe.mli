@@ -232,7 +232,12 @@ module State : sig
         | `PP of PP.t ]
 
     type t
-    val bot : unit -> t
+      
+    (** [bot (g,c,f,m,p)] generate an bottom element where [g], [c], [f], [m]
+        and [p] are approximations of the number of global, class, field, method
+        and program point variables, respectively. Note that any positive value
+        is correct, it just affect the performances. *)
+    val bot : (int*int*int*int*int) -> t
     val pprint : Format.formatter -> t -> unit
     val get_pinfo :
       'a JProgram.program -> t -> JPrintHtml.info -> JPrintHtml.info

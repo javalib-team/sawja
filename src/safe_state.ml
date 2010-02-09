@@ -33,7 +33,7 @@ module type S = sig
       | `PP of PP.t]
 
   type t
-  val bot : unit -> t
+  val bot : (int*int*int*int*int) -> t
   val pprint : Format.formatter -> t -> unit
   val get_pinfo : 'a JProgram.program -> t -> JPrintHtml.info -> JPrintHtml.info
 
@@ -128,12 +128,14 @@ struct
 	    method_data:Method.t HashMethodVar.t;
 	    pp_data:PP.t HashPPVar.t;}
 
-  let bot _ =
-    {global_data = HashGlobalVar.create Sys.max_array_length;
-     ioc_data = HashIOCVar.create Sys.max_array_length;
-     field_data = HashFieldVar.create Sys.max_array_length;
-     method_data = HashMethodVar.create Sys.max_array_length;
-     pp_data = HashPPVar.create Sys.max_array_length}
+  let bot (sizes:int*int*int*int*int) =
+    let global_size,ioc_size,field_size,method_size,pp_size = sizes
+    in
+    {global_data = HashGlobalVar.create global_size;
+     ioc_data = HashIOCVar.create ioc_size;
+     field_data = HashFieldVar.create field_size;
+     method_data = HashMethodVar.create method_size;
+     pp_data = HashPPVar.create pp_size}
 
   let pp_hashmap fmt iter map name ppkey ppcontent =
     Format.pp_open_hvbox fmt 0;
