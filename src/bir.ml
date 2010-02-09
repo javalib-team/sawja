@@ -88,9 +88,11 @@ type instr =
 type t = {
   vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
   params : (JBasics.value_type * var) list;
-  code : (int * instr list) list;
+  code : instr array;
   exc_tbl : exception_handler list;
   line_number_table : (int * int) list option;
+  pc_bc2ir : int Ptmap.t;
+  pc_ir2bc : int array; 
   jump_target : bool array
 }
 
@@ -229,10 +231,6 @@ let print_instr ?(show_type=true) = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr ~show_type:show_type true e)
       end
 
-let rec print_instrs (pc,instrs) =
-  Printf.sprintf "%3d: %s\n" pc
-    (print_list_sep "\n     " print_instr instrs)
-
 let print_handler exc = 
   Printf.sprintf "      [%d-%d] -> %d (%s %s)" exc.e_start exc.e_end exc.e_handler
     (match exc.e_catch_type with
@@ -240,25 +238,14 @@ let print_handler exc =
        | Some cl -> JPrint.class_name cl)
     (var_name_g exc.e_catch_var)
 
-let rec print_code_intra = function
-  | [] -> []
-  | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
+let rec print_code code i acc =
+  if i<0 then acc
+  else print_code code (i-1) (Printf.sprintf "%3d: %s" i (print_instr code.(i))::acc)
 
-let print_bir_intra m =
-  print_code_intra m.code
 
-let rec print_code = function
-  | [] -> []
-  | (pc,instrs)::q ->
-      let strl = (print_list_sep_list "     " print_instr instrs) in
-      let first =
-	match strl with
-	  | [] -> [(Printf.sprintf "%3d: " pc )]
-	  | s::m -> (Printf.sprintf "%3d: %s" pc ) s :: m
-      in
-	first@(print_code q)
-
-let print m = print_code m.code
+let print m =
+  let size = Array.length (m.code) in
+    print_code m.code (size-1) []
 
 (******* STACK MANIPULATION **************)
 
@@ -1686,7 +1673,50 @@ let make_exception_handler dico e =
     e_catch_var = make_var dico (CatchVar e.JCode.e_handler);
   }
 
-let jcode2bir mode compress bcv ssa cm jcode =
+(* Code flattening *)
+let rec last = function
+    [] -> assert false
+  | [(x,_)] -> x
+  | _::q -> last q
+
+let flatten_code code exc_tbl =
+  (* starting from i, and given the code [code], computes a triple *)
+  let rec aux i map = function
+      [] -> [], [], map
+    | (pc,instrs)::q ->
+	let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
+	  instrs@instrs', 
+            (* flatten_code the code but does not modify the instruction in it *)
+	  (List.map (fun _ -> pc) instrs)@pc_list,
+	    (* the list of initial pcs of instrs *)
+	  Ptmap.add pc i map
+	    (* map from initial pcs to the future pc they are mapped to *)
+  in 
+  let (instrs,pc_list,map) = aux 0 Ptmap.empty code in
+  let rec find i = (* find the flattened pc associated to i *)
+    try Ptmap.find i map
+    with Not_found -> assert (i=1+(last code)); List.length instrs
+  in
+  let instrs =
+    Array.of_list
+      (List.map (function 
+		   | Goto pc -> Goto (Ptmap.find pc map)
+		   | Ifd (g, pc) -> Ifd (g, Ptmap.find pc map)
+		   | ins -> ins) instrs) (* Change to new pcs *)
+  and exc_tbl =
+    List.map
+      (fun e -> 
+         { e_start = find e.e_start;
+	   e_end = find e.e_end; (* It may be outside the range ?  *)
+	   e_handler = find e.e_handler;
+	   e_catch_type = e.e_catch_type;
+	   e_catch_var = e.e_catch_var
+         }) exc_tbl
+  in
+    (instrs, Array.of_list pc_list, map, exc_tbl)
+
+
+let jcode2bir mode bcv ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
@@ -1704,17 +1734,22 @@ let jcode2bir mode compress bcv ssa cm jcode =
 	  let (load_type,arrayload_type) = BCV.run bcv cm code in
 	  let dico = make_dictionary () in
 	  let res = bc2ir dico mode ssa pp_var jump_target load_type arrayload_type code in
+	  let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
+	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
+	  let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
 	    { params = gen_params dico pp_var cm;
 	      vars = make_array_var dico;
-	      code = if compress then compress_ir code.c_exc_tbl (List.rev res) jump_target else (List.rev res);
-	      exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl;
+	      code = ir_code;
+	      pc_ir2bc = ir2bc;
+	      pc_bc2ir = bc2ir;
+	      exc_tbl = ir_exc_tbl;
 	      line_number_table = code.c_line_number_table;
 	      jump_target = jump_target }
       | None -> raise Subroutine
 
-let transform ?(bcv=false) ?(compress=false) ?(ir_ssa=false) = jcode2bir Normal compress bcv ir_ssa
-let transform_flat ?(bcv=false) ?(compress=false) ?(ir_ssa=false) = jcode2bir Flat compress bcv ir_ssa
-let transform_addr3 ?(bcv=false) ?(compress=false) ?(ir_ssa=false) = jcode2bir Addr3 compress bcv ir_ssa
+let transform ?(bcv=false) ?(ir_ssa=false) = jcode2bir Normal bcv ir_ssa
+let transform_flat ?(bcv=false) ?(ir_ssa=false) = jcode2bir Flat bcv ir_ssa
+let transform_addr3 ?(bcv=false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ir_ssa
 
 
 (* Agregation of boolean tests  *)
@@ -1870,40 +1905,4 @@ module AgregatBool = struct
 	  *)
 
 end
-
-(* Code flattening *)
-let rec last = function
-    [] -> assert false
-  | [(x,_)] -> x
-  | _::q -> last q
-
-let flatten_code code =
-  let rec aux i map = function
-      [] -> [], [], map
-    | (pc,instrs)::q ->
-	let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
-	  instrs@instrs',(List.map (fun _ -> pc) instrs)@pc_list,Ptmap.add pc i map
-  in 
-  let (instrs,pc_list,map) = aux 0 Ptmap.empty code.code in
-  let rec find i = 
-    try Ptmap.find i map
-    with Not_found -> assert (i=1+(last code.code)); List.length instrs
-  in
-  let instrs =
-    Array.of_list
-      (List.map (function 
-		   | Goto pc -> Goto (Ptmap.find pc map)
-		   | Ifd (g, pc) -> Ifd (g, Ptmap.find pc map)
-		   | ins -> ins) instrs)
-  and exc_tbl =
-    List.map
-      (fun e -> 
-         { e_start = find e.e_start;
-	   e_end = find e.e_end; (* It may be outside the range ?  *)
-	   e_handler = find e.e_handler;
-	   e_catch_type = e.e_catch_type;
-	   e_catch_var = e.e_catch_var
-         }) code.exc_tbl
-  in
-    (instrs, Array.of_list pc_list, map, exc_tbl)
 

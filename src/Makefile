@@ -78,7 +78,7 @@ classDomain.ml:$(CLASS_DOMAIN)
 	cp $< $@
 
 jPrintHtml.cmo:jPrintHtml.ml
-	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLC) $(INCLUDE)  -c $<
 
 jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
 	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<

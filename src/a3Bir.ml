@@ -222,14 +222,16 @@ let bir2a3bir_instr = function
   | Bir.MayInit cn -> MayInit cn
   | Bir.Check c -> Check (check2check c)
       
+
 type t = {
-  vars : var array;  
-  params : (value_type * var) list; 
-  code : (int * instr list) list; 
+  vars : var array; 
+  params : (JBasics.value_type * var) list;
+  code : instr array;
   exc_tbl : exception_handler list;
   line_number_table : (int * int) list option;
-  jump_target : bool array ;
-
+  pc_bc2ir : int Ptmap.t;
+  pc_ir2bc : int array; 
+  jump_target : bool array
 }
 
 
@@ -333,35 +335,22 @@ let print_instr = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_basic_expr e)
       end
 
-let rec print_instrs (pc,instrs) =
-  Printf.sprintf "%3d: %s\n" pc
-    (Bir.print_list_sep "\n     " print_instr instrs)
 
-let rec print_code_intra = function
-  | [] -> []
-  | (pc,instrs)::q -> ( Printf.sprintf "%3d: %s\n" pc (Bir.print_list_sep "\n     " print_instr instrs))::(print_code_intra q)
+let rec print_code code i acc =
+  if i<0 then acc
+  else print_code code (i-1) (Printf.sprintf "%3d: %s" i (print_instr code.(i))::acc)
 
-let print_fbir_intra m = 
-  print_code_intra m.code
-
-let rec print_code = function
-  | [] -> []
-  | (pc,instrs)::q -> 
-      let strl = (Bir.print_list_sep_list "     " print_instr instrs) in 
-      let first = 
-	match strl with 
-	  | [] -> [(Printf.sprintf "%3d: " pc )]
-	  | s::m -> (Printf.sprintf "%3d: %s" pc ) s :: m
-      in
-	first@(print_code q)
-
-let print m = print_code m.code
+let print m =
+  let size = Array.length (m.code) in
+    print_code m.code (size-1) []
 
 let bir2a3bir bir = 
   { params = bir.Bir.params ;
     vars = bir.Bir.vars;
-    code = List.map (fun (i,instrl) -> (i, List.map bir2a3bir_instr instrl)) bir.Bir.code  ;
+    code = Array.map bir2a3bir_instr bir.Bir.code;
     exc_tbl = bir.Bir.exc_tbl ;
+    pc_bc2ir = bir.Bir.pc_bc2ir;
+    pc_ir2bc = bir.Bir.pc_ir2bc;
     line_number_table = bir.Bir.line_number_table ;
     jump_target = bir.Bir.jump_target ;
   }
@@ -370,8 +359,8 @@ let bir2a3bir bir =
 
 
 (** Concrete method transformation. *) 
-let transform ?(bcv=false) ?(compress=false) j_m j_code =
-  let code = Bir.transform_addr3 ~bcv:bcv ~compress:compress j_m j_code in 
+let transform ?(bcv=false) j_m j_code =
+  let code = Bir.transform_addr3 ~bcv:bcv j_m j_code in 
     bir2a3bir code
       
 

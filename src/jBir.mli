@@ -209,21 +209,23 @@ type t = {
   params : (JBasics.value_type * var) list;
   (** [params] contains the method parameters (including the receiver this for
       virtual methods). *)
-  code : (int * instr list) list;
-  (** Each element of [code] is a pair [(pc,instrs)] where each [pc] indexes an
-      [instr] list corresponding to the instructions generated from the bytecode
-      at [pc]. *)
+  code : instr array;
+  (** Array of instructions the immediate successor of [pc] is [pc+1].
+      Jumps are absolute. *)
   exc_tbl : exception_handler list;
-  (** [exc_tbl] is the exception table of the method code. *)
+  (** [exc_tbl] is the exception table of the method code. Jumps are absolute. *)
   line_number_table : (int * int) list option;
   (** [line_number_table] contains debug information. It is a list of pairs
-      [(i,j)] meaning the code line [i] corresponds to the line [j] at the java
+      [(i,j)] meaning the bytecode code line [i] corresponds to the line [j] at the java
       source level. *)
+  pc_bc2ir : int Ptmap.t;
+  (** map from bytecode code line to ir code line *)
+  pc_ir2bc : int array; 
+  (** map from ir code line to bytecode code line *)
   jump_target : bool array;
   (** [jump_target] indicates whether program points are join points or
       not. *)
 }
-
 
 (** {2 Printing functions} *)
 
@@ -236,19 +238,14 @@ val print_expr : ?show_type:bool -> expr -> string
 (** [print_instr ins] returns a string representation for instruction [ins]. *)
 val print_instr : ?show_type:bool -> instr -> string
 
-(** [print_instrs (pc,insl)] returns a string representation for instructions [insl] at program point [pc]. *)
-val print_instrs : (int * instr list) -> string
-
 (** [print c] returns a list of string representations for instruction of [c] (one string for each program point of the code [c]). *)
 val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform b cm jcode] transforms the code [jcode] into its JBir representation. The transformation is performed in the context of a given concrete method [cm]. According to the boolean [~compress:b], all program points made of a single [Nop] instruction are removed from the obtained JBir representation. 
+(** [transform b cm jcode] transforms the code [jcode] into its JBir representation. The transformation is performed in the context of a given concrete method [cm]. 
 [transform b cm jcode] can raise several exceptions. See exceptions below for details. *) 
-val transform : ?bcv:bool -> ?compress:bool -> ?ir_ssa:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
-
-val flatten_code : t -> instr array * int array * int Ptmap.t * exception_handler list
+val transform : ?bcv:bool -> ?ir_ssa:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 

@@ -847,10 +847,7 @@ module JBirPrinter = Make(
     let iter_code f lazy_code =
       try
 	let code = Lazy.force lazy_code in
-	  List.iter
-	    (fun (pp,l) ->
-	       f pp l
-	    ) code.JBir.code
+	  Array.iteri (fun i ins -> f i [ins]) code.JBir.code
       with
 	  _ -> ()
     let print_list_sep sep f l =
@@ -982,10 +979,7 @@ module A3BirPrinter = Make(
     let iter_code f lazy_code =
       try
 	let code = Lazy.force lazy_code in
-	  List.iter
-	    (fun (pp,l) ->
-	       f pp l
-	    ) code.A3Bir.code
+	  Array.iteri (fun i ins -> f i [ins]) code.A3Bir.code
       with
 	  _ -> ()
     let print_list_sep sep f l =
