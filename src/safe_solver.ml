@@ -225,8 +225,9 @@ end = struct
 	done;
 	assert false;
       with Failure "get_from_work_stack" ->
-        print_times ();
+        
         if !debug_level > 2 then 
+	  print_times ();
 	  print_debug 3
             (string_of_int !did_modified
              ^ " cst application modified the abstract state and\n"
@@ -242,6 +243,6 @@ end = struct
       (abState:State.t)
       (var_init:Var.t list) : State.t =
     print_debug 3 "start the solver\n";
-    print_times ();
+    (*print_times ();*)
     work_set constraints var_init abState
 end
