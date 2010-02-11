@@ -152,7 +152,16 @@ end = struct
     | Top -> Top
     | _ -> Bot
 
-  let pprint _fmt _t = ()(* TODO *)
+  let pprint fmt = 
+    let print_string = Format.pp_print_string fmt
+    in function
+      | Top -> print_string "Top"
+      | Bot -> print_string "Bot"
+      | Stack val_list ->
+          List.iter
+            (fun value -> Var.pprint fmt value;print_string "::")
+            val_list;
+          print_string "[]"
 
 end
 
@@ -211,7 +220,28 @@ end = struct
     | Bot -> Local (Ptmap.add v d Ptmap.empty)
     | Local l -> Local (Ptmap.add ~merge:Var.join v d l)
 
-  let pprint _fmt _v = () (* TODO *)
+  let pprint fmt =
+    let print_string = Format.pp_print_string fmt
+    in function
+      | Bot -> print_string "Bot"
+      | Local loc_map ->
+          if Ptmap.is_empty loc_map
+          then print_string "[||]"
+          else
+            let print_loc (i,loc) =
+              print_string (string_of_int i^":");
+              Var.pprint fmt loc
+            and loc_list =
+              List.sort
+                (fun (i1,_) (i2,_) -> compare i1 i2)
+                (Ptmap.fold (fun i l r -> (i,l)::r) loc_map [])
+            in
+              print_string "[|";
+              print_loc (List.hd loc_list);
+              List.iter
+                (fun iloc -> print_string ";";print_loc iloc)
+                (List.tl loc_list);
+              print_string "|]"
 end
 
 
