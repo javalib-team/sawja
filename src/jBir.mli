@@ -205,31 +205,33 @@ type exception_handler = {
 (** [t] is the parameter type for JBir methods. *)
 type t = {
   vars : var array;  
-  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
+  (** All variables that appear in the method. [vars.(i)] is the variable of
+      index [i]. *)
   params : (JBasics.value_type * var) list;
   (** [params] contains the method parameters (including the receiver this for
       virtual methods). *)
   code : instr array;
-  (** Array of instructions the immediate successor of [pc] is [pc+1].
-      Jumps are absolute. *)
+  (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
+      are absolute. *)
   exc_tbl : exception_handler list;
-  (** [exc_tbl] is the exception table of the method code. Jumps are absolute. *)
+  (** [exc_tbl] is the exception table of the method code. Jumps are
+      absolute. *)
   line_number_table : (int * int) list option;
   (** [line_number_table] contains debug information. It is a list of pairs
-      [(i,j)] meaning the bytecode code line [i] corresponds to the line [j] at the java
-      source level. *)
+      [(i,j)] meaning the bytecode code line [i] corresponds to the line [j] at
+      the java source level. *)
   pc_bc2ir : int Ptmap.t;
   (** map from bytecode code line to ir code line *)
   pc_ir2bc : int array; 
   (** map from ir code line to bytecode code line *)
   jump_target : bool array;
-  (** [jump_target] indicates whether program points are join points or
-      not. *)
+  (** [jump_target] indicates whether program points are join points or not. *)
 }
 
 (** {2 Printing functions} *)
 
-(** [print_handler exc] returns a string representation for exception handler [exc]. *)
+(** [print_handler exc] returns a string representation for exception handler
+    [exc]. *)
 val print_handler : exception_handler -> string
 
 (** [print_expr e] returns a string representation for expression [e]. *)
@@ -238,30 +240,49 @@ val print_expr : ?show_type:bool -> expr -> string
 (** [print_instr ins] returns a string representation for instruction [ins]. *)
 val print_instr : ?show_type:bool -> instr -> string
 
-(** [print c] returns a list of string representations for instruction of [c] (one string for each program point of the code [c]). *)
+(** [print c] returns a list of string representations for instruction of [c]
+    (one string for each program point of the code [c]). *)
 val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform b cm jcode] transforms the code [jcode] into its JBir representation. The transformation is performed in the context of a given concrete method [cm]. 
-[transform b cm jcode] can raise several exceptions. See exceptions below for details. *) 
-val transform : ?bcv:bool -> ?ir_ssa:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+(** [transform ~bcv ~ir_ssa cm jcode] transforms the code [jcode] into its JBir
+    representation. The transformation is performed in the context of a given
+    concrete method [cm].  [transform] can raise several exceptions. See
+    exceptions below for details. *)
+val transform :
+  ?bcv:bool ->
+  ?ir_ssa:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 
 (** {3 Exceptions due to the transformation limitations} *)
 
-exception Uninit_is_not_expr (** [Uninit_is_not_expr] is raised in case an uninitialised reference is used as a traditional expression (variable assignment, field reading etc).*)
-exception NonemptyStack_backward_jump (** [NonemptyStack_backward_jump] is raised when a backward jump on a non-empty stack is encountered. This should not happen if you compiled your Java source program with the javac compiler *)
-exception Type_constraint_on_Uninit (** [Type_constraint_on_Uninit] is raised when the requirements about stacks for folding constructors are not satisfied. *)
-exception Content_constraint_on_Uninit (** [Content_constraint_on_Uninit] is raised when the requirements about stacks for folding constructors are not satisfied. *)
-exception Subroutine (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
+exception Uninit_is_not_expr
+  (** [Uninit_is_not_expr] is raised in case an uninitialised reference is used
+      as a traditional expression (variable assignment, field reading etc).*)
+exception NonemptyStack_backward_jump
+  (** [NonemptyStack_backward_jump] is raised when a backward jump on a
+      non-empty stack is encountered. This should not happen if you compiled your
+      Java source program with the javac compiler *)
+exception Type_constraint_on_Uninit
+  (** [Type_constraint_on_Uninit] is raised when the requirements about stacks
+      for folding constructors are not satisfied. *)
+exception Content_constraint_on_Uninit
+  (** [Content_constraint_on_Uninit] is raised when the requirements about
+      stacks for folding constructors are not satisfied. *)
+exception Subroutine
+  (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
 
 
 (** {3 Exceptions due to a non-Bytecode-verifiable bytecode} *)
 
-exception Bad_stack (** [Bad_stack] is raised in case the stack does not fit the length/content constraint of the bytecode instruction being transformed. *)
-exception Bad_Multiarray_dimension (** [Bad_Multiarray_dimension] is raise when attempting to transforming a multi array of dimension zero. *)
+exception Bad_stack
+  (** [Bad_stack] is raised in case the stack does not fit the length/content
+      constraint of the bytecode instruction being transformed. *)
+exception Bad_Multiarray_dimension
+  (** [Bad_Multiarray_dimension] is raise when attempting to transforming a
+      multi array of dimension zero. *)
 
 
 
