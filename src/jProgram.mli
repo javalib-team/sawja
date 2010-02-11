@@ -74,10 +74,13 @@ val make_interface_node : 'a jinterface -> 'a class_node
 type 'a static_lookup_method = class_name -> method_signature -> int ->
   ClassMethodSet.t
 
-(** A program is a record containing a map of class files identified by
-    an id, and a dictionary containing functions to retrieve classes and
-    methods ids from their names. *)
-(* TODO: update the documentation *)
+(** A program is a record containing a map of class files identified by their
+    name, the a super-set of the reachable methods (which have been parsed, but
+    other method may have been parsed and may not be in the set
+    [parsed_methods]), and a efficient function which allow to compute the
+    methods that may be called for a given program point (the algorithm for this
+    function depends on the algorithm that have been chosen to load the
+    program). *)
 type 'a program = { classes : 'a node ClassMap.t;
 		    parsed_methods : ('a node *
 					'a concrete_method) ClassMethodMap.t;
