@@ -225,14 +225,13 @@ end = struct
 	done;
 	assert false;
       with Failure "get_from_work_stack" ->
-        
         if !debug_level > 2 then 
-	  print_times ();
-	  print_debug 3
-            (string_of_int !did_modified
-             ^ " cst application modified the abstract state and\n"
-	     ^string_of_int !didnt_modified
-             ^ " cst application did not modified the abstract state.\n");
+          (print_times ();
+	   print_debug 3
+             (string_of_int !did_modified
+              ^ " cst application modified the abstract state and\n"
+	      ^string_of_int !didnt_modified
+              ^ " cst application did not modified the abstract state.\n"));
         !abState
 
   (* TODO : compute the predecessors of each pp and if a pp contains
@@ -243,6 +242,6 @@ end = struct
       (abState:State.t)
       (var_init:Var.t list) : State.t =
     print_debug 3 "start the solver\n";
-    (*print_times ();*)
+    if !debug_level > 2 then print_times ();
     work_set constraints var_init abState
 end
