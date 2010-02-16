@@ -87,7 +87,6 @@ let compute_reachable_methods
         (fun cms -> let cn,ms = cms_split cms in `Method ((),cn,ms))
         entry_points
     in
-      Solver.debug_level := 3;
       Solver.solve_constraints program csts istate entry_var
   in
     ClassMethodMap.fold
