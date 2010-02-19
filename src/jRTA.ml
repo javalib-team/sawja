@@ -73,106 +73,176 @@ struct
     in
       MethodMap.map (fun m -> { has_been_parsed = false; c_method = m }) mmap
 
+  let rec value_type2class_name v =
+    match v with
+      | TBasic _ -> None
+      | TObject o ->
+	  match o with
+	    | TClass cn -> Some cn
+	    | TArray a -> value_type2class_name a
+
   let rec to_class_node ioc =
     match ioc with
       | Class c -> c
       | Interface _ -> failwith "to_class_node applied on interface !"
+
   and to_interface_node ioc =
     match ioc with
       | Class _ -> failwith "to_interface_node applied on class !"
       | Interface i -> i
 
-  and get_class_info ?(check_name=true) p cs =
-    try
-      ClassMap.find cs p.classes
-    with
-      | Not_found ->
-	  add_class ~check_name p cs
+  and load_value_type_class p v =
+    match (value_type2class_name v) with
+      | None -> ()
+      | Some cn -> 
+	  ignore(get_class_info p cn)
+  
+  and load_classes_of_fields p node = 
+    let load_classes_of_fields' fm = 
+      FieldMap.iter 
+	( fun fs _ -> 
+	    load_value_type_class p (fs_type fs))
+	fm
+    in 
+      match node.class_data with
+	  Class cnode -> load_classes_of_fields' cnode.c_info.c_fields
+	| Interface inode -> load_classes_of_fields' inode.i_info.i_fields
 
-  and add_class ?(check_name=true) p cs =
-    (* We assume that a call to add_class is done only when a class has never *)
-    (* been loaded in the program. Loading a class implies loading all its *)
-    (* superclasses recursively. *)
-    let ioc = Javalib.get_class p.classpath cs in
-    let cs' = Javalib.get_name ioc in
-    if check_name && cs' <> cs then
-      failwith "class name does not match the file name";
-    let cs = cs' in
-    let rta_methods = methods2rta_methods ioc in
-    let ioc_info =
-      match ioc with
-	| JClass c ->
-	    let (super_class,super_classes) =
-	      (match c.c_super_class with
-		 | None -> (None, [])
-		 | Some sc ->
-		     let sc_info = get_class_info p sc in
-		       (Some (to_class_node sc_info.class_data),
-			sc :: sc_info.super_classes)
-	      )
-	    and implemented_interfaces =
-	      List.fold_right
-		(fun iname m ->
-		   ClassMap.add iname
-		     (to_interface_node (get_class_info p iname).class_data) m
-		) c.Javalib.c_interfaces ClassMap.empty
-	    in
-	      (* For each implemented interface and its super interfaces we add
-		 cni in the program interfaces map *)
-	    let super_implemented_interfaces =
-	      (ClassMap.fold
-		 (fun i_sig _ s ->
-		    let i_info = get_class_info p i_sig in
-		      ClassSet.add i_sig
-			(ClassSet.union s i_info.super_interfaces)
-		 ) implemented_interfaces ClassSet.empty) in
-	      ClassSet.iter
-		(fun i ->
-		   if ( ClassMap.mem i p.interfaces ) then
-		     p.interfaces <- ClassMap.add i
-		       (ClassSet.add cs (ClassMap.find i p.interfaces))
-		       p.interfaces
-		   else
-		     p.interfaces <- ClassMap.add i
-		       (ClassSet.add cs ClassSet.empty) p.interfaces
-		) super_implemented_interfaces;
-	      let node = make_class_node c super_class implemented_interfaces in
-		{ class_data = Class node;
-		  is_instantiated = false;
-		  instantiated_subclasses = ClassMap.empty;
-		  super_classes = super_classes;
-		  (* for a class super_interfaces contains
-		     the transitively implemented interfaces *)
-		  super_interfaces = super_implemented_interfaces;
-		  methods = rta_methods;
-		  memorized_virtual_calls = MethodSet.empty;
-		  memorized_interface_calls = MethodSet.empty }
-	| JInterface i ->
-	    let (interfaces,super_interfaces) =
-	      List.fold_right
-		(fun si (m,s)->
-		   let si_info = get_class_info p si in
-		   let m = ClassMap.add si
-		     (to_interface_node si_info.class_data) m in
-		   let s = ClassSet.union si_info.super_interfaces
-		     (ClassSet.add si s) in
-		     (m,s)
-		) i.Javalib.i_interfaces (ClassMap.empty, ClassSet.empty) in
-	    let object_node =
-	      to_class_node (get_class_info p java_lang_object).class_data in
-	    let node = make_interface_node i object_node interfaces in
-	      { class_data = Interface node;
-		is_instantiated = false;
-		(* An interface will never be instantiated *)
-		instantiated_subclasses = ClassMap.empty;
-		super_classes = [];
-		super_interfaces = super_interfaces;
-		methods = rta_methods;
-		memorized_virtual_calls = MethodSet.empty;
-		memorized_interface_calls = MethodSet.empty }
+  and get_class_info ?(check_name=true) p cs =
+    let rec get_class_info' ?(check_name=true) p cs fields_of_nodes=
+      try
+	(ClassMap.find cs p.classes,fields_of_nodes)
+      with
+	| Not_found ->
+	    let (node,new_fields_of_nodes) = 
+	      add_class ~check_name p cs fields_of_nodes
+	    in 
+	      (node,ClassMap.add cs node new_fields_of_nodes)
+
+    and add_class ?(check_name=true) p cs fields_of_nodes=
+      (* We assume that a call to add_class is done only when a class
+	 has never *)
+      (* been loaded in the program. Loading a class implies loading
+	 all its *)
+      (* superclasses recursively. *)
+      let fields_of_nodes' = 
+	ref fields_of_nodes 
+      in
+      let ioc = Javalib.get_class p.classpath cs in
+      let cs' = Javalib.get_name ioc in
+	if check_name && cs' <> cs then
+	  failwith "class name does not match the file name";
+	let cs = cs' in
+	let rta_methods = methods2rta_methods ioc in
+	let ioc_info =
+	  match ioc with
+	    | JClass c ->
+		let (super_class,super_classes) =
+		  (match c.c_super_class with
+		     | None -> (None, [])
+		     | Some sc ->
+			 let (sc_info,fields_nodes) = 
+			   get_class_info' p sc !fields_of_nodes'
+			 in
+			   fields_of_nodes':=fields_nodes;
+			   (Some (to_class_node sc_info.class_data),
+			    sc :: sc_info.super_classes)
+		  )
+		and implemented_interfaces =
+		  List.fold_right
+		    (fun iname m ->
+		       let (ii_info,fields_nodes) = 
+			 get_class_info' p iname !fields_of_nodes'
+		       in 
+			 fields_of_nodes':=fields_nodes;	 
+			 ClassMap.add iname
+			   (to_interface_node ii_info.class_data) m
+		    ) c.Javalib.c_interfaces ClassMap.empty
+		in
+		  (* For each implemented interface and its super
+		     interfaces we add cni in the program interfaces
+		     map *)
+		let super_implemented_interfaces =
+		  (ClassMap.fold
+		     (fun i_sig _ s ->
+			let (i_info,fields_nodes) = 
+			  get_class_info' p i_sig !fields_of_nodes'
+			in
+			  fields_of_nodes':=fields_nodes;
+			  ClassSet.add i_sig
+			    (ClassSet.union s i_info.super_interfaces)
+		     ) implemented_interfaces ClassSet.empty) in
+		  ClassSet.iter
+		    (fun i ->
+		       if ( ClassMap.mem i p.interfaces ) then
+			 p.interfaces <- ClassMap.add i
+			   (ClassSet.add cs (ClassMap.find i p.interfaces))
+			   p.interfaces
+		       else
+			 p.interfaces <- ClassMap.add i
+			   (ClassSet.add cs ClassSet.empty) p.interfaces
+		    ) super_implemented_interfaces;
+		  let node = 
+		    make_class_node c super_class implemented_interfaces 
+		  in
+		    { class_data = Class node;
+		      is_instantiated = false;
+		      instantiated_subclasses = ClassMap.empty;
+		      super_classes = super_classes;
+		      (* for a class super_interfaces contains
+			 the transitively implemented interfaces *)
+		      super_interfaces = super_implemented_interfaces;
+		      methods = rta_methods;
+		      memorized_virtual_calls = MethodSet.empty;
+		      memorized_interface_calls = MethodSet.empty }
+	    | JInterface i ->
+		let (interfaces,super_interfaces) =
+		  List.fold_right
+		    (fun si (m,s)->
+		       let (si_info,fields_nodes) = 
+			 get_class_info' p si !fields_of_nodes'
+		       in
+			 fields_of_nodes':=fields_nodes;
+			 let m = ClassMap.add si
+			   (to_interface_node si_info.class_data) m in
+			 let s = ClassSet.union si_info.super_interfaces
+			   (ClassSet.add si s) in
+			   (m,s)
+		    ) i.Javalib.i_interfaces (ClassMap.empty, ClassSet.empty) in
+		let (object_node) =
+		  let (o_info,fields_nodes) = 
+		    get_class_info' p java_lang_object !fields_of_nodes'
+		  in 
+		    fields_of_nodes':= fields_nodes;
+		    to_class_node (o_info).class_data 
+		in
+		let node = make_interface_node i object_node interfaces in
+		  { class_data = Interface node;
+		    is_instantiated = false;
+		    (* An interface will never be instantiated *)
+		    instantiated_subclasses = ClassMap.empty;
+		    super_classes = [];
+		    super_interfaces = super_interfaces;
+		    methods = rta_methods;
+		    memorized_virtual_calls = MethodSet.empty;
+		    memorized_interface_calls = MethodSet.empty }
+	in
+	  p.classes <- ClassMap.add cs ioc_info p.classes;
+	  (ioc_info,!fields_of_nodes')
     in
-      p.classes <- ClassMap.add cs ioc_info p.classes;
-      ioc_info
+      try
+	ClassMap.find cs p.classes
+      with
+	| Not_found ->
+	    let (node,nodes_to_add_fields) = 
+	      get_class_info' ~check_name p cs ClassMap.empty
+	    in
+	      ClassMap.iter
+		(fun _ class_node -> 
+		   load_classes_of_fields p class_node;
+		)
+		nodes_to_add_fields;
+	      node
 
   and add_clinit p cs =
     let ioc_info = get_class_info p cs in
@@ -216,19 +286,6 @@ struct
 		      Wlist.add (cs,cm) p.workset)
 	    )
 
-  let rec value_type2class_name v =
-    match v with
-      | TBasic _ -> None
-      | TObject o ->
-	  match o with
-	    | TClass cn -> Some cn
-	    | TArray a -> value_type2class_name a
-
-  let load_value_type_class p v =
-     match (value_type2class_name v) with
-	     | None -> ()
-	     | Some cn -> ignore(get_class_info p cn)
-
   let load_method_params_classes p ms =
     let args = ms_args ms in
     let rtype = ms_rtype ms in
@@ -236,6 +293,14 @@ struct
       | None -> args
       | Some r -> r :: args in
       List.iter (fun v -> load_value_type_class p v) prms
+
+  let load_catch_types_classes p exc_tbl = 
+    List.iter
+      (fun exc_h -> 
+	 match exc_h.e_catch_type with
+	     Some cn -> ignore(get_class_info p cn)
+	   | None -> ())
+      exc_tbl
 
   let resolve_field p cs fs =
     let ioc = (get_class_info p cs).class_data in
@@ -497,8 +562,10 @@ struct
 		   		       ^ " not present in the stub file.")
 		     )
 	     | Java t ->
-		 let code = (Lazy.force t).c_code
+		 let jcode = (Lazy.force t) in 
+		 let code = jcode.c_code
 		 in
+		   load_catch_types_classes p jcode.c_exc_tbl;
 		   Array.iter (parse_instruction p cs) code)
 	tail
 
