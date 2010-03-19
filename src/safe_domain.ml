@@ -218,7 +218,7 @@ end = struct
         with Not_found -> Var.bot
   let set_var v d = function
     | Bot -> Local (Ptmap.add v d Ptmap.empty)
-    | Local l -> Local (Ptmap.add ~merge:Var.join v d l)
+    | Local l -> Local (Ptmap.add v d l)
 
   let pprint fmt =
     let print_string = Format.pp_print_string fmt

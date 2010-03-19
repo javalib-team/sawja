@@ -38,6 +38,7 @@ MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain XTA		\
 
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install remove clean cleanall cleandoc doc
+.DELETE_ON_ERROR:.depend META
 
 all: sawja.cma sawja.cmxa
 

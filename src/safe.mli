@@ -71,6 +71,9 @@ module Domain : sig
     val pprint : Format.formatter -> t -> unit
     val get_var : int -> analysisDomain -> Var.t
     val set_var : int -> Var.t -> analysisDomain -> analysisDomain
+      (** [set_var x v d] set the value [v] to the variable [x] in local
+          function [d].  If a previous binding was already in place, then it is
+          simply discarded *)
   end
 
   module Stack : functor (Var:S) -> sig
