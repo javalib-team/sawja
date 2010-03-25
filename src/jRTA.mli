@@ -36,6 +36,7 @@ open JProgram
     parameter is the set of instantiated classes calculated by RTA
     algorithm. *)
 val parse_program :
+  ?instantiated:class_name ->
   ?other_entrypoints:class_method_signature list ->
   ?native_stubs:string option ->
   string -> class_method_signature ->
@@ -48,6 +49,8 @@ val parse_program :
     executed in this order. *)
 val default_entrypoints : class_method_signature list
 
+(** Same thing for J2ME CLDC 1.1 *)
+val cldc11_default_entrypoints : class_method_signature list
 
 (**/**)
 

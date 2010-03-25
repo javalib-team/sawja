@@ -569,7 +569,7 @@ struct
 		   Array.iter (parse_instruction p cs) code)
 	tail
 
-  let new_program_cache entrypoints native_stubs classpath =
+  let new_program_cache ?instantiated entrypoints native_stubs classpath =
     let (parse_natives,native_methods_info) =
       match native_stubs with
 	| None -> (false, JNativeStubs.empty_info)
@@ -589,6 +589,8 @@ struct
 	parse_natives = parse_natives;
 	native_methods_info = native_methods_info }
     in
+      Option.may (add_instantiated_class p) instantiated;
+      Option.may (add_class_clinits p) instantiated;
       List.iter
 	(fun cms ->
            let cs,ms = cms_split cms in
@@ -596,14 +598,18 @@ struct
 	   let cs = get_name c.class_data in
 	   add_class_clinits p cs;
 	   if defines_method c.class_data ms
-	   then add_to_workset p (cs,ms))
+	   then
+	     match c.class_data with
+	       | Interface _ ->
+		   invoke_interface_lookup p cs ms
+	       | Class _ -> add_to_workset p (cs,ms))
 	entrypoints;
       p
 
-  let parse_program entrypoints native_stubs classpath =
+  let parse_program ?instantiated entrypoints native_stubs classpath =
     let classpath = Javalib.class_path classpath in
       try
-        let p = new_program_cache entrypoints native_stubs classpath in
+        let p = new_program_cache ?instantiated entrypoints native_stubs classpath in
           iter_workset p;
           if not (ClassMethSet.is_empty p.native_methods)
           then prerr_endline "The program contains native method. Beware that native methods' side effects may invalidate the result of the analysis.";
@@ -740,10 +746,37 @@ let default_entrypoints =
 	 []
       )
 
-let parse_program ?(other_entrypoints=default_entrypoints) ?(native_stubs=None)
+(* cf. j2me_cldc/kvm/VmCommon/src/StartJVM.c *)
+
+let cldc11_default_entrypoints =
+    List.map
+      (fun (cn,ms) -> make_cms (make_cn cn) ms)
+      [(* These classes are only loaded :
+	 Primitive array classes :
+	  #define T_BOOLEAN   4
+	  #define T_CHAR      5
+	  #define T_FLOAT     6
+	  #define T_DOUBLE    7
+	  #define T_BYTE      8
+	  #define T_SHORT     9
+	  #define T_INT       10
+	  #define T_LONG      11
+       ("java.lang.Object",clinit_signature);
+       ("java.lang.Throwable",clinit_signature);
+       ("java.lang.Error",clinit_signature);
+       *)
+       ("java.lang.Class",clinit_signature);
+       ("java.lang.Thread",clinit_signature);
+       ("java.lang.String",clinit_signature);
+       ("java.lang.System",clinit_signature);
+       ("java.lang.OutOfMemoryError",clinit_signature)
+      ]
+
+let parse_program
+    ?instantiated ?(other_entrypoints=default_entrypoints) ?(native_stubs=None)
     classpath csms =
   let (p_cache, instantiated_classes) =
-    (Program.parse_program (csms::other_entrypoints) native_stubs classpath) in
+    (Program.parse_program ?instantiated (csms::other_entrypoints) native_stubs classpath) in
     (pcache2jprogram p_cache, instantiated_classes)
 
 let parse_program_bench ?(other_entrypoints=default_entrypoints) classpath csms =
