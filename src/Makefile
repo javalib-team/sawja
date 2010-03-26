@@ -87,11 +87,11 @@ jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
 safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
 	$(RM) $@
 	for i in $^; do \
-	  $(ECHO) `basename $$i .ml` | \
+	  echo `basename $$i .ml` | \
 	    awk 'BEGIN{ORS="";OFS="";}{print "module " toupper(substr($$0,6,1)) substr($$0,7,length($$0)-6) "= struct\n";}' >> $@;\
-	  $(ECHO) "# 1 \""$$i"\"" >> $@;\
+	  echo "# 1 \""$$i"\"" >> $@;\
 	  cat $$i >> $@;\
-	  $(ECHO) " end">> $@;\
+	  echo " end">> $@;\
 	done
 
 .ml.cmo:
@@ -107,7 +107,6 @@ sawja.cma: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
 sawja.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 	$(OCAMLOPT) -a $(MODULES:=.cmx) -o $@
 
-JAVALIB=`ocamlfind query javalib`
 doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\

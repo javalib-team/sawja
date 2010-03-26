@@ -1,8 +1,15 @@
-# -*-Makefile-*-
-# This file is part of Sawja
-# Copyright (c)2007 Tiphaine Turpin (Université de Rennes 1)
-# Copyright (c)2007 Laurent Hubert (CNRS)
-#
+export OCAMLFIND_DESTDIR=$(LOCALDEST)
+export OCAMLPATH=$(LOCALDEST)
+
+DOCDIR = doc/api
+
+OCAMLC = $(FINDER) ocamlc $(FLAGS)
+OCAMLOPT = $(FINDER) ocamlopt $(OPT_FLAGS)
+OCAMLDOC = $(FINDER) ocamldoc
+OCAMLDEP = $(FINDER) ocamldep
+OCAMLMKTOP = $(FINDER) ocamlmktop
+INSTALL = $(FINDER) install
+
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
 # as published by the Free Software Foundation, either version 3 of
@@ -16,52 +23,3 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program.  If not, see 
 # <http://www.gnu.org/licenses/>.
-
-# set to yes to keep debugging information in native library or to prof to
-# profile (with gprof) your program
-#
-# DEBUG = {no|yes|prof}
-DEBUG = yes
-
-# set to yes if you have the Buddy BDD library or to know if you do not have the
-# library or do not want to use it
-# BUDDY = {yes|no}
-BUDDY = no
-
-# Comment the following line if you do not have recode on your system
-# (otherwise, some name and other characters in the documentation will not
-# appear the right way)
-RECODE = -pp "recode UTF-8..Latin-1 <"
-
-# directory where the documentation will be put
-DOCDIR = doc/api
-
-PERL = perl
-ECHO = /bin/echo
-
-FLAGS = -w Ae -annot -g
-
-ifeq ($(DEBUG),yes)
-OPT_FLAGS = -g
-else
-ifeq ($(DEBUG),prof)
-OPT_FLAGS = -p -noassert -ccopt -O3
-else
-OPT_FLAGS = -g -noassert -ccopt -O3
-endif
-endif
-
-OCAMLC = ocamlfind ocamlc $(FLAGS)
-OCAMLOPT = ocamlfind ocamlopt $(OPT_FLAGS)
-OCAMLDOC = ocamlfind ocamldoc
-OCAMLDEP = ocamlfind ocamldep
-OCAMLMKTOP = ocamlfind ocamlmktop
-INSTALL = ocamlfind install
-
-ifeq ($(BUDDY),yes)
-INCLUDE = -package javalib,buddy
-else
-INCLUDE = -package javalib
-endif
-
-PP = -package camlp4 -syntax camlp4o

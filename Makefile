@@ -8,6 +8,9 @@ sawja:
 install remove:
 	$(MAKE) -C src $@
 
+distclean:clean
+	$(RM) Makefile.config
+
 clean cleanall cleandoc doc:
 	$(MAKE) -C src $@
 	$(MAKE) -C doc $@

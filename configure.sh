@@ -1,50 +1,65 @@
 #!/bin/bash
 
 ###
-### A configuration script for Javalib / Sawja
+### A configuration script for Sawja
 ###
 ###     Provide a "local" configuration option
 ###     Detect ocamlfind
-###     Determine whether camlzip and ptrees need to be make'd
-###     Check the presence of unix, str, extlib
+###     Determine whether javalib and buddy are installed
 ###     Check for recode
 ###     Set the debug flag
-###     Select the camlp4o executable
+###     Select the camlp4 package and camlp4o syntax 
 ###     Infer the destdir value from the localdest flag
-###     Infer the ocamlopt value from the debug flag
+###     Infer the ocamlopt flag value from the debug flag
 ###     Write the variables to the Makefile.config file
 ###     
 ###     
 ### Copyright (c)2010 Florent Kirchner
+###     
+### This program is free software: you can redistribute it and/or
+### modify it under the terms of the GNU Lesser General Public License
+### as published by the Free Software Foundation, either version 3 of
+### the License, or (at your option) any later version.
 ### 
-### This file: began on         march-18-2010,
+### This program is distributed in the hope that it will be useful, but
+### WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+### Lesser General Public License for more details.
+### 
+### You should have received a copy of the GNU Lesser General Public
+### License along with this program.  If not, see 
+### <http://www.gnu.org/licenses/>.
+### 
+### This file: began on         march-24-2010,
 ###            last updated on  .
 ###
 
 
-# The directory for local installations. Leave it empty if the install goes
-# global.
+# The directory for local installations. Leave it empty for a global install.
 LOCALDEST=
 # The destdir argument to "ocamlfind install" (depends on LOCALDEST)
 DESTDIR=
 # The ocamlpath variable for the compiler to locate the locally-installed
 # packages (depends on LOCALDEST)
 OCAMLPATH=
-# The packages that need to be made in addition to Savalib / Sawja
-MAKEDEP=
 # The path to ocamlfind
 FINDER=`which ocamlfind`
 # The path to recode (used to fix accents in the documentation)
-RECODE=`which recode`
+RECODEBIN=`which recode`
+# The perl executable
+PERL=`which perl`
 # The debug flag
 DEBUG=yes
+# The path to the Javalib libraries
+JAVALIB=
+# Set to yes if you have the Buddy BDD library or to no if you do not have the
+# library or do not want to use it
+BUDDY=no
 # The ocamlopt flags (depends on DEBUG)
 OPT_FLAGS=
 
 # The camlp4o pretty-printer
 PP=
-# The ocamlopt flags
-OPT_FLAGS="-noassert -ccopt -O3"
 
 # The following variables are constants
 FLAGS="-g -w Ae -annot"
@@ -104,7 +119,7 @@ function push ()
 # The option parsing function. Uses getopt, a more full-featured command than
 # the getopts bash built-in function.
 #
-tmpopt=`getopt -o h --long help,debug:,local:: -n \`basename $0\` -- "$@"`
+tmpopt=`getopt -o h --long help,debug:,buddy:,local:: -n \`basename $0\` -- "$@"`
 # Check the getopt return code
 if [ $? != 0 ]; then 
    msg "err" "option parse error"
@@ -119,7 +134,7 @@ while true ; do
     # local has an optional argument. An empty quote is generated if this option
     # is not exercised.
       case "$2" in
-        "") tmpdest="`pwd`/lib";;
+        "") tmpdest="`pwd`/../javalib/lib";;
         *)  tmpdest="$2";;
       esac
       LOCALDEST=`(cd $tmpdest && pwd) 2>/dev/null`
@@ -135,24 +150,25 @@ while true ; do
       # NB: only children of this script are in the scope of 'export'.
       export OCAMLPATH=$LOCALDEST
       shift 2;;
+    --buddy) 
+        BUDDY="$2"
+        msg "inf" "Request the Buddy BDD library? '$BUDDY'"
+        shift 2;;
     --debug) 
         DEBUG="$2"
         msg "inf" "Debug flag set to '$DEBUG'"
         shift 2;;
     -h|--help) 
-        echo "Usage: `basename $0` [--local[=PATH]] [--help] [--debug=yes|no|prof]"
+        echo "Usage: `basename $0` [--local[=PATH]] [--help] [--buddy=yes|no] [--debug=yes|no|prof]"
         exit 0;;
-    --) if [ -z $LOCALDEST ]; then 
-          msg "inf" "System-wide installation, in `ocamlfind printconf destdir`" 
-        fi
-        shift; break;;
+    --) shift; break;;
     *) msg "ser" "option parsing" "unrecognized argument '$1'";;
   esac
 done
 
 
 #
-# Check Ocamlfind
+# Check Ocamlfind and print the global installation directory if relevant.
 #
 if [ $FINDER ]; then
   msg "inf" "Ocamlfind found at $FINDER"
@@ -163,57 +179,76 @@ Use your system's software packaging tools to install Findlib, or download it fr
 http://www.camlcity.org/archive/programming/findlib.html"
 fi
 
-
-#
-# Check Camlzip, Ptrees, and Extlib. Set them to compile if necessary.
-#
-for pkg in camlzip ptrees extlib; do
-location=`ocamlfind query $pkg 2>/dev/null`
-if [ $location ]; then
-  msg "inf" "Package $pkg found at $location"
-else 
-  msg "inf" "Package $pkg not found, will need to be compiled"
-  push "$pkg" MAKEDEP
+if [ -z $LOCALDEST ]; then 
+  msg "inf" "System-wide installation, in `$FINDER printconf destdir`" 
 fi
-done
 
 
 #
-# Check Unix, and Str
+# Check Perl
 #
-for pkg in unix str; do
-location=`ocamlfind query $pkg 2> /dev/null`
-if [ $location ]; then
-  msg "inf" "Package $pkg found at $location"
-else 
-  msg "err" "Package $pkg not found"
+if [ $PERL ]; then
+  msg "inf" "Ocamlfind found at $PERL"
+else
+  msg "err" "perl not found. 
+
+Use your system's software packaging tools to install Perl, or download it from:
+http://www.perl.org/get.html"
 fi
-done
+
+
+#
+# Check for Javalib and Buddy.
+#
+JAVALIB=`$FINDER query javalib 2>/dev/null`
+if [ $? = 0 ]; then
+  msg "inf" "Package javalib found at $JAVALIB"
+else
+  msg "err" "Package javalib not found: check your installation. In particular, if you performed a non-global installation of Javalib, use the --local flag to specify its location"  
+fi
+
+if [ $BUDDY = "yes" ]; then
+  location=`$FINDER query buddy 2>/dev/null`
+  if [ $? = 0 ]; then
+    msg "inf" "Package buddy found at $location"
+    INCLUDE="-package javalib,buddy"
+  else
+    msg "err" "Package buddy not found"  
+  fi
+else
+  msg "inf" "Sawja won't use the buddy BDD package"
+  INCLUDE="-package javalib"
+fi
 
 
 #
 # Check Recode
 #
-if [ $RECODE ]; then
-  msg "inf" "Recode found at $RECODE"
+if [ $RECODEBIN ]; then
+  msg "inf" "Recode found at $RECODEBIN"
+  RECODE="-pp \"$RECODEBIN UTF-8..Latin-1 <\""
 else
   msg "inf" "Recode not found, proceeding anyway"
 fi
 
 
 #
-# Check camlp4o
+# Check camlp4 / camlp4o
 #
-cp4=`which camlp4o.opt`
+location=$FINDER query camlp4 2>/dev/null
+if [ $? != 0 ]; then
+  msg "inf" "Package camlp4 found at $location"
+else
+  msg "err" "Package camlp4 not found."  
+fi
+
+cp4=`which camlp4o`
 if [ -z "$cp4" ]; then
-  msg "inf" "No camlp4o.opt executable found: trying vanilla camlp4o"
-  cp4=`which camlp4o`
-  if [ -z "$cp4" ]; then
-    msg "err" "No camlp4o executable found"
-  fi
+  msg "err" "No camlp4o executable found"
 fi
 msg "inf" "Camlp4o found at $cp4"
-PP=" -pp $cp4"
+
+PP="-package camlp4 -syntax `basename $cp4`"
 
 
 #
@@ -247,14 +282,14 @@ echo -n "  ."
 # Constants
 echo "" >> $makeconfig
 echo "# Configuration constants" >> $makeconfig
-for var in FLAGS OPT_FLAGS; do
+for var in FLAGS; do
   echo "$var=${!var}" >> $makeconfig
 done
 echo -n "."
 # Configuration variables
 echo "" >> $makeconfig
 echo "# Variables detected at configure-time" >> $makeconfig
-for var in LOCALDEST MAKEDEP FINDER RECODE DEBUG PP; do
+for var in OPT_FLAGS LOCALDEST FINDER PERL RECODE DEBUG JAVALIB BUDDY INCLUDE PP; do
   echo "$var=${!var}" >> $makeconfig
 done
 echo -n "."
@@ -268,34 +303,16 @@ echo " done."
 
 
 #
-# Tell the user what to do next:
-# - if MAKEDEP is non-empty, then compile and install the dependencies.
-# - else compile and install Javalib 
+# Tell the user what to do next: compile and install Sawja 
 #
-if [ "$MAKEDEP" ]; then
-  echo ""
-  echo "WHAT'S NEXT: the following packages need to be compiled and installed:" | fmt
-  echo "    $MAKEDEP"
-  echo "In short, you will need to execute the following commands:" | fmt
-  for dep in $MAKEDEP; do
-    # Use sudo only if it's a nonlocal installation.
-    if [ "$LOCALDEST" ]; then
-      echo "    cd $dep && make && make install"
-    else
-      echo "    cd $dep && make && sudo make install"
-    fi
-  done
-  echo "Once the packages have been installed, rerun `basename $0` to update the Javalib Makefiles." | fmt
+echo ""
+echo "WHAT'S NEXT: all dependencies are satisfied. Compile and install Sawja with the following commands:" | fmt
+if [ "$LOCALDEST" ]; then
+  echo "    make && make install"
 else
-  echo ""
-  echo "WHAT'S NEXT: all dependencies are satisfied. Compile and install Javalib with the following commands:" | fmt
-  if [ "$LOCALDEST" ]; then
-    echo "    make && make install"
-  else
-    echo "    make && sudo make install"
-  fi
+  echo "    make && sudo make install"
 fi
 echo ""
-echo "More details can be found in the installation documentation (INSTALL or http://javalib.gforge.inria.fr/javalib-doc.html)." | fmt
+echo "More details can be found in the installation documentation (INSTALL or http://javalib.gforge.inria.fr/sawja-doc.html)." | fmt
 
 exit 0
