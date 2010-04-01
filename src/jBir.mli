@@ -107,7 +107,8 @@ type expr =
   | StaticField of JBasics.class_name * JBasics.field_signature
       (** Reading static fields *)
 
-(** [type_of_expr e] returns the type of the expression [e]. *)
+(** [type_of_expr e] returns the type of the expression [e]. 
+ N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
 val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
