@@ -337,11 +337,13 @@ let inline code instrs subroutines =
       
       let next = next_pc new_code in
       let first_valid pp = 
+	(* If pp is out of bounds, it is the last pp of code (exclusive
+	   for end of catch range), then return pp*)
 	try
 	  if new_code.(pp)=OpInvalid
 	  then next pp
 	  else pp
-	with _ -> next pp
+	with _ -> pp
       in
 	{
 	  c_max_stack = code.c_max_stack;
@@ -359,8 +361,7 @@ let inline code instrs subroutines =
 	       code.c_exc_tbl)
 	    @(List.map
 		(fun e -> 
-		   (* TODO: ask david if he is ok with this fix ! (it
-		      was not ... see first_valid function bug fix)*)
+		   (* TODO: ask david if he is ok with this fix ! *)
 		   {
 		     e_start = first_valid e.e_start;
 		     e_end = first_valid e.e_end;
