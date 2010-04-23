@@ -3,41 +3,54 @@ From 1.0.1 to
 Compilation & Installation changes:
 * installation process now rely on ocamlfind (more homogeneous installation,
   easier to use as dependencies are automatically linked in)
-* add a configure script into the compilation routine that automatically generate the appropriate Makefile.config file. Local installation is now an easy option.
+* add a configure script into the compilation routine that automatically
+  generate the appropriate Makefile.config file. Local installation is now an
+  easy option.
 ?* add shared option for compilation (.cmxs) ?
 
 New features:
-* add a module JsrInline that allow to inline major part of subroutines (do not include nested subroutines).
-* bir code representation is now flatten and represented as an array, in consequence correpondance tables between bytecode and bir representation are added.
-* add XTA algorithm that allow to refine a call graph with various sensitivity (see documentation)
-* add a module Safe that supply a fixpoint iterator specialized for domains on code (Global, InterfaceOrClass, Field, Method, PP).
-* ?? include jvmti that could be use to add static information on native method during program discovery (RTA, CRA).
+* add JsrInline, a module which allows to in-line most subroutines (all but
+  nested ones).
+* BIR code representation is now flatten and represented as an array.
+  Correspondence tables between bytecode (JCode) and BIR have been added.
+* add a call graph computation algorithm with different level of sensitivity
+  (ranging from MTA to XTA) (see documentation in XTA)
+* add a module Safe, a static analysis framework, which provides a fixpoint
+  iterator, domain composition, standard containers for method, fields, class
+  and program points, etc.
+* ?? include JVMTI that could be use to add static information on native method
+  during program discovery (RTA, CRA).
 
 Minor changes:
 * IR changes: 
   - add a ~ir_ssa and ~bcv flag for transform function !!!doc!!!
   - add Cast unary operator
-  - new exception_hanlder type , a specific catch var is created for each handler
+  - new exception_handler type, a specific catch var is created for each handler
   - add printing functions (string and for JPrintHTML)
-  - all var are now indexed, remove equal_var function (use = instead)
+  - all var are now indexed
+  - structural equality (=) can be used on var (equal_var function removed)
 * RTA changes:
-  - add classes to instanciate by force and abstract entrypoints in RTA
-  - add load of classes: catch type of handlers and fields of loaded classes (even if not accessed)
-* add static_lookup_special function in JControlFlow (for invokespecial instruction)
+  - add a set of default instantiated classes and abstract entry points
+  - more classes are now loaded: catch type of handlers and field types of
+    loaded classes are loaded (even if not accessed)
+* add static_lookup_special function in JControlFlow (for invokespecial
+  instruction)
 * module JPrintHTML is now generic with respect to the implementation of methods
-* documentation of sawja now includes the documentation of the
-  user-interface of javalib (javalib, jBasics and jCode)
+* the documentation of Sawja now includes the documentation of the
+  user-interface of Javalib for cross-references (Javalib, JBasics and JCode)
 * improve documentation and tutorial
 
 Minor fixes:
 * fixes some CSS bugs
-* bugfix on arrayload types of ir representations
+* bugfix on arrayload types of BIR representations
 * correct handling of local variable names (debug option) in JPrintHTML.
 
 Known bug:
 * Program discovery does not include native methods and reflection
-* XTA and RRTA are both buggy (is it JControlFlow ?, in this case RTA is buggy too...).
-* Corresp PP in IR ...
+* Inconsistencies between results of XTA, RTA, RRTA and CRA.  XTA and RRTA are
+  probably buggy but it could also be the case of CRA and RTA (specially if
+  JControlFlow is implicated).
+* Correspondence between program point of JCode and Bir
 
 From 1.0 to 1.0.1
 ----------------
