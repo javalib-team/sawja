@@ -1,47 +1,44 @@
 From 1.0.1 to 
 -------------
----
-New features:
+Compilation & Installation changes:
 * installation process now rely on ocamlfind (more homogeneous installation,
   easier to use as dependencies are automatically linked in)
-* documentation of sawja now includes the documentation of the
-  user-interface of javalib (javalib, jBasics and jCode)
+* add a configure script into the compilation routine that automatically generate the appropriate Makefile.config file. Local installation is now an easy option.
+?* add shared option for compilation (.cmxs) ?
+
+New features:
 * add a module JsrInline that allow to inline major part of subroutines (do not include nested subroutines).
 * bir code representation is now flatten and represented as an array, in consequence correpondance tables between bytecode and bir representation are added.
-* add XTA algorithm for program discovery (see doc)
+* add XTA algorithm that allow to refine a call graph with various sensitivity (see documentation)
 * add a module Safe that supply a fixpoint iterator specialized for domains on code (Global, InterfaceOrClass, Field, Method, PP).
-
-* ?? include jvmti that could be use to add static information on native method ?
+* ?? include jvmti that could be use to add static information on native method during program discovery (RTA, CRA).
 
 Minor changes:
-* New version of JPrintHTML, more generic 
-* add printing function for ir representation
-* add static_lookup_special function in JControlFlow (invokespecial instr)
+* IR changes: 
+  - add a ~ir_ssa and ~bcv flag for transform function !!!doc!!!
+  - add Cast unary operator
+  - new exception_hanlder type , a specific catch var is created for each handler
+  - add printing functions (string and for JPrintHTML)
+  - all var are now indexed, remove equal_var function (use = instead)
+* RTA changes:
+  - add classes to instanciate by force and abstract entrypoints in RTA
+  - add load of classes: catch type of handlers and fields of loaded classes (even if not accessed)
+* add static_lookup_special function in JControlFlow (for invokespecial instruction)
+* module JPrintHTML is now generic with respect to the implementation of methods
+* documentation of sawja now includes the documentation of the
+  user-interface of javalib (javalib, jBasics and jCode)
 * improve documentation and tutorial
-* add a ~ir_ssa and ~bcv flag in ir transforms !!!doc!!!
-* add Cast unary operator in ir representations
-* new exception_hanlder type for ir representations, a specific catch var is created for each handler
-* all var in ir representations are now indexed, remove equal_var function in ir representations, use = instead
-* add load of catch types classes and all fields classes in a class (even if not accessed) in RTA
-* add classes to instanciate by force and abstract entrypoints in RTA
-* adding DELETE_ON_ERROR target for files generated with
-  redirections in Makefiles (.depend and some others), moving from -dtypes to -annot in Makefile.config
-* Add a configure script for Sawja
-Based on the configure.sh script used for Javalib. Modifications have
-been made to the Makefiles, and Makefile.config.example, to take into
-account the configure-defined variables.
 
 Minor fixes:
 * fixes some CSS bugs
-* Correct handling of local variable names (debug option) in JPrintHTML.
-* updating JBir HTML output 
-* Bugfix on arrayload types of ir representations
+* bugfix on arrayload types of ir representations
+* correct handling of local variable names (debug option) in JPrintHTML.
 
 Known bug:
+* Program discovery does not include native methods and reflection
 * XTA and RRTA are both buggy (is it JControlFlow ?, in this case RTA is buggy too...).
-* Corresp PP in bir ...
+* Corresp PP in IR ...
 
----
 From 1.0 to 1.0.1
 ----------------
 Minor fixes:
