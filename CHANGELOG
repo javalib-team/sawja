@@ -1,3 +1,47 @@
+From 1.0.1 to 
+-------------
+---
+New features:
+* installation process now rely on ocamlfind (more homogeneous installation,
+  easier to use as dependencies are automatically linked in)
+* documentation of sawja now includes the documentation of the
+  user-interface of javalib (javalib, jBasics and jCode)
+* add a module JsrInline that allow to inline major part of subroutines (do not include nested subroutines).
+* bir code representation is now flatten and represented as an array, in consequence correpondance tables between bytecode and bir representation are added.
+* add XTA algorithm for program discovery (see doc)
+* add a module Safe that supply a fixpoint iterator specialized for domains on code (Global, InterfaceOrClass, Field, Method, PP).
+
+* ?? include jvmti that could be use to add static information on native method ?
+
+Minor changes:
+* New version of JPrintHTML, more generic 
+* add printing function for ir representation
+* add static_lookup_special function in JControlFlow (invokespecial instr)
+* improve documentation and tutorial
+* add a ~ir_ssa and ~bcv flag in ir transforms !!!doc!!!
+* add Cast unary operator in ir representations
+* new exception_hanlder type for ir representations, a specific catch var is created for each handler
+* all var in ir representations are now indexed, remove equal_var function in ir representations, use = instead
+* add load of catch types classes and all fields classes in a class (even if not accessed) in RTA
+* add classes to instanciate by force and abstract entrypoints in RTA
+* adding DELETE_ON_ERROR target for files generated with
+  redirections in Makefiles (.depend and some others), moving from -dtypes to -annot in Makefile.config
+* Add a configure script for Sawja
+Based on the configure.sh script used for Javalib. Modifications have
+been made to the Makefiles, and Makefile.config.example, to take into
+account the configure-defined variables.
+
+Minor fixes:
+* fixes some CSS bugs
+* Correct handling of local variable names (debug option) in JPrintHTML.
+* updating JBir HTML output 
+* Bugfix on arrayload types of ir representations
+
+Known bug:
+* XTA and RRTA are both buggy (is it JControlFlow ?, in this case RTA is buggy too...).
+* Corresp PP in bir ...
+
+---
 From 1.0 to 1.0.1
 ----------------
 Minor fixes:
