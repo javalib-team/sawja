@@ -31,7 +31,7 @@
 ### <http://www.gnu.org/licenses/>.
 ### 
 ### This file: began on         march-24-2010,
-###            last updated on  .
+###            last updated on  may-2-2010.
 ###
 
 
@@ -65,6 +65,11 @@ PP=
 FLAGS="-g -w Ae -annot"
 
 
+# Differentiated error numbers make for easier bug hunting. Hopefully we won't
+# have to use them.
+E_MAKERERROR=83
+E_SCRIPTERROR=84
+
 #
 # The msg recursive function takes care of the pretty-printing.
 # It uses "fmt" to stick to 75 characters columns.
@@ -75,7 +80,7 @@ function msg()
     if [ $1 = "err" ]; then
       echo ""
       echo "! configure error: $2." | fmt >&2
-      exit 1
+      exit $E_MAKERERROR
     elif [ $1 = "inf" ]; then
       echo "* $2." | fmt
       return 0
@@ -84,7 +89,7 @@ function msg()
     if [ $1 = "ser" ]; then
       echo ""
       echo "! script error ($2): $3. Please file a bug." | fmt >&2
-      exit 1
+      exit $E_SCRIPTERROR
     fi
     msg "ser" "msg" "unexpected message type"
   else
@@ -116,55 +121,57 @@ function push ()
 
 
 #
-# The option parsing function. Uses getopt, a more full-featured command than
-# the getopts bash built-in function.
+# Macro function to print a usage message.
 #
-tmpopt=`getopt -o h --long help,debug:,buddy:,local:: -n \`basename $0\` -- "$@"`
-# Check the getopt return code
-if [ $? != 0 ]; then 
-   msg "err" "option parse error"
-fi
+function print_usage()
+{
+  echo -e "
+Sawja configure.sh
+Usage: `basename $0` [-l [PATH|default]] [-d [yes|no|prof]] [-b [yes|no]] [-h]
+Options:
+  -l PATH \t Perform a local installation at PATH.
+  \t\t This also needs to be the Javalib installation directory
+  -l default \t Perform a local installation in the default directory.
+  \t\t This coincides with the default Javalib installation directory
+  -d FLAG \t Use the debug flag when compiling.
+  -b FLAG \t Compile Sawja to use the Buddy BDD library.
+  -h  \t\t Print this message and exit."
+}
 
-eval set -- "$tmpopt"
 
-#for arg do echo '--> '"\`$arg'" ; done
-while true ; do
-  case "$1" in
-    --local) 
-    # local has an optional argument. An empty quote is generated if this option
-    # is not exercised.
-      case "$2" in
-        "") tmpdest="`pwd`/../javalib/lib";;
-        *)  tmpdest="$2";;
-      esac
-      LOCALDEST=`(cd $tmpdest && pwd) 2>/dev/null`
-      if [ $? != 0 ]; then
-        msg "inf" "Local installation, but directory $tmpdest was not found"
-        echo -n "  Creating directory... "
-        mkdir -p $tmpdest/stublibs
-        echo "done."
-        LOCALDEST=`(cd $tmpdest && pwd)` # This one can't fail!
-      fi
-      msg "inf" "Local installation, at $LOCALDEST"
-      # For the rest of this configure, set OCAMLPATH to $LOCALDEST
-      # NB: only children of this script are in the scope of 'export'.
-      export OCAMLPATH=$LOCALDEST
-      shift 2;;
-    --buddy) 
-        BUDDY="$2"
-        msg "inf" "Request the Buddy BDD library? '$BUDDY'"
-        shift 2;;
-    --debug) 
-        DEBUG="$2"
-        msg "inf" "Debug flag set to '$DEBUG'"
-        shift 2;;
-    -h|--help) 
-        echo "Usage: `basename $0` [--local[=PATH]] [--help] [--buddy=yes|no] [--debug=yes|no|prof]"
-        exit 0;;
-    --) shift; break;;
-    *) msg "ser" "option parsing" "unrecognized argument '$1'";;
+#
+# The option parsing function. Uses getopts, a bash built-in function.
+#
+while getopts ":d:b:l:h" opt
+do
+  case $opt in 
+    h   ) print_usage
+          exit 0;;
+    b   ) BUDDY="$OPTARG"
+          msg "inf" "Request the Buddy BDD library? '$BUDDY'";;
+    d   ) DEBUG=$OPTARG
+          msg "inf" "Debug flag set to '$DEBUG'";;
+    l   ) case "$OPTARG" in
+            default)    tmpdest="`pwd`/../javalib/lib";;
+            *)          tmpdest="$OPTARG";;
+          esac
+          LOCALDEST=`(cd $tmpdest && pwd) 2>/dev/null`
+          if [ $? != 0 ]; then
+            msg "inf" "Local installation, but directory $tmpdest was not found"
+            echo -n "  Creating directory... "
+            mkdir -p $tmpdest/stublibs
+            echo "done."
+            LOCALDEST=`(cd $tmpdest && pwd)` # This one can't fail!
+          fi
+          msg "inf" "Local installation, at $LOCALDEST"
+          # For the rest of this configure, set OCAMLPATH to $LOCALDEST
+          # NB: only children of this script are in the scope of 'export'.
+          export OCAMLPATH=$LOCALDEST;;
+    *   ) msg "err" "unrecognized option '$OPTARG'. Type '`basename $0` -h' to list available options";;
   esac
 done
+
+shift $(($OPTIND - 1))
 
 
 #
@@ -204,7 +211,7 @@ JAVALIB=`$FINDER query javalib 2>/dev/null`
 if [ $? = 0 ]; then
   msg "inf" "Package javalib found at $JAVALIB"
 else
-  msg "err" "Package javalib not found: check your installation. In particular, if you performed a non-global installation of Javalib, use the --local flag to specify its location"  
+  msg "err" "Package javalib not found: check your installation. In particular, if you performed a non-global installation of Javalib, use the -l flag to specify its location"  
 fi
 
 if [ $BUDDY = "yes" ]; then
