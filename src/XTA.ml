@@ -600,7 +600,7 @@ let get_XTA_program
 	  program.classes}
     in {program with
           parsed_methods =
-          ReachableMethods.compute_reachable_methods program entry_points }
+          ReachableMethods.compute_reachable_methods program entry_points}
   in
 
   let entry_points =
