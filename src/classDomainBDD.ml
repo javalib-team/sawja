@@ -1,3 +1,5 @@
+open Javalib_pack
+
 module BddBuddy = struct
 
   type t = Buddy.t
@@ -88,7 +90,8 @@ module MakeBDD (S:sig val nb_bits : int end) = struct
     | Bool of bool
 
 
-  open S
+  open Javalib_pack
+open S
 
   let singletons = ref Ptmap.empty
 

@@ -19,6 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
 open JBasics
 open JCode
 open Javalib

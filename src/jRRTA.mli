@@ -23,6 +23,7 @@
 (** Builds high level representations of Java bytecode programs using a
     refinement of RTA. *)
 
+open Javalib_pack
 open JBasics
 open Javalib
 open JProgram

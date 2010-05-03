@@ -18,6 +18,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
 open Javalib
 open JBasics
 open JCode 
@@ -1131,14 +1132,7 @@ let to_addr3_binop dico mode binop ssa fresh_counter s =
 		 let e = Binop (binop,topE (pop s),topE s) in
 		   E (Var (type_of_expr e,x))::(pop2 s), [AffectVar(x,e)]
 	       end)
-    | _ -> 
-	let q = topE s in 
-	  E (Binop (binop,topE (pop s), q))::(pop2 s), 
-	  (match binop with 
-	     | Div _ 
-	     | Rem _ -> [Check (CheckArithmetic q)]
-	     | _ ->  [])
-
+    | _ -> E (Binop (binop,topE (pop s), topE s))::(pop2 s), []
 	
 let to_addr3_unop dico mode unop ssa fresh_counter s instrs =
   match mode with

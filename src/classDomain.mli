@@ -1,3 +1,5 @@
+open Javalib_pack
+
 module Make :
   functor (S : sig val nb_bits:int end) ->
     sig

@@ -20,6 +20,7 @@
 
 (** Pretty-Html-printer for high level programs. *)
 
+open Javalib_pack
 open JBasics
 open Javalib
 open JProgram

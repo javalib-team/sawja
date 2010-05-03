@@ -18,9 +18,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-
-(**   *)
-
+open Javalib_pack
 
 type const =
       [ `ANull

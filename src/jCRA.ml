@@ -19,6 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
 open JBasics
 open JCode
 open Javalib
@@ -127,9 +128,9 @@ let add_one_node f classes_map interfaces =
 let add_class_referenced c classmap to_add =
   Array.iter
     (function
-      | ConstMethod (TClass cn,_,_)
-      | ConstInterfaceMethod (cn,_,_)
-      | ConstField (cn,_,_)
+      | ConstMethod (TClass cn,_)
+      | ConstInterfaceMethod (cn,_)
+      | ConstField (cn,_)
       | ConstValue (ConstClass (TClass cn)) ->
 	  if not (ClassMap.mem cn classmap) then to_add := cn::!to_add
       | _ -> ()) (Javalib.get_consts c)

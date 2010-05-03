@@ -21,6 +21,7 @@
 
 (** Defines high level OCaml representation of a Java bytecode program. *)
 
+open Javalib_pack
 open JBasics
 open Javalib
 

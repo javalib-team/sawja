@@ -18,6 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
+
 (** Stackless, 3-address like and unstructured intermediate representation for Java Bytecode, in which basic expression trees are reconstructed and method and constructor calls are folded.*)
 
 (** {2 Language} *)

@@ -22,6 +22,7 @@
  * JPrintHTML should be more generic (functor ?) and able to
  * print any code representation. *)
 
+open Javalib_pack
 open JBasics
 open JCode
 open Javalib

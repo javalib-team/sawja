@@ -10,6 +10,8 @@
     {{:http://www.cs.rutgers.edu/~ryder/516/sp03/lectures/ClassAnal-4-304.pdf}Class
     Analyses} *)
 
+open Javalib_pack
+
 (** [get_XTA_program field_analysis program entry_points] returns the same
     program where the control flow function has been improved with the result of
     an XTA analysis.  The parameter [field_analysis] specifies which sensitivity

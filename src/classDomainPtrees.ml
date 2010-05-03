@@ -1,3 +1,4 @@
+open Javalib_pack
 
 module Make (S:sig end) = struct
   module ClassSet = JBasics.ClassSet

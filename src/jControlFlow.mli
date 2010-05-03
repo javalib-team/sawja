@@ -25,6 +25,7 @@
 
 (** Allows some navigation in the control flow graph of a program. *)
 
+open Javalib_pack
 open JBasics
 open Javalib
 open JProgram

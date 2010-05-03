@@ -36,11 +36,13 @@ MODULES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA	\
 MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain XTA		\
 	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml
 
+FOR_PACK= -for-pack Sawja_pack
+
 .SUFFIXES : .cmo .cmx .cmi .ml .mli
 .PHONY : all install remove clean cleanall cleandoc doc
 .DELETE_ON_ERROR:.depend META
 
-all: sawja.cma sawja.cmxa
+all: sawja.cma sawja.cmxa $(SHARED)
 
 META: META.source ../Makefile.config
 	if [ "$(BUDDY)" = "yes" ]; then \
@@ -49,7 +51,7 @@ META: META.source ../Makefile.config
 		sed 's/requires = "javalib"/requires = "javalib,ptrees"/' $< > $@ ; \
 	fi
 
-install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) $(MODULE_INTERFACES:=.cmi)
+install: META sawja.cm[ia] sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cm[iox] sawja_pack.o 
 	$(INSTALL) sawja $^ bir.cmi sawja.a
 
 remove:
@@ -73,7 +75,7 @@ endif
 jNativeStubs.cmo:jNativeStubs.ml
 	$(OCAMLC) $(INCLUDE) $(PP) -c $<
 jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
-	$(OCAMLOPT) $(INCLUDE) $(PP) -c $<
+	$(OCAMLOPT) $(INCLUDE) $(PP) $(FOR_PACK) -c $<
 
 classDomain.ml:$(CLASS_DOMAIN)
 	cp $< $@
@@ -82,7 +84,7 @@ jPrintHtml.cmo:jPrintHtml.ml
 	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<
 
 jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
-	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" $(FOR_PACK) -c $<
 
 safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
 	$(RM) $@
@@ -97,26 +99,40 @@ safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solve
 .ml.cmo:
 	$(OCAMLC) $(INCLUDE) -c $<
 %.cmx %.o:%.ml
-	$(OCAMLOPT) $(INCLUDE) -c $<
+	$(OCAMLOPT) $(INCLUDE) $(FOR_PACK) -c $<
 .mli.cmi:
 	$(OCAMLC) $(INCLUDE) -c $<
 
-sawja.cma: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
-	$(OCAMLC) -a $(MODULES:=.cmo) -o $@
+sawja.cma: sawja_pack.cmo
+	$(OCAMLC) -a -o $@ $^
 
-sawja.cmxa: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
-	$(OCAMLOPT) -a $(MODULES:=.cmx) -o $@
+sawja.cmxa: sawja_pack.cmx
+	$(OCAMLOPT) -a -o $@ $^
+
+sawja.cmxs: sawja.cmxa
+	$(OCAMLOPT) -shared -o $@ $^
+
+sawja_pack.cmo: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
+	$(OCAMLC) -pack $(MODULES:=.cmo) -o $@
+
+sawja_pack.cmx: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
+	$(OCAMLOPT) -pack $(MODULES:=.cmx) -o $@
 
 doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
+	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
+	cp $(JAVALIB)/javalib.mli ./Javalib_pack.JBasics.mli
+	cp $(JAVALIB)/javalib.mli ./javalib_pack.JCode.mli
+	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
+	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
+	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
-		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) \
-		$(JAVALIB)/{javalib,jBasics,jCode}.mli
+		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) ./{javalib_pack.Javalib,javalib_pack.JBasics,javalib_pack.JCode}.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ 
 cleanall: clean
-	$(RM) ocaml *.cma *.cmxa *.a *.cmi META
+	$(RM) ocaml *.cma *.cmxa *.cmxs *.a *.cmi META
 cleandoc:
 	$(RM) -r $(DOCDIR)

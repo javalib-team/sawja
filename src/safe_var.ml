@@ -1,4 +1,4 @@
-
+open Javalib_pack
 
 module type CONTEXT = sig
   (* The Context could be
@@ -90,7 +90,8 @@ end
 
 
 module Make = functor (Context:CONTEXT) -> struct
-  open JBasics
+  open Javalib_pack
+open JBasics
   open Javalib
 
   (* The Context could be

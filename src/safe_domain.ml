@@ -1,3 +1,4 @@
+open Javalib_pack
 
 module type TRADUCTOR_ANALYSIS = sig
   type localID

@@ -1,3 +1,5 @@
+open Javalib_pack
+
 module type S = sig
   module Var:Var.S
 
