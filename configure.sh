@@ -145,7 +145,7 @@ Options:
 #
 # The option parsing function. Uses getopts, a bash built-in function.
 #
-while getopts ":d:b:l:h" opt
+while getopts ":d:b:l:h:s" opt
 do
   case $opt in 
     h   ) print_usage
@@ -171,7 +171,7 @@ do
           # NB: only children of this script are in the scope of 'export'.
           export OCAMLPATH=$LOCALDEST;;
     s   ) SHARED="javalib.cmxs"
-           msg "inf" "Plugin version of javalib will be generated at compilation (ocamlopt -shared)";;
+           msg "inf" "Plugin version of sawja will be generated at compilation (ocamlopt -shared)";;
     *   ) msg "err" "unrecognized option '$OPTARG'. Type '`basename $0` -h' to list available options";;
   esac
 done
