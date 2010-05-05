@@ -1,12 +1,13 @@
-From 1.0.1 to 
--------------
+From 1.0.1 to 1.1
+-----------------
+
 Compilation & Installation changes:
 * installation process now rely on ocamlfind (more homogeneous installation,
   easier to use as dependencies are automatically linked in)
 * add a configure script into the compilation routine that automatically
   generate the appropriate Makefile.config file. Local installation is now an
   easy option.
-?* add shared option for compilation (.cmxs) ?
+* compilation of a dynamically loadable library (.cmxs) is now proposed
 
 New features:
 * add JsrInline, a module which allows to in-line most subroutines (all but
@@ -24,7 +25,6 @@ New features:
 Minor changes:
 * IR changes: 
   - add a ~ir_ssa and ~bcv flag for transform function !!!doc!!!
-  - add Cast unary operator
   - new exception_handler type, a specific catch var is created for each handler
   - add printing functions (string and for JPrintHTML)
   - all var are now indexed
@@ -40,10 +40,12 @@ Minor changes:
   user-interface of Javalib for cross-references (Javalib, JBasics and JCode)
 * improve documentation and tutorial
 
-Minor fixes:
+Bug fixes:
 * fixes some CSS bugs
 * bugfix on arrayload types of BIR representations
 * correct handling of local variable names (debug option) in JPrintHTML.
+* CheckArthimetic was missing in jBir
+* a Cast unary operator was missing in jBir
 
 Known bug:
 * Program discovery does not include native methods and reflection
