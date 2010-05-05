@@ -209,7 +209,8 @@ val static_lookup : JCode.jcode program -> pp
 
 (** [static_lookup' program pp] returns a list of methods that may be
     called from program point [pp].  The computation is base on RTA or
-    CHA, depending on the function used to build the program. *)
+    CHA, depending on the function used to build the program (it uses
+    the field [program.static_lookup_method]). *)
 val static_lookup' : JCode.jcode program -> pp -> pp list
 
 (** {2 Interface Implementations.}*)
@@ -256,10 +257,11 @@ val invoke_static_lookup : 'a class_node -> method_signature ->
   'a class_node * 'a concrete_method
 
 
-(** [get_successors program class method] returns the possible methods that may
-    be invoked from the current program point. For the static initialization,
-    only the topmost class initializer is return (and the successors of a clinit
-    methods includes the clinit methods that are beneath). *)
+(** [get_successors program class method] returns the possible methods
+    that may be invoked from the current program point.  For the
+    static initialization, only the topmost class initializer is
+    return (and the successors of a clinit methods includes the clinit
+    methods that are beneath). *)
 val get_successors :
   JCode.jcode program ->
   JCode.jcode node -> JCode.jcode concrete_method -> ClassMethodSet.t
