@@ -33,7 +33,7 @@ endif
 MODULES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA	\
 	jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml
 
-MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain XTA		\
+MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA		\
 	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml
 
 FOR_PACK= -for-pack Sawja_pack
