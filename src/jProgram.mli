@@ -180,7 +180,7 @@ val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
 (** {2 Transforming code representation in a program.} *)
 
 (** [map_program f p] lazily applies [f] to all non-native implementations
-    (cf. {!Javalib.implementation}) of the program [p]. [map_program] passes to
+    (cf. {!Javalib_pack.Javalib.implementation}) of the program [p]. [map_program] passes to
     [f] the class name and method signature corresponding to the method being
     converted.  The application is {b lazy}: [f] is not applied until
     [Lazy.force] is called on the implementation. *)
