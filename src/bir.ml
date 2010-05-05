@@ -1655,14 +1655,14 @@ let gen_params dico pp_var cm =
 let compress_ir handlers ir jump_target =
   let h_ends = List.fold_right (fun e s -> Ptset.add e.JCode.e_end (Ptset.add e.JCode.e_start s)) handlers Ptset.empty in
   let rec aux0 pc0 = function
-    | [] -> [pc0,[Nop]]
-    | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[Nop])::(aux l)
+    | [] -> [pc0,[pc0,Nop]]
+    | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[pc0,Nop])::(aux l)
     | (_,[])::q -> aux0 pc0 q
-    | (_,instrs)::q -> (pc0,instrs)::(aux q)
+    | (pc,instrs)::q -> (pc0,List.map (fun i -> (pc,i)) instrs)::(aux q)
   and aux = function
     | [] -> []
     | (pc,[])::q -> aux0 pc q
-    | (pc,instrs)::q -> (pc,instrs)::(aux q)
+    | (pc,instrs)::q -> (pc,List.map (fun i -> (pc,i)) instrs)::(aux q)
   in aux ir
 
 let make_exception_handler dico e =
@@ -1680,15 +1680,30 @@ let rec last = function
   | [(x,_)] -> x
   | _::q -> last q
 
+(* only used for debugging *)
+let print_unflattened_code code =
+  List.iter 
+    (fun (i,instrs) -> 
+      List.iter (fun (pc,op) -> Printf.printf"%3d (%3d) : %s\n" i pc (print_instr op)) instrs)
+    code;
+  print_newline ()
+let print_unflattened_code_uncompress code =
+  List.iter 
+    (fun (i,instrs) -> 
+      List.iter (fun op -> Printf.printf"%3d : %s\n" i (print_instr op)) instrs)
+    code;
+  print_newline ()
+
+
 let flatten_code code exc_tbl =
   (* starting from i, and given the code [code], computes a triple *)
   let rec aux i map = function
       [] -> [], [], map
     | (pc,instrs)::q ->
 	let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
-	  instrs@instrs', 
+	  (List.map snd instrs)@instrs', 
             (* flatten_code the code but does not modify the instruction in it *)
-	  (List.map (fun _ -> pc) instrs)@pc_list,
+	  (List.map fst instrs)@pc_list,
 	    (* the list of initial pcs of instrs *)
 	  Ptmap.add pc i map
 	    (* map from initial pcs to the future pc they are mapped to *)
@@ -1735,8 +1750,10 @@ let jcode2bir mode bcv ssa cm jcode =
 	  let (load_type,arrayload_type) = BCV.run bcv cm code in
 	  let dico = make_dictionary () in
 	  let res = bc2ir dico mode ssa pp_var jump_target load_type arrayload_type code in
+	  (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
 	  let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
 	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
+	  (* let _ = print_unflattened_code ir_code in *)
 	  let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
 	    { params = gen_params dico pp_var cm;
 	      vars = make_array_var dico;
