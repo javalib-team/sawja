@@ -120,8 +120,8 @@ sawja_pack.cmx: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 
 doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
 	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
-	cp $(JAVALIB)/javalib.mli ./Javalib_pack.JBasics.mli
-	cp $(JAVALIB)/javalib.mli ./javalib_pack.JCode.mli
+	cp $(JAVALIB)/jBasics.mli ./javalib_pack.JBasics.mli
+	cp $(JAVALIB)/jCode.mli ./javalib_pack.JCode.mli
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
@@ -129,6 +129,7 @@ doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) ./{javalib_pack.Javalib,javalib_pack.JBasics,javalib_pack.JCode}.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
+	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ 
