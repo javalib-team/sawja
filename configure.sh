@@ -170,7 +170,7 @@ do
           # For the rest of this configure, set OCAMLPATH to $LOCALDEST
           # NB: only children of this script are in the scope of 'export'.
           export OCAMLPATH=$LOCALDEST;;
-    s   ) SHARED="javalib.cmxs"
+    s   ) SHARED="sawja.cmxs"
            msg "inf" "Plugin version of sawja will be generated at compilation (ocamlopt -shared)";;
     *   ) msg "err" "unrecognized option '$OPTARG'. Type '`basename $0` -h' to list available options";;
   esac
@@ -317,12 +317,24 @@ echo " done."
 #
 # Tell the user what to do next: compile and install Sawja 
 #
+SAWJA=`$FINDER query sawja 2>/dev/null`
 echo ""
-echo "WHAT'S NEXT: all dependencies are satisfied. Compile and install Sawja with the following commands:" | fmt
+echo "WHAT'S NEXT: all dependencies are satisfied." | fmt
+if [ $? = 0 ]; then
+	echo " A version of Sawja is already installed."
+	echo " Compile, remove and install Sawja with the following commands:" | fmt
+    else echo " Compile and install Sawja with the following commands:" | fmt
+    fi
 if [ "$LOCALDEST" ]; then
-  echo "    make && make install"
+    if [ $? = 0 ]; then
+	echo "    make && make remove install"
+    else echo "    make && make install"
+    fi   
 else
-  echo "    make && sudo make install"
+    if [ $? = 0 ]; then
+	echo "    make && sudo make remove install"
+    else echo "    make && sudo make remove install"
+    fi   
 fi
 echo ""
 echo "More details can be found in the installation documentation (INSTALL or http://javalib.gforge.inria.fr/sawja-doc.html)." | fmt
