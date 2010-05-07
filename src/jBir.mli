@@ -251,11 +251,11 @@ val print : t -> string list
 
 (** [transform ~bcv ~ir_ssa cm jcode] transforms the code [jcode] into its JBir
     representation. The transformation is performed in the context of a given
-    concrete method [cm].  [transform] can raise several exceptions. See
-    exceptions below for details. *)
+    concrete method [cm].  The type checking normally performed by the ByteCode
+    Verifier (BCV) is done if and only if [bcv] is [true].  [transform] can
+    raise several exceptions. See exceptions below for details. *)
 val transform :
-  ?bcv:bool ->
-  ?ir_ssa:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+  ?bcv:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 

@@ -199,7 +199,8 @@ type t = {
   
 (** {2 Printing functions} *)
 
-(** [print_basic_expr e] returns a string representation for basic expression [e]. *)
+(** [print_basic_expr e] returns a string representation for basic expression
+    [e]. *)
 val print_basic_expr : basic_expr -> string
 
 (** [print_expr e] returns a string representation for expression [e]. *)
@@ -208,13 +209,17 @@ val print_expr : expr -> string
 (** [print_instr ins] returns a string representation for instruction [ins]. *)
 val print_instr : instr -> string
 
-(** [print c] returns a list of string representations for instruction of [c] (one string for each program point of the code [c]). *)
+(** [print c] returns a list of string representations for instruction of [c]
+    (one string for each program point of the code [c]). *)
 val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform b cm jcode] transforms the code [jcode] into its A3Bir representation. The transformation is performed in the context of a given concrete method [cm]. According to the boolean [~compress:b], all program points made of a single [Nop] instruction are removed from the obtained A3Bir representation. 
-[transform b cm jcode] can raise several exceptions. See exceptions below for details. *) 
+(** [transform ~bcv cm jcode] transforms the code [jcode] into its A3Bir
+    representation.  The transformation is performed in the context of a given
+    concrete method [cm].  The type checking normally performed by the ByteCode
+    Verifier (BCV) is done if and only if [bcv] is [true].  [transform ~bcv cm
+    jcode] can raise several exceptions.  See Exceptions below for details. *)
 val transform : ?bcv:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
 
 (** {2 Exceptions} *)
@@ -222,17 +227,36 @@ val transform : ?bcv:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode 
 
 (** {3 Exceptions due to the transformation limitations} *)
 
-exception Uninit_is_not_expr (** [Uninit_is_not_expr] is raised in case an uninitialised reference is used as a traditional expression (variable assignment, field reading etc).*)
-exception NonemptyStack_backward_jump (** [NonemptyStack_backward_jump] is raised when a backward jump on a non-empty stack is encountered. This should not happen if you compiled your Java source program with the javac compiler *)
-exception Type_constraint_on_Uninit (** [Type_constraint_on_Uninit] is raised when the requirements about stacks for folding constructors are not satisfied. *)
-exception Content_constraint_on_Uninit (** [Content_constraint_on_Uninit] is raised when the requirements about stacks for folding constructors are not satisfied. *)
-exception Subroutine (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
+(** [Uninit_is_not_expr] is raised in case an uninitialised reference is used
+    as a traditional expression (variable assignment, field reading etc).*)
+exception Uninit_is_not_expr
+
+(** [NonemptyStack_backward_jump] is raised when a backward jump on a non-empty
+    stack is encountered. This should not happen if you compiled your Java source
+    program with the javac compiler *)
+exception NonemptyStack_backward_jump
+
+(** [Type_constraint_on_Uninit] is raised when the requirements about stacks for
+    folding constructors are not satisfied. *)
+exception Type_constraint_on_Uninit
+
+(** [Content_constraint_on_Uninit] is raised when the requirements about stacks
+    for folding constructors are not satisfied. *)
+exception Content_constraint_on_Uninit
+
+(** [Subroutine] is raised in case the bytecode contains a subroutine. *)
+exception Subroutine
 
 
 (** {3 Exceptions due to a non-Bytecode-verifiable bytecode} *)
 
-exception Bad_stack (** [Bad_stack] is raised in case the stack does not fit the length/content constraint of the bytecode instruction being transformed. *)
-exception Bad_Multiarray_dimension (** [Bad_Multiarray_dimension] is raise when attempting to transforming a multi array of dimension zero. *)
+(** [Bad_stack] is raised in case the stack does not fit the length/content
+    constraint of the bytecode instruction being transformed. *)
+exception Bad_stack
+
+(** [Bad_Multiarray_dimension] is raise when attempting to transforming a
+    multi-array of dimension zero. *)
+exception Bad_Multiarray_dimension
 
 
 

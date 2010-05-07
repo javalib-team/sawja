@@ -1765,7 +1765,7 @@ let jcode2bir mode bcv ssa cm jcode =
 	      jump_target = jump_target }
       | None -> raise Subroutine
 
-let transform ?(bcv=false) ?(ir_ssa=false) = jcode2bir Normal bcv ir_ssa
+let transform ?(bcv=false) = jcode2bir Normal bcv false
 let transform_flat ?(bcv=false) ?(ir_ssa=false) = jcode2bir Flat bcv ir_ssa
 let transform_addr3 ?(bcv=false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ir_ssa
 
