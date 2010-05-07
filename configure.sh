@@ -137,15 +137,15 @@ Options:
   \t\t This coincides with the default Javalib installation directory
   -d FLAG \t Use the debug flag when compiling.
   -b FLAG \t Compile Sawja to use the Buddy BDD library.
-  -s  \t\t Complile a dynamically loadable plugin (cmxs).
   -h  \t\t Print this message and exit."
 }
+#   -s  \t\t Complile a dynamically loadable plugin (cmxs).
 
 
 #
 # The option parsing function. Uses getopts, a bash built-in function.
 #
-while getopts "d:b:l:hs" opt
+while getopts "d:b:l:h" opt
 do
   case $opt in 
     h   ) print_usage
