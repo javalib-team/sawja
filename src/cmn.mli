@@ -44,20 +44,28 @@ type unindexed_var =
 
 type var = int * unindexed_var
 
-(** [var_orig v] is [true] if and only if the variable [v] comes from the initial bytecode program. Does not depend on debug information. *)
+(** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
+val var_equal : var -> var -> bool
+
+(** [var_orig v] is [true] if and only if the variable [v] comes from the
+    initial bytecode program. Does not depend on debug information. *)
 val var_orig : var -> bool
 
 (** [var_name v] returns the string identifying the variable [v].
     Does not use debug information. *) 
 val var_name : var -> string
 
-(** [var_name_debug v] returns, if possible the original variable names of [v], if the initial class was compiled using debug information. *)
+(** [var_name_debug v] returns, if possible the original variable names of [v],
+    if the initial class was compiled using debug information. *)
 val var_name_debug : var -> string option
 
-(** [var_name_g v] returns the string identifying the variable [v], according to the local variable table provided in the class file from which it has been created *)
+(** [var_name_g v] returns the string identifying the variable [v], according to
+    the local variable table provided in the class file from which it has been
+    created *)
 val var_name_g : var -> string
 
-(** [bc_num v] returns the local var number if the variable comes from the initial bytecode program. *)
+(** [bc_num v] returns the local var number if the variable comes from the
+    initial bytecode program. *)
 val bc_num : var -> int option
 
 (** [index v] returns the hash value of the given variable. *)

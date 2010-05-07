@@ -26,18 +26,17 @@ open JBasics
 open Javalib
 open JProgram
 
-(** [parse_program ~other_entrypoints classpath (cs,ms)] first returns
-    a [program] composed of all the code found in [classpath] and that
-    may be accessible from at least one method of
-    [(cs,ms)::entrypoints].  [classpath] is a list of directories and
-    [.jar] files separated with ':'. [cs] is a path to the class which
-    defines [m]. If [entrypoints] is not specified, the default methods
-    are the methods invoked natively by the JVM during its
-    initialization. (cf {!default_entrypoints}).  The second return
-    parameter is the set of instantiated classes calculated by RTA
-    algorithm. *)
+(** [parse_program ~instantiated ~other_entrypoints classpath (cs,ms)] first
+    returns a [program] composed of all the code found in [classpath] and that
+    may be accessible from at least one method of [(cs,ms)::entrypoints].
+    [classpath] is a list of directories and [.jar] or [.zip] files separated
+    with ':' (or ';' under Windows). [cs] is a path to the class which defines
+    [m]. If [entrypoints] is not specified, the default methods are the methods
+    invoked natively by the JVM during its initialization. (cf
+    {!default_entrypoints}).  The second return parameter is the set of
+    instantiated classes calculated by RTA algorithm. *)
 val parse_program :
-  ?instantiated:class_name ->
+  ?instantiated:class_name list ->
   ?other_entrypoints:class_method_signature list ->
   ?native_stubs:string option ->
   string -> class_method_signature ->

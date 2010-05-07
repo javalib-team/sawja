@@ -1,17 +1,17 @@
-From 1.0.1 to 1.1
------------------
+From 1.0.1 to 1.1b
+------------------
 
 Compilation & Installation changes:
-* installation process now rely on ocamlfind (more homogeneous installation,
+* installation process now rely on Findlib (more homogeneous installation,
   easier to use as dependencies are automatically linked in)
 * add a configure script into the compilation routine that automatically
   generate the appropriate Makefile.config file. Local installation is now an
-  easy option.
+  easy option
 * compilation of a dynamically loadable library (.cmxs) is now proposed
 
 New features:
 * add JsrInline, a module which allows to in-line most subroutines (all but
-  nested ones).
+  nested ones)
 * BIR code representation is now flatten and represented as an array.
   Correspondence tables between bytecode (JCode) and BIR have been added.
 * add a call graph computation algorithm with different level of sensitivity
@@ -19,18 +19,20 @@ New features:
 * add a module Safe, a static analysis framework, which provides a fixpoint
   iterator, domain composition, standard containers for method, fields, class
   and program points, etc.
-* ?? include JVMTI that could be use to add static information on native method
-  during program discovery (RTA, CRA).
+* JVMTI which can be use to add static information on native method during
+  program discovery (RTA, CRA).
 
 Minor changes:
-* IR changes: 
-  - add a ~ir_ssa and ~bcv flag for transform function !!!doc!!!
+* IR changes:
+  - add a ~bcv flag (to [transform] functions in JBir and A3Bir) which run a
+    ByteCode Verifier
   - new exception_handler type, a specific catch var is created for each handler
   - add printing functions (string and for JPrintHTML)
-  - all var are now indexed
-  - structural equality (=) can be used on var (equal_var function removed)
+  - var is now indexed
+  - structural equality (=) can be used on var (but var_equal function is
+    faster)
 * RTA changes:
-  - add a set of default instantiated classes and abstract entry points
+  - add a list of default instantiated classes and abstract entry points
   - more classes are now loaded: catch type of handlers and field types of
     loaded classes are loaded (even if not accessed)
 * add static_lookup_special function in JControlFlow (for invokespecial
@@ -38,6 +40,7 @@ Minor changes:
 * module JPrintHTML is now generic with respect to the implementation of methods
 * the documentation of Sawja now includes the documentation of the
   user-interface of Javalib for cross-references (Javalib, JBasics and JCode)
+* zip can be used where jar were expected
 * improve documentation and tutorial
 
 Bug fixes:
@@ -49,10 +52,7 @@ Bug fixes:
 
 Known bug:
 * Program discovery does not include native methods and reflection
-* Inconsistencies between results of XTA, RTA, RRTA and CRA.  XTA and RRTA are
-  probably buggy but it could also be the case of CRA and RTA (specially if
-  JControlFlow is implicated).
-* Correspondence between program point of JCode and Bir
+* Inconsistencies between results of XTA, RTA, RRTA and CRA.
 
 From 1.0 to 1.0.1
 ----------------

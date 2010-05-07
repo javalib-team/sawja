@@ -57,6 +57,7 @@ type unindexed_var =
   | BranchVar2 of int * int
 
 type var = int * unindexed_var
+let var_equal ((i1,_):var) ((i2,_):var) = i1==i2
 
 let print_const = function
   | `ANull -> "null"

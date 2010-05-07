@@ -1,3 +1,22 @@
+(*
+ * This file is part of SAWJA
+ * Copyright (c)2010 Laurent Hubert (CNRS)
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ *)
+
 (** ReachabeMethods allows to compute the methods of a program that
     are reachable from a set of entry points.  This can be used in
     order to update the field [parsed_method] of {!JProgram.program}.

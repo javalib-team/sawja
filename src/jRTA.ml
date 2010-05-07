@@ -590,8 +590,8 @@ struct
 	parse_natives = parse_natives;
 	native_methods_info = native_methods_info }
     in
-      Option.may (add_instantiated_class p) instantiated;
-      Option.may (add_class_clinits p) instantiated;
+      Option.may (List.iter (add_instantiated_class p)) instantiated;
+      Option.may (List.iter (add_class_clinits p)) instantiated;
       List.iter
 	(fun cms ->
            let cs,ms = cms_split cms in

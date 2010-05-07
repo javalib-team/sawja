@@ -25,9 +25,10 @@ open JBasics
 (** Builds high level representations of Java bytecode programs using basic
     Class Reachability Analysis. *)
 
-(** [parse_program classpath names] parses a list of classes,
-    looking for them in the classpath (a list of directories and [.jar] files separated with ':').
-    [other_classes] is set to [default_classes] if not given. *)
+(** [parse_program classpath names] parses a list of classes, looking for them
+    in the classpath (a list of directories and [.jar] or [.zip] files separated
+    with ':' or ';' under Windows).  [other_classes] is set to [default_classes]
+    if not given. *)
 val parse_program :
   ?other_classes:class_name list -> string -> class_name list -> JCode.jcode JProgram.program
 

@@ -41,7 +41,11 @@ type const =
 (** Abstract data type for variables *)
 type var
 
-(** [var_orig v] is [true] if and only if the variable [v] was already used at bytecode level. *)
+(** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
+val var_equal : var -> var -> bool
+
+(** [var_orig v] is [true] if and only if the variable [v] was already used at
+    bytecode level. *)
 val var_orig : var -> bool
 
 (** [var_name v] returns a string representation of the variable [v]. *)
