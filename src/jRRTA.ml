@@ -481,9 +481,11 @@ let parse_program_from_rta prta instantiated_classes cmsl =
 
 let default_entrypoints = JRTA.default_entrypoints
 
-let parse_program ?(other_entrypoints=default_entrypoints) classpath cms =
+let parse_program ?instantiated ?(other_entrypoints=default_entrypoints) classpath cms =
   let (prta, instantiated_classes) =
-    JRTA.parse_program ~other_entrypoints:other_entrypoints classpath cms in
+    JRTA.parse_program
+      ?instantiated ~other_entrypoints:other_entrypoints classpath cms
+  in
   let pvta =
     parse_program_from_rta prta instantiated_classes (cms::other_entrypoints) in
     (pvta, instantiated_classes)

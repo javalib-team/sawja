@@ -225,10 +225,10 @@ type t = {
       absolute. *)
   line_number_table : (int * int) list option;
   (** [line_number_table] contains debug information. It is a list of pairs
-      [(i,j)] meaning the bytecode code line [i] corresponds to the line [j] at
-      the java source level. *)
+      [(i,j)] where [i] indicates the index into the bytecode array at which the
+      code for a new line [j] in the original source file begins.  *)
   pc_bc2ir : int Ptmap.t;
-  (** map from bytecode code line to ir code line *)
+  (** map from bytecode code line to ir code line (very sparse). *)
   pc_ir2bc : int array; 
   (** map from ir code line to bytecode code line *)
   jump_target : bool array;

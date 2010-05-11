@@ -779,6 +779,3 @@ let parse_program
   let (p_cache, instantiated_classes) =
     (Program.parse_program ?instantiated (csms::other_entrypoints) native_stubs classpath) in
     (pcache2jprogram p_cache, instantiated_classes)
-
-let parse_program_bench ?(other_entrypoints=default_entrypoints) classpath csms =
-    Program.parse_program_bench (csms::other_entrypoints) classpath

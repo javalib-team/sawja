@@ -30,11 +30,14 @@ open JProgram
     returns a [program] composed of all the code found in [classpath] and that
     may be accessible from at least one method of [(cs,ms)::entrypoints].
     [classpath] is a list of directories and [.jar] or [.zip] files separated
-    with ':' (or ';' under Windows). [cs] is a path to the class which defines
+    with ':' (or ';' under Windows).  [cs] is a path to the class which defines
     [m]. If [entrypoints] is not specified, the default methods are the methods
     invoked natively by the JVM during its initialization. (cf
-    {!default_entrypoints}).  The second return parameter is the set of
-    instantiated classes calculated by RTA algorithm. *)
+    {!default_entrypoints}).  [instantiated] is the list of classes that may be
+    instantiated natively by the JVM.  It is empty by default but it seems that
+    the class [java.lang.Class] is always instantiated by VMs and should always
+    be given as an argument to this method.  The second return parameter is the
+    set of instantiated classes calculated by RTA algorithm. *)
 val parse_program :
   ?instantiated:class_name list ->
   ?other_entrypoints:class_method_signature list ->
@@ -52,8 +55,3 @@ val default_entrypoints : class_method_signature list
 (** Same thing for J2ME CLDC 1.1 *)
 val cldc11_default_entrypoints : class_method_signature list
 
-(**/**)
-
-val parse_program_bench :
-  ?other_entrypoints:class_method_signature list ->
-  string -> class_method_signature -> unit
