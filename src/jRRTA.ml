@@ -169,6 +169,13 @@ let update_invoke_interface pvta m =
 	     (ClassMethodSet.union mset rset) m.static_lookup_interface
     ) m.interface_calls
 
+let node2instanciated_class_nodes pvta ioc = 
+  match ioc with
+    | Class c ->
+	get_rta_instantiated_subclasses pvta c
+    | Interface i ->
+	get_rta_implemented_interfaces pvta i
+
 let rec value_type2class_nodes pvta v =
   match v with
     | TBasic _ -> ClassMap.empty
@@ -177,13 +184,8 @@ let rec value_type2class_nodes pvta v =
 	  | TArray a -> value_type2class_nodes pvta a
 	  | TClass cn ->
 	      try
-		let ioc =
-		  get_node pvta.p cn in
-		  match ioc with
-		    | Class c ->
-			get_rta_instantiated_subclasses pvta c
-		    | Interface i ->
-			get_rta_implemented_interfaces pvta i
+		let ioc = get_node pvta.p cn in
+		  node2instanciated_class_nodes pvta ioc		  
 	      with Not_found -> assert false
 
 let parse_invoke pvta m cms =
@@ -279,11 +281,40 @@ let parse_method_parameters pvta m prms =
 	   (fun x _ -> x) classes m.vta_instantiated_classes
     ) prms
 
+let parse_method_receiver pvta ioc m = 
+  if m.c_method.cm_static = false
+  then
+    let classes = node2instanciated_class_nodes pvta ioc in
+      m.vta_instantiated_classes <-
+	ClassMap.merge
+	(fun x _ -> x) classes m.vta_instantiated_classes
+
+let parse_method_handlers pvta m = 
+  match m.c_method.cm_implementation with
+      Native -> ()
+    | Java code -> 
+	let exc_tbl = (Lazy.force code).c_exc_tbl in
+	  List.iter
+	    (fun e_h -> 
+	       let classes = 
+	       match e_h.e_catch_type with 
+		   None -> ClassMap.empty
+		 | Some cn -> 
+		     value_type2class_nodes pvta (TObject (TClass cn))
+	       in     
+		 m.vta_instantiated_classes <-
+		   ClassMap.merge
+		   (fun x _ -> x) classes m.vta_instantiated_classes)
+	    exc_tbl
+
+
 let parse_vta_method pvta ioc m =
   pvta.pvta_parsed_methods <-
     ClassMethodMap.add m.c_method.cm_class_method_signature
     (ioc, m.c_method) pvta.pvta_parsed_methods;
   parse_method_parameters pvta m (ms_args m.c_method.cm_signature);
+  parse_method_receiver pvta ioc m;
+  parse_method_handlers pvta m;
   match m.c_method.cm_implementation with
     | Native -> ()
     | Java code ->
@@ -303,6 +334,17 @@ let parse_vta_method pvta ioc m =
 		       add_class_clinits pvta c
 		 | OpConst (`Class _) ->
 		     let cs = make_cn "java.lang.Class" in
+		     let c =
+		       let ioc =
+			 ClassMap.find cs pvta.p.classes in
+			 (match ioc with
+			    | Interface _ -> failwith "Impossible ldc."
+			    | Class c -> c
+			 ) in
+		       parse_new m c;
+		       add_class_clinits pvta c
+		 | OpConst (`String _) ->
+		     let cs = make_cn "java.lang.String" in
 		     let c =
 		       let ioc =
 			 ClassMap.find cs pvta.p.classes in
