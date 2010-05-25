@@ -85,6 +85,14 @@ let get_XTA_program
                  | JCode.OpNew cn ->
                      classes_instantiated :=
                        ClassSet.add cn !classes_instantiated
+		 | JCode.OpConst (`Class _ ) -> 
+		     let cn = make_cn "java.lang.Class" in
+		       classes_instantiated :=
+			 ClassSet.add cn !classes_instantiated
+		 | JCode.OpConst (`String _ ) -> 
+		     let cn = make_cn "java.lang.String" in
+		       classes_instantiated :=
+			 ClassSet.add cn !classes_instantiated
                  | _ -> ()
               )
               (Lazy.force c).JCode.c_code;
