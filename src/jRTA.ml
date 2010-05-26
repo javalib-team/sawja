@@ -458,6 +458,10 @@ struct
 	  let jlc = make_cn "java.lang.Class" in
 	    add_instantiated_class p jlc;
 	    add_class_clinits p jlc
+      | OpConst (`String _) ->
+	  let jls = make_cn "java.lang.String" in
+	    add_instantiated_class p jls;
+	    add_class_clinits p jls	      
       | OpGetField (cs,fs)
       | OpPutField (cs,fs) ->
 	  ignore (get_class_info p cs);
@@ -570,7 +574,7 @@ struct
 		   Array.iter (parse_instruction p cs) code)
 	tail
 
-  let new_program_cache ?instantiated entrypoints native_stubs classpath =
+  let new_program_cache instantiated entrypoints native_stubs classpath =
     let (parse_natives,native_methods_info) =
       match native_stubs with
 	| None -> (false, JNativeStubs.empty_info)
@@ -590,8 +594,8 @@ struct
 	parse_natives = parse_natives;
 	native_methods_info = native_methods_info }
     in
-      Option.may (List.iter (add_instantiated_class p)) instantiated;
-      Option.may (List.iter (add_class_clinits p)) instantiated;
+      List.iter (add_instantiated_class p) instantiated;
+      List.iter (add_class_clinits p) instantiated;
       List.iter
 	(fun cms ->
            let cs,ms = cms_split cms in
@@ -607,10 +611,10 @@ struct
 	entrypoints;
       p
 
-  let parse_program ?instantiated entrypoints native_stubs classpath =
+  let parse_program instantiated entrypoints native_stubs classpath =
     let classpath = Javalib.class_path classpath in
       try
-        let p = new_program_cache ?instantiated entrypoints native_stubs classpath in
+        let p = new_program_cache instantiated entrypoints native_stubs classpath in
           iter_workset p;
           if not (ClassMethSet.is_empty p.native_methods)
           then prerr_endline "The program contains native method. Beware that native methods' side effects may invalidate the result of the analysis.";
@@ -629,9 +633,9 @@ struct
         Javalib.close_class_path classpath;
         raise e
 
-  let parse_program_bench entrypoints classpath =
+  let parse_program_bench instantiated entrypoints classpath =
     let time_start = Sys.time() in
-    let (p,_) = parse_program entrypoints None classpath in
+    let (p,_) = parse_program instantiated entrypoints None classpath in
     let s = Wlist.size p.workset in
       Printf.printf "Workset of size %d\n" s;
       let time_stop = Sys.time() in
@@ -718,6 +722,36 @@ let pcache2jprogram p =
     static_lookup_method = static_lookup_method p
   }
 
+(**RuntimeException and Error that could be thrown by VM (cf. JVM Spec 1.5 §2.16.4).*)
+let default_native_throwable = 
+ [ (*RuntimeException that could be thrown by VM.*)
+    make_cn "java.lang.ArithmeticException";
+    make_cn "java.lang.ArrayStoreException";
+    make_cn "java.lang.ClassCastException";
+    make_cn "java.lang.IllegalMonitorStateException";
+    make_cn "java.lang.IndexOutOfBoundsException";
+    make_cn "java.lang.NegativeArraySizeException";
+    make_cn "java.lang.NullPointerException";
+    make_cn "java.lang.SecurityException";
+    (*Error that could be thrown by VM.*)
+    make_cn "java.lang.ClassFormatError";
+    make_cn "java.lang.ClassCircularityError";
+    make_cn "java.lang.NoClassDefFoundError";
+    make_cn "java.lang.UnsupportedClassVersionError";
+    make_cn "java.lang.NoSuchFieldError";
+    make_cn "java.lang.NoSuchMethodError";
+    make_cn "java.lang.InstantiationError";
+    make_cn "java.lang.IllegalAccessError";
+    make_cn "java.lang.VerifyError";
+    make_cn "java.lang.ExceptionInInitializerError";
+    make_cn "java.lang.AbstractMethodError";
+    make_cn "java.lang.UnsatisfiedLinkError";
+    make_cn "java.lang.InternalError";
+    make_cn "java.lang.OutOfMemoryError";
+    make_cn "java.lang.StackOverflowError";
+    make_cn "java.lang.UnknownError";
+ ]
+
 (* cf. openjdk6/hotspot/src/share/vm/runtime/thread.cpp *)
 let default_entrypoints =
   let initializeSystemClass =
@@ -773,9 +807,13 @@ let cldc11_default_entrypoints =
        ("java.lang.OutOfMemoryError",clinit_signature)
       ]
 
+let default_instantiated = (make_cn "java.lang.Class")::(make_cn "java.lang.String")::default_native_throwable
+
 let parse_program
-    ?instantiated ?(other_entrypoints=default_entrypoints) ?(native_stubs=None)
+    ?(instantiated=default_instantiated)
+    ?(other_entrypoints=default_entrypoints) 
+    ?(native_stubs=None)
     classpath csms =
   let (p_cache, instantiated_classes) =
-    (Program.parse_program ?instantiated (csms::other_entrypoints) native_stubs classpath) in
+    (Program.parse_program instantiated (csms::other_entrypoints) native_stubs classpath) in
     (pcache2jprogram p_cache, instantiated_classes)
