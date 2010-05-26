@@ -23,21 +23,52 @@ open Javalib
 open JProgram
 open Safe
 
+
+(**RuntimeException and Error that could be thrown by VM (cf. JVM Spec 1.5 §2.16.4).*)
+let default_native_throwable = 
+    [ (*RuntimeException that could be thrown by VM.*)
+      make_cn "java.lang.ArithmeticException";
+      make_cn "java.lang.ArrayStoreException";
+      make_cn "java.lang.ClassCastException";
+      make_cn "java.lang.IllegalMonitorStateException";
+      make_cn "java.lang.IndexOutOfBoundsException";
+      make_cn "java.lang.NegativeArraySizeException";
+      make_cn "java.lang.NullPointerException";
+      make_cn "java.lang.SecurityException";
+      (*Error that could be thrown by VM.*)
+      make_cn "java.lang.ClassFormatError";
+      make_cn "java.lang.ClassCircularityError";
+      make_cn "java.lang.NoClassDefFoundError";
+      make_cn "java.lang.UnsupportedClassVersionError";
+      make_cn "java.lang.NoSuchFieldError";
+      make_cn "java.lang.NoSuchMethodError";
+      make_cn "java.lang.InstantiationError";
+      make_cn "java.lang.IllegalAccessError";
+      make_cn "java.lang.VerifyError";
+      make_cn "java.lang.ExceptionInInitializerError";
+      make_cn "java.lang.AbstractMethodError";
+      make_cn "java.lang.UnsatisfiedLinkError";
+      make_cn "java.lang.InternalError";
+      make_cn "java.lang.OutOfMemoryError";
+      make_cn "java.lang.StackOverflowError";
+      make_cn "java.lang.UnknownError";
+    ]
+
 let get_XTA_program
+    ?(native_throwable=default_native_throwable)
     (field_analysis:[< `Class | `Field | `Global ])
     (program: JCode.jcode program)
     (entry_points:class_method_signature list)
     : JCode.jcode program =
-
-  (** [get_relevant_operations program m] returns the sets of instance fields that
-      are read, instance field that are written, static fields that are read,
-      static fields that are written and classes that are instantiated, in that
-      order. *)
+  (** [get_relevant_operations program m] returns the sets of instance
+      fields that are read, instance field that are written, static
+      fields that are read, static fields that are written, classes
+      that are instantiated and handled exceptions types in that order. *)
   let get_relevant_operations program m =
     match m.cm_implementation with
       | Native ->
           let ecfs = ClassFieldSet.empty
-          in (ecfs,ecfs,ecfs,ecfs,ClassSet.empty)
+          in (ecfs,ecfs,ecfs,ecfs,ClassSet.empty,[])
       | Java c ->
           let ecfs = ClassFieldSet.empty in
           let instance_fields_read = ref ecfs
@@ -45,6 +76,14 @@ let get_XTA_program
           and static_fields_read = ref ecfs
           and static_fields_written = ref ecfs
           and classes_instantiated = ref ClassSet.empty
+	  and handled_exceptions = 
+	    List.fold_left
+	      (fun list e_h -> 
+		 match e_h.JCode.e_catch_type with 
+		     None -> list
+		   | Some cn -> (TObject(TClass cn))::list )
+	      []
+	      (Lazy.force c).JCode.c_exc_tbl
           and resolve_cfs initial_set cn fs =
             try
               let c = JControlFlow.resolve_class program cn in
@@ -98,7 +137,7 @@ let get_XTA_program
               (Lazy.force c).JCode.c_code;
             (!instance_fields_read,!instance_fields_written,
              !static_fields_read,!static_fields_written,
-             !classes_instantiated)
+             !classes_instantiated,handled_exceptions)
   in
 
 
@@ -165,9 +204,41 @@ let get_XTA_program
                         /. log 2.))
   in
   let module XTADom = ClassDomain.Make(struct let nb_bits = nb_bits end) in
+  let module XTAGlobalDom =  struct
+    type t = XTADom.t * XTADom.t
+    type analysisID = unit
+    type analysisDomain = t
+	
+    let bot = (XTADom.bot,XTADom.bot)
+    let isBot (d1,d2) = XTADom.isBot d1 && XTADom.isBot d2
+    let join ?(modifies=ref false) (d1,d2) (d1',d2') =
+      let m = ref false
+      and m' = ref false in
+      let d11 = XTADom.join ~modifies:m d1 d1'
+      and d22 = XTADom.join ~modifies:m' d2 d2'
+      in
+	if !m or !m'
+	then (
+	      modifies := true;
+	  (d11,d22))
+	    else
+	      (d1,d2)
+    let join_ad = join
+    let equal ((d1,d2) as v1) ((d1',d2') as v2)= 
+      if v1 == v2
+      then true
+	  else (XTADom.equal d1 d1') && (XTADom.equal d2 d2')
+    let get_analysis () v = v
+    let pprint fmt (d1,d2) = 
+      Format.pp_print_string fmt "Global domain for fields: ";
+	  XTADom.pprint fmt d1;
+	  Format.pp_print_string fmt "Global domain for exceptions: ";
+	  XTADom.pprint fmt d2;
+  end 
+  in
   let module ED = Domain.Empty in
   let module XTAVar = Var.Make(Var.EmptyContext) in
-  let module XTAState = State.Make(XTAVar)(XTADom)(XTADom)(XTADom)(XTADom)(Domain.Empty) in
+  let module XTAState = State.Make(XTAVar)(XTAGlobalDom)(XTADom)(XTADom)(XTADom)(Domain.Empty) in
   let module XTAConstraints = Constraints.Make(XTAState) in
 
   let module XTASolver = Solver.Make(XTAConstraints) in
@@ -228,7 +299,7 @@ let get_XTA_program
          (constraints from m to m) are useless *)
     let (instance_fields_read,instance_fields_written,
          static_fields_read,static_fields_written,
-         classes_instantiated) = get_relevant_operations program m
+         classes_instantiated,handled_exceptions_vt) = get_relevant_operations program m
     in
     let current_method = `Method ((),cn,ms) in
     let cst_field_read (cn,fs) : XTAConstraints.cst =
@@ -273,7 +344,9 @@ let get_XTA_program
                XTAConstraints.target = current_method;
                XTAConstraints.transferFun =
                   (fun state ->
-                     `MethodDomain (XTAState.get_global state global_var))}
+		     match (XTAState.get_global state global_var) with
+			 (field_dom,_exc_dom) -> 
+			   `MethodDomain field_dom)}
     and cst_field_written (cn,fs) : XTAConstraints.cst option =
       match refine_with_type program [fs_type fs] with
         | None -> None
@@ -326,8 +399,8 @@ let get_XTA_program
                         XTAConstraints.transferFun =
                            (fun state ->
                               let abm = XTAState.get_method state current_method in
-                              let abf = refine abm in `GlobalDomain abf)})
-    and cst_new cn : XTAConstraints.cst =
+                              let abf = refine abm in `GlobalDomain (abf,XTADom.bot))})
+    and csts_new cn : (XTAConstraints.cst*XTAConstraints.cst option) =
       (* prolog> *)
       (* XTA(current_method,cn) *)
       (* Format.fprintf output "@[XTA(%a,%s):-@[XTA(%a,_).@]@]@." *)
@@ -335,9 +408,25 @@ let get_XTA_program
       (*   (JPrint.class_name cn) *)
       (*   XTAVar.pprint current_method; *)
       (* <prolog *)
-      {XTAConstraints.dependencies = [current_method];
-       XTAConstraints.target = current_method;
-       XTAConstraints.transferFun = (fun _ -> `MethodDomain (XTADom.singleton cn))}
+      let dom_of_new = XTADom.singleton cn in
+      let dom_global_exc = 
+	match refine_with_type program [TObject (TClass (make_cn "java.lang.Throwable"))] with
+	    None ->  assert false
+	  | Some refine -> refine dom_of_new 
+      in
+      let local = {XTAConstraints.dependencies = [current_method];
+		   XTAConstraints.target = current_method;
+		   XTAConstraints.transferFun = (fun _ -> `MethodDomain dom_of_new)}
+      in
+	if XTADom.isBot dom_global_exc
+	then
+	  (local,None)
+	else
+	  let cst_global = {XTAConstraints.dependencies = [current_method];
+			    XTAConstraints.target = `Global ();
+			    XTAConstraints.transferFun = (fun _ -> `GlobalDomain (XTADom.bot,dom_global_exc))}
+	  in
+	    (local,Some cst_global)	  
     and csts_method_calls (cn,ms) : XTAConstraints.cst list =
       let callee_var = `Method ((),cn,ms)
       and callee =
@@ -380,9 +469,10 @@ let get_XTA_program
          XTAConstraints.target = callee_var;
          XTAConstraints.transferFun =
             (fun state ->
-               (* if callee can be called from caller, we propagate the abstract
-                  value of caller to callee, while refining by the type of
-                  arguments (including this) that callee may take. *)
+               (* if callee can be called from caller, we propagate
+                  the abstract value of caller to callee, while
+                  refining by the type of arguments (including this)
+                  that callee may take. *)
                let abm = XTAState.get_method state caller_var in
                let this =
                  (* TODO: this can be improved because if callee_var is called
@@ -399,18 +489,21 @@ let get_XTA_program
                    `MethodDomain XTADom.bot
                  else
                    let params =
-                     (* TODO: it is also possible to refine the parameters with
-                        the corresponding stack map. *)
+                     (* TODO: it is also possible to refine the
+                        parameters with the corresponding stack
+                        map. *)
                      refine_parameters abm
                    in
                      `MethodDomain (XTADom.join params this))}
       and cst_ret refine_this refine_return =
         (* prolog> *)
         (* XTA(caller_var,S):-XTA(callee_var,S),refineType([rtype],S). *)
-        (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),@ refineType([%s],S).@]@]@." *)
+        (* Format.fprintf output "@[XTA(%a,S):- @[XTA(%a,S),@
+           refineType([%s],S).@]@]@." *)
         (*   XTAVar.pprint caller_var *)
         (*   XTAVar.pprint callee_var *)
-        (*   (match ms_rtype ms with None -> "V" | Some rtype -> JPrint.value_type rtype); *)
+        (* (match ms_rtype ms with None -> "V" | Some rtype ->
+           JPrint.value_type rtype); *)
         (* <prolog *)
         {XTAConstraints.dependencies = [caller_var;callee_var];
          XTAConstraints.target = caller_var;
@@ -450,10 +543,26 @@ let get_XTA_program
           | Some refine_parameters, Some refine_return ->
               [cst_call refine_this refine_parameters;
                cst_ret refine_this refine_return]
+    and cst_handlers handled_exceptions : XTAConstraints.cst =
+      let global_var = `Global () in
+      let refine = refine_with_type program handled_exceptions in
+	match refine with 
+	    None -> assert false
+	  | Some refine -> 
+	      {XTAConstraints.dependencies = [global_var];
+	       XTAConstraints.target = current_method;
+	       XTAConstraints.transferFun = 
+		  (fun state -> 
+		     match (XTAState.get_global state global_var) with
+			 (_field_dom,exc_dom) -> 
+			   `MethodDomain (refine exc_dom))}
     in let csts = []
     in let csts =
         ClassSet.fold
-          (fun cn csts -> (cst_new cn)::csts)
+          (fun cn csts -> 
+	     match csts_new cn with
+		 (local,None) -> local::csts
+	       | (local,Some global) -> local::global::csts)
           classes_instantiated
           csts
     in let csts =
@@ -489,6 +598,11 @@ let get_XTA_program
           (fun cms csts -> (csts_method_calls (cms_split cms))@csts)
           successors
           csts
+    in let csts =
+	if List.length handled_exceptions_vt = 0
+	then csts
+	else
+	  (cst_handlers handled_exceptions_vt)::csts
     in
       (* Format.pp_print_flush output (); *)
       (* close_out outchannel; *)
@@ -503,8 +617,9 @@ let get_XTA_program
       []
   in
 
-  let initial_state _program entry_points : XTAState.t=
+  let initial_state program entry_points native_throwable: XTAState.t=
     let state = XTAState.bot (1,1,Sys.max_array_length,Sys.max_array_length,1)
+      
     in
       List.iter
         (function `Method ((),cn,ms) ->
@@ -514,23 +629,45 @@ let get_XTA_program
              (`MethodDomain (XTADom.empty))
         )
         entry_points;
-      state
+      let init_exc_set = 
+	let default_native_throwable = 
+	  List.fold_left
+	    (fun set cn -> 
+	       ClassSet.add cn set)
+	    ClassSet.empty
+	    native_throwable
+	in
+	ClassMap.fold 
+	  ( fun cn _ set -> 
+	      if ClassSet.mem cn default_native_throwable
+	      then ClassSet.add cn set
+	      else set)
+	  program.classes
+	  ClassSet.empty
+      in
+	XTAState.join
+	  state
+	  (`Global ())
+	  (`GlobalDomain (XTADom.bot,XTADom.of_set init_exc_set));
+	state
   in
 
   (* type static_lookup_invoke = class_name -> method_signature -> invoke -> ClassMethodSet.t *)
-  (** [static_lookup state classmap cn ms invoke] returns the set of methods that
-      may be called for a call to [invoke] from [(cn,ms)] with the [classmap] as
-      [program.classes].  Note: partial applications with the state and the
-      classmap are greatly encourage, as partial application with the caller ([cn]
-      and [ms]) has it speed up the resolution. *)
+  (** [static_lookup state classmap cn ms invoke] returns the set of
+      methods that may be called for a call to [invoke] from [(cn,ms)]
+      with the [classmap] as [program.classes].  Note: partial
+      applications with the state and the classmap are greatly
+      encourage, as partial application with the caller ([cn] and
+      [ms]) has it speed up the resolution. *)
   let static_lookup (* : *)
       (* static_lookup_invoke -> XTAState.t -> 'a node ClassMap.t -> static_lookup_invoke *)
       = fun _old_sli state classes ->
         let get_classes : class_name -> method_signature -> 'a class_node ClassMap.t =
-          (* [get_classes cn ms] returns a the map of classes for which we may find
-             instances in [(cn,ms)] (i.e. the result of XTA where the classes are
-             directly accessible). This methods uses a cache to bring down the cost of
-             several calls with the same arguments. *)
+          (* [get_classes cn ms] returns a the map of classes for
+             which we may find instances in [(cn,ms)] (i.e. the result
+             of XTA where the classes are directly accessible). This
+             methods uses a cache to bring down the cost of several
+             calls with the same arguments. *)
           let cache : 'a class_node ClassMap.t ClassMethodMap.t ref =
             ref ClassMethodMap.empty
           in
@@ -636,7 +773,7 @@ let get_XTA_program
       entry_points
   in
   let csts = get_csts field_analysis program
-  and state = initial_state program entry_points in
+  and state = initial_state program entry_points native_throwable in
   let state =
     (* XTASolver.debug_level := 4; *)
     XTASolver.solve_constraints program csts state (entry_points:>XTAVar.t list)
