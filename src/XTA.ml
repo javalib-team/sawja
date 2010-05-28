@@ -68,7 +68,7 @@ let get_XTA_program
     match m.cm_implementation with
       | Native ->
           let ecfs = ClassFieldSet.empty
-          in (ecfs,ecfs,ecfs,ecfs,ClassSet.empty,[])
+          in (ecfs,ecfs,ecfs,ecfs,ClassSet.empty,[],false,false)
       | Java c ->
           let ecfs = ClassFieldSet.empty in
           let instance_fields_read = ref ecfs
@@ -102,13 +102,18 @@ let get_XTA_program
                  must be some dead code, provided that native methods have been
                  correctly analyzed). *)
               initial_set
-          and fs_of_object_type fs =
+          in 
+	  let rec fs_of_object_type fs =
             match fs_type fs with
               | TObject _ -> true
               | TBasic _ -> false
           in
+	  let array_load = ref false 
+	  and array_store = ref true 
+	  in
             Array.iter
               (function
+		   (* Fields: modify for arrays ... Cas à part ?*)
                  | JCode.OpGetStatic (cn,fs) when fs_of_object_type fs ->
                      static_fields_read :=
                        resolve_cfs !static_fields_read cn fs
@@ -124,6 +129,10 @@ let get_XTA_program
                  | JCode.OpNew cn ->
                      classes_instantiated :=
                        ClassSet.add cn !classes_instantiated
+		 | JCode.OpNewArray _
+		 | JCode.OpAMultiNewArray _ ->  
+		     classes_instantiated :=
+                       ClassSet.add java_lang_object !classes_instantiated
 		 | JCode.OpConst (`Class _ ) -> 
 		     let cn = make_cn "java.lang.Class" in
 		       classes_instantiated :=
@@ -132,12 +141,15 @@ let get_XTA_program
 		     let cn = make_cn "java.lang.String" in
 		       classes_instantiated :=
 			 ClassSet.add cn !classes_instantiated
+		 | JCode.OpArrayLoad (`Object) -> array_load:=true
+		 | JCode.OpArrayStore (`Object) -> array_store:=true
                  | _ -> ()
               )
               (Lazy.force c).JCode.c_code;
             (!instance_fields_read,!instance_fields_written,
              !static_fields_read,!static_fields_written,
-             !classes_instantiated,handled_exceptions)
+             !classes_instantiated,handled_exceptions,!array_load,
+	     !array_store)
   in
 
 
@@ -205,35 +217,53 @@ let get_XTA_program
   in
   let module XTADom = ClassDomain.Make(struct let nb_bits = nb_bits end) in
   let module XTAGlobalDom =  struct
-    type t = XTADom.t * XTADom.t
+    (*Global domain for field (if selected)* Global domain for
+      instance of Throwble * Global domain for array content*)
+    type t = XTADom.t * XTADom.t * XTADom.t
     type analysisID = unit
     type analysisDomain = t
 	
-    let bot = (XTADom.bot,XTADom.bot)
-    let isBot (d1,d2) = XTADom.isBot d1 && XTADom.isBot d2
-    let join ?(modifies=ref false) (d1,d2) (d1',d2') =
+    let bot = (XTADom.bot,XTADom.bot,XTADom.bot)
+    let bot_except_field fd =
+      (fd,XTADom.bot,XTADom.bot)
+    let bot_except_exception ed =
+      (XTADom.bot,ed,XTADom.bot)
+    let bot_except_arraycont acd =
+      (XTADom.bot,XTADom.bot,acd)
+    let get_field_domain ((d1,_,_):t) =
+      d1
+    let get_exception_domain ((_,d2,_):t) =
+      d2
+    let get_arraycont_domain ((_,_,d3):t) =
+      d3
+    let isBot (d1,d2,d3) = XTADom.isBot d1 && XTADom.isBot d2 && XTADom.isBot d3
+    let join ?(modifies=ref false) (d1,d2,d3) (d1',d2',d3') =
       let m = ref false
-      and m' = ref false in
+      and m' = ref false 
+      and m'' = ref false in
       let d11 = XTADom.join ~modifies:m d1 d1'
       and d22 = XTADom.join ~modifies:m' d2 d2'
+      and d33 = XTADom.join ~modifies:m'' d3 d3'
       in
-	if !m or !m'
+	if !m or !m' or !m''
 	then (
-	      modifies := true;
-	  (d11,d22))
-	    else
-	      (d1,d2)
+	  modifies := true;
+	  (d11,d22,d33))
+	else
+	  (d1,d2,d3)
     let join_ad = join
-    let equal ((d1,d2) as v1) ((d1',d2') as v2)= 
+    let equal ((d1,d2,d3) as v1) ((d1',d2',d3') as v2) = 
       if v1 == v2
       then true
-	  else (XTADom.equal d1 d1') && (XTADom.equal d2 d2')
+      else (XTADom.equal d1 d1') && (XTADom.equal d2 d2') && (XTADom.equal d3 d3')
     let get_analysis () v = v
-    let pprint fmt (d1,d2) = 
+    let pprint fmt (d1,d2,d3) = 
       Format.pp_print_string fmt "Global domain for fields: ";
-	  XTADom.pprint fmt d1;
-	  Format.pp_print_string fmt "Global domain for exceptions: ";
-	  XTADom.pprint fmt d2;
+      XTADom.pprint fmt d1;
+      Format.pp_print_string fmt "Global domain for exceptions: ";
+      XTADom.pprint fmt d2;
+      Format.pp_print_string fmt "Global domain for array content: ";
+      XTADom.pprint fmt d3;
   end 
   in
   let module ED = Domain.Empty in
@@ -291,7 +321,12 @@ let get_XTA_program
               (function abm ->
                  XTADom.meet (Lazy.force typs) abm)
     in
-
+    let refine_for_exc = 
+      match refine_with_type 
+	program [TObject (TClass (make_cn "java.lang.Throwable"))] with
+	    None ->  assert false
+	  | Some refine -> refine
+    in
     let cn = get_name node
     and ms = m.cm_signature
     and successors = JControlFlow.get_successors program node m in
@@ -299,7 +334,7 @@ let get_XTA_program
          (constraints from m to m) are useless *)
     let (instance_fields_read,instance_fields_written,
          static_fields_read,static_fields_written,
-         classes_instantiated,handled_exceptions_vt) = get_relevant_operations program m
+         classes_instantiated,handled_exceptions_vt,array_load,array_store) = get_relevant_operations program m
     in
     let current_method = `Method ((),cn,ms) in
     let cst_field_read (cn,fs) : XTAConstraints.cst =
@@ -344,9 +379,10 @@ let get_XTA_program
                XTAConstraints.target = current_method;
                XTAConstraints.transferFun =
                   (fun state ->
-		     match (XTAState.get_global state global_var) with
-			 (field_dom,_exc_dom) -> 
-			   `MethodDomain field_dom)}
+		     `MethodDomain 
+		       (XTAGlobalDom.get_field_domain 
+			  (XTAState.get_global state global_var))
+		  )}
     and cst_field_written (cn,fs) : XTAConstraints.cst option =
       match refine_with_type program [fs_type fs] with
         | None -> None
@@ -399,7 +435,9 @@ let get_XTA_program
                         XTAConstraints.transferFun =
                            (fun state ->
                               let abm = XTAState.get_method state current_method in
-                              let abf = refine abm in `GlobalDomain (abf,XTADom.bot))})
+                              let abf = refine abm in 
+				`GlobalDomain 
+				  (XTAGlobalDom.bot_except_field abf))})
     and csts_new cn : (XTAConstraints.cst*XTAConstraints.cst option) =
       (* prolog> *)
       (* XTA(current_method,cn) *)
@@ -410,9 +448,7 @@ let get_XTA_program
       (* <prolog *)
       let dom_of_new = XTADom.singleton cn in
       let dom_global_exc = 
-	match refine_with_type program [TObject (TClass (make_cn "java.lang.Throwable"))] with
-	    None ->  assert false
-	  | Some refine -> refine dom_of_new 
+	refine_for_exc dom_of_new 
       in
       let local = {XTAConstraints.dependencies = [current_method];
 		   XTAConstraints.target = current_method;
@@ -424,7 +460,10 @@ let get_XTA_program
 	else
 	  let cst_global = {XTAConstraints.dependencies = [current_method];
 			    XTAConstraints.target = `Global ();
-			    XTAConstraints.transferFun = (fun _ -> `GlobalDomain (XTADom.bot,dom_global_exc))}
+			    XTAConstraints.transferFun = 
+	      (fun _ -> 
+		 `GlobalDomain 
+		   (XTAGlobalDom.bot_except_exception dom_global_exc))}
 	  in
 	    (local,Some cst_global)	  
     and csts_method_calls (cn,ms) : XTAConstraints.cst list =
@@ -553,9 +592,31 @@ let get_XTA_program
 	       XTAConstraints.target = current_method;
 	       XTAConstraints.transferFun = 
 		  (fun state -> 
-		     match (XTAState.get_global state global_var) with
-			 (_field_dom,exc_dom) -> 
+		     let exc_dom = 
+		       XTAGlobalDom.get_exception_domain 
+			 (XTAState.get_global state global_var) 
+		     in
 			   `MethodDomain (refine exc_dom))}
+
+    and cst_array_load () : XTAConstraints.cst =
+      let global_var = `Global () in
+	{XTAConstraints.dependencies = [global_var];
+	 XTAConstraints.target = current_method;
+	 XTAConstraints.transferFun = 
+	    (fun state -> 
+	       let ac_dom = 
+		       XTAGlobalDom.get_arraycont_domain
+			 (XTAState.get_global state global_var) 
+	       in
+		 `MethodDomain ac_dom)}
+	  
+    and cst_array_store () : XTAConstraints.cst =
+      {XTAConstraints.dependencies = [current_method];
+       XTAConstraints.target = `Global ();
+       XTAConstraints.transferFun = 
+	  (fun state -> 
+	     let abm = XTAState.get_method state current_method in
+	       `GlobalDomain (XTAGlobalDom.bot_except_arraycont abm))}
     in let csts = []
     in let csts =
         ClassSet.fold
@@ -603,12 +664,22 @@ let get_XTA_program
 	then csts
 	else
 	  (cst_handlers handled_exceptions_vt)::csts
+    in let csts =
+	if array_load
+	then (cst_array_load ())::csts
+	else
+	  csts
+    in let csts =
+	if array_store
+	then (cst_array_store ())::csts
+	else
+	  csts
     in
       (* Format.pp_print_flush output (); *)
       (* close_out outchannel; *)
       csts
   in
-
+    
   let get_csts field_analysis program =
     ClassMethodMap.fold
       (fun _cms (node,m) csts ->
@@ -637,18 +708,18 @@ let get_XTA_program
 	    ClassSet.empty
 	    native_throwable
 	in
-	ClassMap.fold 
-	  ( fun cn _ set -> 
-	      if ClassSet.mem cn default_native_throwable
-	      then ClassSet.add cn set
-	      else set)
-	  program.classes
-	  ClassSet.empty
+	  ClassMap.fold 
+	    ( fun cn _ set -> 
+		if ClassSet.mem cn default_native_throwable
+		then ClassSet.add cn set
+		else set)
+	    program.classes
+	    ClassSet.empty
       in
 	XTAState.join
 	  state
 	  (`Global ())
-	  (`GlobalDomain (XTADom.bot,XTADom.of_set init_exc_set));
+	  (`GlobalDomain (XTAGlobalDom.bot_except_exception (XTADom.of_set init_exc_set)));
 	state
   in
 
@@ -780,3 +851,4 @@ let get_XTA_program
   in
     get_XTA_program state program
 
+      
