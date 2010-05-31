@@ -96,14 +96,15 @@ let get_XTA_program
                   initial_set
                   cl
             with NoClassDefFoundError ->
-              (* if an exception occurs in resolve_class, it should be because RTA
-                 has already detected that no method on that class may be called
-                 and that there is no instance of this class (so the get/put field
-                 must be some dead code, provided that native methods have been
-                 correctly analyzed). *)
+              (* if an exception occurs in resolve_class, it should be
+                 because RTA has already detected that no method on
+                 that class may be called and that there is no
+                 instance of this class (so the get/put field must be
+                 some dead code, provided that native methods have
+                 been correctly analyzed). *)
               initial_set
           in 
-	  let rec fs_of_object_type fs =
+	  let fs_of_object_type fs =
             match fs_type fs with
               | TObject _ -> true
               | TBasic _ -> false
@@ -113,7 +114,6 @@ let get_XTA_program
 	  in
             Array.iter
               (function
-		   (* Fields: modify for arrays ... Cas à part ?*)
                  | JCode.OpGetStatic (cn,fs) when fs_of_object_type fs ->
                      static_fields_read :=
                        resolve_cfs !static_fields_read cn fs
