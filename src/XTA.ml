@@ -77,13 +77,17 @@ let get_XTA_program
           and static_fields_written = ref ecfs
           and classes_instantiated = ref ClassSet.empty
 	  and handled_exceptions = 
-	    List.fold_left
-	      (fun list e_h -> 
-		 match e_h.JCode.e_catch_type with 
-		     None -> list
-		   | Some cn -> (TObject(TClass cn))::list )
-	      []
-	      (Lazy.force c).JCode.c_exc_tbl
+	    let rec type_list = 
+	      function
+		  [] -> []
+		| exc_h::r -> 
+		    (match exc_h.JCode.e_catch_type with 
+			 None -> [TObject
+				    (TClass 
+				       (make_cn "java.lang.Throwable"))]
+		       | Some cn -> (TObject(TClass cn))::(type_list r))
+	    in
+	      type_list (Lazy.force c).JCode.c_exc_tbl
           and resolve_cfs initial_set cn fs =
             try
               let c = JControlFlow.resolve_class program cn in
