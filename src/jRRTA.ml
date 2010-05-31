@@ -181,7 +181,18 @@ let rec value_type2class_nodes pvta v =
     | TBasic _ -> ClassMap.empty
     | TObject t ->
 	match t with
-	  | TArray a -> value_type2class_nodes pvta a
+	  | TArray a -> 
+	      let c_object =
+		let iocc =
+		  ClassMap.find java_lang_object pvta.p.classes in
+		  (match iocc with
+		     | Interface _ -> failwith "Impossible InvokeVirtual."
+		     | Class o -> o
+		  ) in
+	      ClassMap.add 
+		java_lang_object 
+		c_object 
+		(value_type2class_nodes pvta a)
 	  | TClass cn ->
 	      try
 		let ioc = get_node pvta.p cn in
@@ -297,10 +308,12 @@ let parse_method_handlers pvta m =
 	  List.iter
 	    (fun e_h -> 
 	       let classes = 
-	       match e_h.e_catch_type with 
-		   None -> ClassMap.empty
-		 | Some cn -> 
-		     value_type2class_nodes pvta (TObject (TClass cn))
+		 match e_h.e_catch_type with 
+		     None -> 
+		       value_type2class_nodes pvta 
+			 (TObject (TClass (make_cn "java.lang.Throwable")))
+		   | Some cn -> 
+		       value_type2class_nodes pvta (TObject (TClass cn))
 	       in     
 		 m.vta_instantiated_classes <-
 		   ClassMap.merge
