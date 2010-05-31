@@ -291,9 +291,11 @@ let get_XTA_program
              | TBasic _ ->
                  acc
              | TObject (TArray _) ->
-                 object_found := true;
                  return_None := false;
-                 acc
+		 lazy (XTADom.join
+                         (Lazy.force acc)
+                         (XTADom.of_set
+                            (ClassSet.singleton java_lang_object)))
              | TObject (TClass cn) when cn_equal cn java_lang_object ->
                  object_found := true;
                  return_None := false;
