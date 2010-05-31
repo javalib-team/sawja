@@ -497,8 +497,13 @@ struct
       	  let rcs = invoke_static_lookup p cs ms in
 	    add_class_clinits p rcs
       | OpNewArray v ->
+	  add_instantiated_class p java_lang_object;
+	  add_class_clinits p java_lang_object;
 	  load_value_type_class p v
-      | OpAMultiNewArray (o,_)
+      | OpAMultiNewArray (o,_) -> 
+	  add_instantiated_class p java_lang_object;
+	  add_class_clinits p java_lang_object;
+	  load_value_type_class p (TObject o)
       | OpCheckCast o
       | OpInstanceOf o ->
 	  load_value_type_class p (TObject o)
