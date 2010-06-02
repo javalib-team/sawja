@@ -37,8 +37,8 @@ open Javalib_pack
     parameter [native_throwable] is the list of subclasses of
     [java.lang.Throwable] that could be instantiated and thrown by the
     VM, if not specified it includes {!default_native_throwable},
-    these classes will be considered as instantiated in handlers that
-    accept them.*)
+    these classes will be considered as instantiated in methods with a
+    handler when needed.*)
 val get_XTA_program :
   ?native_throwable:JBasics.class_name list -> 
   [< `Field | `Class | `Global ] ->
