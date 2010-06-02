@@ -1,3 +1,45 @@
+From 1.1 to 1.1.1
+------------------
+
+Minor changes: 
+* RTA, RRTA, XTA: a list of subclasses of java.lang.Throwable that could be 
+  instantiated and thrown by the JVM is provided. Algorithms RTA, RRTA and XTA use 
+  this list as default value for an optional argument that allows to specify 
+  that these classes could be instantiated in program.
+* XTA: add the optional argument '~native_throwable' that allow to specify subclasses 
+  of java.lang.Throwable that could be instantiated and thrown by the VM, classes are 
+  considered as instantiated when needed.
+* Version number of Sawja in FindLib was indicated 1.0.1 for version 1.1, 
+  now it is the correct number (1.1.1)
+
+Major bug fixes:
+* RRTA: type of receiver was not taken as possible type parameter in virtual methods: 
+  as a consequence virtual calls on the receiver in a method were ignored 
+  if another source for this type was not accessible in the virtual method
+* XTA: arrays were not correctly managed:
+  - type of arrays was abstracted by type java.lang.Object as static type 
+    and could lead to loss of precision for approximation of dynamic type
+  - type of arrays content was not managed. Although it was partially 
+    compensated by precedent point it was unsound
+  => static type of arrays is now correctly managed
+  => type of arrays content is now managed by a correct over-approximation
+     (global for program)
+* RRTA and XTA: exception handlers were not taken in account:
+  - handled exceptions types were not considered as possible type parameters in method.
+    As a consequence only exceptions instantiated in the method were considered
+    instantiated for calls that use an exception (as argument or receiver)
+  => exceptions that could be instantiated when a handler is present is now a 
+     correct over-approximation (global for program)
+
+Minor bug fixes:
+* XTA: OpConst(Class _) and OpConst(String _) instructions were not considered 
+  as instantiation of java.lang.Class and java.lang.String, now it is
+* RTA, RRTA: OpConst(String _) instruction was not considered 
+  as instantiation of java.lang.String, now it is
+* removing some debugging messages from JFile.iter (display number of classes)
+
+
+
 From 1.0.1 to 1.1
 ------------------
 
