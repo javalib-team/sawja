@@ -536,10 +536,16 @@ let parse_program_from_rta prta instantiated_classes cmsl =
 
 let default_entrypoints = JRTA.default_entrypoints
 
-let parse_program ?instantiated ?(other_entrypoints=default_entrypoints) classpath cms =
+let cldc11_default_entrypoints = JRTA.cldc11_default_entrypoints
+
+let default_native_throwable = JRTA.default_native_throwable
+
+let default_instantiated = (make_cn "java.lang.Class")::(make_cn "java.lang.String")::default_native_throwable
+
+let parse_program ?(instantiated=default_instantiated) ?(other_entrypoints=default_entrypoints) classpath cms =
   let (prta, instantiated_classes) =
     JRTA.parse_program
-      ?instantiated ~other_entrypoints:other_entrypoints classpath cms
+      ~instantiated:instantiated ~other_entrypoints:other_entrypoints classpath cms
   in
   let pvta =
     parse_program_from_rta prta instantiated_classes (cms::other_entrypoints) in

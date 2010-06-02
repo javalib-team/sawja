@@ -26,20 +26,21 @@ open JBasics
 open Javalib
 open JProgram
 
-(** [parse_program ~instantiated ~other_entrypoints classpath (cs,ms)]
+(** [parse_program ~instantiated ~other_entrypoints classpath cms]
     first returns a [program] composed of all the code found in
     [classpath] and that may be accessible from at least one method of
-    [(cs,ms)::entrypoints].  [classpath] is a list of directories and
-    [.jar] or [.zip] files separated with ':' (or ';' under Windows).
-    [cs] is a path to the class which defines [m]. If
-    [other_entrypoints] is not specified, the default methods are the
-    methods invoked natively by the JVM during its initialization. (cf
-    {!default_entrypoints}).  [instantiated] is the list of classes
-    that may be instantiated natively by the JVM, if it is not
-    specified it includes the class [java.lang.Class] (always
-    instantiated by JVM) and {!default_native_throwable}.  The second
-    return parameter is the set of instantiated classes calculated by
-    RTA algorithm. *)
+    [cms::other_entrypoints]. [classpath] is a list of directories
+    and [.jar] or [.zip] files separated with ':' (or ';' under
+    Windows).  [cms] is the
+    {!Javalib_pack.JBasics.class_method_signature} that represents the
+    main entrypoint of the program. If [other_entrypoints] is not
+    specified, the default methods are the methods invoked natively by
+    the JVM during its initialization. (cf {!default_entrypoints}).
+    [instantiated] is the list of classes that may be instantiated
+    natively by the JVM, if it is not specified it includes the class
+    [java.lang.Class] (always instantiated by JVM) and
+    {!default_native_throwable}. The second return parameter is the
+    set of instantiated classes calculated by RTA algorithm. *)
 val parse_program :
   ?instantiated:class_name list ->
   ?other_entrypoints:class_method_signature list ->
@@ -58,5 +59,5 @@ val default_entrypoints : class_method_signature list
 val cldc11_default_entrypoints : class_method_signature list
 
 (** Subclasses of classes RuntimeException and Error that could be
-instantiated natively by the JVM (cf. JVM Spec 1.5 §2.16.4).*)
+    instantiated and thrown by the JVM (cf. JVM Spec 1.5 §2.16.4).*)
 val default_native_throwable : class_name list

@@ -35,8 +35,10 @@ open Javalib_pack
     be used for abstraction of fields. [`Field] is more precise than
     [`Class] which is more precise than [`Global]. The optional
     parameter [native_throwable] is the list of subclasses of
-    [java.lang.Throwable] that could be instantiated by the VM, if not
-    specified it includes {!default_native_throwable}.*)
+    [java.lang.Throwable] that could be instantiated and thrown by the
+    VM, if not specified it includes {!default_native_throwable},
+    these classes will be considered as instantiated in handlers that
+    accept them.*)
 val get_XTA_program :
   ?native_throwable:JBasics.class_name list -> 
   [< `Field | `Class | `Global ] ->
@@ -44,5 +46,5 @@ val get_XTA_program :
   JBasics.class_method_signature list -> JCode.jcode JProgram.program
 
 (** Subclasses of classes RuntimeException and Error that could be
-    instantiated natively by the JVM (cf. JVM Spec 1.5 §2.16.4).*)
+    instantiated and thrown by the JVM (cf. JVM Spec 1.5 §2.16.4).*)
 val default_native_throwable : JBasics.class_name list
