@@ -273,6 +273,7 @@ and print_expr first_level = function
   | Field (v,c,f) -> Printf.sprintf "%s.%s" (print_basic_expr v) (print_field c f)
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_basic_expr e)
+  | Unop (Cast ot,e) -> Printf.sprintf "(%s) %s" (Javalib.JPrint.object_type ot) (print_basic_expr  e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_basic_expr  e)
   | Binop (ArrayLoad t,e1,e2) -> Printf.sprintf "%s[%s]:%s" (print_basic_expr  e1) (print_basic_expr e2) (print_typ t)
   | Binop (Add _,e1,e2) -> bracket first_level
@@ -308,14 +309,18 @@ let print_instr = function
   | Return (Some e) -> Printf.sprintf "return %s" (print_basic_expr e)
   | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (Bir.print_list_sep "," (print_basic_expr) le) 
   | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (Bir.print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_basic_expr  e)) le) 
-  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (Bir.print_list_sep "," (print_basic_expr) le) 
-  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (Bir.print_list_sep "," (print_basic_expr) le) 
-  | InvokeVirtual (r,x,_,ms,le) -> 
-      Printf.sprintf "%s%s.%s(%s)"
+  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s) // static" (JPrint.class_name c) (ms_name ms) (Bir.print_list_sep "," (print_basic_expr) le) 
+  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s) // static" (var_name_g x) (JPrint.class_name c) (ms_name ms) (Bir.print_list_sep "," (print_basic_expr) le) 
+  | InvokeVirtual (r,x,k,ms,le) -> 
+      Printf.sprintf "%s%s.%s(%s) // %s"
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_basic_expr x) (ms_name ms) (Bir.print_list_sep "," print_basic_expr le) 
+	(print_basic_expr x) (ms_name ms) (Bir.print_list_sep "," print_basic_expr le)
+	(match k with
+	   | VirtualCall objt -> "virtual "^(JPrint.object_type objt)
+	   | InterfaceCall cn -> "interface "^(JPrint.class_name cn)
+	)
   | InvokeNonVirtual (r,x,kd,ms,le) -> 
       Printf.sprintf "%s%s.%s.%s(%s)"
 	(match r with
@@ -363,6 +368,8 @@ let bir2a3bir bir =
 let transform ?(bcv=false) j_m j_code =
   let code = Bir.transform_addr3 ~bcv:bcv j_m j_code in 
     bir2a3bir code
+
+let exception_edges m = Bir.exception_edges m.code m.exc_tbl 
       
 
 (* Redefining print_expr to be exported in the mli. *)

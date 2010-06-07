@@ -27,3 +27,5 @@ open JCode
 include Bir
 
 let print_expr ?(show_type=true) = print_expr ~show_type:show_type true
+
+let exception_edges m = exception_edges m.code m.exc_tbl 

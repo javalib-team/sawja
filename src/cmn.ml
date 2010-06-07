@@ -106,7 +106,7 @@ let print_unop = function
       end
   | ArrayLength -> "ArrayLength"
   | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
-  | Cast ot -> Printf.sprintf "%s" (Javalib.JPrint.object_type ot)
+  | Cast _ -> assert false
 
 let print_typ t =
   let bt2ss = function

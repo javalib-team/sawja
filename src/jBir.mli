@@ -235,6 +235,11 @@ type t = {
   (** [jump_target] indicates whether program points are join points or not. *)
 }
 
+(** [exception_edges m] returns a list of edges [(i,e);...] where
+    [i] is an instruction index in [m] and [e] is a handler whose
+    range contains [i]. *)
+val exception_edges :  t -> (int * exception_handler) list
+
 (** {2 Printing functions} *)
 
 (** [print_handler exc] returns a string representation for exception handler

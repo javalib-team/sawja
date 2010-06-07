@@ -159,7 +159,7 @@ let rec print_expr ?(show_type=true) first_level = function
   | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
   | Const i -> print_const i
   | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr ~show_type:show_type false e)
-  | Unop (Cast t,e) -> Printf.sprintf "(%s)%s" (print_unop (Cast t)) (print_expr ~show_type:show_type true e)
+  | Unop (Cast t,e) -> Printf.sprintf "(%s) %s" (print_typ (TObject t)) (print_expr ~show_type:show_type true e)
   | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr ~show_type:show_type true e)
   | Binop (ArrayLoad t,e1,e2) -> 
       if show_type then Printf.sprintf "%s[%s]:%s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type true e2) (print_typ t)
@@ -1769,6 +1769,27 @@ let transform ?(bcv=false) = jcode2bir Normal bcv false
 let transform_flat ?(bcv=false) ?(ir_ssa=false) = jcode2bir Flat bcv ir_ssa
 let transform_addr3 ?(bcv=false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ir_ssa
 
+(* 
+ * Fold a function f on an accumulator x0 and an array t 
+ * f a [| b0 ; b1 ; ... ; bn |] --->  f 0 b0 (f 1 b1 (f ... (f n bn x0) ...) )
+ *)
+let foldi f x0 t =
+  let n = Array.length t in
+  let rec aux i =
+    if i>=n then x0
+    else f i t.(i) (aux (i+1)) in
+    aux 0
+
+let exception_edges code exc_tbl = 
+  foldi 
+      (fun i _ l ->
+	 List.rev_append
+	   (List.map 
+	      (fun e -> (i,e))
+	      (List.filter (fun e -> e.e_start <= i && i < e.e_end) exc_tbl))
+	   l)
+      [] 
+      code
 
 (* Agregation of boolean tests  *)
 module AgregatBool = struct
