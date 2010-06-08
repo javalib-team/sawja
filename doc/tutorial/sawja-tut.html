@@ -236,7 +236,17 @@ load the following libraries in the given order:</p>
 </pre>
 <p>Don't forget the associated <strong>#directory</strong>
 directives that allow you to specify the paths where to find these
-libraries.</p>
+libraries. If you installed sawja with FindLib you should do:</p>
+<pre>
+<code>    #directory "&lt;package_install_path&gt;extlib"
+    #directory "&lt;package_install_path&gt;camlzip"
+    #directory "&lt;package_install_path&gt;ptrees"
+    #directory "&lt;package_install_path&gt;javalib"
+    #directory "&lt;package_install_path&gt;sawja"
+    (*&lt;package_install_path&gt; is given by command 'ocamlfind printconf'. 
+    If it is the same path than standard ocaml library just replace by '+'.*)
+</code>
+</pre>
 <p>You can also build a toplevel including all these libraries
 using the command <strong>make ocaml</strong> in the sources
 repository of <em>Sawja</em>. This command builds an executable
@@ -267,7 +277,8 @@ main entry point:</p>
     open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
-         (JBasics.make_cn "soot.Main", JProgram.main_signature)
+            (JBasics.make_cms
+               (JBasics.make_cn "soot.Main") JProgram.main_signature)
 </code>
 </pre>
 <p>It can be interesting to generate the <strong>.html</strong>
@@ -340,19 +351,18 @@ The procedure to obtain the <em>A3Bir</em> representation is
 exactly the same.</p>
 <pre>
 <code>    let pbir = JProgram.map_program2
-      (fun _ -&gt; JBir.transform ~bcv:false ~compress:false) prta
+      (fun _ -&gt; JBir.transform ~bcv:false) prta
 </code>
 </pre>
-<dl>
-<dt>Warning:</dt>
-<dd>Subroutines inlining is not totally handled in <em>JBir</em>
-and <em>A3Bir</em>. If some transformed code contains such
-subroutines, the exception <strong>JBir.Subroutine</strong> or
+<p>Warning: : Subroutines inlining is handled in <em>JBir</em> and
+<em>A3Bir</em> only for not nested subroutines (runtime of version
+JRE1.6_20 contains a few nested subroutines and next version 1.7
+none). If some transformed code contains such subroutines, the
+exception <strong>JBir.Subroutine</strong> or
 <strong>AB3Bir.Subroutine</strong> will be raised, respectively.
 However, when transforming a whole program with the above function,
 no exception will be raised because of the <em>lazy</em> evaluation
-of code.</dd>
-</dl>
+of code.</p>
 <p>To see how <em>JBir</em> representation looks like, we can
 pretty-print one class, for instance
 <strong>java.lang.Object</strong>:</p>
@@ -391,7 +401,7 @@ sig
   val method_param_names : code program -&gt; class_name -&gt;
      method_signature -&gt; string list option
   val inst_html : code program -&gt; class_name -&gt; method_signature -&gt;
-    int -&gt; instr -&gt; elem list
+    int -&gt; instr -&gt; JPrintHtml.elem list
   val jcode_pp :
     ('a program -&gt; class_name -&gt; method_signature -&gt; int -&gt; int) option
 end
@@ -410,9 +420,9 @@ function is really easy to write.</p>
         Array.iteri
           (fun pp opcode -&gt;
             match opcode with
-              | OpInvalid -&gt; ()
+              | JCode.OpInvalid -&gt; ()
               | _ -&gt; f pp [opcode]
-          ) code.c_code
+          ) code.JCode.c_code
 </code>
 </pre>
 <p>You also need to provide a function that may associate names to
@@ -435,26 +445,31 @@ predefined functions in <em>JPrintHtml</em>. These functions are
 help you to understand how you can use these functions. You are
 also recommended to read the <em>API</em> documentation.</p>
 <pre>
-<code>    let inst_html program cs ms pp op =
+<code>    open JPrintHtml
+
+    let inst_html program cs ms pp op =
       match op with
-        | OpNew ccs -&gt;
+        | JCode.OpNew ccs -&gt;
           let v = TObject (TClass ccs) in
             [simple_elem "new"; value_elem program cs v]
-        | OpNewArray v -&gt;
+        | JCode.OpNewArray v -&gt;
             [simple_elem "newarray"; value_elem program cs v]
-        | OpGetField (ccs,fs) -&gt;
+        | JCode.OpGetField (ccs,fs) -&gt;
           let ftype = fs_type fs in
             [simple_elem "getfield";
              field_elem program cs ccs fs;
              simple_elem " : ";
              value_elem program cs ftype]
-        | OpInvoke ((`Virtual o),cms) -&gt;
+        | JCode.OpInvoke ((`Virtual o),cms) -&gt;
           let ccs = match o with
             | TClass ccs -&gt; ccs
-            | _ -&gt; JBasics.java_lang_object in
-              [simple_elem inst;
-               invoke_elem program cs ms pp ccs cms;
-               method_args_elem program cs ms]
+            | _ -&gt; JBasics.java_lang_object 
+      and let inst =
+              Javalib.JPrint.jopcode ~jvm:true op 
+      in
+        [simple_elem inst;
+             invoke_elem program cs ms pp ccs cms;
+             method_args_elem program cs ms]
         | ... -&gt; ...
         | _ -&gt;
           let inst =

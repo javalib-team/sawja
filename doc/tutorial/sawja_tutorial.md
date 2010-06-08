@@ -197,6 +197,17 @@ given order:
 
 Don't forget the associated **#directory** directives that allow you
 to specify the paths where to find these libraries.
+If you installed sawja with FindLib you should do:
+
+~~~~~
+    #directory "<package_install_path>extlib"
+    #directory "<package_install_path>camlzip"
+    #directory "<package_install_path>ptrees"
+    #directory "<package_install_path>javalib"
+    #directory "<package_install_path>sawja"
+    (*<package_install_path> is given by command 'ocamlfind printconf'. 
+    If it is the same path than standard ocaml library just replace by '+'.*)
+~~~~~
 
 You can also build a toplevel including all these libraries using the
 command **make ocaml** in the sources repository of *Sawja*. This
@@ -228,7 +239,8 @@ loads *Soot* program, given its main entry point:
     open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
-         (JBasics.make_cn "soot.Main", JProgram.main_signature)
+            (JBasics.make_cms
+      	       (JBasics.make_cn "soot.Main") JProgram.main_signature)
 ~~~~~
 
 It can be interesting to generate the **.html** files corresponding to
@@ -299,11 +311,16 @@ the *A3Bir* representation is exactly the same.
 
 ~~~~~
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~bcv:false ~compress:false) prta
+      (fun _ -> JBir.transform ~bcv:false) prta
 ~~~~~
 
-Warning:
-:    Subroutines inlining is not totally handled in *JBir* and *A3Bir*. If some transformed code contains such subroutines, the exception **JBir.Subroutine** or **AB3Bir.Subroutine** will be raised, respectively. However, when transforming a whole program with the above function, no exception will be raised because of the *lazy* evaluation of code.
+Warning: : Subroutines inlining is handled in *JBir* and *A3Bir* only
+for not nested subroutines (runtime of version JRE1.6_20 contains a
+few nested subroutines and next version 1.7 none). If some transformed
+code contains such subroutines, the exception **JBir.Subroutine** or
+**AB3Bir.Subroutine** will be raised, respectively. However, when
+transforming a whole program with the above function, no exception
+will be raised because of the *lazy* evaluation of code.
 
 To see how *JBir* representation looks like, we can pretty-print one
 class, for instance **java.lang.Object**:
@@ -343,7 +360,7 @@ sig
   val method_param_names : code program -> class_name ->
      method_signature -> string list option
   val inst_html : code program -> class_name -> method_signature ->
-    int -> instr -> elem list
+    int -> instr -> JPrintHtml.elem list
   val jcode_pp :
     ('a program -> class_name -> method_signature -> int -> int) option
 end
@@ -362,9 +379,9 @@ function is really easy to write.
         Array.iteri
           (fun pp opcode ->
             match opcode with
-              | OpInvalid -> ()
+              | JCode.OpInvalid -> ()
               | _ -> f pp [opcode]
-          ) code.c_code
+          ) code.JCode.c_code
 ~~~~~
 
 You also need to provide a function that may associate names to method
@@ -387,26 +404,31 @@ understand how you can use these functions. You are also recommended
 to read the *API* documentation.
 
 ~~~~~
+    open JPrintHtml
+
     let inst_html program cs ms pp op =
       match op with
-        | OpNew ccs ->
+        | JCode.OpNew ccs ->
           let v = TObject (TClass ccs) in
             [simple_elem "new"; value_elem program cs v]
-        | OpNewArray v ->
+        | JCode.OpNewArray v ->
             [simple_elem "newarray"; value_elem program cs v]
-        | OpGetField (ccs,fs) ->
+        | JCode.OpGetField (ccs,fs) ->
           let ftype = fs_type fs in
             [simple_elem "getfield";
              field_elem program cs ccs fs;
              simple_elem " : ";
              value_elem program cs ftype]
-        | OpInvoke ((`Virtual o),cms) ->
+        | JCode.OpInvoke ((`Virtual o),cms) ->
           let ccs = match o with
             | TClass ccs -> ccs
-            | _ -> JBasics.java_lang_object in
-              [simple_elem inst;
-               invoke_elem program cs ms pp ccs cms;
-               method_args_elem program cs ms]
+            | _ -> JBasics.java_lang_object 
+	  and let inst =
+              Javalib.JPrint.jopcode ~jvm:true op 
+	  in
+	    [simple_elem inst;
+             invoke_elem program cs ms pp ccs cms;
+             method_args_elem program cs ms]
         | ... -> ...
         | _ ->
           let inst =
