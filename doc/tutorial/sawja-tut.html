@@ -3,13 +3,13 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta name="generator" content=
-"HTML Tidy for Linux/x86 (vers 11 February 2007), see www.w3.org" />
-<title>Sawja tutorial</title>
+"HTML Tidy for Linux/x86 (vers 25 March 2009), see www.w3.org" />
+<title>Sawja tutorial -</title>
 <meta http-equiv="Content-Type" content=
-"text/html; charset=us-ascii" />
+"text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
-<link rel="stylesheet" href="style-tut.css" type="text/css" media=
-"all" />
+<meta name="date" content="" />
+<link rel="stylesheet" href="style-tut.css" type="text/css" />
 </head>
 <body>
 <h1 class="tutorial-title">Sawja tutorial<br />
@@ -59,8 +59,9 @@ Analysis</em> (<em>RTA</em>). For now, <em>RTA</em> is the best
 compromise between loading time and precision of the call graph. A
 version of <em>XTA</em> is coming soon. To get more information
 about control flow graph algorithms and their complexity, you can
-consult the paper of Frank Tip and Jens Palsberg <a href="#fn1"
-class="footnoteRef" id="fnref1" name="fnref1"><sup>1</sup></a>.</p>
+consult the paper of Frank Tip and Jens Palsberg <sup><a href=
+"#fn1" class="footnoteRef" id="fnref1" name=
+"fnref1">1</a></sup>.</p>
 <p>In <em>Sawja</em>, classes and interfaces are represented by
 interconnected nodes belonging to a common hierarchy. For example,
 given a class node, it's easy to access its super class, its
@@ -73,8 +74,8 @@ Such representations open the way to many analyses which can be
 built upon them more naturally, better than with the byte-code
 representation (e.g. <em>Live Variable Analysis</em>). The
 transformation algorithm, common to these representations, has been
-formalized and proved to be semantics-preserving<a href="#fn2"
-class="footnoteRef" id="fnref2" name="fnref2"><sup>2</sup></a>.</p>
+formalized and proved to be semantics-preserving<sup><a href="#fn2"
+class="footnoteRef" id="fnref2" name="fnref2">2</a></sup>.</p>
 <p><em>Sawja</em> also provides functions to map a program using a
 particular code representation to another.</p>
 </div>
@@ -83,7 +84,9 @@ particular code representation to another.</p>
 <p>In this section, we present the different modules of
 <em>Sawja</em> and how they interact together. While reading the
 next sections, we recommend you to have a look at <em>Sawja</em>
-API at the same time.</p>
+API at the same time. All modules of <em>Sawja</em> are sub-modules
+of the package module <em>Sawja_pack</em> in order to avoid
+possible namespace conflicts.</p>
 <div id="jprogram-module">
 <h2><a href="#TOC"><em>JProgram</em> module</a></h2>
 <p>This module defines:</p>
@@ -257,8 +260,10 @@ Cryptographic Extension</em> <strong>jce.jar</strong>. The
 following sample of code loads <em>Soot</em> program, given its
 main entry point:</p>
 <pre>
-<code>    open Javalib
+<code>    open Javalib_pack
+    open Javalib
     open JBasics
+    open Sawja_pack
     open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
@@ -501,7 +506,7 @@ identity.</p>
 Construction Algorithms</em>. OOPSLA 2000. See <a href=
 "http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf">http://www.cs.ucla.edu/~palsberg/paper/oopsla00.pdf</a>.
 <a href="#fnref1" class="footnoteBackLink" title=
-"Jump back to footnote 1">&#8617;</a></p>
+"Jump back to footnote 1">↩</a></p>
 </li>
 <li id="fn2">
 <p>D. Demange, T. Jensen and D. Pichardie. <em>A Provably Correct
@@ -509,7 +514,7 @@ Stackless Intermediate Representation For Java Bytecode</em>.
 Research Report 7021, INRIA, 2009. See <a href=
 "http://irisa.fr/celtique/ext/bir">http://irisa.fr/celtique/ext/bir</a>.
 <a href="#fnref2" class="footnoteBackLink" title=
-"Jump back to footnote 2">&#8617;</a></p>
+"Jump back to footnote 2">↩</a></p>
 </li>
 </ol>
 </div>

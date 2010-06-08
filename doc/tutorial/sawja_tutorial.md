@@ -45,6 +45,8 @@ Global architecture
 In this section, we present the different modules of *Sawja* and how
 they interact together. While reading the next sections, we recommend
 you to have a look at *Sawja* API at the same time.
+All modules of *Sawja* are sub-modules of the package module
+*Sawja_pack* in order to avoid possible namespace conflicts.
 
 *JProgram* module
 -----------------
@@ -219,8 +221,10 @@ Cryptographic Extension* **jce.jar**. The following sample of code
 loads *Soot* program, given its main entry point:
 
 ~~~~~
+    open Javalib_pack
     open Javalib
     open JBasics
+    open Sawja_pack
     open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")

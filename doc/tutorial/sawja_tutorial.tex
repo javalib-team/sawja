@@ -68,6 +68,8 @@ particular code representation to another.
 In this section, we present the different modules of \emph{Sawja}
 and how they interact together. While reading the next sections, we
 recommend you to have a look at \emph{Sawja} API at the same time.
+All modules of \emph{Sawja} are sub-modules of the package module
+\emph{Sawja\_pack} in order to avoid possible namespace conflicts.
 
 \subsection{\emph{JProgram} module}
 
@@ -252,8 +254,10 @@ the corresponding \textbf{.jar} files, the \emph{Java Runtime}
 program, given its main entry point:
 
 \begin{verbatim}
+    open Javalib_pack
     open Javalib
     open JBasics
+    open Sawja_pack
     open JProgram
     let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
