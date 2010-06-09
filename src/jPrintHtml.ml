@@ -18,10 +18,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(* TODO :
- * JPrintHTML should be more generic (functor ?) and able to
- * print any code representation. *)
-
 open Javalib_pack
 open JBasics
 open JCode
@@ -443,17 +439,18 @@ let field_elem ?called_cname program cs ccs fs =
 	  
 let invoke_elem ?called_cname program cs ms pp callcs callms =
   let mlookupshtml =
-    try ClassMethodSet.fold
-      (fun cms l ->
-	 let (rcs,rms) = cms_split cms in
-	 let anchor = ms2anchorname rcs rms in
-	 let href = (get_relative_file cs rcs) ^ "#" ^ anchor in
-	 let rcname = cn_name rcs in
-	 let rmname = htmlize (ms_name rms) in
-	 let rmsig = htmlize (JPrint.method_signature rms) in
-	   [gen_titled_hyperlink href (rcname ^ "." ^ rmname) rmsig] :: l
-      )
-      (program.static_lookup_method cs ms pp) []
+    try 
+	ClassMethodSet.fold
+	  (fun cms l ->
+	     let (rcs,rms) = cms_split cms in
+	     let anchor = ms2anchorname rcs rms in
+	     let href = (get_relative_file cs rcs) ^ "#" ^ anchor in
+	     let rcname = cn_name rcs in
+	     let rmname = htmlize (ms_name rms) in
+	     let rmsig = htmlize (JPrint.method_signature rms) in
+	       [gen_titled_hyperlink href (rcname ^ "." ^ rmname) rmsig] :: l
+	  )
+	  (program.static_lookup_method cs ms pp) []
     with _ -> [] in
   let callcname = match called_cname with
     | Some x -> x
@@ -492,7 +489,7 @@ sig
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
-  val jcode_pp : ('a program -> class_name -> method_signature -> int -> int) option
+  val jcode_pp : (code program -> class_name -> method_signature -> int -> int) option
 end
   
 module Make (S : PrintInterface) =
@@ -631,7 +628,9 @@ struct
 				     (fun inst ->
 					S.inst_html program cs ms pp inst
 				     ) insts in
-				 let insts_annots = info.p_data.p_pp cs ms pp in
+				 let insts_annots = 
+				   info.p_data.p_pp cs ms pp 
+				 in
 				   l := (pp, (insts_html, insts_annots)) :: !l
 			      ) code;
 			    !l
@@ -779,7 +778,7 @@ module JCodePrinter = Make(
       		  )
 		  
     let jcode_pp = Some (fun _ _ _ x -> x)
-      
+
     let inst_html program cs ms pp op =
       let inst_params = Javalib.JPrint.jopcode ~jvm:true op in
       let inst =
@@ -849,8 +848,9 @@ module JBirPrinter = Make(
       try
 	let code = Lazy.force lazy_code in
 	  Array.iteri (fun i ins -> f i [ins]) code.JBir.code
-      with
-	  _ -> ()
+      with _ -> 
+	    print_endline "Lazy.force fail";
+	    ()
     let print_list_sep sep f l =
       let ml = List.map f l in
 	String.concat sep ml
@@ -874,100 +874,126 @@ module JBirPrinter = Make(
 		    )
 	      with _ -> None
 		
-    let jcode_pp = Some (fun _ _ _ x -> x)
-      
-    (* TODO: invoke_elem function need to be called with the program point
-       returned by jcode_pp. *)
+    let jcode_pp = 
+      Some (fun p cn ms pp -> 
+		try
+		  let (_node,cm) =
+		    (ClassMethodMap.find
+		       (make_cms cn ms)
+		       p.parsed_methods)
+		  in
+		    match cm.cm_implementation with
+			Native -> raise Not_found
+		      | Java laz -> 
+			  (Lazy.force laz).JBir.pc_ir2bc.(pp)
+		with _ -> -1
+	   )
+  
+    let jpp p cs ms pp= 
+      match jcode_pp with
+	  Some jpp -> jpp p cs ms pp
+	| None -> -1
+     
+    
     let inst_html program cs ms pp op =
-      match op with
-	| JBir.AffectStaticField (ccs,fs,e) ->
-	    let p1 = field_elem program cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (JBir.print_expr e)) in
-	      [p1;p2]
-	| JBir.AffectField (e1,ccs,fs,e2) ->
-	    let p1 = field_elem program ~called_cname:(JBir.print_expr e1)
-	      cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (JBir.print_expr e2)) in
-	      [p1;p2]
-	| JBir.New (x,ccs,_,le) ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (print_list_sep ", " JBir.print_expr le)) in
-	      [p1;p2;p3]
-	| JBir.NewArray (x,v,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "%s"
-		 (print_list_sep ""
-		    (fun e -> 
-		       Printf.sprintf "[%s]" (JBir.print_expr e)) le)
-	      ) in
-	      [p1;p2;p3]
-	| JBir.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = invoke_elem program cs ms pp ccs cms in
-	    let p2 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
-	      [p1;p2]
-	| JBir.InvokeStatic (Some x,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s :=" (JBir.var_name_g x)) in
-	    let p2 = invoke_elem program cs ms pp ccs cms in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
-	      [p1;p2;p3]
-	| JBir.InvokeVirtual (r,e1,k,cms,le) ->
-	    let p2 =
-	      (match k with
-		 | JBir.VirtualCall o ->
-		     let ccs = match o with
-		       | TClass ccs -> ccs
-		       | _ -> JBasics.java_lang_object in
+	match op with
+	  | JBir.AffectStaticField (ccs,fs,e) ->
+	      let p1 = field_elem program cs ccs fs in
+	      let p2 = simple_elem
+		(Printf.sprintf ":= %s" (JBir.print_expr e)) in
+		[p1;p2]
+	  | JBir.AffectField (e1,ccs,fs,e2) ->
+	      let p1 = field_elem program ~called_cname:(JBir.print_expr e1)
+		cs ccs fs in
+	      let p2 = simple_elem
+		(Printf.sprintf ":= %s" (JBir.print_expr e2)) in
+		[p1;p2]
+	  | JBir.New (x,ccs,_,le) ->
+	      let v = TObject (TClass ccs) in
+	      let p1 = simple_elem
+		(Printf.sprintf "%s := new" (JBir.var_name_g x)) in
+	      let p2 = value_elem program cs v in
+	      let p3 = simple_elem
+		(Printf.sprintf "(%s)"
+		   (print_list_sep ", " JBir.print_expr le)) in
+		[p1;p2;p3]
+	  | JBir.NewArray (x,v,le) ->
+	      let p1 = simple_elem
+		(Printf.sprintf "%s := new" (JBir.var_name_g x)) in
+	      let p2 = value_elem program cs v in
+	      let p3 = simple_elem
+		(Printf.sprintf "%s"
+		   (print_list_sep ""
+		      (fun e -> 
+			 Printf.sprintf "[%s]" (JBir.print_expr e)) le)
+		) in
+		[p1;p2;p3]
+	  | JBir.InvokeStatic (None,ccs,cms,le) ->
+	      let p1 = 
+		invoke_elem 
+		  program cs ms (jpp program cs ms pp) ccs cms 
+	      in
+	      let p2 = simple_elem
+		(Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
+		[p1;p2]
+	  | JBir.InvokeStatic (Some x,ccs,cms,le) ->
+	      let p1 = simple_elem
+		(Printf.sprintf "%s :=" (JBir.var_name_g x)) in
+	      let p2 = 
+		invoke_elem 
+		  program cs ms (jpp program cs ms pp) ccs cms 
+	      in
+	      let p3 = simple_elem
+		(Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
+		[p1;p2;p3]
+	  | JBir.InvokeVirtual (r,e1,k,cms,le) ->
+	      let p2 =
+		(match k with
+		   | JBir.VirtualCall o ->
+		       let ccs = match o with
+			 | TClass ccs -> ccs
+			 | _ -> JBasics.java_lang_object in
+			 invoke_elem ~called_cname:(JBir.print_expr e1) program
+			   cs ms (jpp program cs ms pp) ccs cms
+		   | JBir.InterfaceCall ccs ->
 		       invoke_elem ~called_cname:(JBir.print_expr e1) program
-			 cs ms pp ccs cms
-		 | JBir.InterfaceCall ccs ->
-		     invoke_elem ~called_cname:(JBir.print_expr e1) program
-		       cs ms pp ccs cms
-	      ) in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (print_list_sep ", " (JBir.print_expr) le)) in
-	      (match r with
-		 | None -> [p2;p3]
-		 | Some x ->
-		     let p1 = simple_elem
-		       (Printf.sprintf "%s :="  (JBir.var_name_g x)) in
-		       [p1;p2;p3]
-	      )
-	| JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (match r with
-		 | None -> (JBir.print_expr e1) ^ "."
-		 | Some x -> Printf.sprintf "%s := %s." (JBir.var_name_g x)
-		     (JBir.print_expr e1)
-	      ) in
-	    let p2 = invoke_elem program cs ms pp ccs cms in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
-	      [p1;p2;p3]
-	| JBir.MayInit ccs ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem "mayinit" in
-	    let p2 = value_elem program cs v in
-	      [p1;p2]
-	| JBir.Check (JBir.CheckCast (e,t)) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "checkcast %s:" (JBir.print_expr e)) in
-	    let p2 = value_elem program cs (TObject t) in
-	      [p1;p2]
-	| _ -> [simple_elem (JBir.print_instr op)]
+			 cs ms (jpp program cs ms pp) ccs cms
+		) in
+	      let p3 = simple_elem
+		(Printf.sprintf "(%s)"
+		   (print_list_sep ", " (JBir.print_expr) le)) in
+		(match r with
+		   | None -> [p2;p3]
+		   | Some x ->
+		       let p1 = simple_elem
+			 (Printf.sprintf "%s :="  (JBir.var_name_g x)) in
+			 [p1;p2;p3]
+		)
+	  | JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
+	      let p1 = simple_elem
+		(match r with
+		   | None -> (JBir.print_expr e1) ^ "."
+		   | Some x -> Printf.sprintf "%s := %s." (JBir.var_name_g x)
+		       (JBir.print_expr e1)
+		) in
+	      let p2 = 
+		invoke_elem 
+		  program cs ms (jpp program cs ms pp) ccs cms 
+	      in
+	      let p3 = simple_elem
+		(Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
+		[p1;p2;p3]
+	  | JBir.MayInit ccs ->
+	      let v = TObject (TClass ccs) in
+	      let p1 = simple_elem "mayinit" in
+	      let p2 = value_elem program cs v in
+		[p1;p2]
+	  | JBir.Check (JBir.CheckCast (e,t)) ->
+	      let p1 = simple_elem
+		(Printf.sprintf "checkcast %s:" (JBir.print_expr e)) in
+	      let p2 = value_elem program cs (TObject t) in
+		[p1;p2]
+	  | _ -> [simple_elem (JBir.print_instr op)]
   end)
   
 let print_jbir_program = JBirPrinter.print_program
@@ -1006,10 +1032,26 @@ module A3BirPrinter = Make(
 		    )
 	      with _ -> None
 		
-    let jcode_pp = Some (fun _ _ _ x -> x)
+    let jcode_pp = 
+      Some (fun p cn ms pp -> 
+	      try
+		let (_node,cm) =
+		  (ClassMethodMap.find
+		     (make_cms cn ms)
+		     p.parsed_methods)
+		in
+		  match cm.cm_implementation with
+		      Native -> raise Not_found
+		    | Java laz -> 
+			(Lazy.force laz).A3Bir.pc_ir2bc.(pp)
+	      with _ -> -1
+	   )
 
-    (* TODO: invoke_elem function need to be called with the program point
-       returned by jcode_pp. *)      
+    let jpp p cs ms pp= 
+      match jcode_pp with
+	  Some jpp -> jpp p cs ms pp
+	| None -> -1
+
     let inst_html program cs ms pp op =
       match op with
 	| A3Bir.AffectStaticField (ccs,fs,e) ->
@@ -1044,14 +1086,14 @@ module A3BirPrinter = Make(
 	      ) in
 	      [p1;p2;p3]
 	| A3Bir.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = invoke_elem program cs ms pp ccs cms in
+	    let p1 = invoke_elem program cs ms (jpp program cs ms pp) ccs cms in
 	    let p2 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
 	      [p1;p2]
 	| A3Bir.InvokeStatic (Some x,ccs,cms,le) ->
 	    let p1 = simple_elem
 	      (Printf.sprintf "%s :=" (A3Bir.var_name_g x)) in
-	    let p2 = invoke_elem program cs ms pp ccs cms in
+	    let p2 = invoke_elem program cs ms (jpp program cs ms pp) ccs cms in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
 	      [p1;p2;p3]
@@ -1063,10 +1105,10 @@ module A3BirPrinter = Make(
 		       | TClass ccs -> ccs
 		       | _ -> JBasics.java_lang_object in
 		       invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
-			 cs ms pp ccs cms
+			 cs ms (jpp program cs ms pp) ccs cms
 		 | A3Bir.InterfaceCall ccs ->
 		     invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
-		       cs ms pp ccs cms
+		       cs ms (jpp program cs ms pp) ccs cms
 	      ) in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)"
@@ -1085,7 +1127,7 @@ module A3BirPrinter = Make(
 		 | Some x -> Printf.sprintf "%s := %s." (A3Bir.var_name_g x)
 		     (A3Bir.print_basic_expr e1)
 	      ) in
-	    let p2 = invoke_elem program cs ms pp ccs cms in
+	    let p2 = invoke_elem program cs ms (jpp program cs ms pp) ccs cms in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " A3Bir.print_basic_expr le)) in
 	      [p1;p2;p3]

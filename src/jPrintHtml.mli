@@ -129,8 +129,9 @@ val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
 
 (** [invoke_elem ~called_cname p cn ms pp ccn cms] builds an [elem]
     from a program [p], a current class name [cn], a current method
-    signature [ms], a program point [pp] where the invoke occurs,
-    a called class name [ccn] and a called method signature [cms]. The
+    signature [ms], a program point [pp] where the invoke occurs
+    (corresponding to pp recorded in static_lookup_method of [p]), a
+    called class name [ccn] and a called method signature [cms]. The
     invoke call will be represented by a dynamic link with text [A.m]
     where [m] is the called method name (contained in [k]). By
     default, [A] corresponds to [cn] class name. If you want to
@@ -194,7 +195,7 @@ sig
 
   (** Function to provide in order to associate an intermediate
   representation program point to a JCode.jcode program point. *)
-  val jcode_pp : ('a program -> class_name -> method_signature -> int -> int) option
+  val jcode_pp : (code program -> class_name -> method_signature -> int -> int) option
 end
 
 module Make (S : PrintInterface) : HTMLPrinter
