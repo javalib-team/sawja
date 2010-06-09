@@ -3,7 +3,7 @@
 
 all: sawja_tutorial.tex sawja_tutorial.pdf sawja-tut.html
 
-.DELETE_ON_ERROR: sawja_tutorial.tex
+.DELETE_ON_ERROR:sawja-tut.html sawja_tutorial.tex
 sawja_tutorial.tex: sawja_tutorial.md
 	cat header.tex > sawja_tutorial.tex
 	pandoc -f markdown -t latex -o sawja_tutorial_part.tex sawja_tutorial.md
@@ -18,6 +18,10 @@ sawja-tut.html: sawja_tutorial.md header.html
 sawja_tutorial.pdf: sawja_tutorial.tex
 	pdflatex sawja_tutorial.tex
 	pdflatex sawja_tutorial.tex
+	rm -f sawja_tutorial.aux 
+	rm -f sawja_tutorial.log 
+	rm -f sawja_tutorial.toc 
+	rm -f sawja_tutorial.out
 
 clean:
 	rm -f sawja_tutorial.tex sawja_tutorial.pdf sawja-tut.html
