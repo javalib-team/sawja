@@ -21,6 +21,8 @@ Bug fixes:
   considered as instantiations of java.lang.Class and java.lang.String
 * RTA, RRTA: OpConst(String _) instruction was not considered as
   an instantiation of java.lang.String, now it is
+* JPrintHtml: bugfix in print_jbir_program and print_a3bir_program for
+  method lookup
 
 Known bug: 
 * Program discovery does take reflection in account
