@@ -489,14 +489,13 @@ sig
     -> string list option
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
-  val jcode_pp : (code program -> class_name -> method_signature -> int -> int) option
 end
   
 module Make (S : PrintInterface) =
 struct
   type code = S.code
       
-  let revert_callgraph program f =
+  let revert_callgraph program =
     ClassMethodMap.fold
       (fun _ (c,cm) cmmap ->
 	 match cm.cm_implementation with
@@ -507,10 +506,9 @@ struct
 	       let rmmap = ref cmmap in
 		 S.iter_code
 		   (fun pp _ ->
-		      let jcode_pp = f program cn ms pp in
 			try
 			  let cmset =
-			    program.static_lookup_method cn ms jcode_pp in
+			    program.static_lookup_method cn ms pp in
 			    ClassMethodSet.iter
 			      (fun ccms ->
 				 let rcmset =
@@ -531,9 +529,7 @@ struct
 	
   let get_internal_info program info = {
     p_data = info;
-    p_callers = match S.jcode_pp with
-      | Some f -> get_callers (revert_callgraph program f)
-      | None -> fun _ _ -> None
+    p_callers =  get_callers (revert_callgraph program )
   }
     
   let methodparameters2html program cs ms =
@@ -777,8 +773,6 @@ module JCodePrinter = Make(
       		     ) (ms_args ms)
       		  )
 		  
-    let jcode_pp = Some (fun _ _ _ x -> x)
-
     let inst_html program cs ms pp op =
       let inst_params = Javalib.JPrint.jopcode ~jvm:true op in
       let inst =
@@ -874,25 +868,6 @@ module JBirPrinter = Make(
 		    )
 	      with _ -> None
 		
-    let jcode_pp = 
-      Some (fun p cn ms pp -> 
-		try
-		  let (_node,cm) =
-		    (ClassMethodMap.find
-		       (make_cms cn ms)
-		       p.parsed_methods)
-		  in
-		    match cm.cm_implementation with
-			Native -> raise Not_found
-		      | Java laz -> 
-			  (Lazy.force laz).JBir.pc_ir2bc.(pp)
-		with _ -> -1
-	   )
-  
-    let jpp p cs ms pp= 
-      match jcode_pp with
-	  Some jpp -> jpp p cs ms pp
-	| None -> -1
      
     
     let inst_html program cs ms pp op =
@@ -931,7 +906,7 @@ module JBirPrinter = Make(
 	  | JBir.InvokeStatic (None,ccs,cms,le) ->
 	      let p1 = 
 		invoke_elem 
-		  program cs ms (jpp program cs ms pp) ccs cms 
+		  program cs ms pp ccs cms 
 	      in
 	      let p2 = simple_elem
 		(Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
@@ -941,7 +916,7 @@ module JBirPrinter = Make(
 		(Printf.sprintf "%s :=" (JBir.var_name_g x)) in
 	      let p2 = 
 		invoke_elem 
-		  program cs ms (jpp program cs ms pp) ccs cms 
+		  program cs ms pp ccs cms 
 	      in
 	      let p3 = simple_elem
 		(Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
@@ -954,10 +929,10 @@ module JBirPrinter = Make(
 			 | TClass ccs -> ccs
 			 | _ -> JBasics.java_lang_object in
 			 invoke_elem ~called_cname:(JBir.print_expr e1) program
-			   cs ms (jpp program cs ms pp) ccs cms
+			   cs ms pp ccs cms
 		   | JBir.InterfaceCall ccs ->
 		       invoke_elem ~called_cname:(JBir.print_expr e1) program
-			 cs ms (jpp program cs ms pp) ccs cms
+			 cs ms pp ccs cms
 		) in
 	      let p3 = simple_elem
 		(Printf.sprintf "(%s)"
@@ -978,7 +953,7 @@ module JBirPrinter = Make(
 		) in
 	      let p2 = 
 		invoke_elem 
-		  program cs ms (jpp program cs ms pp) ccs cms 
+		  program cs ms pp ccs cms 
 	      in
 	      let p3 = simple_elem
 		(Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
@@ -1032,25 +1007,6 @@ module A3BirPrinter = Make(
 		    )
 	      with _ -> None
 		
-    let jcode_pp = 
-      Some (fun p cn ms pp -> 
-	      try
-		let (_node,cm) =
-		  (ClassMethodMap.find
-		     (make_cms cn ms)
-		     p.parsed_methods)
-		in
-		  match cm.cm_implementation with
-		      Native -> raise Not_found
-		    | Java laz -> 
-			(Lazy.force laz).A3Bir.pc_ir2bc.(pp)
-	      with _ -> -1
-	   )
-
-    let jpp p cs ms pp= 
-      match jcode_pp with
-	  Some jpp -> jpp p cs ms pp
-	| None -> -1
 
     let inst_html program cs ms pp op =
       match op with
@@ -1086,14 +1042,14 @@ module A3BirPrinter = Make(
 	      ) in
 	      [p1;p2;p3]
 	| A3Bir.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = invoke_elem program cs ms (jpp program cs ms pp) ccs cms in
+	    let p1 = invoke_elem program cs ms pp ccs cms in
 	    let p2 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
 	      [p1;p2]
 	| A3Bir.InvokeStatic (Some x,ccs,cms,le) ->
 	    let p1 = simple_elem
 	      (Printf.sprintf "%s :=" (A3Bir.var_name_g x)) in
-	    let p2 = invoke_elem program cs ms (jpp program cs ms pp) ccs cms in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
 	      [p1;p2;p3]
@@ -1105,10 +1061,10 @@ module A3BirPrinter = Make(
 		       | TClass ccs -> ccs
 		       | _ -> JBasics.java_lang_object in
 		       invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
-			 cs ms (jpp program cs ms pp) ccs cms
+			 cs ms pp ccs cms
 		 | A3Bir.InterfaceCall ccs ->
 		     invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
-		       cs ms (jpp program cs ms pp) ccs cms
+		       cs ms pp ccs cms
 	      ) in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)"
@@ -1127,7 +1083,7 @@ module A3BirPrinter = Make(
 		 | Some x -> Printf.sprintf "%s := %s." (A3Bir.var_name_g x)
 		     (A3Bir.print_basic_expr e1)
 	      ) in
-	    let p2 = invoke_elem program cs ms (jpp program cs ms pp) ccs cms in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
 	    let p3 = simple_elem
 	      (Printf.sprintf "(%s)" (print_list_sep ", " A3Bir.print_basic_expr le)) in
 	      [p1;p2;p3]

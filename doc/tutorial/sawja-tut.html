@@ -351,7 +351,9 @@ The procedure to obtain the <em>A3Bir</em> representation is
 exactly the same.</p>
 <pre>
 <code>    let pbir = JProgram.map_program2
-      (fun _ -&gt; JBir.transform ~bcv:false) prta
+      (fun _ -&gt; JBir.transform ~bcv:false) 
+      (Some (fun code pp -&gt; code.JBir.pc_ir2bc.(pp)))
+      prta
 </code>
 </pre>
 <p>Warning: : Subroutines inlining is handled in <em>JBir</em> and
@@ -402,8 +404,6 @@ sig
      method_signature -&gt; string list option
   val inst_html : code program -&gt; class_name -&gt; method_signature -&gt;
     int -&gt; instr -&gt; JPrintHtml.elem list
-  val jcode_pp :
-    ('a program -&gt; class_name -&gt; method_signature -&gt; int -&gt; int) option
 end
 </code>
 </pre>
@@ -501,15 +501,6 @@ very simple:</p>
       let inst =
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]
-</code>
-</pre>
-<p>Finally, we need to define the <strong>jcode_pp</strong>
-function, which associates a program point in the
-<strong>code</strong> representation, to a program point in the
-<strong>JCode.code</strong> representation. Here, we have the
-identity.</p>
-<pre>
-<code>    let jcode_pp _ _ _ x = x
 </code>
 </pre></div>
 </div>

@@ -311,7 +311,9 @@ the *A3Bir* representation is exactly the same.
 
 ~~~~~
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~bcv:false) prta
+      (fun _ -> JBir.transform ~bcv:false) 
+      (Some (fun code pp -> code.JBir.pc_ir2bc.(pp)))
+      prta
 ~~~~~
 
 Warning: : Subroutines inlining is handled in *JBir* and *A3Bir* only
@@ -361,8 +363,6 @@ sig
      method_signature -> string list option
   val inst_html : code program -> class_name -> method_signature ->
     int -> instr -> JPrintHtml.elem list
-  val jcode_pp :
-    ('a program -> class_name -> method_signature -> int -> int) option
 end
 ~~~~~
 
@@ -459,12 +459,4 @@ becomes very simple:
       let inst =
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]
-~~~~~
-
-Finally, we need to define the **jcode_pp** function, which associates
-a program point in the **code** representation, to a program point in
-the **JCode.code** representation. Here, we have the identity.
-
-~~~~~
-    let jcode_pp _ _ _ x = x
 ~~~~~

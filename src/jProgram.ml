@@ -425,8 +425,30 @@ let map_program_classes f classes =
   in
     build_hierarchy jcmap
 
-let map_program2 f p =
+let map_program2 f fpp p =
   let classes = map_program_classes f p.classes in
+  let slm = 
+    match fpp with
+	None -> p.static_lookup_method
+      | Some fpp -> 
+	  (fun cn ms pp -> 
+	     try
+	       match get_method (ClassMap.find cn classes) ms with
+		   ConcreteMethod cm -> 
+		     (match cm.cm_implementation with
+			  Java laz -> 
+			    p.static_lookup_method
+			      cn
+			      ms
+			      (fpp (Lazy.force laz) pp)
+			| Native -> ClassMethodSet.empty
+		     )
+		 | AbstractMethod _ -> ClassMethodSet.empty
+		     
+		     
+	     with _ -> ClassMethodSet.empty
+	  )
+  in
     { classes = classes;
       parsed_methods =
 	ClassMethodMap.map
@@ -439,7 +461,7 @@ let map_program2 f p =
 		 | AbstractMethod _ -> assert false
 		 | ConcreteMethod cm -> (node,cm)
 	  ) p.parsed_methods;
-      static_lookup_method = p.static_lookup_method
+      static_lookup_method = slm	  
     }
 
 let map_program f =

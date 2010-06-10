@@ -340,7 +340,9 @@ to obtain the \emph{A3Bir} representation is exactly the same.
 
 \begin{verbatim}
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~bcv:false) prta
+      (fun _ -> JBir.transform ~bcv:false) 
+      (Some (fun code pp -> code.JBir.pc_ir2bc.(pp)))
+      prta
 \end{verbatim}
 Warning: : Subroutines inlining is handled in \emph{JBir} and
 \emph{A3Bir} only for not nested subroutines (runtime of version
@@ -390,8 +392,6 @@ sig
      method_signature -> string list option
   val inst_html : code program -> class_name -> method_signature ->
     int -> instr -> JPrintHtml.elem list
-  val jcode_pp :
-    ('a program -> class_name -> method_signature -> int -> int) option
 end
 \end{verbatim}
 The type \textbf{instr} represents the instructions in your code
@@ -489,14 +489,6 @@ simple:
       let inst =
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]
-\end{verbatim}
-Finally, we need to define the \textbf{jcode\_pp} function, which
-associates a program point in the \textbf{code} representation, to
-a program point in the \textbf{JCode.code} representation. Here, we
-have the identity.
-
-\begin{verbatim}
-    let jcode_pp _ _ _ x = x
 \end{verbatim}
 
 \end{document}

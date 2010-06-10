@@ -193,9 +193,6 @@ sig
   val inst_html : code program -> class_name -> method_signature -> int
     -> instr -> elem list
 
-  (** Function to provide in order to associate an intermediate
-  representation program point to a JCode.jcode program point. *)
-  val jcode_pp : (code program -> class_name -> method_signature -> int -> int) option
 end
 
 module Make (S : PrintInterface) : HTMLPrinter

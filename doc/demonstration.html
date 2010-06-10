@@ -50,7 +50,7 @@
 <p>We transform the previously loaded program.</p>
 
 <pre><code>    let pbir = JProgram.map_program2
-      (fun _ -&gt; JBir.transform ~bcv:false) prta;;
+      (fun _ -&gt; JBir.transform ~bcv:false) (Some (fun code pp -&gt; code.JBir.pc_bc2ir.(pp))) prta;;
 </code></pre>
 
 

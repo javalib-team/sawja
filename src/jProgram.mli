@@ -179,22 +179,26 @@ val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)
 
-(** [map_program f p] lazily applies [f] to all non-native
+(** [map_program f fpp p] lazily applies [f] to all non-native
     implementations (cf. {!Javalib_pack.Javalib.implementation}) of
     the program [p]. [map_program] passes to [f] the class name and
-    method signature corresponding to the method being converted.  The
+    method signature corresponding to the method being converted. The
     application is {b lazy}: [f] is not applied until [Lazy.force] is
-    called on the implementation. Function static_lookup_method of
-    original program is not modified.*)
+    called on the implementation. [fpp] is the optionnal function
+    that, given the transformed code and one of its call sites program
+    points, returns the corresponding call site program point in old
+    code representation. Function [fpp] is used to transform the
+    {!static_lookup_method} for the new representation, if no changes
+    are needed just use None value.  *)
 val map_program :
-  (class_name -> method_signature -> 'a -> 'b) -> 'a program -> 'b program
+  (class_name -> method_signature -> 'a -> 'b) -> ('b -> int -> int) option -> 'a program -> 'b program
 
-(** [map_program2 f p] is similar to [map_program] but instead of the class name
-    and method signature, [f] receives the actual class node and concrete method
-    being converted.  The implementation of [map_program] is based on
-    [map_program2]. *)
+(** [map_program2 f fpp p] is similar to [map_program] but instead of
+    the class name and method signature, [f] receives the actual class
+    node and concrete method being converted. The implementation of
+    [map_program] is based on [map_program2].*)
 val map_program2 :
-  ('a node -> 'a concrete_method -> 'a -> 'b) -> 'a program -> 'b program
+  ('a node -> 'a concrete_method -> 'a -> 'b) -> ('b -> int -> int) option -> 'a program -> 'b program
 
 (** {2 Callgraph.} *)
 
