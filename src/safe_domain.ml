@@ -197,6 +197,7 @@ module Local (Var:S) :sig
   type analysisID = Var.analysisID
   type analysisDomain = t
   val bot : t
+  val top : t
   val isBot : analysisDomain -> bool
   val join : ?modifies:bool ref -> t -> t -> t
   val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
@@ -206,16 +207,19 @@ module Local (Var:S) :sig
   val get_var : int -> analysisDomain -> Var.t
   val set_var : int -> Var.t -> analysisDomain -> analysisDomain
 end = struct
-  type t = Bot | Local of Var.t Ptmap.t
+  type t = Bot | Local of Var.t Ptmap.t | Top
   type analysisID = Var.analysisID
   type analysisDomain = t
   let get_analysis _ v = v
 
   let bot = Bot
+  let top = Top
   let isBot = function Bot -> true | _ -> false
   let join ?(modifies=ref false) v1 v2 = match v1,v2 with
     | v1,v2 when v1==v2 -> v1
+    | Top, _ -> v1
     | _, Bot -> v1
+    | _, Top
     | Bot, _ -> modifies:=true; v2
     | Local l1, Local l2 ->
         let l' = Ptmap.merge Var.join l1 l2
