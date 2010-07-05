@@ -57,7 +57,7 @@ let eval_transfer = function
 (* [gen_instrs last i] computes a list of transfert function [(f,j);...] with
    [j] the successor of [i] for the transfert function [f]. [last] is the end
    label of the method; *)
-let rec gen_instrs last i = function
+let gen_instrs last i = function
   | JBir.Ifd ((_,e1,e2), j) -> 
       let gen = GenVars [e1;e2] in [([gen],j);([gen],i+1)]
   | JBir.Goto j -> [[],j]

@@ -48,7 +48,7 @@ val var_equal : var -> var -> bool
     bytecode level. *)
 val var_orig : var -> bool
 
-(** Used only form intern transformations. *)
+(** Used only for internal transformations. *)
 val var_ssa : var -> bool
 
 (** [var_name v] returns a string representation of the variable [v]. *)
