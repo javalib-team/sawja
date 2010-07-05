@@ -21,6 +21,8 @@
 
 -include ../Makefile.config
 DOCDIR:=../$(DOCDIR)
+DATAFLOW=dataflow_analyses/
+INCLUDE:=$(INCLUDE) -I $(DATAFLOW)
 
 CSS=\"style.css\"
 
@@ -30,11 +32,14 @@ else
 CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
-MODULES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA	\
-	jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml
+MODULES =jUtil safe wlist jProgram jControlFlow classDomain reachableMethods XTA	\
+	jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml \
+	$(DATAFLOW)iter $(DATAFLOW)live $(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
+	 ssaBir
 
 MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA		\
-	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml
+	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml \
+	$(DATAFLOW)iter ssaBir
 
 FOR_PACK= -for-pack Sawja_pack
 
@@ -61,7 +66,7 @@ ocaml:sawja.cma
 	$(OCAMLMKTOP) $(INCLUDE) -linkpkg -o $@ sawja.cma
 
 .depend:$(MODULE_INTERFACES:=.mli) $(MODULES:=.ml)
-	$(OCAMLDEP) $(patsubst jNativeStubs.%,,$^) > $@
+	$(OCAMLDEP) -I $(DATAFLOW) $(patsubst jNativeStubs.%,,$^) > $@
 	$(OCAMLDEP) $(PP) jNativeStubs.ml jNativeStubs.mli >> $@
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -132,8 +137,9 @@ doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
 clean:
-	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ 
+	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ \
+	  $(DATAFLOW)*.{cmo,cmx,annot,o,obj} $(DATAFLOW)*.~
 cleanall: clean
-	$(RM) ocaml *.cma *.cmxa *.cmxs *.a *.cmi META
+	$(RM) ocaml *.cma *.cmxa *.cmxs *.a *.cmi META $(DATAFLOW)*.cmi
 cleandoc:
 	$(RM) -r $(DOCDIR)

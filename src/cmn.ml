@@ -132,7 +132,12 @@ let bc_num (_,v) =
     | OriginalVar (j,_) -> Some j
     |  _ -> None
 
-module VarMap = Map.Make(struct type t=unindexed_var let compare = compare end)
+let compare_originalvar x y = 
+  match (x, y) with
+    | (OriginalVar (x,_),OriginalVar (y,_)) -> compare x y
+    | (x,y) -> compare x y
+
+module VarMap = Map.Make(struct type t=unindexed_var let compare = compare_originalvar end)
 
 type dictionary =
     { mutable var_map : var VarMap.t;
@@ -163,6 +168,12 @@ let index (i,_) = i
 let var_orig  (_,v) = 
   match v with
     | OriginalVar _ -> true
+    | _ -> false
+
+let var_ssa  (_,v) = 
+  match v with
+    | TempVar _ 
+    | CatchVar _ -> true
     | _ -> false
 
 type exception_handler = {

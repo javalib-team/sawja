@@ -51,6 +51,8 @@ val var_equal : var -> var -> bool
     initial bytecode program. Does not depend on debug information. *)
 val var_orig : var -> bool
 
+val var_ssa : var -> bool
+
 (** [var_name v] returns the string identifying the variable [v].
     Does not use debug information. *) 
 val var_name : var -> string

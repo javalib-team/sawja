@@ -1,0 +1,123 @@
+open Javalib_pack
+open JBasics
+open JCode 
+open Javalib
+
+module Env = struct
+  (* lattice of powerset of JBir variables *)
+  include Set.Make(struct type t = JBir.var let compare = compare end)
+
+  let print_key  = JBir.var_name_g
+
+  let bot = empty
+
+  let rec vars acc = function
+    | JBir.Const _ -> acc
+    | JBir.Var (_,x) -> add x acc
+    | JBir.Field (e,_,_) 
+    | JBir.Unop (_,e) -> vars acc e
+    | JBir.Binop (_,e1,e2) -> vars (vars acc e1) e2
+    | JBir.StaticField _ -> acc
+
+  (* [vars e] computes the set of variables that appear in expression [e]. *)
+  let vars = vars empty
+
+  let to_string ab =
+    let ab = elements ab in
+      match List.map print_key ab with
+	| [] -> "{}"
+	| [x] -> Printf.sprintf "{%s}" x
+	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 
+end
+  
+type transfer_fun =
+  | GenVars of JBir.expr list 
+     (* [GenVars l] : generate the set of variables that appear in some expressions in list [l] *)
+  | Kill of JBir.var
+     (* [Kill x] : remove variable [x] *)
+      
+type transfer = transfer_fun list
+type pc = int
+
+let fun_to_string = function
+  | GenVars e ->
+      Printf.sprintf "GenVars(%s)" (String.concat "::" (List.map JBir.print_expr e))
+  | Kill x ->
+      Printf.sprintf "Kill(%s)" (JBir.var_name_g x)
+
+let transfer_to_string = function
+  | [] -> ""
+  | [f] -> fun_to_string f
+  | f::q -> (fun_to_string f)^(List.fold_right (fun f s -> ";"^(fun_to_string f)^s) q "")
+      
+let eval_transfer = function
+  | GenVars l -> fun ab -> List.fold_right (fun e -> Env.union (Env.vars e)) l ab
+  | Kill x -> fun ab -> Env.remove x ab
+
+(* [gen_instrs last i] computes a list of transfert function [(f,j);...] with
+   [j] the successor of [i] for the transfert function [f]. [last] is the end
+   label of the method; *)
+let rec gen_instrs last i = function
+  | JBir.Ifd ((_,e1,e2), j) -> 
+      let gen = GenVars [e1;e2] in [([gen],j);([gen],i+1)]
+  | JBir.Goto j -> [[],j]
+  | JBir.Throw _
+  | JBir.Return None  -> []
+  | JBir.Return (Some e)  ->  [[GenVars [e]],last]
+  | JBir.AffectVar (x,e) -> [[GenVars [e]; Kill x],i+1]
+  | JBir.NewArray (x,_,le)
+  | JBir.New (x,_,_,le) 
+  | JBir.InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
+  | JBir.InvokeVirtual (Some x,e,_,_,le) 
+  | JBir.InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]
+  | JBir.MonitorEnter e 
+  | JBir.MonitorExit e -> [[GenVars [e]],i+1]
+  | JBir.AffectStaticField (_,_,e) -> [[GenVars [e]],i+1]
+  | JBir.AffectField (e1,_,_,e2) -> [[GenVars [e1;e2]],i+1]
+  | JBir.AffectArray (e1,e2,e3) -> [[GenVars [e1;e2;e3]],i+1]
+  | JBir.InvokeStatic (None,_,_,le) -> [[GenVars le],i+1]
+  | JBir.InvokeVirtual (None,e,_,_,le) 
+  | JBir.InvokeNonVirtual (None,e,_,_,le) -> [[GenVars (e::le)],i+1]
+  | JBir.MayInit _ 
+  | JBir.Nop -> [[],i+1]
+  | JBir.Check c -> begin
+      match c with
+	| JBir.CheckArrayBound (e1,e2)
+	| JBir.CheckArrayStore (e1,e2) -> [[GenVars [e1;e2]],i+1]
+	| JBir.CheckNullPointer e
+	| JBir.CheckNegativeArraySize e
+	| JBir.CheckCast (e,_)
+	| JBir.CheckArithmetic e -> [[GenVars [e]],i+1]
+    end
+
+(* generate a list of transfer functions *)
+let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list = 
+  let length = Array.length m.JBir.code in
+    JUtil.foldi 
+      (fun i ins l ->
+	 List.rev_append
+	   (List.map (fun (c,j) -> (j,c,i)) (gen_instrs length i ins))
+	   l) 
+      (List.map (fun (i,e) -> (e.JBir.e_handler,[],i)) (JBir.exception_edges m))
+      m.JBir.code
+
+let run m =
+  Iter.run 
+    {
+      Iter.bot = Env.bot ;
+      Iter.join = Env.union;
+      Iter.leq = Env.subset;
+      Iter.eval = List.fold_right eval_transfer;
+      Iter.normalize = (fun x -> x);
+      Iter.size = 1 + Array.length m.JBir.code;
+      Iter.workset_strategy = Iter.Decr;
+      Iter.cstrs = gen_symbolic m;
+      Iter.init_points = [Array.length m.JBir.code];
+      Iter.init_value = (fun _ -> Env.empty); (* useless here since we iterate from bottom *)
+      Iter.verbose = false;
+      Iter.dom_to_string = Env.to_string;
+      Iter.transfer_to_string = transfer_to_string
+    }
+
+
+let to_string = Env.to_string

@@ -232,9 +232,19 @@ type t = {
   line_number_table : (int * int) list option;
   pc_bc2ir : int Ptmap.t;
   pc_ir2bc : int array; 
-  jump_target : bool array
 }
 
+let jump_target code =
+  let jump_target = Array.make (Array.length code.code) false in
+    List.iter (fun e -> jump_target.(e.e_handler) <- true) code.exc_tbl;
+    Array.iter
+      (fun instr ->
+	 match instr with
+	   | Ifd (_, n)
+	   | Goto n -> jump_target.(n) <- true;
+	   | _ -> ())
+      code.code;
+    jump_target
 
 let print_binop = function
   | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
@@ -357,8 +367,7 @@ let bir2a3bir bir =
     exc_tbl = bir.Bir.exc_tbl ;
     pc_bc2ir = bir.Bir.pc_bc2ir;
     pc_ir2bc = bir.Bir.pc_ir2bc;
-    line_number_table = bir.Bir.line_number_table ;
-    jump_target = bir.Bir.jump_target ;
+    line_number_table = bir.Bir.line_number_table
   }
 
 

@@ -93,8 +93,7 @@ type t = {
   exc_tbl : exception_handler list;
   line_number_table : (int * int) list option;
   pc_bc2ir : int Ptmap.t;
-  pc_ir2bc : int array; 
-  jump_target : bool array
+  pc_ir2bc : int array
 }
 
 (* For stack type inference only *)
@@ -150,6 +149,41 @@ let print_field ?(long_fields=false) c f =
 
 let bracket b s =
   if b then s else Printf.sprintf "(%s)" s
+
+
+let print_unop = function
+  | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
+  | Conv conv ->
+      begin
+	match conv with
+	  | I2L -> "I2L"  | I2F -> "I2F"  | I2D -> "I2D"
+	  | L2I -> "L2I"  | L2F -> "L2F"  | L2D -> "L2D"
+	  | F2I -> "F2I"  | F2L -> "F2L"  | F2D -> "F2D"
+	  | D2I -> "D2I"  | D2L -> "D2L"  | D2F -> "D2F"
+	  | I2B -> "I2B"  | I2C -> "I2C"  | I2S -> "I2S"
+      end
+  | ArrayLength -> "ArrayLength"
+  | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
+  | Cast _ -> assert false
+
+let print_typ t =
+  let bt2ss = function
+    | `Long -> "J"
+    | `Float -> "F"
+    | `Double -> "D"
+    | `Int -> "I"
+    | `Short -> "S"
+    | `Char -> "C"
+    | `Byte -> "B"
+    | `Bool -> "Z"
+  in
+  let rec ot2ss = function
+    | TClass _ -> "O"
+    | TArray t -> "["^ vt2ss t
+  and vt2ss = function
+    | TBasic t -> bt2ss t
+    | TObject t -> ot2ss t
+  in vt2ss t
 
 let rec print_expr ?(show_type=true) first_level = function
   | Var (t,x) -> 
@@ -1761,27 +1795,27 @@ let jcode2bir mode bcv ssa cm jcode =
 	      pc_ir2bc = ir2bc;
 	      pc_bc2ir = bc2ir;
 	      exc_tbl = ir_exc_tbl;
-	      line_number_table = code.c_line_number_table;
-	      jump_target = jump_target }
+	      line_number_table = code.c_line_number_table}
       | None -> raise Subroutine
 
 let transform ?(bcv=false) = jcode2bir Normal bcv false
 let transform_flat ?(bcv=false) ?(ir_ssa=false) = jcode2bir Flat bcv ir_ssa
 let transform_addr3 ?(bcv=false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ir_ssa
 
-(* 
- * Fold a function f on an accumulator x0 and an array t 
- * f a [| b0 ; b1 ; ... ; bn |] --->  f 0 b0 (f 1 b1 (f ... (f n bn x0) ...) )
- *)
-let foldi f x0 t =
-  let n = Array.length t in
-  let rec aux i =
-    if i>=n then x0
-    else f i t.(i) (aux (i+1)) in
-    aux 0
+let jump_target code =
+  let jump_target = Array.make (Array.length code.code) false in
+    List.iter (fun e -> jump_target.(e.e_handler) <- true) code.exc_tbl;
+    Array.iter
+      (fun instr ->
+	 match instr with
+	   | Ifd (_, n)
+	   | Goto n -> jump_target.(n) <- true;
+	   | _ -> ())
+      code.code;
+    jump_target
 
 let exception_edges code exc_tbl = 
-  foldi 
+  JUtil.foldi 
       (fun i _ l ->
 	 List.rev_append
 	   (List.map 

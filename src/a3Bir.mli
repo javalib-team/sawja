@@ -196,10 +196,10 @@ type t = {
   (** map from bytecode code line to ir code line *)
   pc_ir2bc : int array; 
   (** map from ir code line to bytecode code line *)
-  jump_target : bool array;
-  (** [jump_target] indicates whether program points are join points or
-      not. *)
 }
+
+(** [jump_target m] indicates whether program points are join points or not in [m]. *)
+val jump_target : t -> bool array
 
 (** [exception_edges m] returns a list of edges [(i,e);...] where
     [i] is an instruction index in [m] and [e] is a handler whose
