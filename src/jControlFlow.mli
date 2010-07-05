@@ -208,7 +208,7 @@ val static_lookup : JCode.jcode program -> pp
   -> (JCode.jcode node list * method_signature) option
 
 (** [static_lookup' program pp] returns a list of methods that may be
-    called from program point [pp].  The computation is base on RTA or
+    called from program point [pp].  The computation is based on RTA or
     CHA, depending on the function used to build the program (it uses
     the field [program.static_lookup_method]). *)
 val static_lookup' : JCode.jcode program -> pp -> pp list

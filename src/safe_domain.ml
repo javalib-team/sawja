@@ -64,11 +64,13 @@ end
 
 
 module Stack(Var:S) : sig
-  type t
+  type t = Bot | Top | Stack of Var.t list
   type analysisID = Var.analysisID
   type analysisDomain = t
   val bot : t
+  val top : t
   val isBot : analysisDomain -> bool
+  val isTop : analysisDomain -> bool
   val join : ?modifies:bool ref -> t -> t -> t
   val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
   val equal : t -> t -> bool
@@ -89,14 +91,17 @@ module Stack(Var:S) : sig
   val dup2X1 : t -> t
   val dup2X2 : t -> t
   val swap : t -> t
+
 end = struct
   type t = Bot | Top | Stack of Var.t list
   type analysisID = Var.analysisID
   type analysisDomain = t
   let get_analysis _ v = v
   let bot = Bot
+  let top = Top
   let init = Stack []
   let isBot v = (v == Bot)
+  let isTop v = (v == Top)
   let equal v1 v2 = match v1,v2 with
     | Stack v1, Stack v2 ->
         (List.length v1 == List.length v2)
@@ -136,6 +141,7 @@ end = struct
     | Bot -> Bot
     | Top -> Top
   let pop v = pop_n 1 v
+
   let first = function
     | Stack (e::_) -> e
     | Top -> failwith "Stack.first impossible on top"

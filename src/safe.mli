@@ -102,11 +102,13 @@ module Domain : sig
   end
 
   module Stack : functor (Var:S) -> sig
-    type t
+    type t = Bot | Top | Stack of Var.t list
     type analysisID = Var.analysisID
     type analysisDomain = t
     val bot : t
+    val top : t
     val isBot : analysisDomain -> bool
+    val isTop : analysisDomain -> bool  
     val join : ?modifies:bool ref -> t -> t -> t
     val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
     val equal : t -> t -> bool
