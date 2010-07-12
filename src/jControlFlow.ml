@@ -269,7 +269,7 @@ let overrides_methods ms c =
 	  let sc = ref c in
 	    try
 	      while true do
-		let c = resolve_method' ms c
+		let c = resolve_method' ms !sc
 		in
 		  result := c::!result;
 		  sc :=

@@ -122,9 +122,9 @@ val implements_method : 'a class_node -> method_signature -> bool
 *)
 val resolve_interface_method : method_signature -> 'a interface_node -> 'a node
 
-(** [resolve_interface_methods' ms i] looks for the methods [ms] in [i]
+(** [resolve_interface_method' ms i] looks for the methods [ms] in [i]
     and recursively in its interfaces, stopping at every first
-    occurence in each hirarchy. It returns the list of interfaces that
+    occurence in each hierarchy. It returns the list of interfaces that
     defines [ms]. *)
 val resolve_interface_method' :
   ?acc:'a interface_node list -> method_signature -> 'a node -> 'a interface_node list
