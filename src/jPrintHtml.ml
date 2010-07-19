@@ -462,7 +462,8 @@ let invoke_elem ?called_cname program cs ms pp callcs callms =
 		 match mlookupshtml with
 		   | [] -> [[PCData "No reachable result."]]
 		   | _ -> mlookupshtml)
-      
+
+(** [method_args_elem p cs ms] [cs] must be current class_name from where call is done and [ms] the method_signature of the called method.*)      
 let method_args_elem program cs ms =
   let mparameters = ms_args ms in
   let prms =
@@ -471,6 +472,14 @@ let method_args_elem program cs ms =
 	 (fun x -> (valuetype2html program x cs)) mparameters
       ) in
     html_elem ([PCData "("] @ prms @ [PCData ")"])
+
+(** [method_args_elem p cs ms] [cs] must be current class_name from where call is done and [ms] the method_signature of the called method.*)      
+let method_ret_elem program cs ms =
+  let ms_ret = ms_rtype ms in
+  let prms = 
+    returntype2html program ms_ret cs
+  in
+    html_elem prms
       
 module type HTMLPrinter =
 sig
@@ -802,20 +811,24 @@ module JCodePrinter = Make(
 	  	| TClass ccs -> ccs
 	  	| _ -> JBasics.java_lang_object in
 	  	[simple_elem inst;
+		 method_ret_elem program cs cms;
 	  	 invoke_elem program cs ms pp ccs cms;
-	  	 method_args_elem program cs ms]
+	  	 method_args_elem program cs cms]
 	  | OpInvoke ((`Interface ccs),cms) ->
 	      [simple_elem inst;
+	       method_ret_elem program cs cms;
 	       invoke_elem program cs ms pp ccs cms;
-	       method_args_elem program cs ms]
+	       method_args_elem program cs cms]
 	  | OpInvoke ((`Static ccs),cms) ->
 	      [simple_elem inst;
+	       method_ret_elem program cs cms;
 	       invoke_elem program cs ms pp ccs cms;
-	       method_args_elem program cs ms]
+	       method_args_elem program cs cms]
 	  | OpInvoke ((`Special ccs),cms) ->
 	      [simple_elem inst;
+	       method_ret_elem program cs cms;
 	       invoke_elem program cs ms pp ccs cms;
-	       method_args_elem program cs ms]
+	       method_args_elem program cs cms]
 	  | OpLoad (_,n) | OpStore (_,n) | OpRet n ->
 	      let m = get_method (get_node program cs) ms in
 	      let locname =
@@ -830,7 +843,7 @@ module JCodePrinter = Make(
 	  	[simple_elem (inst ^ " " ^ locname)]
 	  | _ -> [simple_elem inst_params]
   end)
-  
+
 let print_program = JCodePrinter.print_program
   
 module JBirPrinter = Make(
