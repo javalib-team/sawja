@@ -361,8 +361,10 @@ let methodcallers2html cs ms info =
 	     let href = (get_relative_file cs ccs) ^ "#" ^ anchor in
 	     let ccname = cn_name ccs in
 	     let cmname = htmlize (ms_name cms) in
+	     let vtl = JPrint.value_type_list (ms_args cms) in
 	     let cmsig = htmlize (JPrint.method_signature cms) in
-	       [gen_titled_hyperlink href (ccname ^ "." ^ cmname) cmsig] :: l
+	       [gen_titled_hyperlink href 
+		  (ccname ^ "." ^ cmname ^vtl) cmsig] :: l
 	  ) callers [] in
 	  [gen_hidden_list hl]
 	    
@@ -473,7 +475,7 @@ let method_args_elem program cs ms =
       ) in
     html_elem ([PCData "("] @ prms @ [PCData ")"])
 
-(** [method_args_elem p cs ms] [cs] must be current class_name from where call is done and [ms] the method_signature of the called method.*)      
+(** [method_ret_elem p cs ms] [cs] must be current class_name from where call is done and [ms] the method_signature of the called method.*)      
 let method_ret_elem program cs ms =
   let ms_ret = ms_rtype ms in
   let prms = 
@@ -777,7 +779,7 @@ module JCodePrinter = Make(
       			let n = if is_static then i else i + 1 in
       			let v = get_local_variable_info n 0 (Lazy.force code) in
       			  match v with
-      			    | None -> string_of_int i
+      			    | None -> string_of_int n
       			    | Some (name,_) -> name
       		     ) (ms_args ms)
       		  )
