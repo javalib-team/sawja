@@ -262,7 +262,7 @@ module State : sig
         | `PP of PP.t ]
 
     type t
-      
+ 
     (** [bot (g,c,f,m,p)] generate an bottom element where [g], [c], [f], [m]
         and [p] are approximations of the number of global, class, field, method
         and program point variables, respectively. Note that any positive value
@@ -272,9 +272,17 @@ module State : sig
     val get_pinfo :
       'a JProgram.program -> t -> JPrintHtml.info -> JPrintHtml.info
 
-    val join : ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
+      
     val join_ad :
       ?modifies:bool ref -> abData -> analysisDomain -> abData
+      
+    (** [join] must only be used for initialization of State and
+	must not be during constraints resolution.*)
+    val join : ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
+      
+    (** {2 Access to data content}*)
+
+
 
     val get : t -> Var.t -> abData
     val get_global : t -> Var.var_global -> Global.t
@@ -288,6 +296,24 @@ module State : sig
     val get_ab_method : abData -> Method.t
     val get_ab_IOC : abData -> IOC.t
     val get_ab_pp : abData -> PP.t
+  
+    (** {2 Modify final result}*)
+      
+    (** {b Warning: State MUST not be modified manually during
+	constraints resolution. Following functions MUST only be used
+	on the final result of State}! *)
+
+
+    val iter_global : t -> (t -> Var.var_global -> abData -> unit) 
+      -> unit
+    val iter_IOC : t -> (t -> Var.var_ioc -> abData-> unit) -> unit
+    val iter_field : t -> (t -> Var.var_field -> abData -> unit) 
+      -> unit
+    val iter_method : t -> (t -> Var.var_method -> abData -> unit) 
+      -> unit
+    val iter_PP : t -> (t -> Var.var_pp -> abData -> unit) -> unit  
+    val replace : t -> Var.t -> abData -> unit
+    val remove : t -> Var.t -> unit
   end
 
   module Make :

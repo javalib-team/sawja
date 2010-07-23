@@ -59,9 +59,9 @@ module type S = sig
   val pprint : Format.formatter -> t -> unit
   val get_pinfo : 'a JProgram.program -> t -> JPrintHtml.info -> JPrintHtml.info
 
-  val join : ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
+  
   val join_ad : ?modifies:bool ref -> abData -> analysisDomain -> abData
-
+  val join : ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
   val get : t -> Var.t -> abData
   val get_global : t -> Var.var_global -> Global.t
   val get_IOC : t -> Var.var_ioc -> IOC.t
@@ -75,6 +75,17 @@ module type S = sig
   val get_ab_IOC : abData -> IOC.t
   val get_ab_pp : abData -> PP.t
 
+  
+  val iter_global : t -> (t -> Var.var_global -> abData -> unit) 
+    -> unit
+  val iter_IOC : t -> (t -> Var.var_ioc -> abData-> unit) -> unit
+  val iter_field : t -> (t -> Var.var_field -> abData -> unit) 
+    -> unit
+  val iter_method : t -> (t -> Var.var_method -> abData -> unit) 
+    -> unit
+  val iter_PP : t -> (t -> Var.var_pp -> abData -> unit) -> unit   
+  val replace : t -> Var.t -> abData -> unit
+  val remove : t -> Var.t -> unit
 end
 
 
@@ -446,5 +457,47 @@ struct
 	  failwith ("type error: failure when trying to join incompatible"
 		    ^" data type (the var type does not match the data type)")
 
+  let iter_global t f =
+    HashGlobalVar.iter (fun v d -> f t v (`Global d)) t.global_data
+
+  let iter_IOC t f =
+    HashIOCVar.iter (fun v d -> f t v (`IOC d)) t.ioc_data
+
+  let iter_field t f =
+    HashFieldVar.iter (fun v d -> f t v (`Field d)) t.field_data
+
+  let iter_method t f =
+    HashMethodVar.iter (fun v d -> f t v (`Method d)) t.method_data
+
+  let iter_PP t f = 
+    HashPPVar.iter (fun v d -> f t v (`PP d)) t.pp_data
+
+  let remove t = function
+    | `Global _ as var ->
+	HashGlobalVar.remove t.global_data var
+    | `IOC _ as var ->
+	HashIOCVar.remove t.ioc_data var
+    | `Field _ as var ->
+	HashFieldVar.remove t.field_data var
+    | `Method _ as var ->
+	HashMethodVar.remove t.method_data var
+    | `PP _ as var ->
+	HashPPVar.remove t.pp_data var
+	  
+  let replace t var data =
+      match var, data with
+	| `Global _ as var, `Global v ->
+	    HashGlobalVar.replace t.global_data var v
+	| `IOC _ as var, `IOC v ->
+	    HashIOCVar.replace t.ioc_data var v
+	| `Field _ as var, `Field v ->
+	    HashFieldVar.replace t.field_data var v
+	| `Method _ as var, `Method v ->
+	    HashMethodVar.replace t.method_data var v
+	| `PP _ as var, `PP v ->
+	    HashPPVar.replace t.pp_data var v
+	| _ , _ ->
+	    failwith ("type error: failure when trying to replace incompatible"
+		      ^" data type (the var type does not match the data type)")
 
 end
