@@ -34,7 +34,7 @@ open Javalib_pack
     [p.parsed_methods].  The implementation is not very efficient, but
     it is simple and rely on the {!Safe} framework.  The look-up
     function used to compute the call graph is
-    {!JControlFlow.get_successors} which uses [p.static_lookup_method]
+    {!JControlFlow.get_successors_bc} which uses [p.static_lookup_method]
     to resolve method calls and also take in account static
     initializers.  *)
 val compute_reachable_methods :
