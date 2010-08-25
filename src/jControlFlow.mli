@@ -39,7 +39,7 @@ open JProgram
     visibility yet}! *)
 
 
-(** [get_class p cn] returns the class named [cn] in program [p], if
+(** [resolve_class p cn] returns the class named [cn] in program [p], if
     any.
     @raise NoClassDefFoundError if [p] does not contain a class named
     [cn].
