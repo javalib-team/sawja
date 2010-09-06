@@ -389,8 +389,11 @@ let inline code instrs subroutines =
 		     e_handler = e.e_handler;
 		     e_catch_type = e.e_catch_type
 		   }) !handlers);
+          (* TODO: the following attributes should be updated with the new line
+             numbers, not removed *)
 	  c_line_number_table = None;
 	  c_local_variable_table = None;
+          c_local_variable_type_table = None;
 	  c_stack_map_midp = None;
 	  c_stack_map_java6 =  None;
 	  c_attributes = code.c_attributes
