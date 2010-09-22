@@ -1154,8 +1154,8 @@ let to_addr3_binop dico mode binop ssa fresh_counter s =
     | Addr3 -> 	let x = make_var dico (TempVar (fresh_in_stack ssa fresh_counter s))
       in 
 	(match binop with 
-	   | Div _ 
-	   | Rem _ ->
+	   | Div jvm_t 
+	   | Rem jvm_t when jvm_t = `Int2Bool or jvm_t = `Long ->
 	       begin
 		 let q = topE s in 
 		 let e = Binop (binop,topE (pop s),topE s) in
@@ -1166,7 +1166,19 @@ let to_addr3_binop dico mode binop ssa fresh_counter s =
 		 let e = Binop (binop,topE (pop s),topE s) in
 		   E (Var (type_of_expr e,x))::(pop2 s), [AffectVar(x,e)]
 	       end)
-    | _ -> E (Binop (binop,topE (pop s), topE s))::(pop2 s), []
+    | _ -> 
+	(match binop with 
+	   | Div jvm_t 
+	   | Rem jvm_t when jvm_t = `Int2Bool or jvm_t = `Long ->  
+	       begin
+		 let q = topE s in 
+		   E (Binop (binop,topE (pop s), topE s))::(pop2 s), [Check (CheckArithmetic q)]
+	       end
+	   | _ ->
+	       begin
+		   E (Binop (binop,topE (pop s), topE s))::(pop2 s), []
+	       end)
+	  
 	
 let to_addr3_unop dico mode unop ssa fresh_counter s instrs =
   match mode with
@@ -1258,14 +1270,21 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
   | OpPutField (c, f) ->
       let r = topE (pop s) in
 	clean dico ssa fresh_counter (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
-  | OpArrayStore _ ->
+  | OpArrayStore jvm_t ->
       let v = topE s in
       let a = topE (pop2 s) in
       let idx = topE (pop s) in
-      let inss = [Check (CheckNullPointer a);
-		  Check (CheckArrayBound (a,idx));
-		  Check (CheckArrayStore (a,v));
-		  AffectArray (a, idx, v)]
+      let inss = 
+	if jvm_t = `Object
+	then
+	  [Check (CheckNullPointer a);
+	   Check (CheckArrayBound (a,idx));
+	   Check (CheckArrayStore (a,v));
+	   AffectArray (a, idx, v)]
+	else
+	  [Check (CheckNullPointer a);
+	   Check (CheckArrayBound (a,idx));
+	   AffectArray (a, idx, v)]
       in clean dico ssa fresh_counter is_array_in_expr (pop3 s) inss
   | OpPop -> pop s, []
   | OpPop2 ->
@@ -1415,7 +1434,7 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 	 AffectVar(x,StaticField(c,f));
 	 AffectStaticField (c,f,topE s)]
       end else
-	pop s, [AffectStaticField (c, f,topE s)]
+	pop s, [MayInit c;AffectStaticField (c, f,topE s)]
   | OpInvoke (x, ms) ->
       begin
 	(match x with
