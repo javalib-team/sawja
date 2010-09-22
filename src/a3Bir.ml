@@ -112,6 +112,7 @@ type check =
   | CheckNegativeArraySize of basic_expr
   | CheckCast of basic_expr * object_type
   | CheckArithmetic of basic_expr
+  | CheckLink of jopcode
 
 type instr =
   | Nop
@@ -200,7 +201,7 @@ let check2check = function
   | Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (bir2a3bir_basic_expr e) 
   | Bir.CheckCast (e,t) -> CheckCast (bir2a3bir_basic_expr e,t)
   | Bir.CheckArithmetic e -> CheckArithmetic (bir2a3bir_basic_expr e)
-      
+  | Bir.CheckLink op -> CheckLink op
   
 let bir2a3bir_instr = function
     Bir.Nop -> Nop
@@ -349,6 +350,7 @@ let print_instr = function
 	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_basic_expr  e)
 	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_basic_expr  e) (JDumpBasics.object_value_signature t)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_basic_expr e)
+	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
 
 
@@ -374,8 +376,8 @@ let bir2a3bir bir =
 
 
 (** Concrete method transformation. *) 
-let transform ?(bcv=false) j_m j_code =
-  let code = Bir.transform_addr3 ~bcv:bcv j_m j_code in 
+let transform ?(bcv=false) ?(ch_link=false) j_m j_code =
+  let code = Bir.transform_addr3 ~bcv:bcv ~ch_link:ch_link j_m j_code in 
     bir2a3bir code
 
 let exception_edges m = Bir.exception_edges m.code m.exc_tbl 

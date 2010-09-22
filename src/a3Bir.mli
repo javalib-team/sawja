@@ -130,6 +130,12 @@ type check =
   | CheckNegativeArraySize of basic_expr (** [CheckNegativeArray e] checks that [e], denoting an array size, is positive or zero and raises the Java NegativeArraySizeException if this is not the case.*)
   | CheckCast of basic_expr * JBasics.object_type (** [CheckCast(e,t)] checks the object denoted by [e] can be casted to the object type [t] and raises the Java ClassCastException if this is not the case. *)
   | CheckArithmetic of basic_expr (** [CheckArithmetic e] checks that the divisor [e] is not zero, and raises ArithmeticExcpetion if this is not the case. *)
+  | CheckLink of JCode.jopcode
+      (** [CheckLink op] checks if linkage mechanism, depending on
+	  [op] instruction, must be started and then if it
+	  succeeds. Linkage mechanism and errors that could be thrown
+	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
+	  instruction.*)
 
 (** A3Bir instructions are register-based and unstructured. Their operands are [basic_expressions], except variable and static field assigments.
     Next to them is the informal semantics (using a traditional instruction notations) they should be given. *)
@@ -224,12 +230,15 @@ val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform ~bcv cm jcode] transforms the code [jcode] into its A3Bir
-    representation.  The transformation is performed in the context of a given
-    concrete method [cm].  The type checking normally performed by the ByteCode
-    Verifier (BCV) is done if and only if [bcv] is [true].  [transform ~bcv cm
-    jcode] can raise several exceptions.  See Exceptions below for details. *)
-val transform : ?bcv:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
+(** [transform ~bcv cm jcode] transforms the code [jcode] into its
+    A3Bir representation.  The transformation is performed in the
+    context of a given concrete method [cm].  The type checking
+    normally performed by the ByteCode Verifier (BCV) is done if and
+    only if [bcv] is [true]. Check instructions are generated when a
+    linkage operation is done if and only if [ch_link] is
+    true. [transform ~bcv cm jcode] can raise several exceptions.  See
+    Exceptions below for details. *)
+val transform : ?bcv:bool -> ?ch_link:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
 
 (** {2 Exceptions} *)
 

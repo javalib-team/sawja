@@ -62,6 +62,7 @@ type check =
   | CheckNegativeArraySize of expr
   | CheckCast of expr * object_type
   | CheckArithmetic of expr
+  | CheckLink of jopcode
 
 type instr =
   | Nop
@@ -264,6 +265,7 @@ let print_instr ?(show_type=true) = function
 	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_expr ~show_type:show_type true e)
 	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_expr ~show_type:show_type true e) (JDumpBasics.object_value_signature t)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr ~show_type:show_type true e)
+	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
 
 let print_handler exc = 
@@ -1213,7 +1215,7 @@ and type_of_array_content t e =
  * according to opcode, and returns corresponding instructions if any
  * TODO : comment arguments...
  *)
-let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type tos s next_store = function
+let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type arrayload_type tos s next_store = function
   | OpNop -> s, []
   | OpConst c -> 
       begin
@@ -1221,7 +1223,7 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 	  | `Class _ | `String _ -> 
 	      let x = make_tempvar dico ssa fresh_counter s next_store in
 		E (Var (TObject (TClass java_lang_object),x))::s,
-		[AffectVar(x,Const c)]
+	      [AffectVar(x,Const c)]
 	  | _ -> E (Const c)::s, []
       end
   | OpLoad (_,n) ->
@@ -1231,14 +1233,14 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
       let idx = topE s in
       let t = arrayload_type t i in
 	begin
-	match mode with
-	  | Addr3 ->
-	      let x = make_tempvar dico ssa fresh_counter (pop2 s) next_store in
-		E (Var (t,x))::(pop2 s),
+	  match mode with
+	    | Addr3 ->
+		let x = make_tempvar dico ssa fresh_counter (pop2 s) next_store in
+		  E (Var (t,x))::(pop2 s),
 		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx));AffectVar (x,(Binop(ArrayLoad t,a,idx)))]
-	  | _ ->
-	      E (Binop(ArrayLoad t,a,idx))::(pop2 s),
-	      [Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
+	    | _ ->
+		E (Binop(ArrayLoad t,a,idx))::(pop2 s),
+		[Check (CheckNullPointer a);Check (CheckArrayBound (a,idx))]
 	end
   | OpStore (_,n) ->
       let y = make_var dico (OriginalVar(n,pp_var i n)) in
@@ -1251,7 +1253,7 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 		    | Some t ->
 			let x = make_tempvar dico ssa fresh_counter s None in
 			  replace_var_in_stack y x (pop s),
-			  [AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
+			[AffectVar(x,Var (t,y)); AffectVar(y,topE s)]
 		    | None ->
 			(pop s,[AffectVar (y,topE s)])
 		end
@@ -1263,13 +1265,20 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 	    | Some t ->
 		let x = make_tempvar dico ssa fresh_counter s None in
 		  replace_var_in_stack a x s,
-		  [AffectVar(x,Var (t,a));
-		   AffectVar (a,Binop(Add `Int2Bool,Var (TBasic `Int,a),Const (`Int (Int32.of_int b))))]
+		[AffectVar(x,Var (t,a));
+		 AffectVar (a,Binop(Add `Int2Bool,Var (TBasic `Int,a),Const (`Int (Int32.of_int b))))]
 	    | _ -> s,[AffectVar(a,Binop(Add `Int2Bool,Var (TBasic `Int,a),Const (`Int (Int32.of_int b))))]
 	end
-  | OpPutField (c, f) ->
+  | OpPutField (c, f) as instr ->
       let r = topE (pop s) in
-	clean dico ssa fresh_counter (is_field_in_expr c f) (pop2 s) [Check (CheckNullPointer r); AffectField (r,c,f,topE s)]
+      let instrs = 
+	if ch_link
+	then
+	  [Check (CheckLink instr); Check (CheckNullPointer r); AffectField (r,c,f,topE s)] 
+	else
+	  [Check (CheckNullPointer r); AffectField (r,c,f,topE s)] 
+      in
+	clean dico ssa fresh_counter (is_field_in_expr c f) (pop2 s) instrs
   | OpArrayStore jvm_t ->
       let v = topE s in
       let a = topE (pop2 s) in
@@ -1294,10 +1303,10 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
   | OpDup -> (top s)::s,[]
   | OpDupX1 -> (top s)::(top (pop s))::(top s)::(pop2 s), []
   | OpDupX2 ->
-	 (match (top (pop tos)) with
-	    | Op32 ->
-		(top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
-	    | Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[])
+      (match (top (pop tos)) with
+	 | Op32 ->
+	     (top s)::(top (pop s))::(top (pop2 s))::(top s)::(pop3 s),[]
+	 | Op64 -> (top s)::(top (pop s))::(top s)::(pop2 s),[])
   | OpDup2 ->
       (match (top tos) with
 	 | Op32 -> (top s)::(top (pop s))::(top s)::(top (pop s))::(pop2 s),[]
@@ -1369,7 +1378,7 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 		  | Binop (CMP _,e1,e2) -> (c,e1,e2)
 		  | e -> (c,e, Const (`Int (Int32.of_int 0)))
 	      end
-       in
+      in
       let target = i+n in
 	pop s, [Ifd (guard,target)]
   | OpIfCmp (x, n) ->
@@ -1389,67 +1398,91 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
   | OpTableSwitch (def,min,_,tbl) ->
       pop s,
       (Array.fold_right
-		  (fun (guard,i) l -> (Ifd (guard,i))::l)
-		  (Array.mapi
-		     (fun idx j ->
-			(`Eq,
-			 topE s,
-			 Const (`Int (Int32.add (Int32.of_int idx) min))),
-			j+i) tbl)
-		  [Goto (def+i)])
+	 (fun (guard,i) l -> (Ifd (guard,i))::l)
+	 (Array.mapi
+	    (fun idx j ->
+	       (`Eq,
+		topE s,
+		Const (`Int (Int32.add (Int32.of_int idx) min))),
+	       j+i) tbl)
+	 [Goto (def+i)])
   | OpLookupSwitch (def,pairs) ->
       pop s,
       (List.fold_right
-		  (fun (c,j) l -> (Ifd ((`Eq,topE s,Const (`Int c)),j+i))::l)
-		  pairs
-		  [Goto (def+i)])
+	 (fun (c,j) l -> (Ifd ((`Eq,topE s,Const (`Int c)),j+i))::l)
+	 pairs
+	 [Goto (def+i)])
   | OpReturn k -> [],
       (match k with
 	 | `Void -> [Return None]
 	 | _ -> [Return (Some (topE s))])
-  | OpGetField (c, f) ->
+  | OpGetField (c, f) as instr ->
       let r = topE s in
-	begin
-	  match mode with
-	    | Normal -> E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)]
-	    | _ ->
-		let x = make_tempvar dico ssa fresh_counter s next_store in
-		  E (Var (fs_type f,x))::(pop s),
-		[Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
-	end
-  | OpGetStatic (c, f) ->
-      begin
-	  match mode with 
-	    | Addr3 -> 
-		let x = make_tempvar dico ssa fresh_counter s next_store in
-		  E (Var (fs_type f,x))::s, [MayInit c ; AffectVar(x,StaticField (c,f))]
-	    | _ -> E (StaticField (c, f))::s, [MayInit c]
-	    
-	end
-  | OpPutStatic (c, f) ->
-      if is_static_in_stack c f (pop s) then begin
-	let x = make_tempvar dico ssa fresh_counter s None in
-	  replace_static_in_stack c f x (pop s),
-	[MayInit c;
-	 AffectVar(x,StaticField(c,f));
-	 AffectStaticField (c,f,topE s)]
-      end else
-	pop s, [MayInit c;AffectStaticField (c, f,topE s)]
-  | OpInvoke (x, ms) ->
+      let (exp,instrs) = 
+	match mode with
+	  | Normal -> 
+	      E (Field (r,c,f))::(pop s), [Check (CheckNullPointer r)]
+	  | _ ->
+	      let x = make_tempvar dico ssa fresh_counter s next_store in
+		E (Var (fs_type f,x))::(pop s), [Check (CheckNullPointer r);AffectVar(x,Field (r,c,f))]
+      in
+	if ch_link then
+	  exp,(Check (CheckLink instr))::instrs
+	else
+	  exp,instrs
+  | OpGetStatic (c, f) as instr ->
+      let (exp,instrs) = 
+	match mode with 
+	  | Addr3 -> 
+	      let x = make_tempvar dico ssa fresh_counter s next_store in
+		E (Var (fs_type f,x))::s, [MayInit c ; AffectVar(x,StaticField (c,f))]
+	  | _ -> 
+	      E (StaticField (c, f))::s, [MayInit c]
+      in
+	if ch_link then
+	  exp,(Check (CheckLink instr))::instrs
+	else
+	  exp,instrs
+  | OpPutStatic (c, f) as instr ->
+      let (exp,instrs) = 
+	if is_static_in_stack c f (pop s) then begin
+	  let x = make_tempvar dico ssa fresh_counter s None in
+	    replace_static_in_stack c f x (pop s), [MayInit c; AffectVar(x,StaticField(c,f)); AffectStaticField (c,f,topE s)]
+	end else
+	  pop s, [MayInit c;AffectStaticField (c, f,topE s)]
+      in
+	if ch_link then
+	  exp,(Check (CheckLink instr))::instrs
+	else
+	  exp,instrs
+  | OpInvoke (x, ms) as instr ->
       begin
 	(match x with
 	   | `Static c ->
 	       (match ms_rtype ms with
 		  | None ->
 		      let params = param (List.length  (ms_args ms)) s in
-		      clean dico ssa fresh_counter is_heap_sensible_element_in_expr
-			(popn (List.length (ms_args ms)) s)
-			[MayInit c;InvokeStatic (None,c,ms,params)]
+		      let instrs = 
+			if ch_link then
+			  [Check (CheckLink instr); MayInit c;InvokeStatic (None,c,ms,params)]
+			else
+			  [MayInit c;InvokeStatic (None,c,ms,params)]
+		      in
+			clean dico ssa fresh_counter 
+			  is_heap_sensible_element_in_expr
+			  (popn (List.length (ms_args ms)) s)
+			  instrs
 		  | Some t ->
 		      let x = make_tempvar dico ssa fresh_counter s next_store in
-		      clean dico ssa fresh_counter is_heap_sensible_element_in_expr
-			(E (Var (t,x))::(popn (List.length (ms_args ms)) s))
-			[MayInit c; InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)])
+		      let instrs = 
+			if ch_link then
+			  [Check (CheckLink instr); MayInit c; InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
+			else
+			  [MayInit c; InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
+		      in
+			clean dico ssa fresh_counter is_heap_sensible_element_in_expr
+			  (E (Var (t,x))::(popn (List.length (ms_args ms)) s))
+			  instrs)
 	   | x ->
 	       begin
 		 let popn_s = popn (List.length (ms_args ms)) s in
@@ -1467,27 +1500,51 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 			  let s_next = pop popn_s in
 			  let this = topE popn_s in
 			  let ins target =
-			    begin match x with
+			    let instrs = 
+			      match x with
 				| `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
 				| `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
 				| `Special c -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
 				| `Static _ -> assert false (* already treated above *)
-			    end
+			    in
+			      if ch_link then
+				(Check (CheckLink instr))::instrs
+			      else
+				instrs
+			  in
+			  let checks = 
+			    if ch_link then
+			      [(Check (CheckLink instr)); Check (CheckNullPointer e0)]
+			    else
+			      [Check (CheckNullPointer e0)]
 			  in
 			    (match ms_rtype ms with
 			       | None ->
-				   clean dico ssa fresh_counter is_heap_sensible_element_in_expr s_next ([Check (CheckNullPointer e0)]@(ins None))
+				   clean dico ssa fresh_counter is_heap_sensible_element_in_expr s_next (checks@(ins None))
 			       | Some t ->
 				   let y = make_tempvar dico ssa fresh_counter s next_store in
-				     clean dico ssa fresh_counter is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) ([Check (CheckNullPointer e0)]@(ins (Some y)))
+				     clean dico ssa fresh_counter is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) (checks@(ins (Some y)))
 			    ))
 	       end)
-	end
-  | OpNew c -> (Uninit (c,i))::s, [MayInit c]
-  | OpNewArray t ->
+      end
+  | OpNew c as instr-> 
+      let instrs = 
+	if ch_link then
+	  [Check (CheckLink instr); MayInit c]
+	else
+	  [MayInit c]
+      in
+	(Uninit (c,i))::s, instrs
+  | OpNewArray t as instr->
       let x = make_tempvar dico ssa fresh_counter s next_store in
       let dim = topE s in
-	E (Var (TObject (TArray t),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
+	if ch_link then
+	  match t with
+	      TBasic _ -> E (Var (TObject (TArray t),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
+	    | TObject _ -> 
+		E (Var (TObject (TArray t),x))::(pop s), [Check (CheckLink instr); Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
+	else
+	  E (Var (TObject (TArray t),x))::(pop s), [Check (CheckNegativeArraySize dim); NewArray (x,t,[dim])]
   | OpArrayLength ->
       let a = topE s in begin
 	  match mode with
@@ -1498,20 +1555,38 @@ let bc2bir_instr dico mode pp_var ssa fresh_counter i load_type arrayload_type t
 	end
   | OpThrow ->
       let r = topE s in [], [Check (CheckNullPointer r); Throw r]
-  | OpCheckCast t -> to_addr3_unop dico mode (Cast t) ssa fresh_counter s [Check (CheckCast (topE s,t))]
-  | OpInstanceOf c -> to_addr3_unop dico mode (InstanceOf c) ssa fresh_counter s []
+  | OpCheckCast t as instr -> 
+      let instrs = 
+	if ch_link then 
+	  [Check (CheckLink instr); Check (CheckCast (topE s,t))]
+	else
+	  [Check (CheckCast (topE s,t))]
+      in
+	to_addr3_unop dico mode (Cast t) ssa fresh_counter s instrs
+  | OpInstanceOf c as instr -> 
+      let check_instr =
+	if ch_link then
+	  [Check (CheckLink instr)]
+	else
+	  []
+      in
+	to_addr3_unop dico mode (InstanceOf c) ssa fresh_counter s check_instr
   | OpMonitorEnter ->
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorEnter r]
   | OpMonitorExit ->
       let r = topE s in
 	pop s, [Check (CheckNullPointer r); MonitorExit r]
-  | OpAMultiNewArray (cn,dim) ->
+  | OpAMultiNewArray (cn,dim) as instr ->
       let x = make_tempvar dico ssa fresh_counter s next_store in
       let params = param dim s in
-	E (Var (TObject cn,x))::(popn dim s),
-	(List.map (fun e -> Check (CheckNegativeArraySize e)) params)
-	@[NewArray (x,remove_dim cn dim,params)]
+      let (exp,instrs) = 
+	E (Var (TObject cn,x))::(popn dim s),(List.map (fun e -> Check (CheckNegativeArraySize e)) params)@[NewArray (x,remove_dim cn dim,params)]
+      in
+	if ch_link then 
+	  exp,(Check (CheckLink instr))::instrs
+	else
+	  exp,instrs
   | OpBreakpoint -> failwith "breakpoint"
   | OpInvalid -> failwith "invalid"
 
@@ -1594,7 +1669,7 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-let bc2ir dico flat ssa pp_var jump_target load_type arrayload_type code =
+let bc2ir dico flat ch_link ssa pp_var jump_target load_type arrayload_type code =
   let rec loop as_ts_jump ins ts_in as_in pc fresh_counter =
 
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
@@ -1622,7 +1697,7 @@ let bc2ir dico flat ssa pp_var jump_target load_type arrayload_type code =
       else (ts_in,as_in)
     in
     let ts_out = type_next code.c_code.(pc) ts_in in
-    let (as_out,instrs) = bc2bir_instr dico flat pp_var ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
+    let (as_out,instrs) = bc2bir_instr dico flat pp_var ch_link ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
 
       (* fail on backward branchings on a non-empty stack *)
       if List.length as_out>0 then
@@ -1785,7 +1860,7 @@ let flatten_code code exc_tbl =
     (instrs, Array.of_list pc_list, map, exc_tbl)
 
 
-let jcode2bir mode bcv ssa cm jcode =
+let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
@@ -1802,7 +1877,7 @@ let jcode2bir mode bcv ssa cm jcode =
 	  let jump_target = compute_jump_target code in
 	  let (load_type,arrayload_type) = BCV.run bcv cm code in
 	  let dico = make_dictionary () in
-	  let res = bc2ir dico mode ssa pp_var jump_target load_type arrayload_type code in
+	  let res = bc2ir dico mode ch_link ssa pp_var jump_target load_type arrayload_type code in
 	  (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
 	  let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
 	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
@@ -1817,9 +1892,10 @@ let jcode2bir mode bcv ssa cm jcode =
 	      line_number_table = code.c_line_number_table}
       | None -> raise Subroutine
 
-let transform ?(bcv=false) = jcode2bir Normal bcv false
-let transform_flat ?(bcv=false) ?(ir_ssa=false) = jcode2bir Flat bcv ir_ssa
-let transform_addr3 ?(bcv=false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ir_ssa
+let transform ?(bcv=false) ?(ch_link = false) = 
+  jcode2bir Normal bcv ch_link false 
+let transform_flat ?(bcv=false) ?(ch_link = false) ?(ir_ssa=false) = jcode2bir Flat bcv ch_link ir_ssa
+let transform_addr3 ?(bcv=false) ?(ch_link = false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ch_link ir_ssa
 
 let jump_target code =
   let jump_target = Array.make (Array.length code.code) false in
