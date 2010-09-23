@@ -165,10 +165,12 @@ type check =
           and raises ArithmeticExcpetion if this is not the case. *)
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
-	  [op] instruction, must be started and then if it
+	  [op] instruction, must be started and if so if it
 	  succeeds. Linkage mechanism and errors that could be thrown
 	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
-	  instruction.*)
+	  instruction (only a few instructions imply linkage
+	  operations: checkcast, instanceof, anewarray,
+	  multianewarray, new, get_, put_, invoke_). *)
 
 
 (** JBir instructions are register-based and unstructured. Next to
@@ -205,7 +207,7 @@ type instr =
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list
       (** [InvokeStatic(x,c,ms,args)] denotes - c.m<ms>(args) if [x]
 	  is [None] (void returning method) - x := c.m<ms>(args)
-	  otherwise.The exception [UnsatisfiedLinkError] could be
+	  otherwise. The exception [UnsatisfiedLinkError] could be
 	  thrown if the method is native and the code cannot be
 	  found.*)
   | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
@@ -213,12 +215,12 @@ type instr =
 	  e.m<ms>(args) if [x] is [None] (void returning method) - x
 	  := e.m<ms>(args) otherwise. If [k] is a [VirtualCall _] then
 	  the virtual machine could throw the following errors in the
-	  following order: [AbstractMethodError,
-	  UnsatisfiedLinkError].  If [k] is a [InterfaceCall _] then
-	  the virtual machine could throw the following errors in the
-	  following order: [IncompatibleClassChangeError,
-	  AbstractMethodError, IllegalAccessError,
-	  AbstractMethodError, UnsatisfiedLinkError].*)
+	  same order: [AbstractMethodError, UnsatisfiedLinkError].  If
+	  [k] is a [InterfaceCall _] then the virtual machine could
+	  throw the following errors in the same order:
+	  [IncompatibleClassChangeError, AbstractMethodError,
+	  IllegalAccessError, AbstractMethodError,
+	  UnsatisfiedLinkError].*)
   | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
       (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual
 	  call - e.C.m<ms>(args) if [x] is [None] (void returning

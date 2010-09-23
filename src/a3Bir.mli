@@ -132,10 +132,12 @@ type check =
   | CheckArithmetic of basic_expr (** [CheckArithmetic e] checks that the divisor [e] is not zero, and raises ArithmeticExcpetion if this is not the case. *)
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
-	  [op] instruction, must be started and then if it
+	  [op] instruction, must be started and if so if it
 	  succeeds. Linkage mechanism and errors that could be thrown
 	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
-	  instruction.*)
+	  instruction (only a few instructions imply linkage
+	  operations: checkcast, instanceof, anewarray,
+	  multianewarray, new, get_, put_, invoke_). *)
 
 (** A3Bir instructions are register-based and unstructured. Their operands are [basic_expressions], except variable and static field assigments.
     Next to them is the informal semantics (using a traditional instruction notations) they should be given. *)

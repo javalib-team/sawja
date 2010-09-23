@@ -97,8 +97,16 @@ type check =
           object type [t] and raises the Java ClassCastException if this is not the
           case. *)
   | CheckArithmetic of expr
-      (** [CheckArithmetic e] checks that the divisor [e] is not zero, and raises
-          ArithmeticExcpetion if this is not the case. *)
+      (** [CheckArithmetic e] checks that the divisor [e] is not zero,
+          and raises ArithmeticExcpetion if this is not the case. *)
+  | CheckLink of JCode.jopcode
+      (** [CheckLink op] checks if linkage mechanism, depending on
+	  [op] instruction, must be started and if so if it
+	  succeeds. Linkage mechanism and errors that could be thrown
+	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
+	  instruction (only a few instructions imply linkage
+	  operations: checkcast, instanceof, anewarray,
+	  multianewarray, new, get_, put_, invoke_). *)
 
 
 (** JBir instructions are register-based and unstructured. Next to them is the

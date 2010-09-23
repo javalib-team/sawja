@@ -54,9 +54,9 @@ let eval_transfer = function
   | GenVars l -> fun ab -> List.fold_right (fun e -> Env.union (Env.vars e)) l ab
   | Kill x -> fun ab -> Env.remove x ab
 
-(* [gen_instrs last i] computes a list of transfert function [(f,j);...] with
-   [j] the successor of [i] for the transfert function [f]. [last] is the end
-   label of the method; *)
+(* [gen_instrs last i] computes a list of transfert function
+   [(f,j);...] with [j] the successor of [i] for the transfert
+   function [f]. [last] is the end label of the method; *)
 let gen_instrs last i = function
   | JBir.Ifd ((_,e1,e2), j) -> 
       let gen = GenVars [e1;e2] in [([gen],j);([gen],i+1)]
@@ -88,6 +88,7 @@ let gen_instrs last i = function
 	| JBir.CheckNegativeArraySize e
 	| JBir.CheckCast (e,_)
 	| JBir.CheckArithmetic e -> [[GenVars [e]],i+1]
+	| JBir.CheckLink _ -> [[],i+1]
     end
 
 (* generate a list of transfer functions *)

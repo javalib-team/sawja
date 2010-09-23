@@ -221,6 +221,7 @@ let use_bcvars =
 	    | CheckNegativeArraySize e
 	    | CheckCast (e,_)
 	    | CheckArithmetic e -> vars Ptset.empty e
+	    | CheckLink _ -> Ptset.empty
 	end
 
 let def_bcvar = function
@@ -530,6 +531,7 @@ type check =
   | CheckNegativeArraySize of expr
   | CheckCast of expr * JBasics.object_type
   | CheckArithmetic of expr
+  | CheckLink of JCode.jopcode
 
 type instr =
     Nop
@@ -762,6 +764,7 @@ let print_instr ?(show_type=true) = function
 	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_expr ~show_type:show_type true e)
 	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_expr ~show_type:show_type true e) (JDumpBasics.object_value_signature t)
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr ~show_type:show_type true e)
+	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
 
 let print_expr ?(show_type=true) = print_expr ~show_type:show_type true
@@ -831,6 +834,7 @@ let map_instr def use =
 	| JBir.CheckNegativeArraySize e -> CheckNegativeArraySize (use e)
 	| JBir.CheckCast (e,t) -> CheckCast (use e,t)
 	| JBir.CheckArithmetic e -> CheckArithmetic (use e)
+	| JBir.CheckLink op -> CheckLink op
     end
 
 let map_exception_handler e = {
