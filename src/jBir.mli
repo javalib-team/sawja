@@ -122,13 +122,6 @@ val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
   
-(** Bytecode instructions are replaced by intermediate representation
-    instructions. Exceptions that could be raised by the virtual
-    machine are described beside each instruction, except for the
-    virtual machine errors, subclasses of
-    [java.lang.VirtualMachineError], that could be raised at any time
-    (cf. JVM Spec 1.5 §6.3 ).*)
-
 type virtual_call_kind =
   | VirtualCall of JBasics.object_type
   | InterfaceCall of JBasics.class_name
@@ -166,7 +159,9 @@ type check =
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
 	  [op] instruction, must be started and if so if it
-	  succeeds. Linkage mechanism and errors that could be thrown
+	  succeeds. 
+	  
+	  Linkage mechanism and errors that could be thrown
 	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
 	  instruction (only a few instructions imply linkage
 	  operations: checkcast, instanceof, anewarray,
@@ -175,7 +170,15 @@ type check =
 
 (** JBir instructions are register-based and unstructured. Next to
     them is the informal semantics (using a traditional instruction
-    notations) they should be given. *)
+    notations) they should be given. 
+    
+    Exceptions that could be raised by the virtual
+    machine are described beside each instruction, except for the
+    virtual machine errors, subclasses of
+    [java.lang.VirtualMachineError], that could be raised at any time
+    (cf. JVM Spec 1.5 §6.3 ).
+*)
+
 type instr =
     Nop
   | AffectVar of var * expr
@@ -190,12 +193,16 @@ type instr =
       (** [Goto pc] denotes goto pc. (absolute address) *)
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
       (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
-  | Throw of expr (** [Throw e] denotes throw e. The exception [IllegalMonitorStateException] could be thrown by the virtual machine.*)
+  | Throw of expr (** [Throw e] denotes throw e. 
+
+		      The exception [IllegalMonitorStateException] could be thrown by the virtual machine.*)
   | Return of expr option
-      (** [Return opte] denotes - return void when [opte] is [None] -
-	  return opte otherwise. The exception
-	  [IllegalMonitorStateException] could be thrown by the
-	  virtual machine.*)
+      (** [Return opte] denotes 
+	  - return void when [opte] is [None] 
+	  - return opte otherwise. 
+
+	  The exception [IllegalMonitorStateException] could be thrown
+	  by the virtual machine.*)
   | New of var * JBasics.class_name * JBasics.value_type list * expr list
       (** [New(x,c,tl,args)] denotes x:= new c<tl>(args), [tl] gives
           the type of [args]. *)
@@ -205,39 +212,54 @@ type instr =
           the corresponding dimension. Elements of the array are of
           type [t]. *)
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list
-      (** [InvokeStatic(x,c,ms,args)] denotes - c.m<ms>(args) if [x]
-	  is [None] (void returning method) - x := c.m<ms>(args)
-	  otherwise. The exception [UnsatisfiedLinkError] could be
+      (** [InvokeStatic(x,c,ms,args)] denotes 
+	  - c.m<ms>(args) if [x] is [None] (void returning method) 
+	  - x := c.m<ms>(args)
+	  otherwise. 
+
+	  The exception [UnsatisfiedLinkError] could be
 	  thrown if the method is native and the code cannot be
 	  found.*)
   | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
-      (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call -
-	  e.m<ms>(args) if [x] is [None] (void returning method) - x
-	  := e.m<ms>(args) otherwise. If [k] is a [VirtualCall _] then
-	  the virtual machine could throw the following errors in the
-	  same order: [AbstractMethodError, UnsatisfiedLinkError].  If
-	  [k] is a [InterfaceCall _] then the virtual machine could
+      (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call 
+
+	  - e.m<ms>(args) if [x] is [None] (void returning method) 
+	  - x:= e.m<ms>(args) otherwise. 
+	  
+	  If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the
+	  same order: [AbstractMethodError, UnsatisfiedLinkError].  
+	  
+	  If [k] is a [InterfaceCall _] then the virtual machine could
 	  throw the following errors in the same order:
 	  [IncompatibleClassChangeError, AbstractMethodError,
 	  IllegalAccessError, AbstractMethodError,
 	  UnsatisfiedLinkError].*)
   | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
       (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual
-	  call - e.C.m<ms>(args) if [x] is [None] (void returning
-	  method) - x := e.C.m<ms>(args) otherwise. The exception
-	  [UnsatisfiedLinkError] could be thrown if the method is
-	  native and the code cannot be found.*)
+	  call 
+	  - e.C.m<ms>(args) if [x] is [None] (void returning
+	  method) 
+	  - x := e.C.m<ms>(args) otherwise. 
+	  
+	  The exception [UnsatisfiedLinkError] could be thrown 
+	  if the method is native and the code cannot be found.*)
   | MonitorEnter of expr (** [MonitorEnter e] locks the object [e]. *)
   | MonitorExit of expr (** [MonitorExit e] unlocks the object
-			    [e]. The exception
+			    [e]. 
+
+			    The exception
 			    [IllegalMonitorStateException] could be
 			    thrown by the virtual machine.*)
   | MayInit of JBasics.class_name
       (** [MayInit c] initializes the class [c] whenever it is
-	  required. The exception [ExceptionInInitializerError] could
+	  required. 
+
+	  The exception [ExceptionInInitializerError] could
 	  be thrown by the virtual machine.*)
   | Check of check
-      (** [Check c] evaluates the assertion [c]. Exceptions that could
+      (** [Check c] evaluates the assertion [c]. 
+
+	  Exceptions that could
 	  be thrown by the virtual machine are described in {!check} type
 	  declaration.*)
 
