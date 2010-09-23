@@ -234,43 +234,54 @@ module PP : sig
   val hash : 'a t -> int
 end
 
-(** Manipulation of {!JCode.jcode} program pointers *)
-module PP_BC : sig
-  (*TODO: include PP instead of copy ...: why unbound module ?*)
-  type pp = JCode.jcode PP.t
-
+module type GenericPPSig = sig
+  type code
+  type t = code PP.t
   exception NoCode of (class_name * method_signature)
-  val get_opcode : pp -> JCode.jopcode  
-  val get_class : pp -> JCode.jcode node
-  val get_meth : pp -> JCode.jcode concrete_method
-  val get_pc : pp -> int
+  val get_class : t -> code node
+  val get_meth : t -> code concrete_method
+  val get_pc : t -> int
 
-  val get_pp : JCode.jcode node -> JCode.jcode concrete_method -> int -> pp
+  val get_pp : code node -> code concrete_method -> int -> t
 
-  (** [get_first_pp p cn ms] gets a pointer to the first instruction of
-      the method [ms] of the class [cn].
+  (** [get_first_pp p cn ms] gets a pointer to the first instruction
+      of the method [ms] of the class [cn].
 
       @raise Not_found if [cn] is not a class of [p], or [ms] is not a
       method of [cn].
 
       @raise NoCode if the method [ms] has no associated code.*)
-  val get_first_pp : JCode.jcode program -> class_name -> method_signature -> pp
-  val get_first_pp_wp : JCode.jcode node -> method_signature -> pp
-  val goto_absolute : pp -> int -> pp
-  val goto_relative : pp -> int -> pp
+  val get_first_pp : code program -> class_name -> method_signature -> t
+  val get_first_pp_wp : code node -> method_signature -> t
+  val goto_absolute : t -> int -> t
+  val goto_relative : t -> int -> t
 
+  val to_string : t -> string
+  val pprint : Format.formatter -> t -> unit
+
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val hash : t -> int
+end
+
+(** Manipulation of {!Javalib_pack.JCode.jcode} program pointers *)
+module PP_BC : sig
+  (** [with type code =] {!Javalib_pack.JCode.jcode}*)
+  include GenericPPSig with type code = JCode.jcode 
+
+  val get_opcode : JCode.jcode PP.t -> JCode.jopcode
   (** returns the next instruction if there is one.  If there is
       not, the behavior is unspecified (specially if compiled with
       -unsafe...) *)
-  val next_instruction : pp -> pp
+  val next_instruction : JCode.jcode PP.t -> JCode.jcode PP.t
 
   (** returns the normal intra-procedural successors of an
       instruction*)
-  val normal_successors : pp -> pp list
+  val normal_successors : JCode.jcode PP.t -> JCode.jcode PP.t list
 
   (** returns the handlers that could catch an exception thrown from
       the current instruction*)
-  val handlers : JCode.jcode program -> pp -> JCode.exception_handler list
+  val handlers : JCode.jcode program -> JCode.jcode PP.t -> JCode.exception_handler list
 
   (** [exceptional_successors p pp] returns the list of program points
       that may be executed after [pp] if an exception (or error) occurs
@@ -281,56 +292,45 @@ module PP_BC : sig
   (* TODO: implement a checker which checks if that the method declares
      all the exception it may throw (except subtypes of Error and
      RuntimeException). *)
-  val exceptional_successors : JCode.jcode program -> pp -> pp list
+  val exceptional_successors : JCode.jcode program -> JCode.jcode PP.t -> JCode.jcode PP.t list
     
-  
-  val to_string : pp -> string
-  val pprint : Format.formatter -> pp -> unit
+  (** [static_lookup program pp] returns the highest methods in the
+      hierarchy that may be called from program point [pp]. All
+      methods that may be called at execution time are known to
+      implement or extend one of the class that this function
+      returns. *)
+  val static_lookup : JCode.jcode program -> JCode.jcode PP.t
+    -> (JCode.jcode node list * method_signature) option
 
-  val equal : pp -> pp -> bool
-  val compare : pp -> pp -> int
-  val hash : pp -> int
-
+  (** [get_successors program cl meth] returns the possible methods
+      that may be invoked from the current program point (it uses
+      [static_lookup'] function).  For the static initialization,
+      only the topmost class initializer is returned (and the successors
+      of a clinit methods includes the clinit methods that are
+      beneath). *)
+  val get_successors :
+    JCode.jcode program ->
+    JCode.jcode node -> JCode.jcode concrete_method -> ClassMethodSet.t
 end
-
 
 (** Manipulation of {!JBir.t} program pointers *)
 module PP_Bir : sig
-  (*TODO: idem PP_BC*)
-  type pp = JBir.t PP.t
+  (** [with type code =] {!JBir.t}*)
+  include GenericPPSig with type code = JBir.t 
 
-  exception NoCode of (class_name * method_signature)
-  val get_opcode : pp -> JBir.instr  
-  val get_class : pp -> JBir.t node
-  val get_meth : pp -> JBir.t concrete_method
-  val get_pc : pp -> int
-
-  val get_pp : JBir.t node -> JBir.t concrete_method -> int -> pp
-
-  (** [get_first_pp p cn ms] gets a pointer to the first instruction of
-      the method [ms] of the class [cn].
-
-      @raise Not_found if [cn] is not a class of [p], or [ms] is not a
-      method of [cn].
-
-      @raise NoCode if the method [ms] has no associated code.*)
-  val get_first_pp : JBir.t program -> class_name -> method_signature -> pp
-  val get_first_pp_wp : JBir.t node -> method_signature -> pp
-  val goto_absolute : pp -> int -> pp
-  val goto_relative : pp -> int -> pp
-    
+  val get_opcode : JBir.t PP.t -> JBir.instr
   (** returns the next instruction if there is one.  If there is not,
       the behavior is unspecified (specially if compiled with
       -unsafe...) *)
-  val next_instruction : pp -> pp
+  val next_instruction : JBir.t PP.t -> JBir.t PP.t
 
   (** returns the normal intra-procedural successors of an
       instruction*)
-  val normal_successors : pp -> pp list
+  val normal_successors : JBir.t PP.t -> JBir.t PP.t list
 
   (** returns the handlers that could catch an exception thrown from
       the current instruction*)
-  val handlers : JBir.t program -> pp -> JBir.exception_handler list
+  val handlers : JBir.t program -> JBir.t PP.t -> JBir.exception_handler list
 
   (** [exceptional_successors p pp] returns the list of program points
       that may be executed after [pp] if an exception (or error) occurs
@@ -341,55 +341,44 @@ module PP_Bir : sig
   (* TODO: implement a checker which checks if that the method declares
      all the exception it may throw (except subtypes of Error and
      RuntimeException). *)
-  val exceptional_successors : JBir.t program -> pp -> pp list
-    
-  val to_string : pp -> string
-  val pprint : Format.formatter -> pp -> unit
+  val exceptional_successors : JBir.t program -> JBir.t PP.t -> JBir.t PP.t list
 
-  val equal : pp -> pp -> bool
-  val compare : pp -> pp -> int
-  val hash : pp -> int
-  (** returns the next instruction if there is one.  If there is not, the
-      behavior is unspecified (specially if compiled with -unsafe...) *)
+  (** [static_lookup program pp] returns the highest methods in the
+      hierarchy that may be called from program point [pp]. All
+      methods that may be called at execution time are known to
+      implement or extend one of the class that this function
+      returns. *)
+  val static_lookup : JBir.t program -> JBir.t PP.t
+    -> (JBir.t node list * method_signature) option
 
+  (** [get_successors program cl meth] returns the possible methods
+      that may be invoked from the current program point (it uses
+      [static_lookup'] function).  For the static initialization,
+      only the topmost class initializer is returned (and the successors
+      of a clinit methods includes the clinit methods that are
+      beneath). *)
+  val get_successors :
+    JBir.t program ->
+    JBir.t node -> JBir.t concrete_method -> ClassMethodSet.t
 end
 
 (** Manipulation of {!A3Bir.t} program pointers *)
 module PP_A3Bir : sig
-    (*TODO: idem PP_A3Bir*)
-  type pp = A3Bir.t PP.t
+  (** [with type code =] {!A3Bir.t}*)
+  include GenericPPSig with type code = A3Bir.t 
 
-  exception NoCode of (class_name * method_signature)
-  val get_opcode : pp -> A3Bir.instr  
-  val get_class : pp -> A3Bir.t node
-  val get_meth : pp -> A3Bir.t concrete_method
-  val get_pc : pp -> int
-
-  val get_pp : A3Bir.t node -> A3Bir.t concrete_method -> int -> pp
-
-  (** [get_first_pp p cn ms] gets a pointer to the first instruction of
-      the method [ms] of the class [cn].
-
-      @raise Not_found if [cn] is not a class of [p], or [ms] is not a
-      method of [cn].
-
-      @raise NoCode if the method [ms] has no associated code.*)
-  val get_first_pp : A3Bir.t program -> class_name -> method_signature -> pp
-  val get_first_pp_wp : A3Bir.t node -> method_signature -> pp
-  val goto_absolute : pp -> int -> pp
-  val goto_relative : pp -> int -> pp
-
+  val get_opcode : A3Bir.t PP.t -> A3Bir.instr
   (** returns the next instruction if there is one.  If there is not, the
       behavior is unspecified (specially if compiled with -unsafe...) *)
-  val next_instruction : pp -> pp
+  val next_instruction : A3Bir.t PP.t -> A3Bir.t PP.t
 
   (** returns the normal intra-procedural successors of an
       instruction*)
-  val normal_successors : pp -> pp list
+  val normal_successors : A3Bir.t PP.t -> A3Bir.t PP.t list
 
   (** returns the handlers that could catch an exception thrown from
       the current instruction*)
-  val handlers : A3Bir.t program -> pp -> A3Bir.exception_handler list
+  val handlers : A3Bir.t program -> A3Bir.t PP.t -> A3Bir.exception_handler list
 
   (** [exceptional_successors p pp] returns the list of program points
       that may be executed after [pp] if an exception (or error) occurs
@@ -400,19 +389,32 @@ module PP_A3Bir : sig
   (* TODO: implement a checker which checks if that the method declares
      all the exception it may throw (except subtypes of Error and
      RuntimeException). *)
-  val exceptional_successors : A3Bir.t program -> pp -> pp list
-    
-  val to_string : pp -> string
-  val pprint : Format.formatter -> pp -> unit
+  val exceptional_successors : A3Bir.t program -> A3Bir.t PP.t -> A3Bir.t PP.t list
 
-  val equal : pp -> pp -> bool
-  val compare : pp -> pp -> int
-  val hash : pp -> int  
+    
+  (** [static_lookup program pp] returns the highest methods in the
+      hierarchy that may be called from program point [pp]. All
+      methods that may be called at execution time are known to
+      implement or extend one of the class that this function
+      returns. *)
+  val static_lookup : A3Bir.t program -> A3Bir.t PP.t
+    -> (A3Bir.t node list * method_signature) option
+    
+
+  (** [get_successors program cl meth] returns the possible methods
+      that may be invoked from the current program point (it uses
+      [static_lookup'] function).  For the static initialization,
+      only the topmost class initializer is returned (and the successors
+      of a clinit methods includes the clinit methods that are
+      beneath). *)
+  val get_successors :
+    A3Bir.t program ->
+    A3Bir.t node -> A3Bir.t concrete_method -> ClassMethodSet.t  
 
 end
 
 
-(** {3 Invokes lookup algorithms}*)
+(** {3 Invoke lookup algorithms}*)
 
 (** [invoke_virtual_lookup ?c ms instantiated_classes] returns the result of the
     InvokeVirtual instruction on a class [c] with the method signature [ms],
@@ -430,102 +432,29 @@ val invoke_virtual_lookup : ?c:('a class_node option) -> method_signature ->
     signature [ms], given a set of possibly instantiated classes.
 
     Setting a value to [i] will only check (assert) that each class in
-    [instantiated_classes] implements [i] directly or indirectly.  It raises an
-    Assert_failure if the assertion fails and the program has been compiled
-    without deactivating assertions. *)
+    [instantiated_classes] implements [i] directly or indirectly.  It
+    raises an Assert_failure if the assertion fails and the program
+    has been compiled without deactivating assertions. *)
 val invoke_interface_lookup : ?i:('a interface_node option) -> method_signature ->
   'a class_node ClassMap.t -> ('a class_node * 'a concrete_method) ClassMethodMap.t
 
 (** [invoke_special_lookup current_class c ms] returns the result of
-    the InvokeSpecial instruction on a class [c] with the method signature [ms],
-    from the class [current_class]. *)
+    the InvokeSpecial instruction on a class [c] with the method
+    signature [ms], from the class [current_class]. *)
 val invoke_special_lookup : 'a node -> 'a class_node ->
   method_signature -> 'a class_node * 'a concrete_method
 
-(** [invoke_static_lookup c ms] returns the result of the InvokeStatic instruction
-    on a class [c] with the method signature [ms]. *)
+(** [invoke_static_lookup c ms] returns the result of the InvokeStatic
+    instruction on a class [c] with the method signature [ms]. *)
 val invoke_static_lookup : 'a class_node -> method_signature ->
   'a class_node * 'a concrete_method
 
-(** {4 Functions for {!JCode.jcode} code}*)
-
-(** [static_lookup_bc program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-    returns. *)
-val static_lookup_bc : JCode.jcode program -> PP_BC.pp
-  -> (JCode.jcode node list * method_signature) option
-
-(** [static_lookup_bc' program pp] returns a list of methods that may be
-    called from program point [pp].  The computation is based on RTA or
+(** [static_lookup' program pp] returns a list of methods that may be
+    called from program point [pp]. The computation is based on RTA or
     CHA, depending on the function used to build the program (it uses
-    the field [program.static_lookup_method]). *)
-val static_lookup_bc' : JCode.jcode program -> PP_BC.pp -> PP_BC.pp list
-
-(** [get_successors_bc program cl meth] returns the possible methods
-    that may be invoked from the current program point (it uses
-    [static_lookup_bc'] function).  For the static initialization,
-    only the topmost class initializer is returned (and the successors
-    of a clinit methods includes the clinit methods that are
-    beneath). *)
-val get_successors_bc :
-  JCode.jcode program ->
-  JCode.jcode node -> JCode.jcode concrete_method -> ClassMethodSet.t
-
-(** {4 Functions for {!JBir.t} code}*)
-
-(** [static_lookup_bir program pp] returns the highest methods in the
-    hierarchy that may be called from program point [pp]. All
-    methods that may be called at execution time are known to
-    implement or extend one of the class that this function
-    returns. *)
-val static_lookup_bir : JBir.t program -> PP_Bir.pp
-  -> (JBir.t node list * method_signature) option
-
-(** [static_lookup_bir' program pp] returns a list of methods that may be
-    called from program point [pp].  The computation is based on RTA or
-    CHA, depending on the function used to build the program (it uses
-    the field [program.static_lookup_method]). *)
-val static_lookup_bir' : JBir.t program -> PP_Bir.pp -> PP_Bir.pp list
-
-(** [get_successors_bir program cl meth] returns the possible methods
-    that may be invoked from the current program point (it uses
-    [static_lookup_bir'] function).  For the static initialization,
-    only the topmost class initializer is returned (and the successors
-    of a clinit methods includes the clinit methods that are
-    beneath). *)
-val get_successors_bir :
-  JBir.t program ->
-  JBir.t node -> JBir.t concrete_method -> ClassMethodSet.t
-
-(** {4 Functions for {!A3Bir.t} code}*)
-
-(** [static_lookup_a3bir program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-      returns. *)
-  val static_lookup_a3bir : A3Bir.t program -> PP_A3Bir.pp
-    -> (A3Bir.t node list * method_signature) option
-
-  (** [static_lookup_a3bir' program pp] returns a list of methods that
-      may be called from program point [pp].  The computation is based
-      on RTA or CHA, depending on the function used to build the
-      program (it uses the field [program.static_lookup_method]). *)
-  val static_lookup_a3bir' : A3Bir.t program -> PP_A3Bir.pp 
-    -> PP_A3Bir.pp list
-
-
-  (** [get_successors_a3bir program cl meth] returns the possible methods
-      that may be invoked from the current program point (it uses
-      [static_lookup_a3bir'] function).  For the static initialization,
-      only the topmost class initializer is returned (and the successors
-      of a clinit methods includes the clinit methods that are
-      beneath). *)
-val get_successors_a3bir :
-  A3Bir.t program ->
-  A3Bir.t node -> A3Bir.t concrete_method -> ClassMethodSet.t
-
-
+    the field [program.static_lookup_method]). Caution: If the program
+    code representation has been changed,
+    [program.static_lookup_method] must have been updated at the same
+    time (see {!JProgram.map_program} function).*)
+val static_lookup' : 'a program -> 'a PP.t -> 'a PP.t list
 

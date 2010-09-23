@@ -25,6 +25,44 @@ open JCode
 open Javalib
 open JProgram
 
+
+(*Usefull functions for program pointers access functions*)
+
+let ioc2c = function
+  | Class c -> c
+  | Interface _ -> raise IncompatibleClassChangeError
+
+(*PP modules*)
+
+module type PPSig = sig
+  type 'a t
+  exception NoCode of (class_name * method_signature)
+  val get_class : 'a t -> 'a node
+  val get_meth : 'a t -> 'a concrete_method
+  val get_pc : 'a t -> int
+
+  val get_pp : 'a node -> 'a concrete_method -> int -> 'a t
+
+  (** [get_first_pp p cn ms] gets a pointer to the first instruction
+      of the method [ms] of the class [cn].
+
+      @raise Not_found if [cn] is not a class of [p], or [ms] is not a
+      method of [cn].
+
+      @raise NoCode if the method [ms] has no associated code.*)
+  val get_first_pp : 'a program -> class_name -> method_signature -> 'a t
+  val get_first_pp_wp : 'a node -> method_signature -> 'a t
+  val goto_absolute : 'a t -> int -> 'a t
+  val goto_relative : 'a t -> int -> 'a t
+
+  val to_string : 'a t -> string
+  val pprint : Format.formatter -> 'a t -> unit
+
+  val equal : 'a t -> 'a t -> bool
+  val compare : 'a t -> 'a t -> int
+  val hash : 'a t -> int
+end
+
 module PP = struct
   type 'a t = {cl:'a node;
 	       meth:'a concrete_method;
@@ -107,46 +145,110 @@ module PP = struct
 
   let goto_relative pp jmp : 'a t ={pp with pc=pp.pc+jmp;}
 
+  let throws_instance_of program pp exn_class=
+    let cl =
+      (* static_lookup program pp  (* safe, but using RTA is more precise *) *)
+      let cs = get_name (get_class pp)
+      and ms = (get_meth pp).cm_signature
+      in
+	List.map cms_split
+	  (ClassMethodSet.elements
+             (program.static_lookup_method cs ms pp.pc))
+    and throws_instance_of m exn =
+      (* return true if the method m is
+	 declared to throw exceptions of
+	 a subtype of exn *)
+      List.exists
+	(fun e ->
+	   let e = JProgram.get_node program e
+	   in JProgram.extends_class (ioc2c e) exn)
+	(match m with
+	   | AbstractMethod {am_exceptions=exn_list}
+	   | ConcreteMethod {cm_exceptions=exn_list} -> exn_list)
+    in
+      not (List.exists
+	     (fun (cs,ms) ->
+		let m =
+		  JProgram.get_method
+                    (JProgram.get_node program cs)
+                    ms
+		in throws_instance_of m exn_class)
+	     cl)  
+
 end
+
+module type GenericPPSig = sig
+  type code 
+  type t = code PP.t
+  exception NoCode of (class_name * method_signature)
+  val get_class : t -> code node
+  val get_meth : t -> code concrete_method
+  val get_pc : t -> int
+
+  val get_pp : code node -> code concrete_method -> int -> t
+
+  (** [get_first_pp p cn ms] gets a pointer to the first instruction
+      of the method [ms] of the class [cn].
+
+      @raise Not_found if [cn] is not a class of [p], or [ms] is not a
+      method of [cn].
+
+      @raise NoCode if the method [ms] has no associated code.*)
+  val get_first_pp : code program -> class_name -> method_signature -> t
+  val get_first_pp_wp : code node -> method_signature -> t
+  val goto_absolute : t -> int -> t
+  val goto_relative : t -> int -> t
+
+  val to_string : t -> string
+  val pprint : Format.formatter -> t -> unit
+
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val hash : t -> int
+end
+
+module GenericPP (S : sig type t end) = struct
+  type code = S.t
+  type t = code PP.t
+
+  let equal (p1:t) (p2:t) = PP.equal p1 p2
+
+  let hash = PP.hash
+
+  let compare = PP.compare 
+
+  exception NoCode of (class_name * method_signature)
+
+  let to_string = PP.to_string
+
+  let pprint = PP.pprint
+
+  let get_class (p1:t) : S.t JProgram.node = PP.get_class p1
+
+  let get_meth = PP.get_meth
+
+  let get_pc = PP.get_pc
+
+  let get_pp = PP.get_pp
+
+  let get_first_pp = PP.get_first_pp
+
+  let get_first_pp_wp = PP.get_first_pp_wp
+
+  let goto_absolute = PP.goto_absolute
+
+  let goto_relative = PP.goto_relative
+
+
+end
+
+
 
 open PP
 
-(*Usefull functions for program pointers access functions*)
+ 
 
-let ioc2c = function
-  | Class c -> c
-  | Interface _ -> raise IncompatibleClassChangeError
-    
 
-let throws_instance_of program pp exn_class=
-  let cl =
-    (* static_lookup program pp  (* safe, but using RTA is more precise *) *)
-    let cs = get_name (get_class pp)
-    and ms = (get_meth pp).cm_signature
-    in
-      List.map cms_split
-	(ClassMethodSet.elements
-           (program.static_lookup_method cs ms pp.pc))
-  and throws_instance_of m exn =
-    (* return true if the method m is
-       declared to throw exceptions of
-       a subtype of exn *)
-    List.exists
-      (fun e ->
-	 let e = JProgram.get_node program e
-	 in JProgram.extends_class (ioc2c e) exn)
-      (match m with
-	 | AbstractMethod {am_exceptions=exn_list}
-	 | ConcreteMethod {cm_exceptions=exn_list} -> exn_list)
-  in
-    not (List.exists
-	   (fun (cs,ms) ->
-	      let m =
-		JProgram.get_method
-                  (JProgram.get_node program cs)
-                  ms
-	      in throws_instance_of m exn_class)
-	   cl)
 
 (* Lookup and resolve procedure *)
 
@@ -389,17 +491,184 @@ let static_lookup_static program cs ms =
       | _ -> raise AbstractMethodError
 
 
-module PP_BC = struct 
-  include PP
-    
-  type pp = JCode.jcode PP.t
+(* Usefull functions for get_successors functions*)
 
-  let get_code (pp:pp) : jopcodes =
+let get_class_to_initialize caller = function
+  | Interface _ as callee ->
+      if defines_method callee clinit_signature
+      then Some (make_cms (get_name callee) clinit_signature)
+      else None
+  | Class callee ->
+      let caller =
+        match caller with
+          | Interface {i_super = caller}
+          | Class caller
+            -> caller
+      in
+      let rec find_first_cl_with_clinit callee :'a class_node option=
+        if defines_method (Class callee) clinit_signature
+        then Some callee
+        else match callee.c_super with
+          | None -> None
+          | Some s -> find_first_cl_with_clinit s
+      in
+        match find_first_cl_with_clinit callee with
+          | None -> None
+          | Some callee ->
+              let rec find_last_cl_with_clinit prev callee =
+                match callee.c_super with
+                  | Some s_callee when (extends_class caller s_callee) -> prev
+                  | Some s_callee
+                      when defines_method (Class s_callee) clinit_signature
+                        -> find_last_cl_with_clinit (Some s_callee) s_callee
+                  | Some s_callee -> find_last_cl_with_clinit prev s_callee
+                  | None -> prev
+              in
+                match find_last_cl_with_clinit None callee with
+                  | None -> None
+                  | Some c ->
+                      Some (make_cms c.c_info.c_name clinit_signature)
+
+
+(* Common code for get_successors functions *)
+
+let get_successors
+    (f: 'a program -> 'a node -> 'a concrete_method -> ClassMethodSet.t -> ClassMethodSet.t)
+    (program:'a program)
+    (node:'a node)
+    (m:'a concrete_method)
+    : ClassMethodSet.t =
+  let successors = ref ClassMethodSet.empty in
+    if m.cm_signature = clinit_signature
+    then
+      begin
+        let rec add_c_children_clinit class_node =
+          try
+            successors :=
+              ClassMethodSet.add
+                (get_class_method_signature
+                   (get_method (Class class_node) clinit_signature))
+                !successors
+          with _ ->
+            List.iter add_c_children_clinit class_node.c_children
+        in
+          match node with
+            | Class class_node ->
+                List.iter add_c_children_clinit class_node.c_children
+            | Interface _ -> ()
+      end;
+    f program node m !successors
+
+
+
+
+let invoke_virtual_lookup ?(c=None) ms instantiated_classes =
+  ClassMap.fold
+    (fun _ instantiated_class cmmap ->
+       (match c with
+	  | None -> ()
+	  | Some c -> assert (extends_class instantiated_class c)
+       );
+       let rc = resolve_method' ms instantiated_class in
+       let m = get_method (Class rc) ms in
+       let cm = match m with
+	 | AbstractMethod _ -> assert false
+	 | ConcreteMethod cm -> cm in
+       let rcmsig = make_cms (rc.c_info.c_name) ms in
+	 ClassMethodMap.add rcmsig (rc,cm) cmmap
+    ) instantiated_classes ClassMethodMap.empty
+
+let rec implements_interface_or_subinterface ioc i =
+  let interfaces = get_interfaces ioc in
+    if (interfaces = ClassMap.empty) then false
+    else if (ClassMap.mem i.i_info.i_name interfaces) then true
+    else
+      ClassMap.fold
+	(fun _ si b ->
+	   b || (implements_interface_or_subinterface (Interface si) i)
+	) interfaces false
+
+let rec implements_interface_or_subinterface_transitively c i =
+  let e = implements_interface_or_subinterface (Class c) i in
+    if e then true
+    else
+      match c.c_super with
+	| None -> false
+	| Some sc -> implements_interface_or_subinterface_transitively sc i
+
+let invoke_interface_lookup ?(i=None) ms instantiated_classes =
+  ClassMap.fold
+    (fun _ instantiated_class cmmap ->
+       (match i with
+	  | None -> ()
+	  | Some i -> assert (implements_interface_or_subinterface_transitively
+				instantiated_class i)
+       );
+       let rc = resolve_method' ms instantiated_class in
+       let m = get_method (Class rc) ms in
+       let cm = match m with
+	 | AbstractMethod _ -> assert false
+	 | ConcreteMethod cm -> cm in
+       let rcmsig = make_cms (rc.c_info.c_name) ms in
+	 ClassMethodMap.add rcmsig (rc,cm) cmmap
+    ) instantiated_classes ClassMethodMap.empty
+
+let invoke_special_lookup current_class called_class ms =
+  let ccs = get_name current_class in
+  let rc = resolve_method' ms called_class in
+  let rcs = rc.c_info.c_name in
+  let mname = ms_name ms in
+  let c =
+    if ( mname = "<init>"
+	|| cn_equal rcs ccs
+	|| not (extends current_class (Class rc)) ) then rc
+    else
+      match super_class current_class with
+	| None -> assert false
+	| Some sc -> resolve_method' ms sc in
+  let m = get_method (Class c) ms in
+    match m with
+      | AbstractMethod _ -> assert false
+      | ConcreteMethod cm -> (c,cm)
+
+let invoke_static_lookup c ms =
+  let rc = resolve_method' ms c in
+  let m = get_method (Class rc) ms in
+    match m with
+      | AbstractMethod _ -> assert false
+      | ConcreteMethod cm -> (rc,cm)
+
+
+let static_lookup' program pp =
+  try
+    let cs = get_name (PP.get_class pp)
+    and ms = (PP.get_meth pp).cm_signature
+    in
+      List.map
+        (fun (cs,ms) -> PP.get_first_pp program cs ms)
+        (List.map
+	   (fun (cs,ms) ->
+              let c = get_node program cs
+              in match get_method c ms with
+                | AbstractMethod _ -> assert false;
+                | ConcreteMethod _ -> (cs,ms))
+	   (List.map cms_split
+	      (ClassMethodSet.elements
+                 (program.static_lookup_method cs ms pp.pc))))
+  with Not_found -> []
+
+
+
+
+module PP_BC = struct 
+  include GenericPP (struct type t = JCode.jcode end)
+    
+  let get_code pp : jopcodes =
     match pp.meth.cm_implementation with
       | Java c -> (Lazy.force c).c_code
       | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
-  let get_opcode (pp:pp) : jopcode = 
+  let get_opcode pp : jopcode = 
     (get_code pp).(pp.pc)
       
   let next_instruction pp =
@@ -501,20 +770,108 @@ module PP_BC = struct
   let exceptional_successors program pp =
     List.map (fun e -> goto_absolute pp e.e_handler) (handlers program pp)
       
+      
+  let static_lookup program pp =
+    match get_opcode pp with
+      | OpInvoke (`Virtual obj, ms) ->
+          Some (static_lookup_virtual program obj ms,ms)
+      | OpInvoke (`Static cs, ms) ->
+          Some ([static_lookup_static program cs ms],ms)
+      | OpInvoke (`Special cs, ms) ->
+          Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
+      | OpInvoke (`Interface cs, ms) ->
+	  Some (static_lookup_interface program cs ms,ms)
+      | _ -> None
+
+
+
+
+  (** returns the possible methods that may be invoked from the current
+      program point. For the static initialization, only the topmost
+      class initializer is return, and the successors of a clinit
+      methods includes the clinit methods that are beneath. *)
+  let get_successors = 
+    get_successors 
+      (fun program node m succ -> 
+	 let successors = ref succ in
+	   (match m.cm_implementation with
+              | Native -> ()
+              | Java c ->
+		  let ppinit = get_pp node m 0 in
+		    Array.iteri
+		      (fun pc opcode -> match opcode with
+			 | JCode.OpNew cn' ->
+			     let c'= (get_node program cn') in
+			       begin
+				 match (get_class_to_initialize node c') with
+				   | None -> ()
+				   | Some c ->
+				       successors := ClassMethodSet.add c !successors
+			       end
+			 | JCode.OpGetStatic (cn',fs')
+			 | JCode.OpPutStatic (cn',fs') ->
+			     (* successeur : clinit du plus haut parant de cn'
+				n'ayant peut-être pas déjà été initialisé.
+				java.lang.Object.<clinit> est donc correct,
+				mais (TODO) on pourrait être plus précis
+				(entre autre, inutile d'initialisé une
+				super-classe de la classe courrante). *)
+			     let c'= (get_node program cn')
+			     in
+			       List.iter
+				 (fun c' ->
+				    match (get_class_to_initialize node c') with
+				      | None -> ()
+				      | Some c ->
+					  successors := ClassMethodSet.add c !successors
+				 )
+				 (resolve_field fs' c')
+			 | JCode.OpInvoke (kind,ms) ->
+			     begin
+			       match kind with
+				 | `Static cn' ->
+				     let c' = match get_node program cn' with
+				       | Class c' -> c'
+				       | Interface _ -> raise IncompatibleClassChangeError
+				     in
+				     let c' = resolve_method' ms c' in
+				       (match (get_class_to_initialize node (Class c')) with
+					  | None -> ()
+					  | Some c ->
+					      successors :=
+						ClassMethodSet.add c !successors)
+				 | _ -> ()
+			     end;
+			     let targets =
+			       let pp = goto_absolute ppinit pc
+			       in static_lookup' program pp
+			     in
+			       successors :=
+				 List.fold_left
+				   (fun successors pp ->
+				      let cms =
+					(get_meth pp).cm_class_method_signature
+				      in
+					ClassMethodSet.add cms successors)
+				   !successors
+				   targets
+			 | _ -> ()
+		      )
+		      (Lazy.force c).JCode.c_code);
+	   !successors
+      )
+
 end
 
-
 module PP_Bir = struct 
-  include PP
+  include GenericPP (struct type t = JBir.t end)
     
-  type pp = JBir.t PP.t
-
-  let get_code (pp:pp) : JBir.instr array =
+  let get_code (pp:JBir.t PP.t) : JBir.instr array =
     match pp.meth.cm_implementation with
       | Java c -> (Lazy.force c).JBir.code
       | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
-  let get_opcode (pp:pp) : JBir.instr = 
+  let get_opcode (pp:JBir.t PP.t) : JBir.instr = 
     (get_code pp).(pp.pc)
       
   let next_instruction pp =
@@ -593,20 +950,81 @@ module PP_Bir = struct
   let exceptional_successors program pp =
     List.map 
       (fun e -> goto_absolute pp e.JBir.e_handler) (handlers program pp)
- 
+      
+  let static_lookup program pp =
+    match get_opcode pp with
+      | JBir.InvokeVirtual (_,_,kind, ms,_) ->
+	  (match kind with
+	       JBir.VirtualCall obj -> 
+		 Some (static_lookup_virtual program obj ms,ms)
+	     | JBir.InterfaceCall cs -> 
+		 Some (static_lookup_interface program cs ms,ms)
+	  )
+      | JBir.InvokeStatic (_, cs, ms,_) ->
+          Some ([static_lookup_static program cs ms],ms)
+      | JBir.InvokeNonVirtual (_, _, cs, ms, _) ->
+          Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
+      | _ -> None
+
+  let get_successors = 
+    get_successors 
+      (fun program node m succ -> 
+	 let ppinit = get_pp node m 0 
+	 and successors = ref succ in
+	 let add_invoke pc =
+	   let targets =
+	     let pp = goto_absolute ppinit pc
+	     in static_lookup' program pp
+	   in
+	     successors :=
+               List.fold_left
+		 (fun successors pp ->
+		    let cms =
+                      (get_meth pp).cm_class_method_signature
+		    in
+                      ClassMethodSet.add cms successors)
+		 !successors
+		 targets
+	 in
+	   (match m.cm_implementation with
+              | Native -> ()
+              | Java c ->
+		  Array.iteri
+		    (fun pc opcode -> match opcode with
+                       | JBir.MayInit cn' ->
+			   let c'= (get_node program cn') in
+			     begin
+                               match (get_class_to_initialize node c') with
+				 | None -> ()
+				 | Some c ->
+				     successors := ClassMethodSet.add c !successors
+			     end
+                       | JBir.InvokeVirtual _
+		       | JBir.InvokeNonVirtual _ -> 
+			   add_invoke pc
+		       | JBir.InvokeStatic (_,cn',_,_) -> 
+			   (match get_node program cn' with
+			     | Class _ -> ()
+			     | Interface _ -> 
+				 raise IncompatibleClassChangeError);
+			   add_invoke pc
+		       | _ -> ()
+		    )
+		    (Lazy.force c).JBir.code);
+	   !successors
+      )
+
 end
 
 module PP_A3Bir = struct 
-  include PP
+  include GenericPP (struct type t = A3Bir.t end)
     
-  type pp = A3Bir.t PP.t
-
-  let get_code (pp:pp) : A3Bir.instr array =
+  let get_code (pp:A3Bir.t PP.t) : A3Bir.instr array =
     match pp.meth.cm_implementation with
       | Java c -> (Lazy.force c).A3Bir.code
       | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
-  let get_opcode (pp:pp) : A3Bir.instr = 
+  let get_opcode (pp:A3Bir.t PP.t) : A3Bir.instr = 
     (get_code pp).(pp.pc)
       
   let next_instruction pp =
@@ -633,13 +1051,14 @@ module PP_A3Bir = struct
 	      match exn.A3Bir.e_catch_type with
 		| None -> false
 		| Some exn_name ->
-		    (* an exception handler can be pruned for an instruction if:
-		       - the exception handler is a subtype of Exception and
-		       - the exception handler is not a subtype nor a super-type of RuntimeException and
-		       - the instruction is not a method call or if
-                       the instruction is a method call which is not declared to throw
-		       an exception of a subtype of the handler
-		    *)
+		    (* an exception handler can be pruned for an
+		       instruction if: - the exception handler is a
+		       subtype of Exception and - the exception
+		       handler is not a subtype nor a super-type of
+		       RuntimeException and - the instruction is not a
+		       method call or if the instruction is a method
+		       call which is not declared to throw an
+		       exception of a subtype of the handler *)
 		    try
 		      let exn_class =
 			ioc2c (JProgram.get_node program exn_name)
@@ -686,356 +1105,48 @@ module PP_A3Bir = struct
     List.map 
       (fun e -> goto_absolute pp e.A3Bir.e_handler) (handlers program pp)
       
-end
-
-
-let invoke_virtual_lookup ?(c=None) ms instantiated_classes =
-  ClassMap.fold
-    (fun _ instantiated_class cmmap ->
-       (match c with
-	  | None -> ()
-	  | Some c -> assert (extends_class instantiated_class c)
-       );
-       let rc = resolve_method' ms instantiated_class in
-       let m = get_method (Class rc) ms in
-       let cm = match m with
-	 | AbstractMethod _ -> assert false
-	 | ConcreteMethod cm -> cm in
-       let rcmsig = make_cms (rc.c_info.c_name) ms in
-	 ClassMethodMap.add rcmsig (rc,cm) cmmap
-    ) instantiated_classes ClassMethodMap.empty
-
-let rec implements_interface_or_subinterface ioc i =
-  let interfaces = get_interfaces ioc in
-    if (interfaces = ClassMap.empty) then false
-    else if (ClassMap.mem i.i_info.i_name interfaces) then true
-    else
-      ClassMap.fold
-	(fun _ si b ->
-	   b || (implements_interface_or_subinterface (Interface si) i)
-	) interfaces false
-
-let rec implements_interface_or_subinterface_transitively c i =
-  let e = implements_interface_or_subinterface (Class c) i in
-    if e then true
-    else
-      match c.c_super with
-	| None -> false
-	| Some sc -> implements_interface_or_subinterface_transitively sc i
-
-let invoke_interface_lookup ?(i=None) ms instantiated_classes =
-  ClassMap.fold
-    (fun _ instantiated_class cmmap ->
-       (match i with
-	  | None -> ()
-	  | Some i -> assert (implements_interface_or_subinterface_transitively
-				instantiated_class i)
-       );
-       let rc = resolve_method' ms instantiated_class in
-       let m = get_method (Class rc) ms in
-       let cm = match m with
-	 | AbstractMethod _ -> assert false
-	 | ConcreteMethod cm -> cm in
-       let rcmsig = make_cms (rc.c_info.c_name) ms in
-	 ClassMethodMap.add rcmsig (rc,cm) cmmap
-    ) instantiated_classes ClassMethodMap.empty
-
-let invoke_special_lookup current_class called_class ms =
-  let ccs = get_name current_class in
-  let rc = resolve_method' ms called_class in
-  let rcs = rc.c_info.c_name in
-  let mname = ms_name ms in
-  let c =
-    if ( mname = "<init>"
-	|| cn_equal rcs ccs
-	|| not (extends current_class (Class rc)) ) then rc
-    else
-      match super_class current_class with
-	| None -> assert false
-	| Some sc -> resolve_method' ms sc in
-  let m = get_method (Class c) ms in
-    match m with
-      | AbstractMethod _ -> assert false
-      | ConcreteMethod cm -> (c,cm)
-
-let invoke_static_lookup c ms =
-  let rc = resolve_method' ms c in
-  let m = get_method (Class rc) ms in
-    match m with
-      | AbstractMethod _ -> assert false
-      | ConcreteMethod cm -> (rc,cm)
-
-(* Usefull functions for get_successors functions*)
-
-let get_class_to_initialize caller = function
-  | Interface _ as callee ->
-      if defines_method callee clinit_signature
-      then Some (make_cms (get_name callee) clinit_signature)
-      else None
-  | Class callee ->
-      let caller =
-        match caller with
-          | Interface {i_super = caller}
-          | Class caller
-            -> caller
-      in
-      let rec find_first_cl_with_clinit callee :'a class_node option=
-        if defines_method (Class callee) clinit_signature
-        then Some callee
-        else match callee.c_super with
-          | None -> None
-          | Some s -> find_first_cl_with_clinit s
-      in
-        match find_first_cl_with_clinit callee with
-          | None -> None
-          | Some callee ->
-              let rec find_last_cl_with_clinit prev callee =
-                match callee.c_super with
-                  | Some s_callee when (extends_class caller s_callee) -> prev
-                  | Some s_callee
-                      when defines_method (Class s_callee) clinit_signature
-                        -> find_last_cl_with_clinit (Some s_callee) s_callee
-                  | Some s_callee -> find_last_cl_with_clinit prev s_callee
-                  | None -> prev
-              in
-                match find_last_cl_with_clinit None callee with
-                  | None -> None
-                  | Some c ->
-                      Some (make_cms c.c_info.c_name clinit_signature)
-
-(* Common code for get_successors functions *)
-
-let get_successors
-    (f: 'a program -> 'a node -> 'a concrete_method -> ClassMethodSet.t -> ClassMethodSet.t)
-    (program:'a program)
-    (node:'a node)
-    (m:'a concrete_method)
-    : ClassMethodSet.t =
-  let successors = ref ClassMethodSet.empty in
-    if m.cm_signature = clinit_signature
-    then
-      begin
-        let rec add_c_children_clinit class_node =
-          try
-            successors :=
-              ClassMethodSet.add
-                (get_class_method_signature
-                   (get_method (Class class_node) clinit_signature))
-                !successors
-          with _ ->
-            List.iter add_c_children_clinit class_node.c_children
-        in
-          match node with
-            | Class class_node ->
-                List.iter add_c_children_clinit class_node.c_children
-            | Interface _ -> ()
-      end;
-    f program node m !successors
-
-(* Functions for JCode.jcode*)
-
-  let static_lookup_bc program pp =
-    match PP_BC.get_opcode pp with
-      | OpInvoke (`Virtual obj, ms) ->
-          Some (static_lookup_virtual program obj ms,ms)
-      | OpInvoke (`Static cs, ms) ->
-          Some ([static_lookup_static program cs ms],ms)
-      | OpInvoke (`Special cs, ms) ->
-          Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
-      | OpInvoke (`Interface cs, ms) ->
-	  Some (static_lookup_interface program cs ms,ms)
-      | _ -> None
-
-  let static_lookup_bc' program pp =
-    match PP_BC.get_opcode pp with
-      | OpInvoke _ ->
-          let cs = get_name (PP_BC.get_class pp)
-          and ms = (PP_BC.get_meth pp).cm_signature
-          in
-            List.map
-              (fun (cs,ms) -> PP_BC.get_first_pp program cs ms)
-              (List.map
-		 (fun (cs,ms) ->
-                    let c = get_node program cs
-                    in match get_method c ms with
-                      | AbstractMethod _ -> assert false;
-                      | ConcreteMethod _ -> (cs,ms))
-		 (List.map cms_split
-		    (ClassMethodSet.elements
-                       (program.static_lookup_method cs ms pp.pc))))
-      | _ -> []
-
-
-
-(** returns the possible methods that may be invoked from the current
-    program point. For the static initialization, only the topmost
-    class initializer is return, and the successors of a clinit
-    methods includes the clinit methods that are beneath. *)
-let get_successors_bc = 
-  get_successors 
-    (fun program node m succ -> 
-       let successors = ref succ in
-	 (match m.cm_implementation with
-            | Native -> ()
-            | Java c ->
-		let ppinit = PP_BC.get_pp node m 0 in
-		  Array.iteri
-		    (fun pc opcode -> match opcode with
-                       | JCode.OpNew cn' ->
-			   let c'= (get_node program cn') in
-			     begin
-                               match (get_class_to_initialize node c') with
-				 | None -> ()
-				 | Some c ->
-				     successors := ClassMethodSet.add c !successors
-			     end
-                       | JCode.OpGetStatic (cn',fs')
-                       | JCode.OpPutStatic (cn',fs') ->
-			   (* successeur : clinit du plus haut parant de cn'
-                              n'ayant peut-être pas déjà été initialisé.
-                              java.lang.Object.<clinit> est donc correct,
-                              mais (TODO) on pourrait être plus précis
-                              (entre autre, inutile d'initialisé une
-                              super-classe de la classe courrante). *)
-			  let c'= (get_node program cn')
-			  in
-			    List.iter
-                              (fun c' ->
-				 match (get_class_to_initialize node c') with
-				   | None -> ()
-				   | Some c ->
-                                       successors := ClassMethodSet.add c !successors
-                              )
-                              (resolve_field fs' c')
-                      | JCode.OpInvoke (kind,ms) ->
-			  begin
-			    match kind with
-                              | `Static cn' ->
-				  let c' = match get_node program cn' with
-				    | Class c' -> c'
-				    | Interface _ -> raise IncompatibleClassChangeError
-				  in
-				  let c' = resolve_method' ms c' in
-				    (match (get_class_to_initialize node (Class c')) with
-                                       | None -> ()
-                                       | Some c ->
-					   successors :=
-                                             ClassMethodSet.add c !successors)
-                              | _ -> ()
-			  end;
-			  let targets =
-			    let pp = PP_BC.goto_absolute ppinit pc
-			    in static_lookup_bc' program pp
-			  in
-			    successors :=
-                              List.fold_left
-				(fun successors pp ->
-				   let cms =
-                                     (PP_BC.get_meth pp).cm_class_method_signature
-				   in
-                                     ClassMethodSet.add cms successors)
-				!successors
-				targets
-                      | _ -> ()
-		   )
-		   (Lazy.force c).JCode.c_code);
-	 !successors
-    )
-
-(* Functions for JBir.t*)
-
-     
-  let static_lookup_bir program pp =
-    match PP_Bir.get_opcode pp with
-      | JBir.InvokeVirtual (_,_,kind, ms,_) ->
+  let static_lookup program pp =
+    match get_opcode pp with
+      | A3Bir.InvokeVirtual (_,_,kind, ms,_) ->
 	  (match kind with
-	       JBir.VirtualCall obj -> 
+	       A3Bir.VirtualCall obj -> 
 		 Some (static_lookup_virtual program obj ms,ms)
-	     | JBir.InterfaceCall cs -> 
+	     | A3Bir.InterfaceCall cs -> 
 		 Some (static_lookup_interface program cs ms,ms)
 	  )
-      | JBir.InvokeStatic (_, cs, ms,_) ->
+      | A3Bir.InvokeStatic (_, cs, ms,_) ->
           Some ([static_lookup_static program cs ms],ms)
-      | JBir.InvokeNonVirtual (_, _, cs, ms, _) ->
+      | A3Bir.InvokeNonVirtual (_, _, cs, ms, _) ->
           Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
       | _ -> None
 
-  let static_lookup_bir' program pp =
-    match PP_Bir.get_opcode pp with
-      | JBir.InvokeStatic _
-      | JBir.InvokeVirtual _ 
-      | JBir.InvokeNonVirtual _ ->
-          let cs = get_name (PP_Bir.get_class pp)
-          and ms = (PP_Bir.get_meth pp).cm_signature
-          in
-            List.map
-              (fun (cs,ms) -> PP_Bir.get_first_pp program cs ms)
-              (List.map
-		 (fun (cs,ms) ->
-                    let c = get_node program cs
-                    in match get_method c ms with
-                      | AbstractMethod _ -> assert false;
-                      | ConcreteMethod _ -> (cs,ms))
-		 (List.map cms_split
-		    (ClassMethodSet.elements
-                       (program.static_lookup_method cs ms pp.pc))))
-      | _ -> []
 
-
-let get_successors_bir = 
-  get_successors 
-    (fun program node m succ -> 
-       let ppinit = PP_Bir.get_pp node m 0 
-       and successors = ref succ in
-       let add_field cn' fs' = 
-	 (* successeur : clinit du plus haut parant de cn'
-            n'ayant peut-être pas déjà été initialisé.
-            java.lang.Object.<clinit> est donc correct,
-            mais (TODO) on pourrait être plus précis
-            (entre autre, inutile d'initialisé une
-            super-classe de la classe courrante). *)
-	 let c'= (get_node program cn')
+  let get_successors = 
+    get_successors 
+      (fun program node m succ -> 
+	 let ppinit = get_pp node m 0 
+	 and successors = ref succ in
+	 let add_invoke pc =
+	   let targets =
+	     let pp = goto_absolute ppinit pc
+	     in static_lookup' program pp
+	   in
+	     successors :=
+               List.fold_left
+		 (fun successors pp ->
+		    let cms =
+                      (get_meth pp).cm_class_method_signature
+		    in
+                      ClassMethodSet.add cms successors)
+		 !successors
+		 targets
 	 in
-	   List.iter
-             (fun c' ->
-		match (get_class_to_initialize node c') with
-		  | None -> ()
-		  | Some c ->
-		      successors := ClassMethodSet.add c !successors
-             )
-             (resolve_field fs' c')
-       in
-       let rec expr_is_get_static expr = 
-	 match expr with 
-	     JBir.Unop (_,e)
-	   | JBir.Binop (_,e,_)
-	     -> expr_is_get_static e
-	   | JBir.StaticField (cn',fs') -> 
-	       add_field cn' fs'
-	   | _ -> ()
-       in
-       let add_invoke pc =
-	 let targets =
-	   let pp = PP_Bir.goto_absolute ppinit pc
-	   in static_lookup_bir' program pp
-	 in
-	   successors :=
-             List.fold_left
-	       (fun successors pp ->
-		  let cms =
-                    (PP_Bir.get_meth pp).cm_class_method_signature
-		  in
-                    ClassMethodSet.add cms successors)
-	       !successors
-	       targets
-       in
-	 (match m.cm_implementation with
-            | Native -> ()
-            | Java c ->
+	   (match m.cm_implementation with
+              | Native -> ()
+              | Java c ->
 		  Array.iteri
 		    (fun pc opcode -> match opcode with
-                       | JBir.New (_,cn',_,e_l) ->
-			   List.iter expr_is_get_static e_l;
+		       | A3Bir.MayInit cn' -> 
 			   let c'= (get_node program cn') in
 			     begin
                                match (get_class_to_initialize node c') with
@@ -1043,190 +1154,20 @@ let get_successors_bir =
 				 | Some c ->
 				     successors := ClassMethodSet.add c !successors
 			     end
-                       | JBir.AffectStaticField (cn',fs',e) ->
-			   expr_is_get_static e;
-			   add_field cn' fs'
-                       | JBir.InvokeVirtual (_,e,_,_,e_l)
-		       | JBir.InvokeNonVirtual (_,e,_,_,e_l) -> 
-			   List.iter expr_is_get_static (e::e_l);
-			   add_invoke pc
-		       | JBir.InvokeStatic (_,cn',ms,e_l) -> 
-			   List.iter expr_is_get_static e_l;
-			   let c' = match get_node program cn' with
-			     | Class c' -> c'
-			     | Interface _ -> 
-				 raise IncompatibleClassChangeError
-			   in
-			   let c' = resolve_method' ms c' in
-			     (match 
-				(get_class_to_initialize node (Class c')) 
-			      with
-				| None -> ()
-				| Some c ->
-				    successors :=
-                                      ClassMethodSet.add c !successors);
-			     add_invoke pc
-			       
-		       (*TODO: check if all expr could contain a
-			 get_static: It should not for many cases but
-			 bir grammar does not guarantee it !*)
-		       | JBir.AffectArray (e1,e2,e3) -> 
-			   expr_is_get_static e1;
-			   expr_is_get_static e2;
-			   expr_is_get_static e3
-		       | JBir.AffectField (e1,_,_,e2) 
-		       | JBir.Ifd ((_,e1,e2),_) -> 
-			   expr_is_get_static e1;
-			   expr_is_get_static e2
-		       | JBir.NewArray (_,_,e_l) -> 
-			   List.iter expr_is_get_static e_l
-		       | JBir.Return e -> 
-			   (match e with 
-				None -> () 
-			      | Some e -> expr_is_get_static e)
-		       | JBir.Check ch -> 
-			   (match ch with 
-			      | JBir.CheckNullPointer expr
-			      | JBir.CheckNegativeArraySize expr
-			      | JBir.CheckCast (expr, _)
-			      | JBir.CheckArithmetic expr -> 
-				  expr_is_get_static expr
-			      | JBir.CheckArrayBound (expr, expr2)
-			      | JBir.CheckArrayStore (expr, expr2) -> 
-				  expr_is_get_static expr;
-				  expr_is_get_static expr2)
-		    
-		       | JBir.AffectVar (_,e) 
-		       | JBir.Throw e
-		       | JBir.MonitorEnter e
-		       | JBir.MonitorExit e -> expr_is_get_static e
-                       | _ -> ()
-		    )
-		   (Lazy.force c).JBir.code);
-	 !successors
-    )
-
-(* Functions for A3Bir.t*)
-
-let static_lookup_a3bir program pp =
-  match PP_A3Bir.get_opcode pp with
-    | A3Bir.InvokeVirtual (_,_,kind, ms,_) ->
-	(match kind with
-	     A3Bir.VirtualCall obj -> 
-	       Some (static_lookup_virtual program obj ms,ms)
-	   | A3Bir.InterfaceCall cs -> 
-	       Some (static_lookup_interface program cs ms,ms)
-	)
-    | A3Bir.InvokeStatic (_, cs, ms,_) ->
-        Some ([static_lookup_static program cs ms],ms)
-    | A3Bir.InvokeNonVirtual (_, _, cs, ms, _) ->
-        Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
-    | _ -> None
-
-let static_lookup_a3bir' program pp =
-  match PP_A3Bir.get_opcode pp with
-    | A3Bir.InvokeStatic _
-    | A3Bir.InvokeVirtual _ 
-    | A3Bir.InvokeNonVirtual _ ->
-        let cs = get_name (PP_A3Bir.get_class pp)
-        and ms = (PP_A3Bir.get_meth pp).cm_signature
-        in
-          List.map
-            (fun (cs,ms) -> PP_A3Bir.get_first_pp program cs ms)
-            (List.map
-	       (fun (cs,ms) ->
-                  let c = get_node program cs
-                  in match get_method c ms with
-                    | AbstractMethod _ -> assert false;
-                    | ConcreteMethod _ -> (cs,ms))
-	       (List.map cms_split
-		  (ClassMethodSet.elements
-                     (program.static_lookup_method cs ms pp.pc))))
-    | _ -> []
-
-
-let get_successors_a3bir = 
-  get_successors 
-    (fun program node m succ -> 
-       let ppinit = PP_A3Bir.get_pp node m 0 
-       and successors = ref succ in
-       let add_field cn' fs' = 
-	 (* successeur : clinit du plus haut parant de cn'
-            n'ayant peut-être pas déjà été initialisé.
-            java.lang.Object.<clinit> est donc correct,
-            mais (TODO) on pourrait être plus précis
-            (entre autre, inutile d'initialisé une
-            super-classe de la classe courrante). *)
-	 let c'= (get_node program cn')
-	 in
-	   List.iter
-             (fun c' ->
-		match (get_class_to_initialize node c') with
-		  | None -> ()
-		  | Some c ->
-		      successors := ClassMethodSet.add c !successors
-             )
-             (resolve_field fs' c')
-       in
-       let expr_is_get_static expr = 
-	 match expr with 
-	   | A3Bir.StaticField (cn',fs') -> 
-	       add_field cn' fs'
-	   | _ -> ()
-       in
-       let add_invoke pc =
-	 let targets =
-	   let pp = PP_A3Bir.goto_absolute ppinit pc
-	   in static_lookup_a3bir' program pp
-	 in
-	   successors :=
-             List.fold_left
-	       (fun successors pp ->
-		  let cms =
-                    (PP_A3Bir.get_meth pp).cm_class_method_signature
-		  in
-                    ClassMethodSet.add cms successors)
-	       !successors
-	       targets
-       in
-	 (match m.cm_implementation with
-            | Native -> ()
-            | Java c ->
-		  Array.iteri
-		    (fun pc opcode -> match opcode with
-                       | A3Bir.New (_,cn',_,_) ->
-			   let c'= (get_node program cn') in
-			     begin
-                               match (get_class_to_initialize node c') with
-				 | None -> ()
-				 | Some c ->
-				     successors := ClassMethodSet.add c !successors
-			     end
-                       | A3Bir.AffectStaticField (cn',fs',e) ->
-			   expr_is_get_static e;
-			   add_field cn' fs'
                        | A3Bir.InvokeVirtual _
 		       | A3Bir.InvokeNonVirtual _ -> 
 			   add_invoke pc
-		       | A3Bir.InvokeStatic (_,cn',ms,_) -> 
-			   let c' = match get_node program cn' with
-			     | Class c' -> c'
+		       | A3Bir.InvokeStatic (_,cn',_,_) -> 
+			   (match get_node program cn' with
+			     | Class _ -> ()
 			     | Interface _ -> 
-				 raise IncompatibleClassChangeError
-			   in
-			   let c' = resolve_method' ms c' in
-			     (match 
-				(get_class_to_initialize node (Class c')) 
-			      with
-				| None -> ()
-				| Some c ->
-				    successors :=
-                                      ClassMethodSet.add c !successors);
-			     add_invoke pc
-		       | A3Bir.AffectVar (_,e) -> 
-			   expr_is_get_static e
+				 raise IncompatibleClassChangeError);
+			   add_invoke pc
                        | _ -> ()
 		    )
-		   (Lazy.force c).A3Bir.code);
-	 !successors
-    )
+		    (Lazy.force c).A3Bir.code);
+	   !successors
+      )
+
+
+end
