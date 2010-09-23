@@ -27,16 +27,6 @@ include Cmn
 
 (*********** TYPES *************)
 
-type binop =
-  | ArrayLoad of JBasics.value_type
-  | Add of JBasics.jvm_basic_type
-  | Sub of JBasics.jvm_basic_type
-  | Mult of JBasics.jvm_basic_type
-  | Div of JBasics.jvm_basic_type
-  | Rem of JBasics.jvm_basic_type
-  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
-  | LShl | LShr | LAnd | LOr | LXor | LUshr
-  | CMP of comp
 
 type expr =
   | Const of const
@@ -101,90 +91,6 @@ type t = {
 type op_size = Op32 | Op64
 
 (************* PRINT ************)
-
-let print_binop = function
-  | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
-  | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
-  | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
-  | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
-  | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
-  | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
-  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
-  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
-  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
-  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s"
-      (match c with
-	   DG -> "DG"
-	 | DL -> "DL"
-	 | FG -> "FG"
-	 | FL -> "FL"
-	 | L -> "L"
-      )
-
-let rec print_list_sep_rec sep pp = function
-  | [] -> ""
-  | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
-
-let rec print_list_sep_list_rec sep pp = function
-  | [] -> []
-  | x::q -> (sep^(pp x))::(print_list_sep_list_rec sep pp q)
-
-let print_list_sep sep pp = function
-  | [] -> ""
-  | x::q -> (pp x)^(print_list_sep_rec sep pp q)
-
-let print_list_sep_list sep pp = function
-  | [] -> []
-  | x::q -> (pp x)::(print_list_sep_list_rec sep pp q)
-
-let rec last = function
-  | [] -> raise (JBasics.No_class_found "") (* non emty class identifier *)
-  | [a] -> a
-  | _::q -> last q
-
-let print_field ?(long_fields=false) c f =
-  if long_fields then
-    Printf.sprintf "<%s:%s>" (JPrint.class_name c) (fs_name f)
-  else (fs_name f)
-
-let bracket b s =
-  if b then s else Printf.sprintf "(%s)" s
-
-
-let print_unop = function
-  | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
-  | Conv conv ->
-      begin
-	match conv with
-	  | I2L -> "I2L"  | I2F -> "I2F"  | I2D -> "I2D"
-	  | L2I -> "L2I"  | L2F -> "L2F"  | L2D -> "L2D"
-	  | F2I -> "F2I"  | F2L -> "F2L"  | F2D -> "F2D"
-	  | D2I -> "D2I"  | D2L -> "D2L"  | D2F -> "D2F"
-	  | I2B -> "I2B"  | I2C -> "I2C"  | I2S -> "I2S"
-      end
-  | ArrayLength -> "ArrayLength"
-  | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
-  | Cast _ -> assert false
-
-let print_typ t =
-  let bt2ss = function
-    | `Long -> "J"
-    | `Float -> "F"
-    | `Double -> "D"
-    | `Int -> "I"
-    | `Short -> "S"
-    | `Char -> "C"
-    | `Byte -> "B"
-    | `Bool -> "Z"
-  in
-  let rec ot2ss = function
-    | TClass _ -> "O"
-    | TArray t -> "["^ vt2ss t
-  and vt2ss = function
-    | TBasic t -> bt2ss t
-    | TObject t -> ot2ss t
-  in vt2ss t
 
 let rec print_expr ?(show_type=true) first_level = function
   | Var (t,x) -> 
@@ -908,12 +814,6 @@ let run bcv ?(verbose=false) cm code =
   if bcv then run verbose cm code
   else (run_dummy code)
 end
-
-let basic_to_num = function
-  | `Int2Bool -> `Int
-  | `Long -> `Long
-  | `Double -> `Double
-  | `Float -> `Float
 
 let rec type_of_expr = function
   | Var (t,_) -> t
@@ -1669,7 +1569,7 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-let bc2ir dico flat ch_link ssa pp_var jump_target load_type arrayload_type code =
+let bc2ir dico mode ch_link ssa pp_var jump_target load_type arrayload_type code =
   let rec loop as_ts_jump ins ts_in as_in pc fresh_counter =
 
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
@@ -1697,7 +1597,7 @@ let bc2ir dico flat ch_link ssa pp_var jump_target load_type arrayload_type code
       else (ts_in,as_in)
     in
     let ts_out = type_next code.c_code.(pc) ts_in in
-    let (as_out,instrs) = bc2bir_instr dico flat pp_var ch_link ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
+    let (as_out,instrs) = bc2bir_instr dico mode pp_var ch_link ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
 
       (* fail on backward branchings on a non-empty stack *)
       if List.length as_out>0 then
@@ -1746,7 +1646,6 @@ let search_name_localvar static code i x =
     | None ->  None
     | Some (s,_) -> Some s
 
-let bcvar i = OriginalVar (i,None)
 
 let compute_jump_target code =
   let jump_target = Array.make (Array.length code.c_code) false in
@@ -1909,16 +1808,6 @@ let jump_target code =
       code.code;
     jump_target
 
-let exception_edges code exc_tbl = 
-  JUtil.foldi 
-      (fun i _ l ->
-	 List.rev_append
-	   (List.map 
-	      (fun e -> (i,e))
-	      (List.filter (fun e -> e.e_start <= i && i < e.e_end) exc_tbl))
-	   l)
-      [] 
-      code
 
 (* Agregation of boolean tests  *)
 module AgregatBool = struct

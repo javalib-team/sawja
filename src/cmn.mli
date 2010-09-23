@@ -18,6 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(** Common code for intermediate representations JBir and A3Bir.*)
+
 open Javalib_pack
 
 type const =
@@ -43,6 +45,7 @@ type unindexed_var =
   | BranchVar2 of int * int
 
 type var = int * unindexed_var
+
 
 (** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
 val var_equal : var -> var -> bool
@@ -79,7 +82,7 @@ type dictionary
 (** build an empty dictionary. *)
 val make_dictionary : unit -> dictionary
 
-(** [make_var d v] return the indexified versino of [v]. Add it to [d] if necessary. *)
+(** [make_var d v] return the indexified version of [v]. Add it to [d] if necessary. *)
 val make_var : dictionary -> unindexed_var -> var
 
 (** [make_array_var d] build the array of all variables that appear in [d].
@@ -96,9 +99,25 @@ type unop =
   | InstanceOf of JBasics.object_type
   | Cast of JBasics.object_type
 
+val basic_to_num : JBasics.jvm_basic_type ->
+  [> `Double | `Float | `Int | `Long ]
+
 val print_unop : unop -> string
 
 type comp =  DG | DL | FG | FL | L
+
+type binop =
+  | ArrayLoad of JBasics.value_type
+  | Add of JBasics.jvm_basic_type
+  | Sub of JBasics.jvm_basic_type
+  | Mult of JBasics.jvm_basic_type
+  | Div of JBasics.jvm_basic_type
+  | Rem of JBasics.jvm_basic_type
+  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
+  | LShl | LShr | LAnd | LOr | LXor | LUshr
+  | CMP of comp
+
+val print_binop : binop -> string
 
 val print_typ : JBasics.value_type -> string
 
@@ -137,3 +156,15 @@ type exception_handler = {
 	e_catch_type : JBasics.class_name option;
 	e_catch_var : var
 }
+
+val exception_edges: 'a array -> exception_handler list -> (int * exception_handler) list
+
+val print_list_sep: string -> ('a -> string) -> 'a list -> string
+
+val print_list_sep_list: string -> ('a -> string) -> 'a list -> string list
+
+val print_field: ?long_fields:bool ->
+  Javalib_pack.JBasics.class_name ->
+  Javalib_pack.JBasics.field_signature -> string
+
+val bracket: bool -> string -> string

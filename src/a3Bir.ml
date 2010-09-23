@@ -28,17 +28,6 @@ open JCode
 
 include Cmn
 
-type binop =
-  | ArrayLoad  of JBasics.value_type
-  | Add of jvm_basic_type
-  | Sub of jvm_basic_type 
-  | Mult of jvm_basic_type
-  | Div of jvm_basic_type
-  | Rem of jvm_basic_type
-  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
-  | LShl | LShr | LAnd | LOr | LXor | LUshr
-  | CMP of comp
-
 type basic_expr = 
   | Const of const
   | Var of value_type * var
@@ -72,7 +61,7 @@ and type_of_expr = function
   | Unop (u,_) -> 
       TBasic 
 	(match u with
-	   | Neg t -> Bir.basic_to_num t
+	   | Neg t -> basic_to_num t
 	   | Conv c ->
 	       (match c with
 		  | I2L | F2L | D2L -> `Long
@@ -137,7 +126,6 @@ type instr =
   | MayInit of class_name
   | Check of check 
 
-let bcvar = Bir.bcvar
 
 exception Bad_Multiarray_dimension = Bir.Bad_Multiarray_dimension 
 exception Bad_stack = Bir.Bad_stack
@@ -247,36 +235,8 @@ let jump_target code =
       code.code;
     jump_target
 
-let print_binop = function
-  | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
-  | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
-  | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
-  | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
-  | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
-  | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
-  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
-  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
-  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
-  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s" 
-      (match c with 
-	   DG -> "DG"
-	 | DL -> "DL"
-	 | FG -> "FG"
-	 | FL -> "FL" 
-	 | L -> "L"
-      )
-
-let print_field ?(long_fields=false) c f =
-  if long_fields then
-    Printf.sprintf "<%s:%s>" (JPrint.class_name c) (fs_name f)
-  else (fs_name f)
-
-let bracket b s =
-  if b then s else Printf.sprintf "(%s)" s 
-
 let rec print_basic_expr = function 
-  | Var (_,x) -> Bir.var_name_g x  
+  | Var (_,x) -> var_name_g x  
   | Const i -> print_const i
 
 and print_expr first_level = function
@@ -318,16 +278,16 @@ let print_instr = function
   | Throw e -> Printf.sprintf "throw %s" (print_basic_expr  e)
   | Return None -> Printf.sprintf "return"
   | Return (Some e) -> Printf.sprintf "return %s" (print_basic_expr e)
-  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (Bir.print_list_sep "," (print_basic_expr) le) 
-  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (Bir.print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_basic_expr  e)) le) 
-  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s) // static" (JPrint.class_name c) (ms_name ms) (Bir.print_list_sep "," (print_basic_expr) le) 
-  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s) // static" (var_name_g x) (JPrint.class_name c) (ms_name ms) (Bir.print_list_sep "," (print_basic_expr) le) 
+  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_basic_expr) le) 
+  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_basic_expr  e)) le) 
+  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s) // static" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_basic_expr) le) 
+  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s) // static" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_basic_expr) le) 
   | InvokeVirtual (r,x,k,ms,le) -> 
       Printf.sprintf "%s%s.%s(%s) // %s"
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_basic_expr x) (ms_name ms) (Bir.print_list_sep "," print_basic_expr le)
+	(print_basic_expr x) (ms_name ms) (print_list_sep "," print_basic_expr le)
 	(match k with
 	   | VirtualCall objt -> "virtual "^(JPrint.object_type objt)
 	   | InterfaceCall cn -> "interface "^(JPrint.class_name cn)
@@ -337,7 +297,7 @@ let print_instr = function
 	(match r with
 	   | None -> ""
 	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_basic_expr x) (JPrint.class_name kd) (ms_name ms) (Bir.print_list_sep "," print_basic_expr le) 
+	(print_basic_expr x) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," print_basic_expr le) 
   | MonitorEnter e -> Printf.sprintf "monitorenter(%s)" (print_basic_expr e)
   | MonitorExit e -> Printf.sprintf "monitorexit(%s)" (print_basic_expr e)
   | MayInit c -> Printf.sprintf "mayinit %s" (JPrint.class_name c)
@@ -380,7 +340,7 @@ let transform ?(bcv=false) ?(ch_link=false) j_m j_code =
   let code = Bir.transform_addr3 ~bcv:bcv ~ch_link:ch_link j_m j_code in 
     bir2a3bir code
 
-let exception_edges m = Bir.exception_edges m.code m.exc_tbl 
+let exception_edges m = exception_edges m.code m.exc_tbl 
       
 
 (* Redefining print_expr to be exported in the mli. *)

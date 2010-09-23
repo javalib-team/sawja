@@ -38,7 +38,7 @@ MODULES =jUtil safe wlist jProgram jControlFlow classDomain reachableMethods XTA
 	 ssaBir
 
 MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA		\
-	jNativeStubs jCRA jRTA jRRTA jsrInline cmn jBir a3Bir jPrintHtml \
+	jNativeStubs jCRA jRTA jRRTA jsrInline jBir a3Bir jPrintHtml \
 	$(DATAFLOW)iter ssaBir
 
 FOR_PACK= -for-pack Sawja_pack

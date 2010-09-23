@@ -18,6 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(** Transform an original code containing subroutines in an equivalent version without subroutines if it does not contains too complex subroutines (like nested subroutines).*)
+
 open Javalib_pack
 
 (** [inline code] returns [Some code'] where [code'] is an equivalent
