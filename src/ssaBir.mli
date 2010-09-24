@@ -225,7 +225,7 @@ val print : t -> string list
 
 (** [transform_from_bir ir_code] transforms the Jbir code [ir_code] into 
     its SSA representation. *)
-val transform_from_bir : JBir.t -> t
+(*val transform_from_bir : JBir.t -> t*)
 
 (** [transform ~bcv cm jcode] transforms the code [jcode] into its
     SSA representation. The transformation is performed in the

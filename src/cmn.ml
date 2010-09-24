@@ -22,6 +22,150 @@ open Javalib_pack
 open JBasics
 open JCode
 
+module type VarSig = 
+sig
+  type var
+  val var_equal: var -> var -> bool
+  val var_name_debug: var -> string option
+  val var_name: var -> string
+  val var_name_g: var -> string
+  val bc_num: var -> int option
+end
+
+  (* Variables *)
+module Var = 
+struct
+  type unindexed_var =
+    | OriginalVar of int * string option (* register number, name (debug if available) *)
+    | TempVar of int
+    | CatchVar of int
+    | BranchVar of int * int
+    | BranchVar2 of int * int
+
+  type var = int * unindexed_var
+
+  let var_equal ((i1,_):var) ((i2,_):var) = i1==i2
+
+  let varname =  "$bcvar"
+  let tempname =  "$irvar"
+  let branchvarname =  "$T"
+  let branchvarname2 =  "$T'"
+
+  let var_name_debug (_,v) =
+    match v with
+      | OriginalVar (_,s) -> s
+      | _ -> None
+
+  let var_name (_,v) = 
+    match v with
+      | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
+      | TempVar i -> Printf.sprintf "%s%d" tempname i
+      | CatchVar i -> Printf.sprintf "CatchVar%d" i
+      | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
+      | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
+	  
+  let var_name_g x =
+    match var_name_debug x with
+      | Some s -> s
+      | None -> var_name x
+
+  let bc_num (_,v) = 
+    match v with
+      | OriginalVar (j,_) -> Some j
+      |  _ -> None
+
+  let index (i,_) = i
+
+  let var_orig  (_,v) = 
+    match v with
+      | OriginalVar _ -> true
+      | _ -> false
+
+  let var_ssa  (_,v) = 
+    match v with
+      | TempVar _ 
+      | CatchVar _ -> true
+      | _ -> false
+
+  let compare_originalvar x y = 
+    match (x, y) with
+      | (OriginalVar (x,_),OriginalVar (y,_)) -> compare x y
+      | (x,y) -> compare x y
+
+  module VarMap = Map.Make(struct type t=unindexed_var let compare = compare_originalvar end)
+
+  type dictionary =
+      { mutable var_map : var VarMap.t;
+	mutable var_next : int }
+
+  let make_dictionary () =
+    { var_map = VarMap.empty;
+      var_next = 0}
+
+  let make_var (d:dictionary) : unindexed_var -> var =
+    function v ->
+      try
+	VarMap.find v d.var_map
+      with Not_found -> 
+	let new_v = (d.var_next,v) in
+	  d.var_map <- VarMap.add v new_v d.var_map;
+	  d.var_next <- 1+ d.var_next;
+	  new_v
+
+  let make_array_var d =
+    let dummy = (-1,(TempVar (-1))) in
+    let t = Array.make d.var_next dummy in
+      VarMap.iter (fun _  v -> t.(fst v) <- v) d.var_map;
+      t
+
+end
+
+module type ExceptionSig = sig
+type v
+type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : v
+}
+val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
+val print_handler : exception_handler -> string
+end
+
+module Exception (Var: VarSig) = struct
+  (* Exceptions *)
+  type v = Var.var
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : v
+  }
+
+  let exception_edges' code exc_tbl = 
+    JUtil.foldi 
+      (fun i _ l ->
+	 List.rev_append
+	   (List.map 
+	      (fun e -> (i,e))
+	      (List.filter (fun e -> e.e_start <= i && i < e.e_end) exc_tbl))
+	   l)
+      [] 
+      code
+
+  let print_handler exc = 
+    Printf.sprintf "      [%d-%d] -> %d (%s %s)" exc.e_start exc.e_end exc.e_handler
+      (match exc.e_catch_type with
+	 | None -> "_"
+	 | Some cl -> JPrint.class_name cl)
+      (Var.var_name_g exc.e_catch_var)  
+end
+
+module ExceptionNormalVar = Exception (Var)
+
+module Common = struct
 (* Basic types *)
 
 type mode = Normal | Flat | Addr3 
@@ -59,114 +203,6 @@ type binop =
   | LShl | LShr | LAnd | LOr | LXor | LUshr
   | CMP of comp
 
-
-type typ = Ref | Num
-
-type unindexed_var =
-  | OriginalVar of int * string option (* register number, name (debug if available) *)
-  | TempVar of int
-  | CatchVar of int
-  | BranchVar of int * int
-  | BranchVar2 of int * int
-
-type var = int * unindexed_var
-
-(* Variables *)
-
-let var_equal ((i1,_):var) ((i2,_):var) = i1==i2
-
-let varname =  "$bcvar"
-let tempname =  "$irvar"
-let branchvarname =  "$T"
-let branchvarname2 =  "$T'"
-
-let var_name_debug (_,v) =
-  match v with
-    | OriginalVar (_,s) -> s
-    | _ -> None
-
-let var_name (_,v) = 
-  match v with
-    | OriginalVar (j,_) -> Printf.sprintf  "%s%d" varname j
-    | TempVar i -> Printf.sprintf "%s%d" tempname i
-    | CatchVar i -> Printf.sprintf "CatchVar%d" i
-    | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
-    | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
-	
-let var_name_g x =
-  match var_name_debug x with
-    | Some s -> s
-    | None -> var_name x
-
-let bc_num (_,v) = 
-  match v with
-    | OriginalVar (j,_) -> Some j
-    |  _ -> None
-
-let compare_originalvar x y = 
-  match (x, y) with
-    | (OriginalVar (x,_),OriginalVar (y,_)) -> compare x y
-    | (x,y) -> compare x y
-
-module VarMap = Map.Make(struct type t=unindexed_var let compare = compare_originalvar end)
-
-type dictionary =
-    { mutable var_map : var VarMap.t;
-      mutable var_next : int }
-
-let make_dictionary () =
-  { var_map = VarMap.empty;
-    var_next = 0}
-
-let make_var (d:dictionary) : unindexed_var -> var =
-  function v ->
-    try
-      VarMap.find v d.var_map
-    with Not_found -> 
-      let new_v = (d.var_next,v) in
-	d.var_map <- VarMap.add v new_v d.var_map;
-	d.var_next <- 1+ d.var_next;
-	new_v
-
-let make_array_var d =
-  let dummy = (-1,(TempVar (-1))) in
-  let t = Array.make d.var_next dummy in
-    VarMap.iter (fun _  v -> t.(fst v) <- v) d.var_map;
-    t
-
-let index (i,_) = i
-
-let var_orig  (_,v) = 
-  match v with
-    | OriginalVar _ -> true
-    | _ -> false
-
-let var_ssa  (_,v) = 
-  match v with
-    | TempVar _ 
-    | CatchVar _ -> true
-    | _ -> false
-
-(* Exceptions *)
-
-type exception_handler = {
-	e_start : int;
-	e_end : int;
-	e_handler : int;
-	e_catch_type : class_name option;
-	e_catch_var : var
-}
-
-let exception_edges code exc_tbl = 
-  JUtil.foldi 
-      (fun i _ l ->
-	 List.rev_append
-	   (List.map 
-	      (fun e -> (i,e))
-	      (List.filter (fun e -> e.e_start <= i && i < e.e_end) exc_tbl))
-	   l)
-      [] 
-      code
 
 (* Type transformation *)
 
@@ -270,3 +306,5 @@ let print_field ?(long_fields=false) c f =
 
 let bracket b s =
   if b then s else Printf.sprintf "(%s)" s
+
+end

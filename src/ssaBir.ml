@@ -11,6 +11,83 @@ open JBir
 
 *)
 
+module Var = 
+  struct
+    type var = JBir.var * int
+
+    let var_equal (v1,i1) (v2,i2) =
+      var_equal v1 v2 && i1=i2
+
+    let var_orig (v,_) = var_orig v
+
+    let var_name_debug (v,_) = var_name_debug v
+
+    let var_name (v,i) = Printf.sprintf "%s_%d" (var_name v) i
+
+    let var_name_g (v,i) = Printf.sprintf "%s_%d" (var_name_g v) i
+
+    let bc_num (v,_)  = bc_num v
+
+    let var_origin = fst
+
+    let var_ssa_index = snd
+  end
+
+
+
+module T (Var:Cmn.VarSig) (Instr:Bir.InstrSig) 
+  (Exc:Cmn.ExceptionSig with type v=Var.var) =
+  struct
+    type t = {
+      params : (JBasics.value_type * Var.var) list;
+      code : Instr.instr array;
+      phi_nodes : (Var.var * Var.var array) list array;
+      (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
+	  be executed before the corresponding [code.(pc)] instruction. *)
+      exc_tbl : Exc.exception_handler list;
+      line_number_table : (int * int) list option;
+      pc_bc2ir : int Ptmap.t;
+      pc_ir2bc : int array; 
+    }
+
+    let jump_target code =
+      let jump_target = Array.make (Array.length code.code) false in
+	List.iter (fun e -> jump_target.(e.Exc.e_handler) <- true) code.exc_tbl;
+	Array.iter
+	  (fun instr ->
+	     match Instr.instr_jump_to instr with
+		 Some n -> jump_target.(n) <- true;
+	       | None -> ())
+	  code.code;
+	jump_target
+
+    let print_phi_node (x,args) =
+      Printf.sprintf "%s := PHI(%s)"
+	(Var.var_name_g x)
+	(JUtil.print_list_sep_map "," Var.var_name_g (Array.to_list args))
+
+    let print_phi_nodes l =
+      JUtil.print_list_sep_map "; " print_phi_node l
+
+    let app_phi_nodes l s =
+      if l = [] then s
+      else (print_phi_nodes l)^"; "^s
+
+    let rec print_code phi_nodes code i acc =
+      if i<0 then acc
+      else print_code phi_nodes code (i-1)
+	(Printf.sprintf "%3d: %s" i 
+	   (app_phi_nodes phi_nodes.(i) (Instr.print_instr code.(i)))::acc)
+
+    let print m =
+      let size = Array.length (m.code) in
+	print_code m.phi_nodes m.code (size-1) []
+	  
+    let exception_edges m = Exc.exception_edges' m.code m.exc_tbl 
+  end
+
+
+
 let preds m =
   let preds = Array.make (Array.length m.code) Ptset.empty in
   let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
@@ -388,13 +465,13 @@ let to_string s =
 
 let vars_to_string s =
   Printf.sprintf "{%s}"
-    (JUtil.print_list_sep_map "," JBir.var_name_g s)
+    (JUtil.print_list_sep_map "," var_name_g s)
 
 let debug ir_code (dom,idom,domf,phi_nodes,var_defs,(rename_def,rename_use,phi_nodes')) =
-  let jump_target = JBir.jump_target ir_code in
+  let jump_target = jump_target ir_code in
     Ptmap.iter
       (fun v defs ->
-	 Printf.printf "  %s:" (JBir.var_name_g (ir_code.JBir.vars.(v)));
+	 Printf.printf "  %s:" (var_name_g (ir_code.vars.(v)));
 	 Ptset.iter (Printf.printf " %d") defs;
 	 print_newline ()) var_defs;
     Array.iteri 
@@ -412,384 +489,28 @@ let debug ir_code (dom,idom,domf,phi_nodes,var_defs,(rename_def,rename_use,phi_n
 	 let rename_use = rename_use i in
 	   Printf.printf "Use:";
 	   Ptmap.iter
-	     (fun v i -> Printf.printf " %s_[%d]" (JBir.var_name_g ir_code.JBir.vars.(v)) i)
+	     (fun v i -> Printf.printf " %s_[%d]" (var_name_g ir_code.vars.(v)) i)
 	     rename_use;
 	   print_newline ();		 
 	   let phi_nodes = phi_nodes' i in
 	     Ptmap.iter 
 	       (fun v args -> 
-		  let v = JBir.var_name_g ir_code.JBir.vars.(v) in
+		  let v = var_name_g ir_code.vars.(v) in
 		    Printf.printf "      %s := PHI(%s)\n"
 		      v (JUtil.print_list_sep "," (List.map (Printf.sprintf "%s_%d" v) (Array.to_list args))))
 	       phi_nodes;
 	     Printf.printf "%s%3d: %s\n"
 	       (if jump_target.(i) then "x" else " ")
-	       i (JBir.print_instr op))
-      ir_code.JBir.code;
+	       i (print_instr op))
+      ir_code.code;
     print_newline ()
 
-let print_phi (target,args) = 
-  Printf.sprintf "%s := PHI(%s)" (var_name_g target) 
-    (JUtil.print_list_sep_map "," var_name_g (Array.to_list args))
-
-
-type const =
-    [ `ANull
-    | `Byte of int
-    | `Class of JBasics.object_type
-    | `Double of float
-    | `Float of float
-    | `Int of int32
-    | `Long of int64
-    | `Short of int
-    | `String of string ]
-
-type var = JBir.var * int
-
-let var_equal (v1,i1) (v2,i2) =
-  var_equal v1 v2 && i1=i2
-
-let var_orig (v,_) = var_orig v
-
-let var_name (v,i) = Printf.sprintf "%s_%d" (var_name v) i
-
-let var_name_g (v,i) = Printf.sprintf "%s_%d" (var_name_g v) i
-
-let bc_num (v,_)  = bc_num v
-
-let var_origin = fst
-
-let var_ssa_index = snd
-
-type expr =
-    Const of JBir.const
-  | Var of JBasics.value_type * var
-  | Unop of JBir.unop * expr
-  | Binop of JBir.binop * expr * expr
-  | Field of expr * JBasics.class_name * JBasics.field_signature
-  | StaticField of JBasics.class_name * JBasics.field_signature
-
-let basic_to_num = function
-  | `Int2Bool -> `Int
-  | `Long -> `Long
-  | `Double -> `Double
-  | `Float -> `Float
-
-let rec type_of_expr = function
-  | Var (t,_) -> t
-  | Field (_,_,f)
-  | StaticField (_,f) -> fs_type f
-  | Const i -> begin
-      match i with
-	| `ANull
-	| `Class _
-	| `String _ -> TObject (TClass java_lang_object)
-	| `Byte _
-	| `Short _
-	| `Int _ -> TBasic `Int
-	| `Double _ -> TBasic `Double
-	| `Float _ -> TBasic `Float
-	| `Long  _ -> TBasic `Long
-    end
-  | Unop (Cast t,_) -> TObject t
-  | Unop (u,_) ->
-      TBasic
-	(match u with
-	   | Neg t -> basic_to_num t
-	   | Conv c ->
-	       (match c with
-		  | I2L | F2L | D2L -> `Long
-		  | I2F | L2F | D2F -> `Float
-		  | I2D | L2D | F2D -> `Double
-		  | L2I | F2I | D2I | I2B | I2C | I2S -> `Int)
-	   | ArrayLength
-	   | InstanceOf _ -> `Int
-	   | _ -> assert false)
-  | Binop (ArrayLoad t,_,_) -> t
-  | Binop (b,_,_) ->
-      TBasic
-      (match b with
-	 | ArrayLoad _ -> assert false
-	 | Add t
-	 | Sub t
-	 | Mult t
-	 | Div t
-	 | Rem t ->
-	     (match t with
-		| `Int2Bool -> `Int
-		| `Long -> `Long
-		| `Double -> `Double
-		| `Float -> `Float)
-	 | IShl | IShr  | IAnd | IOr  | IXor | IUshr -> `Int
-	 | LShl | LShr | LAnd | LOr | LXor | LUshr -> `Long
-	 | CMP _ -> `Int)
-
-type check =
-  | CheckNullPointer of expr
-  | CheckArrayBound of expr * expr
-  | CheckArrayStore of expr * expr
-  | CheckNegativeArraySize of expr
-  | CheckCast of expr * JBasics.object_type
-  | CheckArithmetic of expr
-  | CheckLink of JCode.jopcode
-
-type instr =
-    Nop
-  | AffectVar of var * expr
-  | AffectArray of expr * expr * expr
-  | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
-  | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
-  | Goto of int
-  | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
-  | Throw of expr
-  | Return of expr option
-  | New of var * JBasics.class_name * JBasics.value_type list * expr list
-  | NewArray of var * JBasics.value_type * expr list
-  | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list
-  | InvokeVirtual of var option * expr * JBir.virtual_call_kind * JBasics.method_signature * expr list
-  | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
-  | MonitorEnter of expr
-  | MonitorExit of expr 
-  | MayInit of JBasics.class_name
-  | Check of check
-
-type exception_handler = {
-  e_start : int;
-  e_end : int;
-  e_handler : int;
-  e_catch_type : JBasics.class_name option;
-  e_catch_var : var
-}
-
-type t = {
-  params : (JBasics.value_type * var) list;
-  code : instr array;
-  phi_nodes : (var * var array) list array;
-  (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
-      be executed before the corresponding [code.(pc)] instruction. *)
-  exc_tbl : exception_handler list;
-  line_number_table : (int * int) list option;
-  pc_bc2ir : int Ptmap.t;
-  pc_ir2bc : int array; 
-}
-
-let jump_target code =
-  let jump_target = Array.make (Array.length code.code) false in
-    List.iter (fun e -> jump_target.(e.e_handler) <- true) code.exc_tbl;
-    Array.iter
-      (fun instr ->
-	 match instr with
-	   | Ifd (_, n)
-	   | Goto n -> jump_target.(n) <- true;
-	   | _ -> ())
-      code.code;
-    jump_target
-
-let exception_edges m =
-  JUtil.foldi 
-      (fun i _ l ->
-	 List.rev_append
-	   (List.map 
-	      (fun e -> (i,e))
-	      (List.filter (fun e -> e.e_start <= i && i < e.e_end) m.exc_tbl))
-	   l)
-      [] 
-      m.code
-
-let print_handler exc = 
-  Printf.sprintf "      [%d-%d] -> %d (%s %s)" exc.e_start exc.e_end exc.e_handler
-    (match exc.e_catch_type with
-       | None -> "_"
-       | Some cl -> JPrint.class_name cl)
-    (var_name_g exc.e_catch_var)
-
-let print_field ?(long_fields=false) c f =
-  if long_fields then
-    Printf.sprintf "<%s:%s>" (JPrint.class_name c) (fs_name f)
-  else (fs_name f)
-
-let bracket b s =
-  if b then s else Printf.sprintf "(%s)" s
-
-
-let print_unop = function
-  | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
-  | Conv conv ->
-      begin
-	match conv with
-	  | I2L -> "I2L"  | I2F -> "I2F"  | I2D -> "I2D"
-	  | L2I -> "L2I"  | L2F -> "L2F"  | L2D -> "L2D"
-	  | F2I -> "F2I"  | F2L -> "F2L"  | F2D -> "F2D"
-	  | D2I -> "D2I"  | D2L -> "D2L"  | D2F -> "D2F"
-	  | I2B -> "I2B"  | I2C -> "I2C"  | I2S -> "I2S"
-      end
-  | ArrayLength -> "ArrayLength"
-  | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
-  | Cast _ -> assert false
-
-let print_typ t =
-  let bt2ss = function
-    | `Long -> "J"
-    | `Float -> "F"
-    | `Double -> "D"
-    | `Int -> "I"
-    | `Short -> "S"
-    | `Char -> "C"
-    | `Byte -> "B"
-    | `Bool -> "Z"
-  in
-  let rec ot2ss = function
-    | TClass _ -> "O"
-    | TArray t -> "["^ vt2ss t
-  and vt2ss = function
-    | TBasic t -> bt2ss t
-    | TObject t -> ot2ss t
-  in vt2ss t
-
-let print_const = function
-  | `ANull -> "null"
-  | `Int i -> Printf.sprintf "%ld" i
-  | `Long i -> Printf.sprintf "%Ld" i
-  | `Float f -> Printf.sprintf "%f" f
-  | `Double f -> Printf.sprintf "%f" f
-  | `Byte n -> Printf.sprintf "%d" n
-  | `Short a -> Printf.sprintf "%d " a
-  | `Class c -> Printf.sprintf "%s" (JDumpBasics.object_value_signature c)
-  | `String s -> Printf.sprintf "'%s'" s
-
-let print_binop = function
-  | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
-  | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
-  | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
-  | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
-  | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
-  | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
-  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
-  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
-  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
-  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s"
-      (match c with
-	   DG -> "DG"
-	 | DL -> "DL"
-	 | FG -> "FG"
-	 | FL -> "FL"
-	 | L -> "L"
-      )
-
-let rec print_expr ?(show_type=true) first_level = function
-  | Var (t,x) -> 
-      if show_type then Printf.sprintf "%s:%s" (var_name_g x) (print_typ t)
-      else (var_name_g x)
-  | Field (e,c,f) -> Printf.sprintf "%s.%s" (print_expr ~show_type:show_type false e) (print_field c f)
-  | StaticField (c,f) -> Printf.sprintf "%s.%s" (JPrint.class_name c) (fs_name f)
-  | Const i -> print_const i
-  | Unop (ArrayLength,e) -> Printf.sprintf "%s.length" (print_expr ~show_type:show_type false e)
-  | Unop (Cast t,e) -> Printf.sprintf "(%s) %s" (print_typ (TObject t)) (print_expr ~show_type:show_type true e)
-  | Unop (op,e) -> Printf.sprintf "%s(%s)" (print_unop op) (print_expr ~show_type:show_type true e)
-  | Binop (ArrayLoad t,e1,e2) -> 
-      if show_type then Printf.sprintf "%s[%s]:%s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type true e2) (print_typ t)
-      else Printf.sprintf "%s[%s]" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type true e2)
-  | Binop (Add _,e1,e2) -> bracket first_level
-      (Printf.sprintf "%s+%s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2))
-  | Binop (Sub _,e1,e2) -> bracket first_level
-      (Printf.sprintf "%s-%s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2))
-  | Binop (Mult _,e1,e2) -> bracket first_level
-      (Printf.sprintf "%s*%s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2))
-  | Binop (Div _,e1,e2) -> bracket first_level
-      (Printf.sprintf "%s/%s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2))
-  | Binop (op,e1,e2) -> Printf.sprintf "%s(%s,%s)" (print_binop op) (print_expr ~show_type:show_type true e1) (print_expr ~show_type:show_type true e2)
-
-let print_cmp ?(show_type=true) (c,e1,e2) =
-  match c with
-    | `Eq -> Printf.sprintf "%s == %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2)
-    | `Ne -> Printf.sprintf "%s != %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2)
-    | `Lt -> Printf.sprintf "%s < %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2)
-    | `Ge -> Printf.sprintf "%s >= %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2)
-    | `Gt -> Printf.sprintf "%s > %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2)
-    | `Le -> Printf.sprintf "%s <= %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type false e2)
-
-let rec print_list_sep_rec sep pp = function
-  | [] -> ""
-  | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
-
-let rec print_list_sep_list_rec sep pp = function
-  | [] -> []
-  | x::q -> (sep^(pp x))::(print_list_sep_list_rec sep pp q)
-
-let print_list_sep sep pp = function
-  | [] -> ""
-  | x::q -> (pp x)^(print_list_sep_rec sep pp q)
-
-let print_list_sep_list sep pp = function
-  | [] -> []
-  | x::q -> (pp x)::(print_list_sep_list_rec sep pp q)
-
-let print_instr ?(show_type=true) = function
-  | Nop -> "nop"
-  | AffectVar (x,e) -> Printf.sprintf "%s := %s" (var_name_g x) (print_expr ~show_type:show_type true e)
-  | AffectStaticField (c,f,e) -> Printf.sprintf "%s.%s := %s" (JPrint.class_name c) (fs_name f) (print_expr ~show_type:show_type true e)
-  | AffectField (e1,c,f,e2) ->  Printf.sprintf "%s.%s := %s" (print_expr ~show_type:show_type false e1) (print_field c f) (print_expr ~show_type:show_type true e2)
-  | AffectArray (e1,e2,e3) -> Printf.sprintf "%s[%s] := %s" (print_expr ~show_type:show_type false e1) (print_expr ~show_type:show_type true e2) (print_expr ~show_type:show_type true e3)
-  | Goto i -> Printf.sprintf "goto %d" i
-  | Ifd (g, el) -> Printf.sprintf "if (%s) goto %d" (print_cmp g) el
-  | Throw e -> Printf.sprintf "throw %s" (print_expr ~show_type:show_type false e)
-  | Return None -> Printf.sprintf "return"
-  | Return (Some e) -> Printf.sprintf "return %s" (print_expr ~show_type:show_type false e)
-  | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (print_list_sep "," (print_expr ~show_type:show_type true) le)
-  | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr ~show_type:show_type true e)) le)
-  | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr ~show_type:show_type true) le)
-  | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (print_list_sep "," (print_expr ~show_type:show_type true) le)
-  | InvokeVirtual (r,e1,_,ms,le) ->
-      Printf.sprintf "%s%s.%s(%s)"
-	(match r with
-	   | None -> ""
-	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_expr ~show_type:show_type false e1) (ms_name ms) (print_list_sep "," (print_expr ~show_type:show_type true) le)
-  | InvokeNonVirtual (r,e1,kd,ms,le) ->
-      Printf.sprintf "%s%s.%s.%s(%s)"
-	(match r with
-	   | None -> ""
-	   | Some x -> Printf.sprintf "%s := "  (var_name_g x))
-	(print_expr ~show_type:show_type false e1) (JPrint.class_name kd) (ms_name ms) (print_list_sep "," (print_expr ~show_type:show_type true) le)
-  | MonitorEnter e -> Printf.sprintf "monitorenter(%s)" (print_expr ~show_type:show_type true e)
-  | MonitorExit e -> Printf.sprintf "monitorexit(%s)" (print_expr ~show_type:show_type true e)
-  | MayInit c -> Printf.sprintf "mayinit %s" (JPrint.class_name c)
-  | Check c ->
-      begin
-	match c with
-	    CheckNullPointer e -> Printf.sprintf "notnull %s" (print_expr ~show_type:show_type true e)
-	  | CheckArrayBound (a,i) -> Printf.sprintf "checkbound %s[%s]"  (print_expr ~show_type:show_type true a) (print_expr ~show_type:show_type true i)
-	  | CheckArrayStore (a,v) -> Printf.sprintf "checkstore %s[] <- %s"  (print_expr ~show_type:show_type true a) (print_expr ~show_type:show_type true v)
-	  | CheckNegativeArraySize e -> Printf.sprintf "checknegsize %s" (print_expr ~show_type:show_type true e)
-	  | CheckCast (e,t) -> Printf.sprintf "checkcast %s:%s" (print_expr ~show_type:show_type true e) (JDumpBasics.object_value_signature t)
-	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr ~show_type:show_type true e)
-	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
-      end
-
-let print_expr ?(show_type=true) = print_expr ~show_type:show_type true
-
-let print_phi_node (x,args) =
-  Printf.sprintf "%s := PHI(%s)"
-    (var_name_g x)
-    (JUtil.print_list_sep_map "," var_name_g (Array.to_list args))
-
-let print_phi_nodes l =
-  JUtil.print_list_sep_map "; " print_phi_node l
-
-let app_phi_nodes l s =
-  if l = [] then s
-  else (print_phi_nodes l)^"; "^s
-
-let rec print_code phi_nodes code i acc =
-  if i<0 then acc
-  else print_code phi_nodes code (i-1)
-    (Printf.sprintf "%3d: %s" i 
-       (app_phi_nodes phi_nodes.(i) (print_instr code.(i)))::acc)
-
-let print m =
-  let size = Array.length (m.code) in
-    print_code m.phi_nodes m.code (size-1) []
+include Var
+module Exception = Cmn.Exception (Var)
+module Instr = JBir.InstrRep (Var)
+include Exception
+include T (Var) (Instr) (Exception)
+include Instr
 
 let map_expr f =
   let rec aux expr = 
@@ -805,7 +526,7 @@ let map_expr f =
 let map_instr def use =
   let use = map_expr use in
     function
-  | JBir.AffectField (e1,c,f0,e2) -> AffectField (use e1,c,f0,use e2)
+  | JBir.AffectField (e1,c,f0,e2) -> Instr.AffectField (use e1,c,f0,use e2)
   | JBir.Ifd ((c,e1,e2), pc) -> Ifd ((c,use e1,use e2), pc) 
   | JBir.Goto i -> Goto i
   | JBir.Throw e -> Throw (use e) 
@@ -875,12 +596,13 @@ let transform_from_bir ir_code =
 	(phi_nodes' i) []
     with Not_found -> debug i "phi lookup"; assert false in
   let code = Array.mapi
-	       (fun i -> map_instr (def i) (use i)) ir_code.JBir.code in
+    (fun i -> map_instr (def i) (use i)) ir_code.JBir.code in
+  let exc_t = List.map map_exception_handler ir_code.JBir.exc_tbl in
     {
       params = List.map (fun (t,x) -> (t,(x,0))) ir_code.JBir.params;
       code  = code;
       phi_nodes = Array.init (Array.length code) phi_nodes;
-      exc_tbl = List.map map_exception_handler ir_code.JBir.exc_tbl;
+      exc_tbl = exc_t;
       line_number_table = ir_code.JBir.line_number_table;
       pc_bc2ir = ir_code.JBir.pc_bc2ir;
       pc_ir2bc = ir_code.JBir.pc_ir2bc

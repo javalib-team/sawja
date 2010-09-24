@@ -21,21 +21,19 @@
 (** Common code for intermediate representations JBir and A3Bir.*)
 
 open Javalib_pack
+open JBasics
 
-type const =
-      [ `ANull
-      | `Byte of int
-      | `Class of JBasics.object_type
-      | `Double of float
-      | `Float of float
-      | `Int of int32
-      | `Long of int64
-      | `Short of int
-      | `String of string ]
+module type VarSig = 
+sig
+  type var
+  val var_equal: var -> var -> bool
+  val var_name_debug: var -> string option
+  val var_name: var -> string
+  val var_name_g: var -> string
+  val bc_num: var -> int option
+end
 
-val print_const : const -> string
-
-val varname : string
+module Var : sig
 
 type unindexed_var =
   | OriginalVar of int * string option (* register number, name (debug if available) *)
@@ -89,6 +87,39 @@ val make_var : dictionary -> unindexed_var -> var
     [vars.(i)] is the variable of index [i]. *)
 val make_array_var : dictionary -> var array
 
+end
+
+module type ExceptionSig = sig
+type v
+type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : v
+}
+val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
+val print_handler : exception_handler -> string
+end
+
+module Exception (Varf:VarSig): ExceptionSig with type v = Varf.var
+
+module ExceptionNormalVar : ExceptionSig with type v = Var.var
+
+module Common : sig 
+
+type mode = Normal | Flat | Addr3
+
+type const =
+      [ `ANull
+      | `Byte of int
+      | `Class of JBasics.object_type
+      | `Double of float
+      | `Float of float
+      | `Int of int32
+      | `Long of int64
+      | `Short of int
+      | `String of string ]
 
 type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S
 
@@ -98,11 +129,6 @@ type unop =
   | ArrayLength
   | InstanceOf of JBasics.object_type
   | Cast of JBasics.object_type
-
-val basic_to_num : JBasics.jvm_basic_type ->
-  [> `Double | `Float | `Int | `Long ]
-
-val print_unop : unop -> string
 
 type comp =  DG | DL | FG | FL | L
 
@@ -117,47 +143,20 @@ type binop =
   | LShl | LShr | LAnd | LOr | LXor | LUshr
   | CMP of comp
 
+(* Type transformation *)
+
+val basic_to_num : JBasics.jvm_basic_type ->
+  [> `Double | `Float | `Int | `Long ]
+
+(* Printing functions *)
+
+val print_const : const -> string
+
+val print_unop : unop -> string
+
 val print_binop : binop -> string
 
 val print_typ : JBasics.value_type -> string
-
-(* type statistics = { *)
-(*     mutable nb_jump_with_non_empty_stacks : int; *)
-(*     mutable nb_back_jump_with_non_empty_stacks : int; *)
-(*     mutable nb_store_is_var_in_stack : int; *)
-(*     mutable nb_incr_is_var_in_stack : int; *)
-(*     mutable nb_arraystore_is_array_access_in_stack : int; *)
-(*     mutable nb_putfield_is_field_in_stack : int; *)
-(*     mutable nb_putstatic_is_static_in_stack : int; *)
-(*     mutable nb_method_call_with_modifiable_in_stack : int; *)
-(*     mutable nb_store : int; *)
-(*     mutable nb_incr : int; *)
-(*     mutable nb_putfield : int; *)
-(*     mutable nb_arraystore : int; *)
-(*     mutable nb_putstatic : int; *)
-(*     mutable nb_method_call : int; *)
-(*     mutable nb_tempvar : int; *)
-(*     mutable nb_tempvar_branch : int; *)
-(*     mutable nb_tempvar_removed : int; *)
-(*     mutable nb_tempvar_method_effect : int; *)
-(*     mutable nb_tempvar_putfield : int; *)
-(*     mutable nb_tempvar_arraystore : int; *)
-(*     mutable nb_tempvar_side_effect : int; *)
-(*     mutable nb_tempvar_flat : int; *)
-(*     mutable nb_tempvar_3a : int; *)
-(*   } *)
-
-type mode = Normal | Flat | Addr3
-
-type exception_handler = {
-	e_start : int;
-	e_end : int;
-	e_handler : int;
-	e_catch_type : JBasics.class_name option;
-	e_catch_var : var
-}
-
-val exception_edges: 'a array -> exception_handler list -> (int * exception_handler) list
 
 val print_list_sep: string -> ('a -> string) -> 'a list -> string
 
@@ -168,3 +167,5 @@ val print_field: ?long_fields:bool ->
   Javalib_pack.JBasics.field_signature -> string
 
 val bracket: bool -> string -> string
+
+end
