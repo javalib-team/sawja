@@ -32,14 +32,15 @@ else
 CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
-MODULES =jUtil safe wlist jProgram jControlFlow classDomain reachableMethods XTA	\
-	jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir jPrintHtml \
-	$(DATAFLOW)iter $(DATAFLOW)live $(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
-	 ssaBir
+MODULES =jUtil wlist jProgram classDomain reachableMethods \
+	XTA jNativeStubs jCRA jRTA jRRTA cmn jsrInline bir jBir a3Bir \
+	jPrintHtml safe jControlFlow \
+	$(DATAFLOW)iter $(DATAFLOW)live $(DATAFLOW)reachDef \
+	$(DATAFLOW)availableExpr ssaBir
 
-MODULE_INTERFACES = safe wlist jProgram jControlFlow classDomain reachableMethods XTA		\
-	jNativeStubs jCRA jRTA jRRTA jsrInline jBir a3Bir jPrintHtml \
-	$(DATAFLOW)iter ssaBir
+MODULE_INTERFACES = wlist jProgram classDomain \
+	reachableMethods XTA jNativeStubs jCRA jRTA jRRTA jsrInline \
+	cmn jBir a3Bir jPrintHtml safe jControlFlow $(DATAFLOW)iter ssaBir
 
 FOR_PACK= -for-pack Sawja_pack
 
