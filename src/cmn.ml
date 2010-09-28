@@ -32,7 +32,7 @@ sig
   val bc_num: var -> int option
 end
 
-  (* Variables *)
+(* Variables *)
 module Var = 
 struct
   type unindexed_var =
@@ -121,27 +121,27 @@ struct
 end
 
 module type ExceptionSig = sig
-type v
-type exception_handler = {
-    e_start : int;
-    e_end : int;
-    e_handler : int;
-    e_catch_type : class_name option;
-    e_catch_var : v
-}
-val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
-val print_handler : exception_handler -> string
-end
-
-module Exception (Var: VarSig) = struct
-  (* Exceptions *)
-  type v = Var.var
+  type var_e
   type exception_handler = {
     e_start : int;
     e_end : int;
     e_handler : int;
     e_catch_type : class_name option;
-    e_catch_var : v
+    e_catch_var : var_e
+  }
+  val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
+  val print_handler : exception_handler -> string
+end
+
+module Exception (Var_e: VarSig) = struct
+  (* Exceptions *)
+  type var_e = Var_e.var
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : Var_e.var
   }
 
   let exception_edges' code exc_tbl = 
@@ -160,151 +160,152 @@ module Exception (Var: VarSig) = struct
       (match exc.e_catch_type with
 	 | None -> "_"
 	 | Some cl -> JPrint.class_name cl)
-      (Var.var_name_g exc.e_catch_var)  
+      (Var_e.var_name_g exc.e_catch_var)  
 end
 
 module ExceptionNormalVar = Exception (Var)
 
 module Common = struct
-(* Basic types *)
+  (* Basic types *)
 
-type mode = Normal | Flat | Addr3 
+  type mode = Normal | Flat | Addr3 
 
-type const =
-    [ `ANull
-    | `Byte of int
-    | `Class of object_type
-    | `Double of float
-    | `Float of float
-    | `Int of int32
-    | `Long of int64
-    | `Short of int
-    | `String of string ]
+  type const =
+      [ `ANull
+      | `Byte of int
+      | `Class of object_type
+      | `Double of float
+      | `Float of float
+      | `Int of int32
+      | `Long of int64
+      | `Short of int
+      | `String of string ]
 
-type conv = I2L | I2F | I2D   | L2I | L2F | L2D   | F2I | F2L | F2D  | D2I | D2L | D2F  | I2B | I2C | I2S
+  type conv = I2L | I2F | I2D   | L2I | L2F | L2D   | F2I | F2L | F2D  | D2I | D2L | D2F  | I2B | I2C | I2S
 
-type unop =
-  | Neg of jvm_basic_type
-  | Conv of conv
-  | ArrayLength
-  | InstanceOf of JBasics.object_type
-  | Cast of JBasics.object_type
+  type unop =
+    | Neg of jvm_basic_type
+    | Conv of conv
+    | ArrayLength
+    | InstanceOf of JBasics.object_type
+    | Cast of JBasics.object_type
 
-type comp =  DG | DL | FG | FL | L
+  type comp =  DG | DL | FG | FL | L
 
-type binop =
-  | ArrayLoad of JBasics.value_type
-  | Add of JBasics.jvm_basic_type
-  | Sub of JBasics.jvm_basic_type
-  | Mult of JBasics.jvm_basic_type
-  | Div of JBasics.jvm_basic_type
-  | Rem of JBasics.jvm_basic_type
-  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
-  | LShl | LShr | LAnd | LOr | LXor | LUshr
-  | CMP of comp
-
-
-(* Type transformation *)
-
-let basic_to_num = function
-  | `Int2Bool -> `Int
-  | `Long -> `Long
-  | `Double -> `Double
-  | `Float -> `Float
+  type binop =
+    | ArrayLoad of JBasics.value_type
+    | Add of JBasics.jvm_basic_type
+    | Sub of JBasics.jvm_basic_type
+    | Mult of JBasics.jvm_basic_type
+    | Div of JBasics.jvm_basic_type
+    | Rem of JBasics.jvm_basic_type
+    | IShl | IShr  | IAnd | IOr  | IXor | IUshr
+    | LShl | LShr | LAnd | LOr | LXor | LUshr
+    | CMP of comp
 
 
-(* Printing functions *)
+  (* Type transformation *)
 
-let print_const = function
-  | `ANull -> "null"
-  | `Int i -> Printf.sprintf "%ld" i
-  | `Long i -> Printf.sprintf "%Ld" i
-  | `Float f -> Printf.sprintf "%f" f
-  | `Double f -> Printf.sprintf "%f" f
-  | `Byte n -> Printf.sprintf "%d" n
-  | `Short a -> Printf.sprintf "%d " a
-  | `Class c -> Printf.sprintf "%s" (JDumpBasics.object_value_signature c)
-  | `String s -> Printf.sprintf "'%s'" s
-
-let print_unop = function
-  | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
-  | Conv conv ->
-      begin
-	match conv with
-	  | I2L -> "I2L"  | I2F -> "I2F"  | I2D -> "I2D"
-	  | L2I -> "L2I"  | L2F -> "L2F"  | L2D -> "L2D"
-	  | F2I -> "F2I"  | F2L -> "F2L"  | F2D -> "F2D"
-	  | D2I -> "D2I"  | D2L -> "D2L"  | D2F -> "D2F"
-	  | I2B -> "I2B"  | I2C -> "I2C"  | I2S -> "I2S"
-      end
-  | ArrayLength -> "ArrayLength"
-  | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
-  | Cast _ -> assert false
-
-let print_binop = function
-  | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
-  | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
-  | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
-  | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
-  | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
-  | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
-  | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
-  | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
-  | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
-  | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
-  | CMP c -> Printf.sprintf "CMP %s"
-      (match c with
-	   DG -> "DG"
-	 | DL -> "DL"
-	 | FG -> "FG"
-	 | FL -> "FL"
-	 | L -> "L"
-      )
-
-let print_typ t =
-  let bt2ss = function
-    | `Long -> "J"
-    | `Float -> "F"
-    | `Double -> "D"
-    | `Int -> "I"
-    | `Short -> "S"
-    | `Char -> "C"
-    | `Byte -> "B"
-    | `Bool -> "Z"
-  in
-  let rec ot2ss = function
-    | TClass _ -> "O"
-    | TArray t -> "["^ vt2ss t
-  and vt2ss = function
-    | TBasic t -> bt2ss t
-    | TObject t -> ot2ss t
-  in vt2ss t
+  let basic_to_num = function
+    | `Int2Bool -> `Int
+    | `Long -> `Long
+    | `Double -> `Double
+    | `Float -> `Float
 
 
-(* Print utilities ... *)
+  (* Printing functions *)
 
-let rec print_list_sep_rec sep pp = function
-  | [] -> ""
-  | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
+  let print_const = function
+    | `ANull -> "null"
+    | `Int i -> Printf.sprintf "%ld" i
+    | `Long i -> Printf.sprintf "%Ld" i
+    | `Float f -> Printf.sprintf "%f" f
+    | `Double f -> Printf.sprintf "%f" f
+    | `Byte n -> Printf.sprintf "%d" n
+    | `Short a -> Printf.sprintf "%d " a
+    | `Class c -> Printf.sprintf "%s" (JDumpBasics.object_value_signature c)
+    | `String s -> Printf.sprintf "'%s'" s
 
-let rec print_list_sep_list_rec sep pp = function
-  | [] -> []
-  | x::q -> (sep^(pp x))::(print_list_sep_list_rec sep pp q)
+  let print_unop = function
+    | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
+    | Conv conv ->
+	begin
+	  match conv with
+	    | I2L -> "I2L"  | I2F -> "I2F"  | I2D -> "I2D"
+	    | L2I -> "L2I"  | L2F -> "L2F"  | L2D -> "L2D"
+	    | F2I -> "F2I"  | F2L -> "F2L"  | F2D -> "F2D"
+	    | D2I -> "D2I"  | D2L -> "D2L"  | D2F -> "D2F"
+	    | I2B -> "I2B"  | I2C -> "I2C"  | I2S -> "I2S"
+	end
+    | ArrayLength -> "ArrayLength"
+    | InstanceOf ot -> Printf.sprintf "InstanceOf %s" (Javalib.JPrint.object_type ot)
+    | Cast _ -> assert false
 
-let print_list_sep sep pp = function
-  | [] -> ""
-  | x::q -> (pp x)^(print_list_sep_rec sep pp q)
+  let print_binop = function
+    | ArrayLoad _ -> Printf.sprintf "ArrayLoad"
+    | Add t -> Printf.sprintf "%cAdd" (JDumpBasics.jvm_basic_type t)
+    | Sub t -> Printf.sprintf "%cSub" (JDumpBasics.jvm_basic_type t)
+    | Mult t -> Printf.sprintf "%cMult" (JDumpBasics.jvm_basic_type t)
+    | Div t -> Printf.sprintf "%cDiv" (JDumpBasics.jvm_basic_type t)
+    | Rem t -> Printf.sprintf "%cRem" (JDumpBasics.jvm_basic_type t)
+    | IShl -> "IShl"  | IShr -> "IShr"  | LShl -> "LShl"
+    | LShr -> "LShr"  | IAnd -> "And"  | IOr -> "IOr"
+    | IXor -> "IXor"  | IUshr -> "IUshr"  | LAnd -> "LAnd"
+    | LOr -> "LOr"  | LXor -> "LXor"  | LUshr -> "LUshr"
+    | CMP c -> Printf.sprintf "CMP %s"
+	(match c with
+	     DG -> "DG"
+	   | DL -> "DL"
+	   | FG -> "FG"
+	   | FL -> "FL"
+	   | L -> "L"
+	)
 
-let print_list_sep_list sep pp = function
-  | [] -> []
-  | x::q -> (pp x)::(print_list_sep_list_rec sep pp q)
+  let print_typ t =
+    let bt2ss = function
+      | `Long -> "J"
+      | `Float -> "F"
+      | `Double -> "D"
+      | `Int -> "I"
+      | `Short -> "S"
+      | `Char -> "C"
+      | `Byte -> "B"
+      | `Bool -> "Z"
+    in
+    let rec ot2ss = function
+      | TClass _ -> "O"
+      | TArray t -> "["^ vt2ss t
+    and vt2ss = function
+      | TBasic t -> bt2ss t
+      | TObject t -> ot2ss t
+    in vt2ss t
 
-let print_field ?(long_fields=false) c f =
-  if long_fields then
-    Printf.sprintf "<%s:%s>" (JPrint.class_name c) (fs_name f)
-  else (fs_name f)
 
-let bracket b s =
-  if b then s else Printf.sprintf "(%s)" s
+  (* Print utilities ... *)
+
+  let rec print_list_sep_rec sep pp = function
+    | [] -> ""
+    | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
+
+  let rec print_list_sep_list_rec sep pp = function
+    | [] -> []
+    | x::q -> (sep^(pp x))::(print_list_sep_list_rec sep pp q)
+
+  let print_list_sep sep pp = function
+    | [] -> ""
+    | x::q -> (pp x)^(print_list_sep_rec sep pp q)
+
+  let print_list_sep_list sep pp = function
+    | [] -> []
+    | x::q -> (pp x)::(print_list_sep_list_rec sep pp q)
+
+  let print_field ?(long_fields=false) c f =
+    if long_fields then
+      Printf.sprintf "<%s:%s>" (JPrint.class_name c) (fs_name f)
+    else (fs_name f)
+
+  let bracket b s =
+    if b then s else Printf.sprintf "(%s)" s
 
 end
+

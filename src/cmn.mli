@@ -35,82 +35,82 @@ end
 
 module Var : sig
 
-type unindexed_var =
-  | OriginalVar of int * string option (* register number, name (debug if available) *)
-  | TempVar of int
-  | CatchVar of int
-  | BranchVar of int * int
-  | BranchVar2 of int * int
+  type unindexed_var =
+    | OriginalVar of int * string option (* register number, name (debug if available) *)
+    | TempVar of int
+    | CatchVar of int
+    | BranchVar of int * int
+    | BranchVar2 of int * int
 
-type var = int * unindexed_var
+  type var = int * unindexed_var
 
 
-(** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
-val var_equal : var -> var -> bool
+  (** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
+  val var_equal : var -> var -> bool
 
-(** [var_orig v] is [true] if and only if the variable [v] comes from the
-    initial bytecode program. Does not depend on debug information. *)
-val var_orig : var -> bool
+  (** [var_orig v] is [true] if and only if the variable [v] comes from the
+      initial bytecode program. Does not depend on debug information. *)
+  val var_orig : var -> bool
 
-val var_ssa : var -> bool
+  val var_ssa : var -> bool
 
-(** [var_name v] returns the string identifying the variable [v].
-    Does not use debug information. *) 
-val var_name : var -> string
+  (** [var_name v] returns the string identifying the variable [v].
+      Does not use debug information. *) 
+  val var_name : var -> string
 
-(** [var_name_debug v] returns, if possible the original variable names of [v],
-    if the initial class was compiled using debug information. *)
-val var_name_debug : var -> string option
+  (** [var_name_debug v] returns, if possible the original variable names of [v],
+      if the initial class was compiled using debug information. *)
+  val var_name_debug : var -> string option
 
-(** [var_name_g v] returns the string identifying the variable [v], according to
-    the local variable table provided in the class file from which it has been
-    created *)
-val var_name_g : var -> string
+  (** [var_name_g v] returns the string identifying the variable [v], according to
+      the local variable table provided in the class file from which it has been
+      created *)
+  val var_name_g : var -> string
 
-(** [bc_num v] returns the local var number if the variable comes from the
-    initial bytecode program. *)
-val bc_num : var -> int option
+  (** [bc_num v] returns the local var number if the variable comes from the
+      initial bytecode program. *)
+  val bc_num : var -> int option
 
-(** [index v] returns the hash value of the given variable. *)
-val index : var -> int
+  (** [index v] returns the hash value of the given variable. *)
+  val index : var -> int
 
-(** mutable dictionary used to give unique index to variables. *)
-type dictionary
+  (** mutable dictionary used to give unique index to variables. *)
+  type dictionary
 
-(** build an empty dictionary. *)
-val make_dictionary : unit -> dictionary
+  (** build an empty dictionary. *)
+  val make_dictionary : unit -> dictionary
 
-(** [make_var d v] return the indexified version of [v]. Add it to [d] if necessary. *)
-val make_var : dictionary -> unindexed_var -> var
+  (** [make_var d v] return the indexified version of [v]. Add it to [d] if necessary. *)
+  val make_var : dictionary -> unindexed_var -> var
 
-(** [make_array_var d] build the array of all variables that appear in [d].
-    [vars.(i)] is the variable of index [i]. *)
-val make_array_var : dictionary -> var array
+  (** [make_array_var d] build the array of all variables that appear in [d].
+      [vars.(i)] is the variable of index [i]. *)
+  val make_array_var : dictionary -> var array
 
 end
 
 module type ExceptionSig = sig
-type v
-type exception_handler = {
+  type var_e
+  type exception_handler = {
     e_start : int;
     e_end : int;
     e_handler : int;
     e_catch_type : class_name option;
-    e_catch_var : v
-}
-val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
-val print_handler : exception_handler -> string
+    e_catch_var : var_e
+  }
+  val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
+  val print_handler : exception_handler -> string
 end
 
-module Exception (Varf:VarSig): ExceptionSig with type v = Varf.var
+module Exception (Var_e:VarSig): ExceptionSig with type var_e = Var_e.var
 
-module ExceptionNormalVar : ExceptionSig with type v = Var.var
+module ExceptionNormalVar : ExceptionSig with type var_e = Var.var
 
 module Common : sig 
 
-type mode = Normal | Flat | Addr3
+  type mode = Normal | Flat | Addr3
 
-type const =
+  type const =
       [ `ANull
       | `Byte of int
       | `Class of JBasics.object_type
@@ -169,3 +169,4 @@ val print_field: ?long_fields:bool ->
 val bracket: bool -> string -> string
 
 end
+

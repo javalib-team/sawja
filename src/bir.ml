@@ -23,15 +23,18 @@ open Javalib
 open JBasics
 open JCode 
 
-include Cmn.Var
+module Var = Cmn.Var
+include Var
 include Cmn.Common
 
 
 module type InstrSig = 
   sig
+    type var_i
     type instr
     val print_instr: ?show_type:bool -> instr -> string
     val instr_jump_to: instr -> int option
+    val instr_succs: int -> instr -> int list
   end
 
 type virtual_call_kind =
@@ -40,6 +43,7 @@ type virtual_call_kind =
 
 module InstrRep (Var:Cmn.VarSig) = 
 struct
+  type var_i = Var.var
   type expr =
     | Const of const
     | Var of JBasics.value_type * Var.var
@@ -139,6 +143,14 @@ struct
       | Goto n -> Some n
       | _ -> None
 
+  let instr_succs pp = function
+      | Ifd (_, n) -> [pp;n]
+      | Goto n -> [n]
+      | Throw _
+      | Return _ -> []
+      | _ -> [pp]
+	  
+
   (************* PRINT ************)
 
   let rec print_expr' ?(show_type=true) first_level = function
@@ -227,9 +239,18 @@ struct
 
 end
 
+module type TSig = sig
+  module Var_t : Cmn.VarSig
+  module Instr_t : InstrSig with type var_i = Var.var
+  module Exc_t : Cmn.ExceptionSig with type var_e = Var.var
+end
+
 module T (Var:Cmn.VarSig) (Instr:InstrSig) 
-  (Exc:Cmn.ExceptionSig with type v=Var.var) =
+  (Exc:Cmn.ExceptionSig with type var_e = Var.var) =
   struct
+    module Var_t = Var
+    module Instr_t = Instr
+    module Exc_t = Exc
     type t = {
       vars : Var.var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
       params : (JBasics.value_type * Var.var) list;
