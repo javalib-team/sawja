@@ -154,7 +154,7 @@ include SsaT
 include Exception
 include Instr
 
-let transform_from_bir = SsaA3Bir.transform_from_ir
+let transform_from_a3bir = SsaA3Bir.transform_from_ir
 
 let transform ?(bcv=false) cm code = 
   SsaA3Bir.transform_from_ir (A3Bir.transform ~bcv:bcv cm code)

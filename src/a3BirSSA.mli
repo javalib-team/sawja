@@ -227,9 +227,9 @@ val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform_from_bir ir_code] transforms the {!A3Bir} [ir_code] into 
+(** [transform_from_a3bir ir_code] transforms the {!A3Bir} [ir_code] into 
     its SSA representation. *)
-val transform_from_bir : A3Bir.t -> t
+val transform_from_a3bir : A3Bir.t -> t
 
 (** [transform ~bcv cm jcode] transforms the code [jcode] into its
     SSA representation. The transformation is performed in the
