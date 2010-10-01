@@ -96,7 +96,7 @@ end
 
 module Var (IR:IRSig) = 
 struct
-  module IR = IR
+  type ir_var = IR.var
   type var = IR.var * int
 
   let var_equal (v1,i1) (v2,i2) =
@@ -119,32 +119,30 @@ end
 
 module type VarSig =
 sig
-  module IR : IRSig
-  type var = IR.var * int
+  type ir_var 
+  type var = ir_var * int
   val var_equal : var -> var -> bool
   val var_orig : var -> bool
   val var_name_debug: var -> string option
   val var_name: var -> string
   val var_name_g: var -> string
   val bc_num: var -> int option
-  val var_origin : var -> IR.var
+  val var_origin : var -> ir_var
   val var_ssa_index : var -> int
 end
 
-module T (Var:VarSig) 
-  (Instr:Bir.InstrSig with type var_i = Var.var) 
-  (Exc:Cmn.ExceptionSig with type var_e = Var.var) =
+module T (Var:VarSig) (Instr:Bir.InstrSig) =
 struct
-  module Var_t = Var
-  module Instr_t = Instr
-  module Exc_t = Exc
+  include Cmn.Exception (Var)
+  type var_t = Var.var
+  type instr_t = Instr.instr
   type t = {
-    params : (JBasics.value_type * Var_t.var) list;
+    params : (JBasics.value_type * Var.var) list;
     code : Instr.instr array;
-    phi_nodes : (Var_t.var * Var_t.var array) list array;
+    phi_nodes : (Var.var * Var.var array) list array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
-    exc_tbl : Exc.exception_handler list;
+    exc_tbl : exception_handler list;
     line_number_table : (int * int) list option;
     pc_bc2ir : int Ptmap.t;
     pc_ir2bc : int array; 
@@ -152,7 +150,7 @@ struct
 
   let jump_target code =
     let jump_target = Array.make (Array.length code.code) false in
-      List.iter (fun e -> jump_target.(e.Exc.e_handler) <- true) code.exc_tbl;
+      List.iter (fun e -> jump_target.(e.e_handler) <- true) code.exc_tbl;
       Array.iter
 	(fun instr ->
 	   match Instr.instr_jump_to instr with
@@ -163,8 +161,8 @@ struct
 
   let print_phi_node (x,args) =
     Printf.sprintf "%s := PHI(%s)"
-      (Var_t.var_name_g x)
-      (JUtil.print_list_sep_map "," Var_t.var_name_g (Array.to_list args))
+      (Var.var_name_g x)
+      (JUtil.print_list_sep_map "," Var.var_name_g (Array.to_list args))
 
   let print_phi_nodes l =
     JUtil.print_list_sep_map "; " print_phi_node l
@@ -183,38 +181,41 @@ struct
     let size = Array.length (m.code) in
       print_code m.phi_nodes m.code (size-1) []
 	
-  let exception_edges m = Exc.exception_edges' m.code m.exc_tbl 
+  let exception_edges m = exception_edges' m.code m.exc_tbl 
 end
 
 module type IR2SsaSig = sig
-  module IR : IRSig
-  module Var_SSA : VarSig
-  module Instr_SSA : Bir.InstrSig
-  module Exc_SSA : Cmn.ExceptionSig with type var_e = Var_SSA.var
-  val use_bcvars : IR.instr -> Ptset.t
-  val def_bcvar : IR.instr -> Ptset.t
-  val var_defs : IR.t -> Ptset.t Ptmap.t
-  val map_instr : (IR.var -> Var_SSA.var) -> (IR.var -> Var_SSA.var) -> IR.instr -> Instr_SSA.instr
-  val map_exception_handler : IR.exception_handler -> Exc_SSA.exception_handler
-  val live_analysis : IR.t -> int -> IR.var -> bool
+  type ir_t
+  type ir_var
+  type ir_instr
+  type ir_exc_h
+  type ssa_var
+  type ssa_instr
+  type ssa_exc_h
+  val use_bcvars : ir_instr -> Ptset.t
+  val def_bcvar : ir_instr -> Ptset.t
+  val var_defs : ir_t -> Ptset.t Ptmap.t
+  val map_instr : (ir_var -> ssa_var) -> (ir_var -> ssa_var) -> ir_instr -> ssa_instr
+  val map_exception_handler : ir_exc_h -> ssa_exc_h
+  val live_analysis : ir_t -> int -> ir_var -> bool
 end
  
 module type TSsaSig = 
 sig
-  module Var_t : VarSig
-  module Instr_t : Bir.InstrSig
-  module Exc_t : Cmn.ExceptionSig with type var_e = Var_t.var
+  type var_t
+  type instr_t
+  type exception_handler
   type t = {
-  params : (JBasics.value_type * Var_t.var) list;
+    params : (JBasics.value_type * var_t) list;
     (** [params] contains the method parameters (including the receiver this for
 	virtual methods). *)
-    code : Instr_t.instr array;
+    code : instr_t array;
     (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
 	are absolute. *)
-    phi_nodes : (Var_t.var * Var_t.var array) list array;
+    phi_nodes : (var_t * var_t array) list array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
-    exc_tbl : Exc_t.exception_handler list;
+    exc_tbl : exception_handler list;
     (** [exc_tbl] is the exception table of the method code. Jumps are
 	absolute. *)
     line_number_table : (int * int) list option;
@@ -229,67 +230,13 @@ sig
 end 
 
 
-	
-  
-
-module SSA 
-  (IR:IRSig) 
-  (VarSSA:VarSig with module IR = IR) 
-  (Instr:Bir.InstrSig with type var_i = VarSSA.var) 
-  (Exc:Cmn.ExceptionSig with type var_e = VarSSA.var)
-  (TSSA:TSsaSig with module Var_t = VarSSA 
-		 and module Instr_t = Instr 
-		 and module Exc_t = Exc)
-  (IR2SSA:IR2SsaSig
-   with module IR = IR 
-   and module Var_SSA = VarSSA
-   and module Instr_SSA = Instr
-   and module Exc_SSA = Exc)
-  = 
-struct 
-  let preds m =
-    let preds = Array.make (Array.length m.IR.code) Ptset.empty in
-    let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
-      add_pred 0 (-1);
-      Array.iteri 
-	(fun i ins ->
-	   match IR.instr_succs i ins with
-	     | n::j::[] -> add_pred n i; add_pred j i
-	     | n::[] -> add_pred n i
-	     | [] -> ()
-	     | _ -> assert false)
-	m.IR.code;
-      List.iter
-	(fun (i,e) -> add_pred e.IR.e_handler i) (IR.exception_edges m);
-      let preds = Array.map Ptset.elements preds in
-      let preds i = preds.(i) in
-	preds
-
-  let succs m =
-    let succs = Array.make (Array.length m.IR.code) Ptset.empty in
-    let add i j = succs.(i) <- Ptset.add j succs.(i) in
-      Array.iteri 
-	(fun i ins ->
-	   match IR.instr_succs i ins with
-	     | n::j::[] -> add i n; add i j
-	     | n::[] -> add i n
-	     | [] -> ()
-	     | _ -> assert false) 
-	m.IR.code;
-      List.iter
-	(fun (i,e) -> add i e.IR.e_handler) (IR.exception_edges m);
-      let succs = Array.map Ptset.elements succs in
-      let succs i =
-	if i=(-1) then [0] else succs.(i) in
-	succs
-
-  let dominator m preds =
+let dominator instr_array preds =
     let all = 
       JUtil.foldi 
-	(fun i _ -> Ptset.add i) (Ptset.singleton (-1)) m.IR.code 
+	(fun i _ -> Ptset.add i) (Ptset.singleton (-1)) instr_array 
     in
     let dom = Array.init
-      (Array.length m.IR.code)
+      (Array.length instr_array)
       (fun _ -> all) in
     let get_dom i =
       if i < 0 then Ptset.singleton (-1) else dom.(i) in
@@ -302,7 +249,13 @@ struct
 	change := false;
 	Array.iteri
 	  (fun i _ -> 
-	     let new_s = Ptset.add i (inter_list (preds i)) in
+	     let new_s = 
+	       try
+		 Ptset.add i (inter_list (preds i)) 
+	       with e -> 
+		 print_endline ("assert false at pp: "^(string_of_int i));
+		 raise e
+	     in
 	       if not (Ptset.subset dom.(i) new_s) then
 		 begin
 		   dom.(i) <- new_s;
@@ -311,7 +264,7 @@ struct
 	  dom	     
       done;
       dom
-
+	
   (* build dominator tree *)
   let make_idom_tree aux =
     let assoc_list = 
@@ -366,6 +319,69 @@ struct
       done;
       (fun i -> domf.(i+1))
 
+  let show_digraph instr_array succs =
+    let f = open_out "debug.dot" in
+      Printf.fprintf f "digraph debug {\n";
+      Array.iteri
+	(fun i _ ->
+	   List.iter 
+	     (fun j -> Printf.fprintf f "  n%d -> n%d;\n" i j)
+	     (succs i))
+	instr_array;
+      Printf.fprintf f "}\n";
+      close_out f  
+
+module SSA 
+  (IR:IRSig) 
+  (TSSA:TSsaSig 
+   with type var_t = IR.var * int)
+  (IR2SSA:IR2SsaSig 
+   with type ir_t = IR.t
+   and type ir_var = IR.var
+   and type ir_instr = IR.instr
+   and type ir_exc_h = IR.exception_handler
+   and type ssa_var = IR.var * int
+   and type ssa_instr = TSSA.instr_t
+   and type ssa_exc_h = TSSA.exception_handler
+  )
+  = 
+struct 
+  let preds m =
+    let preds = Array.make (Array.length m.IR.code) Ptset.empty in
+    let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
+      add_pred 0 (-1);
+      Array.iteri 
+	(fun i ins ->
+	   match IR.instr_succs i ins with
+	     | n::j::[] -> add_pred n i; add_pred j i
+	     | n::[] -> add_pred n i
+	     | [] -> ()
+	     | _ -> assert false)
+	m.IR.code;
+      List.iter
+	(fun (i,e) -> add_pred e.IR.e_handler i) (IR.exception_edges m);
+      let preds = Array.map Ptset.elements preds in
+      let preds i = preds.(i) in
+	preds
+
+  let succs m =
+    let succs = Array.make (Array.length m.IR.code) Ptset.empty in
+    let add i j = succs.(i) <- Ptset.add j succs.(i) in
+      Array.iteri 
+	(fun i ins ->
+	   match IR.instr_succs i ins with
+	     | n::j::[] -> add i n; add i j
+	     | n::[] -> add i n
+	     | [] -> ()
+	     | _ -> assert false) 
+	m.IR.code;
+      List.iter
+	(fun (i,e) -> add i e.IR.e_handler) (IR.exception_edges m);
+      let succs = Array.map Ptset.elements succs in
+      let succs i =
+	if i=(-1) then [0] else succs.(i) in
+	succs
+
 
 
   (* see:  
@@ -410,18 +426,6 @@ struct
 	var_defs;
       !place
 
-  let show_digraph m succs =
-    let f = open_out "debug.dot" in
-      Printf.fprintf f "digraph debug {\n";
-      Array.iteri
-	(fun i _ ->
-	   List.iter 
-	     (fun j -> Printf.fprintf f "  n%d -> n%d;\n" i j)
-	     (succs i))
-	m.IR.code;
-      Printf.fprintf f "}\n";
-      close_out f
-
   let debug_code m phi_nodes children vars search_h succs =
     Printf.printf "params(%s)\n"
       (JUtil.print_list_sep ","
@@ -453,7 +457,7 @@ struct
 	       Printf.sprintf "%d(%s)"
 		 x 
 		 (JUtil.print_list_sep " " (List.map string_of_int (children x)))) search_h));
-    show_digraph m succs
+    show_digraph m.IR.code succs
 
 
   (* Compute the rights indexes for each variable use and def.
@@ -546,7 +550,7 @@ struct
     let n = Array.length ir_code.IR.code in
     let preds = preds ir_code in
     let succs = succs ir_code in
-    let dom = dominator ir_code preds in
+    let dom = dominator ir_code.IR.code preds in
     let (idom,children) = idom dom in
     let domf = domf n preds idom in
     let var_defs = IR2SSA.var_defs ir_code in

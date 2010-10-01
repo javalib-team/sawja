@@ -26,7 +26,6 @@ open JCode
 
 
 
-include Cmn.ExceptionNormalVar
 include Cmn.Common
 
 type virtual_call_kind =
@@ -233,10 +232,10 @@ end
 
 
 
-module Instr = InstrRep(Cmn.Var)
+
 include Cmn.Var
-include Bir.T (Cmn.Var) (Instr) (Cmn.ExceptionNormalVar)
-include Instr
+include Bir.T (Cmn.Var) (InstrRep(Cmn.Var)) 
+include InstrRep(Cmn.Var)
 
 
 

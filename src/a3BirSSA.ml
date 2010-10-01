@@ -1,140 +1,134 @@
-module Var = SsaBir.Var(A3Bir)
-module Exception = Cmn.Exception (Var)
-module Instr = A3Bir.InstrRep (Var)    
-module SsaT = SsaBir.T (Var) (Instr) (Exception)
+include SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.InstrRep (SsaBir.Var(A3Bir)))
+include A3Bir.InstrRep (SsaBir.Var(A3Bir))    
+include SsaBir.Var(A3Bir)
 
 module A3Bir2SSA = struct
-  open A3Bir
-  module IR = A3Bir
-  module Var_SSA = Var
-  module Instr_SSA = Instr
-  module Exc_SSA = Exception
   let use_bcvars =
     let vars acc = function
-      | Const _ -> acc
-      | Var (_,x) -> if var_ssa x then acc else Ptset.add (index x) acc 
+      | A3Bir.Const _ -> acc
+      | A3Bir.Var (_,x) -> if A3Bir.var_ssa x then acc else Ptset.add (A3Bir.index x) acc 
     in
     let expr acc = function
-      | BasicExpr e	
-      | Field (e,_,_) 
-      | Unop (_,e) -> vars acc e
-      | Binop (_,e1,e2) -> vars (vars acc e1) e2
-      | StaticField _ -> acc 
+      | A3Bir.BasicExpr e	
+      | A3Bir.Field (e,_,_) 
+      | A3Bir.Unop (_,e) -> vars acc e
+      | A3Bir.Binop (_,e1,e2) -> vars (vars acc e1) e2
+      | A3Bir.StaticField _ -> acc 
     in
       function
-	| AffectField (e1,_,_,e2) 
-	| Ifd ((_,e1,e2), _) -> vars (vars Ptset.empty e1) e2
-	| Goto _ 
-	| MayInit _ 
-	| Nop 
-	| Return None -> Ptset.empty
-	| AffectStaticField (_,_,e)
-	| AffectVar (_,e) -> expr Ptset.empty e
-	| Throw e 
-	| Return (Some e)
-	| MonitorEnter e 
-	| MonitorExit e -> vars Ptset.empty e
-	| NewArray (_,_,le)
-	| New (_,_,_,le) 
-	| InvokeStatic (_,_,_,le) -> List.fold_left vars Ptset.empty le
-	| InvokeVirtual (_,e,_,_,le) 
-	| InvokeNonVirtual (_,e,_,_,le) -> List.fold_left vars Ptset.empty (e::le)
-	| AffectArray (e1,e2,e3) -> vars (vars (vars Ptset.empty e1) e2) e3
-	| Check c -> begin
+	| A3Bir.AffectVar (_,e) 
+	| A3Bir.AffectStaticField (_,_,e) -> expr Ptset.empty e
+	| A3Bir.AffectField (e1,_,_,e2) 
+	| A3Bir.Ifd ((_,e1,e2), _) -> vars (vars Ptset.empty e1) e2
+	| A3Bir.Goto _ 
+	| A3Bir.MayInit _ 
+	| A3Bir.Nop 
+	| A3Bir.Return None -> Ptset.empty
+	| A3Bir.Throw e 
+	| A3Bir.Return (Some e)
+	| A3Bir.MonitorEnter e 
+	| A3Bir.MonitorExit e -> vars Ptset.empty e
+	| A3Bir.NewArray (_,_,le)
+	| A3Bir.New (_,_,_,le) 
+	| A3Bir.InvokeStatic (_,_,_,le) -> List.fold_left vars Ptset.empty le
+	| A3Bir.InvokeVirtual (_,e,_,_,le) 
+	| A3Bir.InvokeNonVirtual (_,e,_,_,le) -> List.fold_left vars Ptset.empty (e::le)
+	| A3Bir.AffectArray (e1,e2,e3) -> vars (vars (vars Ptset.empty e1) e2) e3
+	| A3Bir.Check c -> begin
 	    match c with
-	      | CheckArrayBound (e1,e2)
-	      | CheckArrayStore (e1,e2) -> vars (vars Ptset.empty e1) e2
-	      | CheckNullPointer e
-	      | CheckNegativeArraySize e
-	      | CheckCast (e,_)
-	      | CheckArithmetic e -> vars Ptset.empty e
-	      | CheckLink _ -> Ptset.empty
+	      | A3Bir.CheckArrayBound (e1,e2)
+	      | A3Bir.CheckArrayStore (e1,e2) -> vars (vars Ptset.empty e1) e2
+	      | A3Bir.CheckNullPointer e
+	      | A3Bir.CheckNegativeArraySize e
+	      | A3Bir.CheckCast (e,_)
+	      | A3Bir.CheckArithmetic e -> vars Ptset.empty e
+	      | A3Bir.CheckLink _ -> Ptset.empty
 	  end
 
   let def_bcvar = function
-    | AffectVar (v,_) 
-    | NewArray (v,_,_)
-    | New (v,_,_,_) 
-    | InvokeStatic (Some v,_,_,_)
-    | InvokeVirtual (Some v,_,_,_,_) 
-    | InvokeNonVirtual (Some v,_,_,_,_) 
-      -> if var_ssa v then Ptset.empty else Ptset.singleton (index v) 
+    | A3Bir.AffectVar (v,_) 
+    | A3Bir.NewArray (v,_,_)
+    | A3Bir.New (v,_,_,_) 
+    | A3Bir.InvokeStatic (Some v,_,_,_)
+    | A3Bir.InvokeVirtual (Some v,_,_,_,_) 
+    | A3Bir.InvokeNonVirtual (Some v,_,_,_,_) 
+      -> if A3Bir.var_ssa v then Ptset.empty else Ptset.singleton (A3Bir.index v) 
     | _ -> Ptset.empty
 
   let var_defs m =
     JUtil.foldi
       (fun i ins -> 
 	 match ins with
-	   | AffectVar (x,_) 
-	   | NewArray (x,_,_)
-	   | New (x,_,_,_) 
-	   | InvokeStatic (Some x,_,_,_)
-	   | InvokeVirtual (Some x,_,_,_,_) 
-	   | InvokeNonVirtual (Some x,_,_,_,_) 
-	     -> if var_ssa x  then (fun m->m) else Ptmap.add ~merge:Ptset.union (index x) (Ptset.singleton i)
+	   | A3Bir.AffectVar (x,_) 
+	   | A3Bir.NewArray (x,_,_)
+	   | A3Bir.New (x,_,_,_) 
+	   | A3Bir.InvokeStatic (Some x,_,_,_)
+	   | A3Bir.InvokeVirtual (Some x,_,_,_,_) 
+	   | A3Bir.InvokeNonVirtual (Some x,_,_,_,_) 
+	     -> if A3Bir.var_ssa x  then (fun m->m) else Ptmap.add ~merge:Ptset.union (A3Bir.index x) (Ptset.singleton i)
 	   | _ -> fun m -> m)
       (List.fold_right
-	 (fun (_,x) -> Ptmap.add (index x) (Ptset.singleton (-1)))
-	 m.params Ptmap.empty)
-      m.code 
+	 (fun (_,x) -> Ptmap.add (A3Bir.index x) (Ptset.singleton (-1)))
+	 m.A3Bir.params Ptmap.empty)
+      m.A3Bir.code 	
 
   let map_instr def use =
     let map_basic_expr f = 
       function
-	| Const c -> Instr.Const c
-	| Var (t,x) -> Instr.Var (t,f x)
+	| A3Bir.Const c -> Const c
+	| A3Bir.Var (t,x) -> Var (t,f x)
     in
     let map_expr f =
       let map_basic_expr = map_basic_expr f in
       function
-	| BasicExpr e -> Instr.BasicExpr (map_basic_expr e)  
-	| StaticField (c,fs) -> Instr.StaticField (c,fs)
-	| Field (e,c,fs) -> Instr.Field (map_basic_expr e,c,fs)	  
-	| Unop (s,e) -> Instr.Unop (s,map_basic_expr e)
-	| Binop (s,e1,e2) -> 
-	    Instr.Binop (s,map_basic_expr e1,map_basic_expr e2)
+	| A3Bir.BasicExpr e -> BasicExpr (map_basic_expr e)  
+	| A3Bir.StaticField (c,fs) -> StaticField (c,fs)
+	| A3Bir.Field (e,c,fs) -> Field (map_basic_expr e,c,fs)	  
+	| A3Bir.Unop (s,e) -> Unop (s,map_basic_expr e)
+	| A3Bir.Binop (s,e1,e2) -> 
+	    Binop (s,map_basic_expr e1,map_basic_expr e2)
     in
     let use_b = map_basic_expr use in
     let use = map_expr use in
       function
-	| AffectField (e1,c,f0,e2) -> Instr.AffectField (use_b e1,c,f0,use_b e2)
-	| Ifd ((c,e1,e2), pc) -> Instr.Ifd ((c,use_b e1,use_b e2), pc) 
-	| Goto i -> Instr.Goto i
-	| Throw e -> Instr.Throw (use_b e) 
-	| MayInit c -> Instr.MayInit c
-	| Nop -> Instr.Nop
-	| Return None -> Instr.Return None
-	| Return (Some e) -> Instr.Return (Some (use_b e))
-	| AffectVar (x,e) -> Instr.AffectVar (def x,use e)
-	| MonitorEnter e -> Instr.MonitorEnter (use_b e)
-	| MonitorExit e -> Instr.MonitorExit (use_b e)
-	| AffectStaticField (c,f0,e) -> Instr.AffectStaticField (c,f0,use e)
-	| NewArray (x,t,le) -> Instr.NewArray (def x,t,List.map (use_b) le)
-	| New (x,c,lt,le) -> Instr.New (def x,c,lt,List.map (use_b) le)
-	| InvokeStatic (None,c,ms,le) -> Instr.InvokeStatic (None,c,ms,List.map (use_b) le)
-	| InvokeStatic (Some x,c,ms,le) -> Instr.InvokeStatic (Some (def x),c,ms,List.map (use_b) le)
-	| InvokeVirtual (None,e,c,ms,le) -> Instr.InvokeVirtual (None,use_b e,c,ms,List.map (use_b) le)
-	| InvokeVirtual (Some x,e,c,ms,le) -> Instr.InvokeVirtual (Some (def x),use_b e,c,ms,List.map (use_b) le)
-	| InvokeNonVirtual (None,e,c,ms,le) -> Instr.InvokeNonVirtual (None,use_b e,c,ms,List.map (use_b) le)
-	| InvokeNonVirtual (Some x,e,c,ms,le) -> Instr.InvokeNonVirtual (Some (def x),use_b e,c,ms,List.map (use_b) le)
-	| AffectArray (e1,e2,e3) -> Instr.AffectArray (use_b e1,use_b e2,use_b e3)
-	| Check c -> Instr.Check begin
+	| A3Bir.AffectField (e1,c,f0,e2) -> AffectField (use_b e1,c,f0,use_b e2)
+	| A3Bir.Ifd ((c,e1,e2), pc) -> Ifd ((c,use_b e1,use_b e2), pc) 
+	| A3Bir.Goto i -> Goto i
+	| A3Bir.Throw e -> Throw (use_b e) 
+	| A3Bir.MayInit c -> MayInit c
+	| A3Bir.Nop -> Nop
+	| A3Bir.Return None -> Return None
+	| A3Bir.Return (Some e) -> Return (Some (use_b e))
+	| A3Bir.AffectVar (x,e) -> AffectVar (def x,use e)
+	| A3Bir.MonitorEnter e -> MonitorEnter (use_b e)
+	| A3Bir.MonitorExit e -> MonitorExit (use_b e)
+	| A3Bir.AffectStaticField (c,f0,e) -> AffectStaticField (c,f0,use e)
+	| A3Bir.NewArray (x,t,le) -> NewArray (def x,t,List.map (use_b) le)
+	| A3Bir.New (x,c,lt,le) -> New (def x,c,lt,List.map (use_b) le)
+	| A3Bir.InvokeStatic (None,c,ms,le) -> InvokeStatic (None,c,ms,List.map (use_b) le)
+	| A3Bir.InvokeStatic (Some x,c,ms,le) -> InvokeStatic (Some (def x),c,ms,List.map (use_b) le)
+	| A3Bir.InvokeVirtual (None,e,c,ms,le) -> InvokeVirtual (None,use_b e,c,ms,List.map (use_b) le)
+	| A3Bir.InvokeVirtual (Some x,e,c,ms,le) -> InvokeVirtual (Some (def x),use_b e,c,ms,List.map (use_b) le)
+	| A3Bir.InvokeNonVirtual (None,e,c,ms,le) -> InvokeNonVirtual (None,use_b e,c,ms,List.map (use_b) le)
+	| A3Bir.InvokeNonVirtual (Some x,e,c,ms,le) -> InvokeNonVirtual (Some (def x),use_b e,c,ms,List.map (use_b) le)
+	| A3Bir.AffectArray (e1,e2,e3) -> AffectArray (use_b e1,use_b e2,use_b e3)
+	| A3Bir.Check c -> Check begin
 	    match c with
-	      | CheckArrayBound (e1,e2) -> Instr.CheckArrayBound (use_b e1,use_b e2)
-	      | CheckArrayStore (e1,e2) -> Instr.CheckArrayStore (use_b e1,use_b e2)
-	      | CheckNullPointer e -> Instr.CheckNullPointer (use_b e)
-	      | CheckNegativeArraySize e -> Instr.CheckNegativeArraySize (use_b e)
-	      | CheckCast (e,t) -> Instr.CheckCast (use_b e,t)
-	      | CheckArithmetic e -> Instr.CheckArithmetic (use_b e)
-	      | CheckLink op -> Instr.CheckLink op
+	      | A3Bir.CheckArrayBound (e1,e2) -> CheckArrayBound (use_b e1,use_b e2)
+	      | A3Bir.CheckArrayStore (e1,e2) -> CheckArrayStore (use_b e1,use_b e2)
+	      | A3Bir.CheckNullPointer e -> CheckNullPointer (use_b e)
+	      | A3Bir.CheckNegativeArraySize e -> CheckNegativeArraySize (use_b e)
+	      | A3Bir.CheckCast (e,t) -> CheckCast (use_b e,t)
+	      | A3Bir.CheckArithmetic e -> CheckArithmetic (use_b e)
+	      | A3Bir.CheckLink op -> CheckLink op
 	  end
 
   let map_exception_handler e = {
-    Exception.e_start = e.e_start;
-    Exception.e_end = e.e_end;
-    Exception.e_handler = e.e_handler;
-    Exception.e_catch_type = e.e_catch_type;
-    Exception.e_catch_var = (e.e_catch_var,0)
+    e_start = e.A3Bir.e_start;
+    e_end = e.A3Bir.e_end;
+    e_handler = e.A3Bir.e_handler;
+    e_catch_type = e.A3Bir.e_catch_type;
+    e_catch_var = (e.A3Bir.e_catch_var,0)
   }
 
   
@@ -144,15 +138,20 @@ module A3Bir2SSA = struct
 
 end
 
+module SsaA3Bir = SsaBir.SSA 
+  (A3Bir) 
+  (SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.InstrRep (SsaBir.Var(A3Bir))))
+  (struct 
+     include A3Bir2SSA
+     type ir_t = A3Bir.t
+     type ir_var = A3Bir.var
+     type ir_instr = A3Bir.instr
+     type ir_exc_h = A3Bir.exception_handler
+     type ssa_var = var
+     type ssa_instr = instr
+     type ssa_exc_h = exception_handler
+   end)
 
-module SsaA3Bir = SsaBir.SSA (A3Bir) (Var) (Instr) (Exception) (SsaT) (A3Bir2SSA)
-(* Common parts*)
-
-
-include Var
-include SsaT
-include Exception
-include Instr
 
 let transform_from_a3bir = SsaA3Bir.transform_from_ir
 

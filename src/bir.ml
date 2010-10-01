@@ -23,14 +23,12 @@ open Javalib
 open JBasics
 open JCode 
 
-module Var = Cmn.Var
-include Var
+
 include Cmn.Common
 
 
 module type InstrSig = 
   sig
-    type var_i
     type instr
     val print_instr: ?show_type:bool -> instr -> string
     val instr_jump_to: instr -> int option
@@ -43,7 +41,6 @@ type virtual_call_kind =
 
 module InstrRep (Var:Cmn.VarSig) = 
 struct
-  type var_i = Var.var
   type expr =
     | Const of const
     | Var of JBasics.value_type * Var.var
@@ -241,21 +238,19 @@ end
 
 module type TSig = sig
   module Var_t : Cmn.VarSig
-  module Instr_t : InstrSig with type var_i = Var.var
-  module Exc_t : Cmn.ExceptionSig with type var_e = Var.var
+  module Instr_t : InstrSig
+  module Exc_t : Cmn.ExceptionSig
 end
 
 module T (Var:Cmn.VarSig) (Instr:InstrSig) 
-  (Exc:Cmn.ExceptionSig with type var_e = Var.var) =
+  =
   struct
-    module Var_t = Var
-    module Instr_t = Instr
-    module Exc_t = Exc
+    include Cmn.Exception (Var)
     type t = {
       vars : Var.var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
       params : (JBasics.value_type * Var.var) list;
       code : Instr.instr array;
-      exc_tbl : Exc.exception_handler list;
+      exc_tbl : exception_handler list;
       line_number_table : (int * int) list option;
       pc_bc2ir : int Ptmap.t;
       pc_ir2bc : int array
@@ -271,7 +266,7 @@ module T (Var:Cmn.VarSig) (Instr:InstrSig)
 
     let jump_target code =
       let jump_target = Array.make (Array.length code.code) false in
-	List.iter (fun e -> jump_target.(e.Exc.e_handler) <- true) code.exc_tbl;
+	List.iter (fun e -> jump_target.(e.e_handler) <- true) code.exc_tbl;
 	Array.iter
 	  (fun instr ->
 	     match Instr.instr_jump_to instr with
@@ -280,18 +275,17 @@ module T (Var:Cmn.VarSig) (Instr:InstrSig)
 	  code.code;
 	jump_target	  
 
-    let exception_edges m = Exc.exception_edges' m.code m.exc_tbl 
+    let exception_edges m = exception_edges' m.code m.exc_tbl 
   end
 
     
 
 (*********** TYPES *************)
 
-module Instr = InstrRep (Cmn.Var)
-include Cmn.ExceptionNormalVar
-include T (Cmn.Var) (Instr) (Cmn.ExceptionNormalVar)
-include Instr
 
+include T (Cmn.Var) (InstrRep(Cmn.Var))
+include (InstrRep(Cmn.Var))
+include Cmn.Var
 
 (* For stack type inference only *)
 type op_size = Op32 | Op64
@@ -1817,6 +1811,28 @@ let flatten_code code exc_tbl =
   in
     (instrs, Array.of_list pc_list, map, exc_tbl)
 
+exception StaticDeadInstruction
+
+let verify_pred_exist code handlers = 
+  let has_pred = Array.make (Array.length code) false in
+    has_pred.(0) <- true;
+    Array.iteri
+      (fun i ins -> 
+	 match instr_succs i ins with
+	     [j] -> has_pred.(j) <- true
+	   | [j;n] -> has_pred.(j) <- true; has_pred.(n) <- true
+	   | [] -> ()
+	   | _ -> assert false
+      )
+      code;
+    List.iter (fun e -> has_pred.(e.e_handler) <- true) handlers;
+    Array.iter 
+      (fun has_p -> 
+	 if has_p = false 
+	 then
+	   raise StaticDeadInstruction)
+      has_pred
+      
 
 let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
@@ -1841,6 +1857,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
 	  (* let _ = print_unflattened_code ir_code in *)
 	  let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
+	  let _ = verify_pred_exist ir_code ir_exc_tbl in
 	    { params = gen_params dico pp_var cm;
 	      vars = make_array_var dico;
 	      code = ir_code;
@@ -1851,9 +1868,9 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
       | None -> raise Subroutine
 
 let transform ?(bcv=false) ?(ch_link = false) = 
-  jcode2bir Normal bcv ch_link false 
-let transform_flat ?(bcv=false) ?(ch_link = false) ?(ir_ssa=false) = jcode2bir Flat bcv ch_link ir_ssa
-let transform_addr3 ?(bcv=false) ?(ch_link = false) ?(ir_ssa=false) = jcode2bir Addr3 bcv ch_link ir_ssa
+  jcode2bir Normal bcv ch_link true
+let transform_flat ?(bcv=false) ?(ch_link = false)  = jcode2bir Flat bcv ch_link true
+let transform_addr3 ?(bcv=false) ?(ch_link = false) = jcode2bir Addr3 bcv ch_link true
 
 
 (* Agregation of boolean tests  *)
