@@ -189,7 +189,6 @@ module type IR2SsaSig = sig
   type ssa_var
   type ssa_instr
   type ssa_exc_h
-  type live_res
   val use_bcvars : ir_instr -> Ptset.t
   val def_bcvar : ir_instr -> Ptset.t
   val var_defs : ir_t -> Ptset.t Ptmap.t
@@ -197,8 +196,7 @@ module type IR2SsaSig = sig
   val map_exception_handler : ir_exc_h -> ssa_exc_h
   val preds : ir_t -> int -> int list
   val succs : ir_t -> int -> int list
-  val live_analysis : ir_t -> int -> live_res
-  val live_result : (int -> live_res) -> int -> ir_var -> bool
+  val live_analysis : ir_t -> int -> ir_var -> bool
 end
 
 
@@ -580,7 +578,6 @@ struct
 
   let transform_from_ir (ir_code:IR.t) =
     let live = IR2SSA.live_analysis ir_code in
-    let live = IR2SSA.live_result live in
     let run = run ir_code live in
     let debug i msg = 
       Printf.printf "-----------------\nFailure %s line %d\n-----------------\n" msg i;

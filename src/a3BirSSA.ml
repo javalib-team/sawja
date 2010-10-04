@@ -132,12 +132,9 @@ module A3Bir2SSA = struct
   }
 
   let live_analysis ir_code = 
-    Live_a3bir.run ir_code 
+    let live = Live_a3bir.run ir_code in
+      fun i x -> Live_a3bir.Env.mem x (live i)
       
-
-  let live_result live i x = 
-    Live_a3bir.Env.mem x (live i)
-
   let preds m =
     let preds = Array.make (Array.length m.A3Bir.code) Ptset.empty in
     let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in

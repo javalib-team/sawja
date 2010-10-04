@@ -126,12 +126,9 @@ module JBir2SSA = struct
 
   
   let live_analysis ir_code = 
-    Live_bir.run ir_code 
+    let live = Live_bir.run ir_code in
+      fun i x  ->  Live_bir.Env.mem x (live i)
       
-
-  let live_result live i x = 
-    Live_bir.Env.mem x (live i)
-
   let preds m =
     let preds = Array.make (Array.length m.JBir.code) Ptset.empty in
     let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
@@ -183,7 +180,6 @@ module SsaJBir = SsaBir.SSA
      type ssa_var = var
      type ssa_instr = instr
      type ssa_exc_h = exception_handler
-     type live_res = Live_bir.Env.t
    end)
 (* Common parts*)
 
