@@ -32,7 +32,6 @@ module type InstrSig =
     type instr
     val print_instr: ?show_type:bool -> instr -> string
     val instr_jump_to: instr -> int option
-    val instr_succs: int -> instr -> int list
   end
 
 type virtual_call_kind =
@@ -140,13 +139,6 @@ struct
       | Goto n -> Some n
       | _ -> None
 
-  let instr_succs pp = function
-      | Ifd (_, n) -> [pp+1;n]
-      | Goto n -> [n]
-      | Throw _
-      | Return _ -> []
-      | _ -> [pp+1]
-	  
 
   (************* PRINT ************)
 
@@ -1818,11 +1810,12 @@ let verify_pred_exist code handlers =
     has_pred.(0) <- true;
     Array.iteri
       (fun i ins -> 
-	 match instr_succs i ins with
-	     [j] -> has_pred.(j) <- true
-	   | [j;n] -> has_pred.(j) <- true; has_pred.(n) <- true
-	   | [] -> ()
-	   | _ -> assert false
+	 match ins with
+	   | Ifd (_ , j) -> has_pred.(i+1) <- true; has_pred.(j) <- true
+	   | Goto j -> has_pred.(j) <- true
+	   | Throw _
+	   | Return _ -> ()
+	   | _ -> has_pred.(i+1) <- true
       )
       code;
     List.iter (fun e -> has_pred.(e.e_handler) <- true) handlers;

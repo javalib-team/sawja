@@ -125,9 +125,48 @@ module JBir2SSA = struct
   }
 
   
-  let live_analysis ir_code i x = 
-    let live = Live_bir.run ir_code in
-      Live_bir.Env.mem x (live i)
+  let live_analysis ir_code = 
+    Live_bir.run ir_code 
+      
+
+  let live_result live i x = 
+    Live_bir.Env.mem x (live i)
+
+  let preds m =
+    let preds = Array.make (Array.length m.JBir.code) Ptset.empty in
+    let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
+      add_pred 0 (-1);
+      Array.iteri 
+	(fun i ins ->
+	   match ins with
+	     | JBir.Ifd (_ , j) -> add_pred (i+1) i; add_pred j i
+	     | JBir.Goto j -> add_pred j i
+	     | JBir.Throw _
+	     | JBir.Return _ -> ()
+	     | _ -> add_pred (i+1) i) m.JBir.code;
+      List.iter
+	(fun (i,e) -> add_pred e.JBir.e_handler i) (JBir.exception_edges m);
+      let preds = Array.map Ptset.elements preds in
+      let preds i = preds.(i) in
+	preds
+
+  let succs m =
+    let succs = Array.make (Array.length m.JBir.code) Ptset.empty in
+    let add i j = succs.(i) <- Ptset.add j succs.(i) in
+      Array.iteri 
+	(fun i ins ->
+	   match ins with
+	     | JBir.Ifd (_ , j) -> add i (i+1); add i j
+	     | JBir.Goto j -> add i j
+	     | JBir.Throw _
+	     | JBir.Return _ -> ()
+	     | _ -> add i (i+1)) m.JBir.code;
+      List.iter
+	(fun (i,e) -> add i e.JBir.e_handler) (JBir.exception_edges m);
+      let succs = Array.map Ptset.elements succs in
+      let succs i =
+	if i=(-1) then [0] else succs.(i) in
+	succs
 
 end
 
@@ -144,6 +183,7 @@ module SsaJBir = SsaBir.SSA
      type ssa_var = var
      type ssa_instr = instr
      type ssa_exc_h = exception_handler
+     type live_res = Live_bir.Env.t
    end)
 (* Common parts*)
 

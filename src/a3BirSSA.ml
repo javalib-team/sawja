@@ -131,11 +131,48 @@ module A3Bir2SSA = struct
     e_catch_var = (e.A3Bir.e_catch_var,0)
   }
 
-  
-  let live_analysis ir_code i x = 
-    let live = Live_a3bir.run ir_code in
-      Live_a3bir.Env.mem x (live i)
+  let live_analysis ir_code = 
+    Live_a3bir.run ir_code 
+      
 
+  let live_result live i x = 
+    Live_a3bir.Env.mem x (live i)
+
+  let preds m =
+    let preds = Array.make (Array.length m.A3Bir.code) Ptset.empty in
+    let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
+      add_pred 0 (-1);
+      Array.iteri 
+	(fun i ins ->
+	   match ins with
+	     | A3Bir.Ifd (_ , j) -> add_pred (i+1) i; add_pred j i
+	     | A3Bir.Goto j -> add_pred j i
+	     | A3Bir.Throw _
+	     | A3Bir.Return _ -> ()
+	     | _ -> add_pred (i+1) i) m.A3Bir.code;
+      List.iter
+	(fun (i,e) -> add_pred e.A3Bir.e_handler i) (A3Bir.exception_edges m);
+      let preds = Array.map Ptset.elements preds in
+      let preds i = preds.(i) in
+	preds
+
+  let succs m =
+    let succs = Array.make (Array.length m.A3Bir.code) Ptset.empty in
+    let add i j = succs.(i) <- Ptset.add j succs.(i) in
+      Array.iteri 
+	(fun i ins ->
+	   match ins with
+	     | A3Bir.Ifd (_ , j) -> add i (i+1); add i j
+	     | A3Bir.Goto j -> add i j
+	     | A3Bir.Throw _
+	     | A3Bir.Return _ -> ()
+	     | _ -> add i (i+1)) m.A3Bir.code;
+      List.iter
+	(fun (i,e) -> add i e.A3Bir.e_handler) (A3Bir.exception_edges m);
+      let succs = Array.map Ptset.elements succs in
+      let succs i =
+	if i=(-1) then [0] else succs.(i) in
+	succs
 end
 
 module SsaA3Bir = SsaBir.SSA 
@@ -150,6 +187,7 @@ module SsaA3Bir = SsaBir.SSA
      type ssa_var = var
      type ssa_instr = instr
      type ssa_exc_h = exception_handler
+     type live_res = Live_a3bir.Env.t
    end)
 
 

@@ -249,9 +249,6 @@ type t = {
 (** [jump_target m] indicates whether program points are join points or not in [m]. *)
 val jump_target : t -> bool array
 
-(** [instr_succs pp instr] returns the normal successors of instruction [instr] at ir code line [pp].*)
-val instr_succs: int -> instr -> int list
-
 (** [exception_edges m] returns a list of edges [(i,e);...] where
     [i] is an instruction index in [m] and [e] is a handler whose
     range contains [i]. *)
@@ -443,6 +440,5 @@ module InstrRep (Var:Cmn.VarSig) : sig
   val print_instr: ?show_type:bool -> instr -> string
   val print_expr: ?show_type:bool -> expr -> string
   val instr_jump_to: instr -> int option
-  val instr_succs: int -> instr -> int list
 
 end

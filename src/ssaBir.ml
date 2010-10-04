@@ -82,9 +82,6 @@ module type IRSig = sig
   (** [jump_target m] indicates whether program points are join points or not in [m]. *)
   val jump_target : t -> bool array
 
-  (** [instr_succs pp instr] returns the normal successors of instruction [instr] at ir code line [pp].*)
-  val instr_succs: int -> instr -> int list
-
   (** [exception_edges m] returns a list of edges [(i,e);...] where
       [i] is an instruction index in [m] and [e] is a handler whose
       range contains [i]. *)
@@ -192,14 +189,19 @@ module type IR2SsaSig = sig
   type ssa_var
   type ssa_instr
   type ssa_exc_h
+  type live_res
   val use_bcvars : ir_instr -> Ptset.t
   val def_bcvar : ir_instr -> Ptset.t
   val var_defs : ir_t -> Ptset.t Ptmap.t
   val map_instr : (ir_var -> ssa_var) -> (ir_var -> ssa_var) -> ir_instr -> ssa_instr
   val map_exception_handler : ir_exc_h -> ssa_exc_h
-  val live_analysis : ir_t -> int -> ir_var -> bool
+  val preds : ir_t -> int -> int list
+  val succs : ir_t -> int -> int list
+  val live_analysis : ir_t -> int -> live_res
+  val live_result : (int -> live_res) -> int -> ir_var -> bool
 end
- 
+
+
 module type TSsaSig = 
 sig
   type var_t
@@ -250,11 +252,7 @@ let dominator instr_array preds =
 	Array.iteri
 	  (fun i _ -> 
 	     let new_s = 
-	       try
 		 Ptset.add i (inter_list (preds i)) 
-	       with e -> 
-		 print_endline ("assert false at pp: "^(string_of_int i));
-		 raise e
 	     in
 	       if not (Ptset.subset dom.(i) new_s) then
 		 begin
@@ -281,16 +279,22 @@ let dominator instr_array preds =
 
   (* immediate dominator *)
   let idom dom =
+    let cpt = ref 0 in
     let n = Array.length dom in
     let dom_strict = Array.init n (fun i -> Ptset.remove i dom.(i)) in
     let aux = Array.init n (fun i -> dom_strict.(i)) in
       for i=0 to (n-1) do
 	let workset = ref (Ptset.remove (-1) dom_strict.(i)) in
 	  while not (Ptset.is_empty !workset) do
+	    cpt:=succ !cpt;
 	    let j = Ptset.max_elt !workset in
 	      workset := Ptset.diff !workset dom.(j);
 	      aux.(i) <- Ptset.diff aux.(i) dom_strict.(j)
-	  done
+	  done;
+	if !cpt > 3 
+	then
+	  print_endline ("iteration = "^string_of_int !cpt);
+	cpt:=0
       done;
       (fun i -> 
 	 let s = aux.(i) in
@@ -346,44 +350,7 @@ module SSA
   )
   = 
 struct 
-  let preds m =
-    let preds = Array.make (Array.length m.IR.code) Ptset.empty in
-    let add_pred i j = preds.(i) <- Ptset.add j preds.(i) in
-      add_pred 0 (-1);
-      Array.iteri 
-	(fun i ins ->
-	   match IR.instr_succs i ins with
-	     | n::j::[] -> add_pred n i; add_pred j i
-	     | n::[] -> add_pred n i
-	     | [] -> ()
-	     | _ -> assert false)
-	m.IR.code;
-      List.iter
-	(fun (i,e) -> add_pred e.IR.e_handler i) (IR.exception_edges m);
-      let preds = Array.map Ptset.elements preds in
-      let preds i = preds.(i) in
-	preds
-
-  let succs m =
-    let succs = Array.make (Array.length m.IR.code) Ptset.empty in
-    let add i j = succs.(i) <- Ptset.add j succs.(i) in
-      Array.iteri 
-	(fun i ins ->
-	   match IR.instr_succs i ins with
-	     | n::j::[] -> add i n; add i j
-	     | n::[] -> add i n
-	     | [] -> ()
-	     | _ -> assert false) 
-	m.IR.code;
-      List.iter
-	(fun (i,e) -> add i e.IR.e_handler) (IR.exception_edges m);
-      let succs = Array.map Ptset.elements succs in
-      let succs i =
-	if i=(-1) then [0] else succs.(i) in
-	succs
-
-
-
+  
   (* see:  
      Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.; 
      and Zadeck, F. Kenneth (1991). 
@@ -548,8 +515,8 @@ struct
       let jump_target = jump_target ir_code in
     *)    
     let n = Array.length ir_code.IR.code in
-    let preds = preds ir_code in
-    let succs = succs ir_code in
+    let preds = IR2SSA.preds ir_code in
+    let succs = IR2SSA.succs ir_code in
     let dom = dominator ir_code.IR.code preds in
     let (idom,children) = idom dom in
     let domf = domf n preds idom in
@@ -612,7 +579,9 @@ struct
       print_newline ()
 
   let transform_from_ir (ir_code:IR.t) =
-    let run = run ir_code (IR2SSA.live_analysis ir_code) in
+    let live = IR2SSA.live_analysis ir_code in
+    let live = IR2SSA.live_result live in
+    let run = run ir_code live in
     let debug i msg = 
       Printf.printf "-----------------\nFailure %s line %d\n-----------------\n" msg i;
       debug ir_code run in

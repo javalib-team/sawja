@@ -136,13 +136,6 @@ struct
       | Goto n -> Some n
       | _ -> None
 
-  let instr_succs pp = function
-    | Ifd (_, n) -> [pp+1;n]
-    | Goto n -> [n]
-    | Throw _
-    | Return _ -> []
-    | _ -> [pp+1]
-
   (************* PRINT ************)
 
   let rec print_basic_expr ?(show_type=true) = function 
