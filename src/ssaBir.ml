@@ -277,28 +277,22 @@ let dominator instr_array preds =
 
   (* immediate dominator *)
   let idom dom =
-    let cpt = ref 0 in
     let n = Array.length dom in
     let dom_strict = Array.init n (fun i -> Ptset.remove i dom.(i)) in
     let aux = Array.init n (fun i -> dom_strict.(i)) in
       for i=0 to (n-1) do
 	let workset = ref (Ptset.remove (-1) dom_strict.(i)) in
 	  while not (Ptset.is_empty !workset) do
-	    cpt:=succ !cpt;
 	    let j = Ptset.max_elt !workset in
 	      workset := Ptset.diff !workset dom.(j);
 	      aux.(i) <- Ptset.diff aux.(i) dom_strict.(j)
 	  done;
-	if !cpt > 3 
-	then
-	  print_endline ("iteration = "^string_of_int !cpt);
-	cpt:=0
       done;
       (fun i -> 
 	 let s = aux.(i) in
 	   assert (Ptset.cardinal s = 1);
 	   Ptset.choose s), make_idom_tree aux
-
+	  
   (* dominance frontier set 
      See: 
      Cooper, Keith D.; Harvey, Timothy J.; and Kennedy, Ken (2001). 
@@ -506,6 +500,7 @@ struct
       (fun i -> Ptmap.find i !rename_def),
     (fun i -> (rename_use.(i))),
     phi_nodes
+
 
   let run ir_code live =
     (*

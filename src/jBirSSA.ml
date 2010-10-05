@@ -183,9 +183,8 @@ module SsaJBir = SsaBir.SSA
    end)
 (* Common parts*)
 
-
 let transform_from_bir = SsaJBir.transform_from_ir
 
-let transform ?(bcv=false) cm code = 
-    transform_from_bir (JBir.transform ~bcv:bcv cm code)
+let transform ?(bcv=false) ?(ch_link=false) cm code = 
+  SsaJBir.transform_from_ir (JBir.transform ~bcv:bcv ~ch_link:ch_link cm code)
 

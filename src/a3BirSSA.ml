@@ -190,5 +190,5 @@ module SsaA3Bir = SsaBir.SSA
 
 let transform_from_a3bir = SsaA3Bir.transform_from_ir
 
-let transform ?(bcv=false) cm code = 
-  SsaA3Bir.transform_from_ir (A3Bir.transform ~bcv:bcv cm code)
+let transform ?(bcv=false) ?(ch_link=false) cm code = 
+  SsaA3Bir.transform_from_ir (A3Bir.transform ~bcv:bcv ~ch_link:ch_link cm code)

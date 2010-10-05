@@ -83,7 +83,6 @@ struct
 
   let var_ssa  (_,v) = 
     match v with
-      | TempVar _ 
       | CatchVar _ -> true
       | _ -> false
 

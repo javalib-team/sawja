@@ -228,12 +228,13 @@ val print : t -> string list
     its SSA representation. *)
 val transform_from_bir : JBir.t -> t
 
-(** [transform ~bcv cm jcode] transforms the code [jcode] into its
-    SSA representation. The transformation is performed in the
-    context of a given concrete method [cm].  The type checking
+(** [transform ~bcv ~check_link cm jcode] transforms the code [jcode]
+    into its JBirSSA representation. The transformation is performed in
+    the context of a given concrete method [cm].  The type checking
     normally performed by the ByteCode Verifier (BCV) is done if and
-    only if [bcv] is [true].  [transform] can raise several
-    exceptions. See [JBir] exceptions for details. *)
+    only if [bcv] is [true]. Check instructions are generated when a
+    linkage operation is done if and only if [ch_link] is
+    true. [transform] can raise several exceptions. See exceptions
+    below for details. *)
 val transform :
-  ?bcv:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
-
+  ?bcv:bool -> ?ch_link:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t

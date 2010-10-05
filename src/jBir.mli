@@ -353,11 +353,6 @@ exception Content_constraint_on_Uninit
 exception Subroutine
   (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
 
-exception StaticDeadInstruction
-  (** [StaticDeadInstruction] is raised in case an instruction has no
-      predecessors. *)
-
-
 (** {3 Exceptions due to a non-Bytecode-verifiable bytecode} *)
 
 exception Bad_stack

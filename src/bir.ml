@@ -1765,8 +1765,7 @@ let print_unflattened_code_uncompress code =
       List.iter (fun op -> Printf.printf"%3d : %s\n" i (print_instr op)) instrs)
     code;
   print_newline ()
-
-
+      
 let flatten_code code exc_tbl =
   (* starting from i, and given the code [code], computes a triple *)
   let rec aux i map = function
@@ -1801,31 +1800,103 @@ let flatten_code code exc_tbl =
 	   e_catch_var = e.e_catch_var
          }) exc_tbl
   in
-    (instrs, Array.of_list pc_list, map, exc_tbl)
+     (instrs,(Array.of_list pc_list), map, exc_tbl)
 
-exception StaticDeadInstruction
-
-let verify_pred_exist code handlers = 
-  let has_pred = Array.make (Array.length code) false in
-    has_pred.(0) <- true;
+let find_dead_instrs code handlers = 
+  let dead_instr = Array.make (Array.length code) true in
+    dead_instr.(0) <- false;
     Array.iteri
       (fun i ins -> 
 	 match ins with
-	   | Ifd (_ , j) -> has_pred.(i+1) <- true; has_pred.(j) <- true
-	   | Goto j -> has_pred.(j) <- true
+	   | Ifd (_ , j) -> dead_instr.(i+1) <- false; dead_instr.(j) <- false
+	   | Goto j -> dead_instr.(j) <- false
 	   | Throw _
 	   | Return _ -> ()
-	   | _ -> has_pred.(i+1) <- true
+	   | _ -> dead_instr.(i+1) <- false
       )
       code;
-    List.iter (fun e -> has_pred.(e.e_handler) <- true) handlers;
-    Array.iter 
-      (fun has_p -> 
-	 if has_p = false 
-	 then
-	   raise StaticDeadInstruction)
-      has_pred
-      
+    List.iter (fun e -> dead_instr.(e.e_handler) <- false) handlers;
+    dead_instr
+
+let remove_dead_instrs code ir2bc bc2ir handlers = 
+  let deadi = find_dead_instrs code handlers in
+  let nb_dead = ref 0 in
+  let new_code_corresp = 
+    Array.mapi
+      (fun i dead -> 
+	 if dead 
+	 then 
+	   (let ni = i - !nb_dead in
+	      nb_dead := succ !nb_dead;
+	      ni)
+	 else
+	   i - !nb_dead)
+      deadi
+  in
+    if !nb_dead > 0
+    then
+      begin
+	let new_length = Array.length code - !nb_dead in
+	let new_code = Array.make new_length Nop in
+	let new_ir2bc = Array.make new_length (-1) in
+	let nb_dead_current = ref 0 in
+	let _ =
+	  Array.iteri
+	    (fun i ins -> 
+	       if deadi.(i)
+	       then
+		 nb_dead_current := succ !nb_dead_current
+	       else
+		 (new_ir2bc.(i - !nb_dead_current) <- ir2bc.(i);
+		  new_code.(i - !nb_dead_current) <- 
+		    match ins with
+			Goto pc -> Goto (new_code_corresp.(pc))
+		      | Ifd (g, pc) -> Ifd (g, new_code_corresp.(pc))
+		      | ins -> ins)
+	    )
+	    code;
+	in
+	let new_bc2ir = 
+	  let to_remove = ref [] in
+	  let bc2ir = 
+	    Ptmap.mapi 
+	      (fun bc ir -> 
+		 if deadi.(ir)
+		 then (to_remove := bc::(!to_remove); -1)
+		 else
+		   new_code_corresp.(ir)) 
+	      bc2ir 
+	  in
+	    List.fold_left
+	      (fun map bc -> Ptmap.remove bc map)
+	      bc2ir
+	      !to_remove
+	in
+	let new_exc_tbl = 
+	  List.fold_right
+	    (fun e new_h -> 
+               let h = 
+		 { e_start = new_code_corresp.(e.e_start);
+		   e_end = new_code_corresp.(e.e_end);
+		   e_handler = new_code_corresp.(e.e_handler);
+		   e_catch_type = e.e_catch_type;
+		   e_catch_var = e.e_catch_var
+		 }
+	       in
+		 (* A handler could cover only a dead instruction *)
+		 if h.e_end - h.e_start > 0
+		 then
+		   h::new_h
+		 else
+		   new_h
+	    ) 
+	    handlers
+	    []
+	in 
+	  (new_code,new_ir2bc,new_bc2ir,new_exc_tbl)
+      end
+    else
+      (code,ir2bc,bc2ir,handlers)      
 
 let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
@@ -1850,20 +1921,22 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
 	  (* let _ = print_unflattened_code ir_code in *)
 	  let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
-	  let _ = verify_pred_exist ir_code ir_exc_tbl in
+	  let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
+	    remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
+	  in
 	    { params = gen_params dico pp_var cm;
 	      vars = make_array_var dico;
-	      code = ir_code;
-	      pc_ir2bc = ir2bc;
-	      pc_bc2ir = bc2ir;
-	      exc_tbl = ir_exc_tbl;
+	      code = nir_code;
+	      pc_ir2bc = nir2bc;
+	      pc_bc2ir = nbc2ir;
+	      exc_tbl = nir_exc_tbl;
 	      line_number_table = code.c_line_number_table}
       | None -> raise Subroutine
 
 let transform ?(bcv=false) ?(ch_link = false) = 
-  jcode2bir Normal bcv ch_link true
-let transform_flat ?(bcv=false) ?(ch_link = false)  = jcode2bir Flat bcv ch_link true
-let transform_addr3 ?(bcv=false) ?(ch_link = false) = jcode2bir Addr3 bcv ch_link true
+  jcode2bir Normal bcv ch_link false
+let transform_flat ?(bcv=false) ?(ch_link = false)  = jcode2bir Flat bcv ch_link false
+let transform_addr3 ?(bcv=false) ?(ch_link = false) = jcode2bir Addr3 bcv ch_link false
 
 
 (* Agregation of boolean tests  *)
