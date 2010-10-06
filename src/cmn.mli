@@ -2,6 +2,7 @@
  * This file is part of SAWJA
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -23,6 +24,7 @@
 open Javalib_pack
 open JBasics
 
+(** Common "variable" type and functions signature for JBir and A3Bir that could be used for functors depending on variable type.*)
 module type VarSig = 
 sig
   type var
@@ -33,6 +35,7 @@ sig
   val bc_num: var -> int option
 end
 
+(** Common "variable" type and functions for JBir and A3Bir *)
 module Var : sig
 
   type unindexed_var =
@@ -89,23 +92,22 @@ module Var : sig
 
 end
 
-module type ExceptionSig = sig
-  type var_e
+(** Common exception type and functions depending on "variable" type *)
+module Exception : functor (Vars:VarSig) ->  
+sig
   type exception_handler = {
     e_start : int;
     e_end : int;
     e_handler : int;
     e_catch_type : class_name option;
-    e_catch_var : var_e
+    e_catch_var : Vars.var
   }
   val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
   val print_handler : exception_handler -> string
 end
 
-module Exception (Var_e:VarSig): ExceptionSig with type var_e = Var_e.var
-
-module ExceptionNormalVar : ExceptionSig with type var_e = Var.var
-
+(** Common types and functions that does not depend on "variable" type
+    for all IRS *)
 module Common : sig 
 
   type mode = Normal | Flat | Addr3
@@ -121,29 +123,29 @@ module Common : sig
       | `Short of int
       | `String of string ]
 
-type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S
+  type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S
 
-type unop =
-    Neg of JBasics.jvm_basic_type
-  | Conv of conv
-  | ArrayLength
-  | InstanceOf of JBasics.object_type
-  | Cast of JBasics.object_type
+  type unop =
+      Neg of JBasics.jvm_basic_type
+    | Conv of conv
+    | ArrayLength
+    | InstanceOf of JBasics.object_type
+    | Cast of JBasics.object_type
 
-type comp =  DG | DL | FG | FL | L
+  type comp =  DG | DL | FG | FL | L
 
-type binop =
-  | ArrayLoad of JBasics.value_type
-  | Add of JBasics.jvm_basic_type
-  | Sub of JBasics.jvm_basic_type
-  | Mult of JBasics.jvm_basic_type
-  | Div of JBasics.jvm_basic_type
-  | Rem of JBasics.jvm_basic_type
-  | IShl | IShr  | IAnd | IOr  | IXor | IUshr
-  | LShl | LShr | LAnd | LOr | LXor | LUshr
-  | CMP of comp
+  type binop =
+    | ArrayLoad of JBasics.value_type
+    | Add of JBasics.jvm_basic_type
+    | Sub of JBasics.jvm_basic_type
+    | Mult of JBasics.jvm_basic_type
+    | Div of JBasics.jvm_basic_type
+    | Rem of JBasics.jvm_basic_type
+    | IShl | IShr  | IAnd | IOr  | IXor | IUshr
+    | LShl | LShr | LAnd | LOr | LXor | LUshr
+    | CMP of comp
 
-(* Type transformation *)
+  (* Type transformation *)
 
 val basic_to_num : JBasics.jvm_basic_type ->
   [> `Double | `Float | `Int | `Long ]

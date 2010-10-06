@@ -1,6 +1,7 @@
 (*
  * This file is part of SAWJA
- * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -23,7 +24,7 @@ open Javalib
 
 (** Common code for SSA representations*)
 
-(** Signature of IR to transform in SSA*)
+(** Signature of IR to transform in SSA form*)
 module type IRSig = sig
   (** Abstract data type for variables *)
   type var
@@ -101,10 +102,13 @@ module type IRSig = sig
       range contains [i]. *)
   val exception_edges :  t -> (int * exception_handler) list
 
+  (** functor that allows to have the same instruction representation
+      with different "variable" type *)
   module InstrRep : functor(Var : Cmn.VarSig) -> Bir.InstrSig
 
 end
 
+(** Common "variable" type and functions signature for SSA form *)
 module type VarSig =
 sig
   type ir_var
@@ -119,8 +123,41 @@ sig
   val var_ssa_index : var -> int
 end
 
+(** Functor to create "variable" type and functions for SSA form from
+    IR*)
 module Var (IR:IRSig) : VarSig with type ir_var = IR.var
 
+(** Common code represenation types for SSA forms *)
+module type TSsaSig = 
+sig
+  type var_t
+  type instr_t
+  type exception_handler
+  type t = {
+    params : (JBasics.value_type * var_t) list;
+    (** [params] contains the method parameters (including the receiver this for
+	virtual methods). *)
+    code : instr_t array;
+    (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
+	are absolute. *)
+    phi_nodes : (var_t * var_t array) list array;
+    (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
+	be executed before the corresponding [code.(pc)] instruction. *)
+    exc_tbl : exception_handler list;
+    (** [exc_tbl] is the exception table of the method code. Jumps are
+	absolute. *)
+    line_number_table : (int * int) list option;
+    (** [line_number_table] contains debug information. It is a list of pairs
+	[(i,j)] where [i] indicates the index into the bytecode array at which the
+	code for a new line [j] in the original source file begins.  *)
+    pc_bc2ir : int Ptmap.t;
+    (** map from bytecode code line to ir code line (very sparse). *)
+    pc_ir2bc : int array; 
+    (** map from ir code line to bytecode code line *)
+  }  
+end 
+
+(** Functor to create code representation from SSA "variable" and "instruction" *)
 module T (Var : VarSig) 
   (Instr : Bir.InstrSig) 
   : sig
@@ -170,35 +207,9 @@ module T (Var : VarSig)
     val exception_edges :  t -> (int * exception_handler) list
   end
 
-module type TSsaSig = 
-sig
-  type var_t
-  type instr_t
-  type exception_handler
-  type t = {
-    params : (JBasics.value_type * var_t) list;
-    (** [params] contains the method parameters (including the receiver this for
-	virtual methods). *)
-    code : instr_t array;
-    (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
-	are absolute. *)
-    phi_nodes : (var_t * var_t array) list array;
-    (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
-	be executed before the corresponding [code.(pc)] instruction. *)
-    exc_tbl : exception_handler list;
-    (** [exc_tbl] is the exception table of the method code. Jumps are
-	absolute. *)
-    line_number_table : (int * int) list option;
-    (** [line_number_table] contains debug information. It is a list of pairs
-	[(i,j)] where [i] indicates the index into the bytecode array at which the
-	code for a new line [j] in the original source file begins.  *)
-    pc_bc2ir : int Ptmap.t;
-    (** map from bytecode code line to ir code line (very sparse). *)
-    pc_ir2bc : int array; 
-    (** map from ir code line to bytecode code line *)
-  }  
-end 
 
+(** Signature of type and function to provide in order to transform IR
+in SSA form*)
 module type IR2SsaSig = sig
   type ir_t
   type ir_var
@@ -217,7 +228,7 @@ module type IR2SsaSig = sig
   val live_analysis : ir_t -> int -> ir_var -> bool
 end
 
-
+(** Functor that provides the transformation function *)
 module SSA 
   (IR:IRSig) 
   (TSSA:TSsaSig with type var_t = IR.var * int)

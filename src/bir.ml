@@ -2,6 +2,7 @@
  * This file is part of SAWJA
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -38,6 +39,7 @@ type virtual_call_kind =
   | VirtualCall of object_type
   | InterfaceCall of JBasics.class_name
 
+(* instruction representation *)
 module InstrRep (Var:Cmn.VarSig) = 
 struct
   type expr =
@@ -228,12 +230,7 @@ struct
 
 end
 
-module type TSig = sig
-  module Var_t : Cmn.VarSig
-  module Instr_t : InstrSig
-  module Exc_t : Cmn.ExceptionSig
-end
-
+(* code representation*)
 module T (Var:Cmn.VarSig) (Instr:InstrSig) 
   =
   struct
@@ -1802,6 +1799,8 @@ let flatten_code code exc_tbl =
   in
      (instrs,(Array.of_list pc_list), map, exc_tbl)
 
+(* find instructions that have no predecessors and then that cannot be
+   executed ...*)
 let find_dead_instrs code handlers = 
   let dead_instr = Array.make (Array.length code) true in
     dead_instr.(0) <- false;
@@ -1818,17 +1817,23 @@ let find_dead_instrs code handlers =
     List.iter (fun e -> dead_instr.(e.e_handler) <- false) handlers;
     dead_instr
 
+(* remove instructions of code without predecessors and modify jump, handlers and correspondance tables in consequence. *)
 let remove_dead_instrs code ir2bc bc2ir handlers = 
   let deadi = find_dead_instrs code handlers in
   let nb_dead = ref 0 in
+    (* calculate program point correspondance between old code and
+       code without dead instructions *)
   let new_code_corresp = 
     Array.mapi
       (fun i dead -> 
 	 if dead 
 	 then 
-	   (let ni = i - !nb_dead in
-	      nb_dead := succ !nb_dead;
-	      ni)
+	   ( (* this program point will not exist anymore but we keep
+		a correspondance to modify handlers easily (case of
+		removed instruction on one of the handlers range limits) *)
+	     let ni = i - !nb_dead in
+	       nb_dead := succ !nb_dead;
+	       ni)
 	 else
 	   i - !nb_dead)
       deadi
@@ -1840,6 +1845,8 @@ let remove_dead_instrs code ir2bc bc2ir handlers =
 	let new_code = Array.make new_length Nop in
 	let new_ir2bc = Array.make new_length (-1) in
 	let nb_dead_current = ref 0 in
+	  (* create new array code and new ir to bc correspondance
+	     table *)
 	let _ =
 	  Array.iteri
 	    (fun i ins -> 
@@ -1883,7 +1890,7 @@ let remove_dead_instrs code ir2bc bc2ir handlers =
 		   e_catch_var = e.e_catch_var
 		 }
 	       in
-		 (* A handler could cover only a dead instruction *)
+		 (* A handler could cover only a dead instruction ...*)
 		 if h.e_end - h.e_start > 0
 		 then
 		   h::new_h

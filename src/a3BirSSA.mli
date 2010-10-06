@@ -1,6 +1,7 @@
 (*
  * This file is part of SAWJA
  * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -80,6 +81,7 @@ val type_of_expr : expr -> JBasics.value_type
     the transformation so that execution errors arise in the same
     order in the initial bytecode program and its A3BirSSA version. Next
     to each of them is the informal semantics they should be given. *)
+
 type check =
   | CheckNullPointer of basic_expr
       (** [CheckNullPointer e] checks that the expression [e] is not a null
@@ -106,16 +108,27 @@ type check =
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
 	  [op] instruction, must be started and if so if it
-	  succeeds. Linkage mechanism and errors that could be thrown
+	  succeeds. These instructions are only generated if the
+	  option is activated during transformation (cf. {!transform}).
+
+	  Linkage mechanism and errors that could be thrown
 	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
 	  instruction (only a few instructions imply linkage
 	  operations: checkcast, instanceof, anewarray,
 	  multianewarray, new, get_, put_, invoke_). *)
+      
 
 
-(** A3BirSSA instructions are register-based and unstructured. Next to them is the
-    informal semantics (using a traditional instruction notations) they should be
-    given. *)
+(** A3BirSSA instructions are register-based and unstructured. Next to
+    them is the informal semantics (using a traditional instruction
+    notations) they should be given. 
+    
+    Exceptions that could be raised by the virtual
+    machine are described beside each instruction, except for the
+    virtual machine errors, subclasses of
+    [java.lang.VirtualMachineError], that could be raised at any time
+    (cf. JVM Spec 1.5 §6.3 ).*)
+
 type instr =
     Nop
   | AffectVar of var * expr
@@ -130,11 +143,16 @@ type instr =
       (** [Goto pc] denotes goto pc. (absolute address) *)
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * basic_expr * basic_expr) * int
       (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
-  | Throw of basic_expr (** [Throw e] denotes throw e.  *)
+  | Throw of basic_expr (** [Throw e] denotes throw e.  
+
+			The exception [IllegalMonitorStateException] could be thrown by the virtual machine.  *)
   | Return of basic_expr option
       (** [Return opte] denotes 
           - return void when [opte] is [None] 
-          - return opte otherwise *)
+          - return opte otherwise 
+
+	  The exception [IllegalMonitorStateException] could be thrown by the
+	  virtual machine.*)
   | New of var * JBasics.class_name * JBasics.value_type list * basic_expr list
       (** [New(x,c,tl,args)] denotes x:= new c<tl>(args), [tl] gives the type of
           [args]. *)
@@ -145,21 +163,46 @@ type instr =
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * basic_expr list
       (** [InvokeStatic(x,c,ms,args)] denotes 
           - c.m<ms>(args) if [x] is [None] (void returning method)
-          - x :=  c.m<ms>(args) otherwise *)
+          - x :=  c.m<ms>(args) otherwise  
+
+	  The exception [UnsatisfiedLinkError] could be
+	  thrown if the method is native and the code cannot be
+	  found.*)
   | InvokeVirtual of var option * basic_expr * A3Bir.virtual_call_kind * JBasics.method_signature * basic_expr list
       (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call
           - e.m<ms>(args) if [x] is [None]  (void returning method)
-          - x := e.m<ms>(args) otherwise *)
+          - x := e.m<ms>(args) otherwise
+
+												      If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the same order: [AbstractMethodError, UnsatisfiedLinkError].  
+
+	  											      If [k] is a [InterfaceCall _] then the virtual machine could throw the following errors in the same order: [IncompatibleClassChangeError, AbstractMethodError, IllegalAccessError, AbstractMethodError, UnsatisfiedLinkError]. *)
   | InvokeNonVirtual of var option * basic_expr * JBasics.class_name * JBasics.method_signature * basic_expr list
       (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual call
           - e.C.m<ms>(args) if [x] is [None]  (void returning method)
-          - x := e.C.m<ms>(args) otherwise *)
+          - x := e.C.m<ms>(args) otherwise  
+
+	  The exception [UnsatisfiedLinkError] could be thrown if the
+	  method is native and the code cannot be found.*)
   | MonitorEnter of basic_expr (** [MonitorEnter e] locks the object [e]. *)
-  | MonitorExit of basic_expr (** [MonitorExit e] unlocks the object [e]. *)
+  | MonitorExit of basic_expr (** [MonitorExit e] unlocks the object [e]. 
+				  
+				  The exception
+				  [IllegalMonitorStateException] could
+				  be thrown by the virtual
+				  machine.  *)
   | MayInit of JBasics.class_name
-      (** [MayInit c] initializes the class [c] whenever it is required. *)
+      (** [MayInit c] initializes the class [c] whenever it is required. 
+	  
+	  The exception [ExceptionInInitializerError] could be thrown
+	  by the virtual machine.
+	  
+      *)
   | Check of check
-      (** [Check c] evaluates the assertion [c]. *)
+      (** [Check c] evaluates the assertion [c].  
+	  
+	  Exceptions that could be thrown by the virtual
+	  machine are described in {!check} type
+	  declaration.*)
 
 
 type exception_handler = {
@@ -231,7 +274,7 @@ val print : t -> string list
     its SSA representation. *)
 val transform_from_a3bir : A3Bir.t -> t
 
-(** [transform ~bcv ~check_link cm jcode] transforms the code [jcode]
+(** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]
     into its A3BirSSA representation. The transformation is performed in
     the context of a given concrete method [cm].  The type checking
     normally performed by the ByteCode Verifier (BCV) is done if and
@@ -242,4 +285,7 @@ val transform_from_a3bir : A3Bir.t -> t
 val transform :
   ?bcv:bool -> ?ch_link:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
+(** {2 Exceptions} *)
+
+(** See {!A3Bir} Exceptions section*)
 

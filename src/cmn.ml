@@ -2,6 +2,7 @@
  * This file is part of SAWJA
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -119,22 +120,8 @@ struct
 
 end
 
-module type ExceptionSig = sig
-  type var_e
-  type exception_handler = {
-    e_start : int;
-    e_end : int;
-    e_handler : int;
-    e_catch_type : class_name option;
-    e_catch_var : var_e
-  }
-  val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
-  val print_handler : exception_handler -> string
-end
-
 module Exception (Var_e: VarSig) = struct
   (* Exceptions *)
-  type var_e = Var_e.var
   type exception_handler = {
     e_start : int;
     e_end : int;
@@ -162,8 +149,8 @@ module Exception (Var_e: VarSig) = struct
       (Var_e.var_name_g exc.e_catch_var)  
 end
 
-module ExceptionNormalVar = Exception (Var)
-
+(* Common types and functions that does not depend on variables for
+   all IRS*)
 module Common = struct
   (* Basic types *)
 

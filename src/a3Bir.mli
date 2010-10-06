@@ -2,6 +2,7 @@
  * This file is part of SAWJA
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -140,7 +141,10 @@ type check =
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
 	  [op] instruction, must be started and if so if it
-	  succeeds. Linkage mechanism and errors that could be thrown
+	  succeeds. These instructions are only generated if the
+	  option is activated during transformation (cf. {!transform}).
+
+	  Linkage mechanism and errors that could be thrown
 	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
 	  instruction (only a few instructions imply linkage
 	  operations: checkcast, instanceof, anewarray,
@@ -188,10 +192,10 @@ The exception [IllegalMonitorStateException] could be thrown
   | InvokeVirtual
       of var option * basic_expr * virtual_call_kind * JBasics.method_signature * basic_expr list (** [InvokeVirtual(x,y,k,ms,args)] denotes the [k] call
 -  y.m<ms>(args) if [x] is [None]  (void returning method)
--  x := y.m<ms>(args) otherwise 
+-  x := y.m<ms>(args) otherwise
 
-												      If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the same order: [AbstractMethodError, UnsatisfiedLinkError].  
-	  
+												      If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the same order: [AbstractMethodError, UnsatisfiedLinkError].
+
 												      If [k] is a [InterfaceCall _] then the virtual machine could throw the following errors in the same order: [IncompatibleClassChangeError, AbstractMethodError, IllegalAccessError, AbstractMethodError, UnsatisfiedLinkError].
 *)
   | InvokeNonVirtual
@@ -272,13 +276,13 @@ val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform ~bcv cm jcode] transforms the code [jcode] into its
+(** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode] into its
     A3Bir representation.  The transformation is performed in the
     context of a given concrete method [cm].  The type checking
     normally performed by the ByteCode Verifier (BCV) is done if and
     only if [bcv] is [true]. Check instructions are generated when a
     linkage operation is done if and only if [ch_link] is
-    true. [transform ~bcv cm jcode] can raise several exceptions.  See
+    true. [transform] can raise several exceptions.  See
     Exceptions below for details. *)
 val transform : ?bcv:bool -> ?ch_link:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
 

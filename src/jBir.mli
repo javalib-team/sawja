@@ -2,6 +2,7 @@
  * This file is part of SAWJA
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -159,11 +160,12 @@ type check =
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
 	  [op] instruction, must be started and if so if it
-	  succeeds. 
+	  succeeds. These instructions are only generated if the
+	  option is activated during transformation (cf. {!transform}).
 	  
 	  Linkage mechanism and errors that could be thrown
 	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
-	  instruction (only a few instructions imply linkage
+	  instruction (only a few bytecode instructions imply linkage
 	  operations: checkcast, instanceof, anewarray,
 	  multianewarray, new, get_, put_, invoke_). *)
 
@@ -291,7 +293,10 @@ type t = {
       [(i,j)] where [i] indicates the index into the bytecode array at which the
       code for a new line [j] in the original source file begins.  *)
   pc_bc2ir : int Ptmap.t;
-  (** map from bytecode code line to ir code line (very sparse). *)
+  (** map from bytecode code line to ir code line (very
+      sparse). It could raise Not_found if pc is not an original bytecode pc
+      or if the corresponding bytecode instruction has no predecessors
+      and has been removed because it is unreachable.*)
   pc_ir2bc : int array; 
   (** map from ir code line to bytecode code line *)
 }
@@ -322,7 +327,7 @@ val print : t -> string list
 
 (** {2 Bytecode transformation} *)
 
-(** [transform ~bcv ~check_link cm jcode] transforms the code [jcode]
+(** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]
     into its JBir representation. The transformation is performed in
     the context of a given concrete method [cm].  The type checking
     normally performed by the ByteCode Verifier (BCV) is done if and
