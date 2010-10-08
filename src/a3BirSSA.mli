@@ -55,6 +55,10 @@ val var_origin : var -> A3Bir.var
 (** [var_ssa_index v] returns the SSA index of [v] *)
 val var_ssa_index : var -> int
 
+(** [index v] returns the unique index of [v] *)
+val index : var -> int
+
+
 (** Side-effect free basic expressions *)
 type basic_expr = 
   | Const of A3Bir.const (** constants *)
@@ -215,6 +219,9 @@ type exception_handler = {
 
 (** [t] is the parameter type for A3BirSSA methods. *)
 type t = {
+  vars : var array;  
+    (** All variables that appear in the method. [vars.(i)] is the variable of
+	index [i]. *)
   params : (JBasics.value_type * var) list;
   (** [params] contains the method parameters (including the receiver this for
       virtual methods). *)

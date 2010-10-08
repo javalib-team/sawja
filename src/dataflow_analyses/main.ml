@@ -14,13 +14,13 @@ let run filename =
 	       Printf.printf "class %s: method %s\n"
 		 (JPrint.class_name (get_name i_or_c))
 		 (JPrint.method_signature cm.cm_signature);
-	       let live = Live.run ir_code in
+	       let live = Live_bir.run ir_code in
 	       let rd = ReachDef.run ir_code in
 	       let ae = AvailableExpr.run ir_code in
 		 Array.iteri 
 		   (fun i op -> 
 		      Printf.printf "     --> LIVE[%d]: %s\n" i
-			(Live.to_string (live i));
+			(Live_bir.to_string (live i));
 		      Printf.printf "     --> RD[%d]: %s\n" i
 			(ReachDef.to_string ir_code (rd i));
 		      Printf.printf "     --> AE[%d]: %s\n" i

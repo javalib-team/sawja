@@ -107,39 +107,70 @@ module type IRSig = sig
 
 end
 
-(* TODO:
-
- - index variables ?
- - what do we do with ssa_index of variables already in ssa form
-
-*)
 module Var (IR:IRSig) = 
 struct
   type ir_var = IR.var
-  type var = IR.var * int
+  type var = int * IR.var * int
 
-  let var_equal (v1,i1) (v2,i2) =
+  let var_equal (_,v1,i1) (_,v2,i2) =
     IR.var_equal v1 v2 && i1=i2
 
-  let var_orig (v,_) = IR.var_orig v
+  let var_orig (_,v,_) = IR.var_orig v
 
-  let var_name_debug (v,_) = IR.var_name_debug v
+  let var_name_debug (_,v,i) = 
+    match IR.var_name_debug v with
+	None -> None
+      | Some s -> Some (Printf.sprintf "%s_%d" s i)
 
-  let var_name (v,i) = Printf.sprintf "%s_%d" (IR.var_name v) i
+  let var_name (_,v,i) = Printf.sprintf "%s_%d" (IR.var_name v) i
 
-  let var_name_g (v,i) = Printf.sprintf "%s_%d" (IR.var_name_g v) i
+  let var_name_g (_,v,i) = Printf.sprintf "%s_%d" (IR.var_name_g v) i
 
-  let bc_num (v,_)  = IR.bc_num v
+  let bc_num (_,v,_)  = IR.bc_num v
 
-  let var_origin = fst
+  let var_origin (_,v,_) = v
 
-  let var_ssa_index = snd
+  let var_ssa_index (_,_,is) = is
+
+  let index (i,_,_) = i
+
+  module VarMap = Map.Make(struct type t=(IR.var*int)
+				  let compare (v1,i1) (v2,i2) =
+				    compare 
+				      (IR.index v1,i1) (IR.index v2,i2)
+			   end)
+
+  type dictionary =
+      { mutable var_map : var VarMap.t;
+	mutable var_next : int }
+
+  let make_dictionary () =
+    { var_map = VarMap.empty;
+      var_next = 0}
+
+  let make_var (d:dictionary) : IR.var -> int -> var =
+    fun v i_ssa ->
+      try
+	VarMap.find (v,i_ssa) d.var_map
+      with Not_found -> 
+	let new_v = (d.var_next,v,i_ssa) in
+	  d.var_map <- VarMap.add (v,i_ssa) new_v d.var_map;
+	  d.var_next <- 1+ d.var_next;
+	  new_v
+
+  let make_array_var d v_dum =
+    let dum = (-1,v_dum,-1) in
+    let t = Array.make d.var_next dum in
+      VarMap.iter (fun _  ((i,_,_) as v) -> t.(i) <- v) d.var_map;
+      t
+
 end
 
 module type VarSig =
 sig
   type ir_var 
-  type var = ir_var * int
+  type var = int * ir_var * int
+  type dictionary 
   val var_equal : var -> var -> bool
   val var_orig : var -> bool
   val var_name_debug: var -> string option
@@ -148,6 +179,10 @@ sig
   val bc_num: var -> int option
   val var_origin : var -> ir_var
   val var_ssa_index : var -> int
+  val index : var -> int
+  val make_dictionary : unit -> dictionary
+  val make_var : dictionary -> ir_var -> int -> var
+  val make_array_var : dictionary -> ir_var -> var array
 end
 
 module T (Var:VarSig) (Instr:Bir.InstrSig) =
@@ -156,6 +191,7 @@ struct
   type var_t = Var.var
   type instr_t = Instr.instr
   type t = {
+    vars : Var.var array;
     params : (JBasics.value_type * Var.var) list;
     code : Instr.instr array;
     phi_nodes : (Var.var * Var.var array) list array;
@@ -215,7 +251,7 @@ module type IR2SsaSig = sig
   val def_bcvar : ir_instr -> Ptset.t
   val var_defs : ir_t -> Ptset.t Ptmap.t
   val map_instr : (ir_var -> ssa_var) -> (ir_var -> ssa_var) -> ir_instr -> ssa_instr
-  val map_exception_handler : ir_exc_h -> ssa_exc_h
+  val map_exception_handler : (ir_var -> int -> ssa_var) -> ir_exc_h -> ssa_exc_h
   val preds : ir_t -> int -> int list
   val succs : ir_t -> int -> int list
   val live_analysis : ir_t -> int -> ir_var -> bool
@@ -228,6 +264,9 @@ sig
   type instr_t
   type exception_handler
   type t = {
+    vars : var_t array;  
+  (** All variables that appear in the method. [vars.(i)] is the variable of
+      index [i]. *)
     params : (JBasics.value_type * var_t) list;
     (** [params] contains the method parameters (including the receiver this for
 	virtual methods). *)
@@ -352,13 +391,13 @@ let dominator instr_array preds =
 module SSA 
   (IR:IRSig) 
   (TSSA:TSsaSig 
-   with type var_t = IR.var * int)
+   with type var_t = int * IR.var * int)
   (IR2SSA:IR2SsaSig 
    with type ir_t = IR.t
    and type ir_var = IR.var
    and type ir_instr = IR.instr
    and type ir_exc_h = IR.exception_handler
-   and type ssa_var = IR.var * int
+   and type ssa_var = int * IR.var * int
    and type ssa_instr = TSSA.instr_t
    and type ssa_exc_h = TSSA.exception_handler
   )
@@ -453,9 +492,16 @@ struct
     let s = ref (Ptmap.map (fun _ -> []) vars) in
     let rename_use = Array.make (Array.length m.IR.code) Ptmap.empty in
     let rename_def = ref Ptmap.empty in
-    let phi_nodes = Ptmap.mapi (fun n s -> 
-				  let n_preds = List.length (preds n) in
-				    Ptset.fold (fun v -> Ptmap.add v (Array.make n_preds (-1))) s Ptmap.empty) phi_nodes in
+    let phi_nodes = 
+      Ptmap.mapi 
+	(fun n s -> 
+	   let n_preds = List.length (preds n) in
+	     Ptset.fold 
+	       (fun v -> Ptmap.add v (Array.make n_preds (-1))) 
+	       s 
+	       Ptmap.empty) 
+      phi_nodes 
+    in
     let phi_nodes i =
       try Ptmap.find i phi_nodes with Not_found -> Ptmap.empty in
     let search_h = ref [] in
@@ -487,8 +533,15 @@ struct
       else IR2SSA.def_bcvar m.IR.code.(x) in
 	Ptmap.iter
 	  (fun v _ -> 
+	     let xmap = 
+	       try Ptmap.find x !rename_def
+	       with Not_found -> Ptmap.empty
+	     in
 	     let i = Ptmap.find v !c in
-	       rename_def := Ptmap.add x i !rename_def;
+	       rename_def := 
+		 Ptmap.add 
+		   x (Ptmap.add v i xmap) 
+		   !rename_def;
 	       s := Ptmap.add v (i::(Ptmap.find v !s)) !s;
 	       c := Ptmap.add v (i+1) !c)
 	  (phi_nodes x);
@@ -500,8 +553,15 @@ struct
 	end;
 	Ptset.iter
 	  (fun v ->
+	     let xmap = 
+	       try Ptmap.find x !rename_def
+	       with Not_found -> Ptmap.empty
+	     in
 	     let i = Ptmap.find v !c in
-	       rename_def := Ptmap.add x i !rename_def;
+	       rename_def := 
+		 Ptmap.add 
+		   x (Ptmap.add v i xmap) 
+		   !rename_def;
 	       s := Ptmap.add v (i::(Ptmap.find v !s)) !s;
 	       c := Ptmap.add v (i+1) !c)
 	  def;
@@ -519,7 +579,9 @@ struct
 	  (phi_nodes x)
     in
       search (-1);
-      (fun i -> Ptmap.find i !rename_def),
+      (fun i -> 
+	 let xmap = Ptmap.find i !rename_def in
+	   fun v -> Ptmap.find v xmap),
     (fun i -> (rename_use.(i))),
     phi_nodes
 
@@ -571,8 +633,8 @@ struct
 	     (to_string (domf i));
 	   Printf.printf "     --> PHI[%d]: %s\n" i
 	     (vars_to_string (phi_nodes i));
-	   (try Printf.printf "Def: %d\n" (rename_def i)
-	    with Not_found -> ());
+	   (*(try Printf.printf "Def: %d\n" (rename_def i)
+	    with Not_found -> ());*)
 	   let rename_use = rename_use i in
 	     Printf.printf "Use:";
 	     Ptmap.iter
@@ -594,39 +656,60 @@ struct
       print_newline ()
 
   let transform_from_ir (ir_code:IR.t) =
+    let module Var = Var(IR) in
     let live = IR2SSA.live_analysis ir_code in
     let run = run ir_code live in
     let debug i msg = 
       Printf.printf "-----------------\nFailure %s line %d\n-----------------\n" msg i;
       debug ir_code run in
     let (_,_,_,_,_,(rename_def,rename_use,phi_nodes')) = run in
+    let dico = Var.make_dictionary () in
+    let make_var = Var.make_var dico in
     let def i x = 
-      if IR.var_ssa x then (x,0)
-      else try (x,rename_def i) with Not_found -> debug i "def lookup"; assert false in
+      if IR.var_ssa x then make_var x 0
+      else 
+	try make_var x (rename_def i (IR.index x)) 
+	with Not_found -> debug i "def lookup"; assert false in
     let use i = 
       let rename_use = try rename_use i with Not_found -> debug i "use lookup"; assert false in
 	function x -> 
-	  if IR.var_ssa x then (x,0)
+	  if IR.var_ssa x then make_var x 0
 	  else
-	    try (x,Ptmap.find (IR.index x) rename_use) 
+	    try make_var x (Ptmap.find (IR.index x) rename_use) 
 	    with Not_found -> debug i (Printf.sprintf "use var %s lookup" (IR.var_name_g x)); assert false in
     let phi_nodes i =
       try
 	Ptmap.fold
 	  (fun v args l -> 
 	     let x_ir = ir_code.IR.vars.(v) in
-	     let x = (x_ir,rename_def i) in
-	     let args = Array.map (fun i -> (x_ir,i)) args in
+	     let x = make_var x_ir (rename_def i v) in
+	     let args = 
+	       Array.map 
+		 (fun vi -> make_var x_ir vi) args 
+	     in
 	       (x,args)::l)
 	  (phi_nodes' i) []
       with Not_found -> debug i "phi lookup"; assert false in
     let code = Array.mapi
       (fun i -> IR2SSA.map_instr (def i) (use i)) ir_code.IR.code in
-    let exc_t = List.map IR2SSA.map_exception_handler ir_code.IR.exc_tbl in
+    let exc_t = List.map (IR2SSA.map_exception_handler make_var) ir_code.IR.exc_tbl in
+    let params = 
+      List.map 
+	(fun (t,x) -> (t, make_var x 0)) ir_code.IR.params
+    in
+    let phi_nodes = 
+      Array.init (Array.length code) phi_nodes
+    in
+    let vars = 
+      if Array.length ir_code.IR.vars = 0
+      then [||]
+      else Var.make_array_var dico ir_code.IR.vars.(0)
+    in
       {
-	TSSA.params = List.map (fun (t,x) -> (t,(x,0))) ir_code.IR.params;
+	TSSA.vars = vars;
+	TSSA.params = params;
 	TSSA.code  = code;
-	TSSA.phi_nodes = Array.init (Array.length code) phi_nodes;
+	TSSA.phi_nodes = phi_nodes;
 	TSSA.exc_tbl = exc_t;
 	TSSA.line_number_table = ir_code.IR.line_number_table;
 	TSSA.pc_bc2ir = ir_code.IR.pc_bc2ir;

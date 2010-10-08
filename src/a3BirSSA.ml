@@ -143,12 +143,12 @@ module A3Bir2SSA = struct
 	      | A3Bir.CheckLink op -> CheckLink op
 	  end
 
-  let map_exception_handler e = {
+  let map_exception_handler f e = {
     e_start = e.A3Bir.e_start;
     e_end = e.A3Bir.e_end;
     e_handler = e.A3Bir.e_handler;
     e_catch_type = e.A3Bir.e_catch_type;
-    e_catch_var = (e.A3Bir.e_catch_var,0)
+    e_catch_var = f e.A3Bir.e_catch_var 0
   }
 
   let live_analysis ir_code = 

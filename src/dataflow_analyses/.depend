@@ -1,2 +1,2 @@
-main.cmo: reachDef.cmo live.cmo availableExpr.cmo 
-main.cmx: reachDef.cmx live.cmx availableExpr.cmx 
+main.cmo: reachDef.cmo live_bir.cmo availableExpr.cmo 
+main.cmx: reachDef.cmx live_bir.cmx availableExpr.cmx 

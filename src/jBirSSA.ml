@@ -136,12 +136,12 @@ module JBir2SSA = struct
 	      | JBir.CheckLink op -> CheckLink op
 	  end
 
-  let map_exception_handler e = {
+  let map_exception_handler f e = {
     e_start = e.JBir.e_start;
     e_end = e.JBir.e_end;
     e_handler = e.JBir.e_handler;
     e_catch_type = e.JBir.e_catch_type;
-    e_catch_var = (e.JBir.e_catch_var,0)
+    e_catch_var = f e.JBir.e_catch_var 0
   }
 
   

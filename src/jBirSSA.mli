@@ -55,6 +55,9 @@ val var_origin : var -> JBir.var
 (** [var_ssa_index v] returns the SSA index of [v] *)
 val var_ssa_index : var -> int
 
+(** [index v] returns the unique index of [v] *)
+val index : var -> int
+
 (** Side-effect free expressions *)
 type expr =
     Const of JBir.const (** constants *)
@@ -218,6 +221,9 @@ type exception_handler = {
 
 (** [t] is the parameter type for JBirSSA methods. *)
 type t = {
+  vars : var array;  
+    (** All variables that appear in the method. [vars.(i)] is the variable of
+	index [i]. *)
   params : (JBasics.value_type * var) list;
   (** [params] contains the method parameters (including the receiver this for
       virtual methods). *)

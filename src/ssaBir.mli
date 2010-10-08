@@ -112,7 +112,7 @@ end
 module type VarSig =
 sig
   type ir_var
-  type var = ir_var * int
+  type var = int * ir_var * int
   val var_equal : var -> var -> bool
   val var_orig : var -> bool
   val var_name_debug: var -> string option
@@ -121,6 +121,11 @@ sig
   val bc_num: var -> int option
   val var_origin : var -> ir_var
   val var_ssa_index : var -> int
+  val index : var -> int
+  type dictionary
+  val make_dictionary : unit -> dictionary
+  val make_var : dictionary -> ir_var -> int -> var
+  val make_array_var : dictionary -> ir_var -> var array  
 end
 
 (** Functor to create "variable" type and functions for SSA form from
@@ -134,6 +139,9 @@ sig
   type instr_t
   type exception_handler
   type t = {
+    vars : var_t array;  
+  (** All variables that appear in the method. [vars.(i)] is the variable of
+      index [i]. *)
     params : (JBasics.value_type * var_t) list;
     (** [params] contains the method parameters (including the receiver this for
 	virtual methods). *)
@@ -172,6 +180,7 @@ module T (Var : VarSig)
     }
 	
     type t = {
+      vars : Var.var array;
       params : (JBasics.value_type * Var.var) list;
       code : Instr.instr array;
       phi_nodes : (Var.var * Var.var array) list array;
@@ -222,7 +231,8 @@ module type IR2SsaSig = sig
   val def_bcvar : ir_instr -> Ptset.t
   val var_defs : ir_t -> Ptset.t Ptmap.t
   val map_instr : (ir_var -> ssa_var) -> (ir_var -> ssa_var) -> ir_instr -> ssa_instr
-  val map_exception_handler : ir_exc_h -> ssa_exc_h
+  val map_exception_handler : 
+(ir_var -> int -> ssa_var) -> ir_exc_h -> ssa_exc_h
   val preds : ir_t -> int -> int list
   val succs : ir_t -> int -> int list
   val live_analysis : ir_t -> int -> ir_var -> bool
@@ -231,13 +241,13 @@ end
 (** Functor that provides the transformation function *)
 module SSA 
   (IR:IRSig) 
-  (TSSA:TSsaSig with type var_t = IR.var * int)
+  (TSSA:TSsaSig with type var_t = int * IR.var * int)
   (IR2SSA:IR2SsaSig
    with type ir_t = IR.t
    and type ir_var = IR.var
    and type ir_instr = IR.instr
    and type ir_exc_h = IR.exception_handler
-   and type ssa_var = IR.var * int
+   and type ssa_var = int * IR.var * int
    and type ssa_instr = TSSA.instr_t
    and type ssa_exc_h = TSSA.exception_handler
   )
