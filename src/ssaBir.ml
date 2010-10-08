@@ -527,7 +527,9 @@ struct
       with Not_found -> assert false in
     let rec search x =
       search_h := x :: !search_h;
+     (* def : set of variables that are defined in x*)
       let def = if x<0 then
+        (* at entry point, the set contains all paremeters *)
         (List.fold_right (fun (_,x) -> Ptset.add (IR.index x))
 	   m.IR.params Ptset.empty)
       else IR2SSA.def_bcvar m.IR.code.(x) in
@@ -540,7 +542,7 @@ struct
 	     let i = Ptmap.find v !c in
 	       rename_def := 
 		 Ptmap.add 
-		   x (Ptmap.add v i xmap) 
+		   x (Ptmap.add v i xmap) (* at point x, v |-> v_i *)
 		   !rename_def;
 	       s := Ptmap.add v (i::(Ptmap.find v !s)) !s;
 	       c := Ptmap.add v (i+1) !c)
