@@ -110,66 +110,69 @@ end
 module Var (IR:IRSig) = 
 struct
   type ir_var = IR.var
-  type var = int * IR.var * int
+  type var = int * (IR.var * int)
 
-  let var_equal (_,v1,i1) (_,v2,i2) =
+  let var_equal (_,(v1,i1)) (_,(v2,i2)) =
     IR.var_equal v1 v2 && i1=i2
 
-  let var_orig (_,v,_) = IR.var_orig v
+  let var_orig (_,(v,_)) = IR.var_orig v
 
-  let var_name_debug (_,v,i) = 
+  let var_name_debug (_,(v,i)) = 
     match IR.var_name_debug v with
 	None -> None
       | Some s -> Some (Printf.sprintf "%s_%d" s i)
 
-  let var_name (_,v,i) = Printf.sprintf "%s_%d" (IR.var_name v) i
+  let var_name (_,(v,i)) = Printf.sprintf "%s_%d" (IR.var_name v) i
 
-  let var_name_g (_,v,i) = Printf.sprintf "%s_%d" (IR.var_name_g v) i
+  let var_name_g (_,(v,i)) = Printf.sprintf "%s_%d" (IR.var_name_g v) i
 
-  let bc_num (_,v,_)  = IR.bc_num v
+  let bc_num (_,(v,_))  = IR.bc_num v
 
-  let var_origin (_,v,_) = v
+  let var_origin (_,(v,_)) = v
 
-  let var_ssa_index (_,_,is) = is
+  let var_ssa_index (_,(_,is)) = is
 
-  let index (i,_,_) = i
+  let index = fst
 
-  module VarMap = Map.Make(struct type t=(IR.var*int)
+  module DicoVarMap = Map.Make(struct type t=(IR.var*int)
 				  let compare (v1,i1) (v2,i2) =
 				    compare 
 				      (IR.index v1,i1) (IR.index v2,i2)
 			   end)
 
   type dictionary =
-      { mutable var_map : var VarMap.t;
+      { mutable var_map : var DicoVarMap.t;
 	mutable var_next : int }
 
   let make_dictionary () =
-    { var_map = VarMap.empty;
+    { var_map = DicoVarMap.empty;
       var_next = 0}
 
   let make_var (d:dictionary) : IR.var -> int -> var =
     fun v i_ssa ->
       try
-	VarMap.find (v,i_ssa) d.var_map
+	DicoVarMap.find (v,i_ssa) d.var_map
       with Not_found -> 
-	let new_v = (d.var_next,v,i_ssa) in
-	  d.var_map <- VarMap.add (v,i_ssa) new_v d.var_map;
+	let new_v = (d.var_next,(v,i_ssa)) in
+	  d.var_map <- DicoVarMap.add (v,i_ssa) new_v d.var_map;
 	  d.var_next <- 1+ d.var_next;
 	  new_v
 
   let make_array_var d v_dum =
-    let dum = (-1,v_dum,-1) in
+    let dum = (-1,(v_dum,-1)) in
     let t = Array.make d.var_next dum in
-      VarMap.iter (fun _  ((i,_,_) as v) -> t.(i) <- v) d.var_map;
+      DicoVarMap.iter (fun _  ((i,_) as v) -> t.(i) <- v) d.var_map;
       t
+
+  module VarSet = JUtil.GenericSet(struct type t = IR.var * int end)
+  module VarMap = JUtil.GenericMap(struct type t = IR.var * int end)
 
 end
 
 module type VarSig =
 sig
   type ir_var 
-  type var = int * ir_var * int
+  type var = int * (ir_var * int)
   type dictionary 
   val var_equal : var -> var -> bool
   val var_orig : var -> bool
@@ -183,6 +186,8 @@ sig
   val make_dictionary : unit -> dictionary
   val make_var : dictionary -> ir_var -> int -> var
   val make_array_var : dictionary -> ir_var -> var array
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = int * (ir_var * int)
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = int * (ir_var * int)
 end
 
 module T (Var:VarSig) (Instr:Bir.InstrSig) =
@@ -194,6 +199,7 @@ struct
     vars : Var.var array;
     params : (JBasics.value_type * Var.var) list;
     code : Instr.instr array;
+    preds : (int array) array;
     phi_nodes : (Var.var * Var.var array) list array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
@@ -273,6 +279,9 @@ sig
     code : instr_t array;
     (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
 	are absolute. *)
+    preds : (int array) array;
+    (** Array of instructions program point that are predecessors of
+      instruction [pc]. *)
     phi_nodes : (var_t * var_t array) list array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
@@ -391,19 +400,18 @@ let dominator instr_array preds =
 module SSA 
   (IR:IRSig) 
   (TSSA:TSsaSig 
-   with type var_t = int * IR.var * int)
+   with type var_t = int * (IR.var * int))
   (IR2SSA:IR2SsaSig 
    with type ir_t = IR.t
    and type ir_var = IR.var
    and type ir_instr = IR.instr
    and type ir_exc_h = IR.exception_handler
-   and type ssa_var = int * IR.var * int
+   and type ssa_var = int * (IR.var * int)
    and type ssa_instr = TSSA.instr_t
    and type ssa_exc_h = TSSA.exception_handler
   )
   = 
 struct 
-  
   (* see:  
      Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.; 
      and Zadeck, F. Kenneth (1991). 
@@ -492,6 +500,7 @@ struct
     let s = ref (Ptmap.map (fun _ -> []) vars) in
     let rename_use = Array.make (Array.length m.IR.code) Ptmap.empty in
     let rename_def = ref Ptmap.empty in
+    let rename_def_phi = ref Ptmap.empty in
     let phi_nodes = 
       Ptmap.mapi 
 	(fun n s -> 
@@ -536,14 +545,14 @@ struct
 	Ptmap.iter
 	  (fun v _ -> 
 	     let xmap = 
-	       try Ptmap.find x !rename_def
+	       try Ptmap.find x !rename_def_phi
 	       with Not_found -> Ptmap.empty
 	     in
 	     let i = Ptmap.find v !c in
-	       rename_def := 
+	       rename_def_phi := 
 		 Ptmap.add 
 		   x (Ptmap.add v i xmap) (* at point x, v |-> v_i *)
-		   !rename_def;
+		   !rename_def_phi;
 	       s := Ptmap.add v (i::(Ptmap.find v !s)) !s;
 	       c := Ptmap.add v (i+1) !c)
 	  (phi_nodes x);
@@ -583,6 +592,9 @@ struct
       search (-1);
       (fun i -> 
 	 let xmap = Ptmap.find i !rename_def in
+	   fun v -> Ptmap.find v xmap), 
+    (fun i -> 
+	 let xmap = Ptmap.find i !rename_def_phi in
 	   fun v -> Ptmap.find v xmap),
     (fun i -> (rename_use.(i))),
     phi_nodes
@@ -608,7 +620,7 @@ struct
 	  (fun v -> ir_code.IR.vars.(v))
 	  (Ptset.elements (Ptmap.find i phi_nodes)) 
       with Not_found -> [] in
-      ((fun i -> dom.(i)),idom,domf,phi_nodes,var_defs,rename)
+      ((fun i -> dom.(i)),idom,domf,phi_nodes,var_defs,rename,preds)
 
   let to_string s =
     Printf.sprintf "{%s}"
@@ -618,8 +630,23 @@ struct
     Printf.sprintf "{%s}"
       (JUtil.print_list_sep_map "," IR.var_name_g s)
 
-  let debug ir_code (dom,idom,domf,phi_nodes,var_defs,(rename_def,rename_use,phi_nodes')) =
+  let debug ir_code (dom,idom,domf,phi_nodes,var_defs,(_rename_def,_rename_def_phi, rename_use,phi_nodes'),_preds) =
     let jump_target = IR.jump_target ir_code in
+    let var_defs = 
+      JUtil.foldi
+	(fun pc _ def_map -> 
+	   let var_list = phi_nodes pc in
+	   List.fold_left
+	     (fun def_m v -> 
+		let v_i = IR.index v in
+		  Ptmap.add ~merge:Ptset.union v_i 
+		    (Ptset.singleton pc) def_m)
+	     def_map
+	     var_list
+	)
+	var_defs
+	ir_code.IR.code
+    in
       Ptmap.iter
 	(fun v defs ->
 	   Printf.printf "  %s:" (IR.var_name_g (ir_code.IR.vars.(v)));
@@ -664,7 +691,8 @@ struct
     let debug i msg = 
       Printf.printf "-----------------\nFailure %s line %d\n-----------------\n" msg i;
       debug ir_code run in
-    let (_,_,_,_,_,(rename_def,rename_use,phi_nodes')) = run in
+    let (_,_,_,_,_,
+	 (rename_def, rename_def_phi, rename_use,phi_nodes'),preds) = run in
     let dico = Var.make_dictionary () in
     let make_var = Var.make_var dico in
     let def i x = 
@@ -684,8 +712,8 @@ struct
 	Ptmap.fold
 	  (fun v args l -> 
 	     let x_ir = ir_code.IR.vars.(v) in
-	     let x = make_var x_ir (rename_def i v) in
-	     let args = 
+	     let x = make_var x_ir (rename_def_phi i v) in
+	     let args =    
 	       Array.map 
 		 (fun vi -> make_var x_ir vi) args 
 	     in
@@ -699,6 +727,9 @@ struct
       List.map 
 	(fun (t,x) -> (t, make_var x 0)) ir_code.IR.params
     in
+    let preds = 
+      Array.init (Array.length code) (fun i -> Array.of_list (preds i))
+    in
     let phi_nodes = 
       Array.init (Array.length code) phi_nodes
     in
@@ -711,6 +742,7 @@ struct
 	TSSA.vars = vars;
 	TSSA.params = params;
 	TSSA.code  = code;
+	TSSA.preds = preds;
 	TSSA.phi_nodes = phi_nodes;
 	TSSA.exc_tbl = exc_t;
 	TSSA.line_number_table = ir_code.IR.line_number_table;

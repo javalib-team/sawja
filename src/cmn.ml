@@ -92,31 +92,34 @@ struct
       | (OriginalVar (x,_),OriginalVar (y,_)) -> compare x y
       | (x,y) -> compare x y
 
-  module VarMap = Map.Make(struct type t=unindexed_var let compare = compare_originalvar end)
+  module DicoVarMap = Map.Make(struct type t=unindexed_var let compare = compare_originalvar end)
 
   type dictionary =
-      { mutable var_map : var VarMap.t;
+      { mutable var_map : var DicoVarMap.t;
 	mutable var_next : int }
 
   let make_dictionary () =
-    { var_map = VarMap.empty;
+    { var_map = DicoVarMap.empty;
       var_next = 0}
 
   let make_var (d:dictionary) : unindexed_var -> var =
     function v ->
       try
-	VarMap.find v d.var_map
+	DicoVarMap.find v d.var_map
       with Not_found -> 
 	let new_v = (d.var_next,v) in
-	  d.var_map <- VarMap.add v new_v d.var_map;
+	  d.var_map <- DicoVarMap.add v new_v d.var_map;
 	  d.var_next <- 1+ d.var_next;
 	  new_v
 
   let make_array_var d =
     let dummy = (-1,(TempVar (-1))) in
     let t = Array.make d.var_next dummy in
-      VarMap.iter (fun _  v -> t.(fst v) <- v) d.var_map;
+      DicoVarMap.iter (fun _  v -> t.(fst v) <- v) d.var_map;
       t
+
+  module VarSet = JUtil.GenericSet(struct type t = unindexed_var end)
+  module VarMap = JUtil.GenericMap(struct type t = unindexed_var end)
 
 end
 

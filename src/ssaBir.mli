@@ -112,7 +112,7 @@ end
 module type VarSig =
 sig
   type ir_var
-  type var = int * ir_var * int
+  type var = int * (ir_var * int)
   val var_equal : var -> var -> bool
   val var_orig : var -> bool
   val var_name_debug: var -> string option
@@ -126,6 +126,8 @@ sig
   val make_dictionary : unit -> dictionary
   val make_var : dictionary -> ir_var -> int -> var
   val make_array_var : dictionary -> ir_var -> var array  
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = int * (ir_var * int)
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = int * (ir_var * int)  
 end
 
 (** Functor to create "variable" type and functions for SSA form from
@@ -148,6 +150,9 @@ sig
     code : instr_t array;
     (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
 	are absolute. *)
+    preds : (int array) array;
+    (** Array of instructions program point that are predecessors of
+      instruction [pc]. *)
     phi_nodes : (var_t * var_t array) list array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
@@ -183,6 +188,9 @@ module T (Var : VarSig)
       vars : Var.var array;
       params : (JBasics.value_type * Var.var) list;
       code : Instr.instr array;
+      preds : (int array) array;
+    (** Array of instructions program point that are predecessors of
+      instruction [pc]. *)
       phi_nodes : (Var.var * Var.var array) list array;
       (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	  be executed before the corresponding [code.(pc)] instruction. *)
@@ -241,13 +249,13 @@ end
 (** Functor that provides the transformation function *)
 module SSA 
   (IR:IRSig) 
-  (TSSA:TSsaSig with type var_t = int * IR.var * int)
+  (TSSA:TSsaSig with type var_t = int * (IR.var * int))
   (IR2SSA:IR2SsaSig
    with type ir_t = IR.t
    and type ir_var = IR.var
    and type ir_instr = IR.instr
    and type ir_exc_h = IR.exception_handler
-   and type ssa_var = int * IR.var * int
+   and type ssa_var = int * (IR.var * int)
    and type ssa_instr = TSSA.instr_t
    and type ssa_exc_h = TSSA.exception_handler
   )

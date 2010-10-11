@@ -322,6 +322,13 @@ exception Bad_stack
     multi-array of dimension zero. *)
 exception Bad_Multiarray_dimension
 
+(** {2 Containers} *)
+
+(** This module allows to build efficient sets of [var] values. *)
+module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+
+(** This module allows to build maps of elements indexed by [var] values. *)
+module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 
 (** {2 Only used for internal purpose} *)
 

@@ -90,6 +90,12 @@ module Var : sig
       [vars.(i)] is the variable of index [i]. *)
   val make_array_var : dictionary -> var array
 
+  (** This module allows to build efficient sets of [var] values. *)
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+
+  (** This module allows to build maps of elements indexed by [var] values. *)
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
 end
 
 (** Common exception type and functions depending on "variable" type *)

@@ -230,9 +230,13 @@ type t = {
   code : instr array;
   (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
       are absolute. *)
+  preds : (int array) array;
+  (** Array of instructions program point that are predecessors of
+      instruction [pc]. *)
   phi_nodes : (var * var array) list array;
-  (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
-      be executed before the corresponding [code.(pc)] instruction. *)
+  (** Array of phi nodes assignments. Each phi nodes assignments at
+      point [pc] must be executed before the corresponding [code.(pc)]
+      instruction.*)
   exc_tbl : exception_handler list;
   (** [exc_tbl] is the exception table of the method code. Jumps are
       absolute. *)
@@ -300,3 +304,12 @@ val transform :
 (** {2 Exceptions} *)
 
 (** See {!JBir} Exceptions section*)
+
+
+(** {2 Containers} *)
+
+(** This module allows to build efficient sets of [var] values. *)
+module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+
+(** This module allows to build maps of elements indexed by [var] values. *)
+module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
