@@ -36,8 +36,9 @@ MODULES = jUtil wlist jProgram classDomain cmn jsrInline bir jBir a3Bir \
 	jControlFlow jPrintHtml safe reachableMethods jNativeStubs \
 	jCRA jRTA jRRTA XTA \
 	$(DATAFLOW)iter $(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
+	ssaBir jBirSSA a3BirSSA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
-	ssaBir jBirSSA a3BirSSA
+	$(DATAFLOW)availableExprSSA 
 
 MODULE_INTERFACES = wlist jProgram classDomain jNativeStubs jsrInline \
 	cmn jBir a3Bir jControlFlow jPrintHtml safe reachableMethods \

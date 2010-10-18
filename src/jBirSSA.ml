@@ -190,6 +190,7 @@ end
 
 module SsaJBir = SsaBir.SSA 
   (JBir) 
+  (SsaBir.Var(JBir))
   (SsaBir.T (SsaBir.Var(JBir)) (JBir.InstrRep (SsaBir.Var(JBir))))
   (struct 
      include JBir2SSA

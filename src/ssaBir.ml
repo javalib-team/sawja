@@ -112,8 +112,8 @@ struct
   type ir_var = IR.var
   type var = int * (IR.var * int)
 
-  let var_equal (_,(v1,i1)) (_,(v2,i2)) =
-    IR.var_equal v1 v2 && i1=i2
+  let var_equal (i1,_) (i2,_) =
+    i1 == i2
 
   let var_orig (_,(v,_)) = IR.var_orig v
 
@@ -194,13 +194,19 @@ module T (Var:VarSig) (Instr:Bir.InstrSig) =
 struct
   include Cmn.Exception (Var)
   type var_t = Var.var
+  type var_set = Var.VarSet.t
   type instr_t = Instr.instr
+  type phi_node = {
+    def : Var.var;
+    use : Var.var array;
+    use_set : Var.VarSet.t;
+  }
   type t = {
     vars : Var.var array;
     params : (JBasics.value_type * Var.var) list;
     code : Instr.instr array;
     preds : (int array) array;
-    phi_nodes : (Var.var * Var.var array) list array;
+    phi_nodes : (phi_node list) array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
     exc_tbl : exception_handler list;
@@ -220,27 +226,45 @@ struct
 	code.code;
       jump_target
 
-  let print_phi_node (x,args) =
-    Printf.sprintf "%s := PHI(%s)"
-      (Var.var_name_g x)
-      (JUtil.print_list_sep_map "," Var.var_name_g (Array.to_list args))
+  let print_phi_node ?(phi_simpl=true) phi =
+      if phi_simpl
+      then
+	Printf.sprintf "%s := PHI{%s}"
+	  (Var.var_name_g phi.def)
+	  (JUtil.print_list_sep_map 
+	     "," Var.var_name_g (Var.VarSet.elements phi.use_set))
+      else
+	Printf.sprintf "%s := PHI(%s)"
+	  (Var.var_name_g phi.def)
+	  (JUtil.print_list_sep_map 
+	     "," Var.var_name_g (Array.to_list phi.use))
 
-  let print_phi_nodes l =
-    JUtil.print_list_sep_map "; " print_phi_node l
+  let print_phi_nodes ?(phi_simpl=true) l =
+    JUtil.print_list_sep_map "; " (print_phi_node ~phi_simpl:phi_simpl) l
 
-  let app_phi_nodes l s =
+  let app_phi_nodes phi_simpl preds l s =
     if l = [] then s
-    else (print_phi_nodes l)^"; "^s
+    else 
+      let head = 
+	if phi_simpl
+	then
+	  ""
+	else
+	  "preds := ("^(JUtil.print_list_sep_map 
+			 ", " string_of_int (Array.to_list preds))
+	  ^"); "
+      in
+	head^(print_phi_nodes ~phi_simpl:phi_simpl l)^"; "^s
 
-  let rec print_code phi_nodes code i acc =
+  let rec print_code phi_simpl preds phi_nodes code i acc =
     if i<0 then acc
-    else print_code phi_nodes code (i-1)
+    else print_code phi_simpl preds phi_nodes code (i-1)
       (Printf.sprintf "%3d: %s" i 
-	 (app_phi_nodes phi_nodes.(i) (Instr.print_instr code.(i)))::acc)
+	 ((app_phi_nodes phi_simpl preds.(i)) phi_nodes.(i) (Instr.print_instr code.(i)))::acc)
 
-  let print m =
+  let print ?(phi_simpl=true) m =
     let size = Array.length (m.code) in
-      print_code m.phi_nodes m.code (size-1) []
+      print_code phi_simpl m.preds m.phi_nodes m.code (size-1) []
 	
   let exception_edges m = exception_edges' m.code m.exc_tbl 
 end
@@ -267,12 +291,24 @@ end
 module type TSsaSig = 
 sig
   type var_t
+  type var_set
   type instr_t
   type exception_handler
+  type phi_node = {
+    def : var_t;
+    (** The variable defined in the phi node*)
+    use : var_t array;
+    (** Array of used variable in the phi node, the index of a used
+	variable in the array corresponds to the index of the program
+	point predecessor in [preds.(phi_node_pc)].*)
+    use_set : var_set;
+    (** Set of used variable in the phi node (no information on
+	predecessor program point for a used variable)*)
+  }
   type t = {
     vars : var_t array;  
-  (** All variables that appear in the method. [vars.(i)] is the variable of
-      index [i]. *)
+    (** All variables that appear in the method. [vars.(i)] is the variable of
+	index [i]. *)
     params : (JBasics.value_type * var_t) list;
     (** [params] contains the method parameters (including the receiver this for
 	virtual methods). *)
@@ -280,11 +316,12 @@ sig
     (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
 	are absolute. *)
     preds : (int array) array;
-    (** Array of instructions program point that are predecessors of
+    (** [preds.(pc)] is the array of program points that are predecessors of
       instruction [pc]. *)
-    phi_nodes : (var_t * var_t array) list array;
-    (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
-	be executed before the corresponding [code.(pc)] instruction. *)
+    phi_nodes : phi_node list array;
+    (** Array of phi nodes assignments. Each phi nodes assignments at
+	point [pc] must be executed before the corresponding [code.(pc)]
+	instruction. *)
     exc_tbl : exception_handler list;
     (** [exc_tbl] is the exception table of the method code. Jumps are
 	absolute. *)
@@ -399,14 +436,18 @@ let dominator instr_array preds =
 
 module SSA 
   (IR:IRSig) 
+  (Var:VarSig 
+   with type ir_var = IR.var
+   and type var = int * (IR.var * int))
   (TSSA:TSsaSig 
-   with type var_t = int * (IR.var * int))
+   with type var_t = Var.var
+   and type var_set = Var.VarSet.t)
   (IR2SSA:IR2SsaSig 
    with type ir_t = IR.t
    and type ir_var = IR.var
    and type ir_instr = IR.instr
    and type ir_exc_h = IR.exception_handler
-   and type ssa_var = int * (IR.var * int)
+   and type ssa_var = Var.var
    and type ssa_instr = TSSA.instr_t
    and type ssa_exc_h = TSSA.exception_handler
   )
@@ -685,7 +726,6 @@ struct
       print_newline ()
 
   let transform_from_ir (ir_code:IR.t) =
-    let module Var = Var(IR) in
     let live = IR2SSA.live_analysis ir_code in
     let run = run ir_code live in
     let debug i msg = 
@@ -713,11 +753,21 @@ struct
 	  (fun v args l -> 
 	     let x_ir = ir_code.IR.vars.(v) in
 	     let x = make_var x_ir (rename_def_phi i v) in
-	     let args =    
-	       Array.map 
-		 (fun vi -> make_var x_ir vi) args 
+	     let (vars_u,vars_u_s) =  
+	       let vset = ref Var.VarSet.empty in
+		 Array.map 
+		   (fun vi -> 
+		      let var = make_var x_ir vi in
+			vset:= Var.VarSet.add var !vset;
+			var) 
+		   args
+		   ,!vset
 	     in
-	       (x,args)::l)
+	       {
+		 TSSA.def = x;
+		 TSSA.use = vars_u;
+		 TSSA.use_set = vars_u_s;
+	       }::l)
 	  (phi_nodes' i) []
       with Not_found -> debug i "phi lookup"; assert false in
     let code = Array.mapi

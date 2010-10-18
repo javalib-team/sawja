@@ -25,8 +25,7 @@ open Javalib_pack
 
 (** {2 Language} *)
 
-(** {3 Expressions} *)
-
+(** {3 Variables} *)
 (** Abstract data type for variables *)
 type var
 
@@ -57,6 +56,14 @@ val var_ssa_index : var -> int
 
 (** [index v] returns the unique index of [v] *)
 val index : var -> int
+
+(** This module allows to build efficient sets of [var] values. *)
+module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+
+(** This module allows to build maps of elements indexed by [var] values. *)
+module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
+(** {3 Expressions} *)
 
 (** Side-effect free expressions *)
 type expr =
@@ -210,13 +217,27 @@ type instr =
 	  be thrown by the virtual machine are described in {!check} type
 	  declaration. *)
 
-
+(** *)
 type exception_handler = {
   e_start : int;
   e_end : int;
   e_handler : int;
   e_catch_type : JBasics.class_name option;
   e_catch_var : var
+}
+
+
+(** [phi_node] is a phi_node assignement*)
+type phi_node = {
+  def : var;
+  (** The variable defined in the phi node*)
+  use : var array;
+  (** Array of used variables in the phi node, the index of a used
+      variable in the array corresponds to the index of the program
+      point predecessor in [preds.(phi_node_pc)].*)
+  use_set : VarSet.t;
+  (** Set of used variables in the phi node (a simplified view of
+      use without information on predecessor)*)
 }
 
 (** [t] is the parameter type for JBirSSA methods. *)
@@ -231,9 +252,9 @@ type t = {
   (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
       are absolute. *)
   preds : (int array) array;
-  (** Array of instructions program point that are predecessors of
-      instruction [pc]. *)
-  phi_nodes : (var * var array) list array;
+  (** [preds.(pc)] is the array of program points that are
+      predecessors of instruction at program point [pc]. *)
+  phi_nodes : (phi_node list) array;
   (** Array of phi nodes assignments. Each phi nodes assignments at
       point [pc] must be executed before the corresponding [code.(pc)]
       instruction.*)
@@ -273,16 +294,25 @@ val print_expr : ?show_type:bool -> expr -> string
 (** [print_instr ins] returns a string representation for instruction [ins]. *)
 val print_instr : ?show_type:bool -> instr -> string
 
-(** [print_phi_node phi] returns a string representation for phi node [phi]. *)
-val print_phi_node : var * var array -> string
+(** [print_phi_node ~phi_simpl phi] returns a string representation
+    for phi node [phi]. By default [phi_simpl] is
+    [true] and the function only prints the sets of used variables in the
+    phi node assignement (no information on predecessor).*)
+val print_phi_node : ?phi_simpl:bool -> phi_node -> string
 
-(** [print_phi_nodes phi_list] returns a string representation for phi nodes 
-    [phi_list]. *)
-val print_phi_nodes : (var * var array) list -> string
+(** [print_phi_nodes ~phi_simpl phi_list] returns a string
+    representation for phi nodes [phi_list]. By default [phi_simpl] is
+    [true] and the function only prints the sets of used variables in the
+    phi node assignement (no information on predecessor).*)
+val print_phi_nodes : ?phi_simpl:bool -> phi_node list -> string
 
-(** [print c] returns a list of string representations for instruction of [c]
-    (one string for each program point of the code [c]). *)
-val print : t -> string list
+(** [print c] returns a list of string representations for instruction
+    of [c] (one string for each program point of the code [c]). By
+    default [phi_simpl] is [true] and the function prints the sets of
+    used variables in the phi node assignement, if [phi_simpl] is set
+    to [false] the function prints the predecessors and the used
+    variable for each possible predecessor of phi node.*)
+val print : ?phi_simpl:bool -> t -> string list
 
 (** {2 Bytecode transformation} *)
 
@@ -306,10 +336,4 @@ val transform :
 (** See {!JBir} Exceptions section*)
 
 
-(** {2 Containers} *)
 
-(** This module allows to build efficient sets of [var] values. *)
-module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-
-(** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var

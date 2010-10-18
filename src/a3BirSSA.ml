@@ -194,6 +194,7 @@ end
 
 module SsaA3Bir = SsaBir.SSA 
   (A3Bir) 
+  (SsaBir.Var(A3Bir))
   (SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.InstrRep (SsaBir.Var(A3Bir))))
   (struct 
      include A3Bir2SSA

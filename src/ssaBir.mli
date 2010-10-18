@@ -138,8 +138,20 @@ module Var (IR:IRSig) : VarSig with type ir_var = IR.var
 module type TSsaSig = 
 sig
   type var_t
+  type var_set
   type instr_t
   type exception_handler
+  type phi_node = {
+    def : var_t;
+    (** The variable defined in the phi node*)
+    use : var_t array;
+    (** Array of used variable in the phi node, the index of a used
+	variable in the array corresponds to the index of the program
+	point predecessor in [preds.(phi_node_pc)].*)
+    use_set : var_set;
+    (** Set of used variable in the phi node (no information on
+	predecessor program point for a used variable)*)
+  }  
   type t = {
     vars : var_t array;  
   (** All variables that appear in the method. [vars.(i)] is the variable of
@@ -153,7 +165,7 @@ sig
     preds : (int array) array;
     (** Array of instructions program point that are predecessors of
       instruction [pc]. *)
-    phi_nodes : (var_t * var_t array) list array;
+    phi_nodes : (phi_node list) array;
     (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	be executed before the corresponding [code.(pc)] instruction. *)
     exc_tbl : exception_handler list;
@@ -176,6 +188,7 @@ module T (Var : VarSig)
   : sig
     type var_t = Var.var
     type instr_t = Instr.instr
+    type var_set = Var.VarSet.t
     type exception_handler = {
       e_start : int;
       e_end : int;
@@ -183,7 +196,17 @@ module T (Var : VarSig)
       e_catch_type : class_name option;
       e_catch_var : Var.var
     }
-	
+    type phi_node = {
+      def : Var.var;
+      (** The variable defined in the phi node*)
+      use : Var.var array;
+      (** Array of used variables in the phi node, the index of a used
+	  variable in the array corresponds to the index of the program
+	  point predecessor in [preds.(phi_node_pc)].*)
+      use_set : Var.VarSet.t;
+      (** Set of used variables in the phi node (no information on
+	  predecessor program point for a used variable)*)
+    }
     type t = {
       vars : Var.var array;
       params : (JBasics.value_type * Var.var) list;
@@ -191,7 +214,7 @@ module T (Var : VarSig)
       preds : (int array) array;
     (** Array of instructions program point that are predecessors of
       instruction [pc]. *)
-      phi_nodes : (Var.var * Var.var array) list array;
+      phi_nodes : (phi_node list) array;
       (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	  be executed before the corresponding [code.(pc)] instruction. *)
       exc_tbl : exception_handler list;
@@ -208,15 +231,15 @@ module T (Var : VarSig)
     val jump_target : t -> bool array
 
     (** [print_phi_node phi] returns a string representation for phi node [phi]. *)
-    val print_phi_node : Var.var * Var.var array -> string
+    val print_phi_node : ?phi_simpl:bool -> phi_node -> string
 
     (** [print_phi_nodes phi_list] returns a string representation for phi nodes 
 	[phi_list]. *)
-    val print_phi_nodes : (Var.var * Var.var array) list -> string
+    val print_phi_nodes : ?phi_simpl:bool -> phi_node list -> string
 
     (** [print c] returns a list of string representations for instruction of [c]
 	(one string for each program point of the code [c]). *)
-    val print : t -> string list
+    val print : ?phi_simpl:bool -> t -> string list
       
     (** [exception_edges m] returns a list of edges [(i,e);...] where
 	[i] is an instruction index in [m] and [e] is a handler whose
@@ -249,13 +272,18 @@ end
 (** Functor that provides the transformation function *)
 module SSA 
   (IR:IRSig) 
-  (TSSA:TSsaSig with type var_t = int * (IR.var * int))
-  (IR2SSA:IR2SsaSig
+  (Var:VarSig 
+   with type ir_var = IR.var
+   and type var = int * (IR.var * int))
+  (TSSA:TSsaSig 
+   with type var_t = Var.var
+   and type var_set = Var.VarSet.t)
+  (IR2SSA:IR2SsaSig 
    with type ir_t = IR.t
    and type ir_var = IR.var
    and type ir_instr = IR.instr
    and type ir_exc_h = IR.exception_handler
-   and type ssa_var = int * (IR.var * int)
+   and type ssa_var = Var.var
    and type ssa_instr = TSSA.instr_t
    and type ssa_exc_h = TSSA.exception_handler
   )
