@@ -184,7 +184,7 @@ val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
     the program [p]. [map_program] passes to [f] the class name and
     method signature corresponding to the method being converted. The
     application is {b lazy}: [f] is not applied until [Lazy.force] is
-    called on the implementation. [fpp] is the optionnal function
+    called on the implementation. [fpp] is the optional function
     that, given the transformed code and one of its call sites program
     points, returns the corresponding call site program point in old
     code representation. Function [fpp] is used to transform the
