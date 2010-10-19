@@ -1,2 +1,0 @@
-main.cmo: reachDef.cmo live_bir.cmo availableExpr.cmo 
-main.cmx: reachDef.cmx live_bir.cmx availableExpr.cmx 

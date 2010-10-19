@@ -13,7 +13,7 @@ test: run
 	javac -g test/C.java
 	./run test/C.class
 
-all: .depend $(SRCMLI:=.cmi) $(SRC:=.cmo) $(SRC:=.cmx)
+all: $(SRCMLI:=.cmi) $(SRC:=.cmo) $(SRC:=.cmx)
 
 
 run: all
@@ -23,7 +23,7 @@ run.bc: all
 	$(OCAMLC) -linkpkg -o $@ $(SRC:=.cmo)
 
 clean:
-	rm -f *.o *.a *.cm[iox] *~ *.annot test/*~ test/*.class run
+	rm -f *.o *.a $(SRC:=.cm[iox]) *~ *.annot test/*~ test/*.class run
 
 .depend: $(SRC:=.ml)
 	$(OCAMLDEP) $(SRCMLI:=.mli) $(SRC:=.ml) > .depend
@@ -37,4 +37,4 @@ clean:
 %.cmi: %.mli
 	$(OCAMLC) -dtypes -c $<
 
--include .depend
+#-include .depend

@@ -32,17 +32,22 @@ else
 CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
-MODULES = jUtil wlist jProgram classDomain cmn jsrInline bir jBir a3Bir \
+MODULES = $(DATAFLOW)iter jUtil wlist \
+	jProgram classDomain jsrInline cmn bir jBir a3Bir \
+	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
+	ssaBir jBirSSA a3BirSSA \
 	jControlFlow jPrintHtml safe reachableMethods jNativeStubs \
 	jCRA jRTA jRRTA XTA \
-	$(DATAFLOW)iter $(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
-	ssaBir jBirSSA a3BirSSA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
 	$(DATAFLOW)availableExprSSA 
 
-MODULE_INTERFACES = wlist jProgram classDomain jNativeStubs jsrInline \
-	cmn jBir a3Bir jControlFlow jPrintHtml safe reachableMethods \
-	jCRA XTA jRTA jRRTA $(DATAFLOW)iter ssaBir jBirSSA a3BirSSA
+MODULE_INTERFACES = $(DATAFLOW)iter wlist \
+	jProgram classDomain jNativeStubs jsrInline \
+	cmn jBir a3Bir ssaBir jBirSSA a3BirSSA\
+	jControlFlow jPrintHtml safe reachableMethods \
+	jCRA XTA jRTA jRRTA 
+
+MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir,$(MODULE_INTERFACES))
 
 FOR_PACK= -for-pack Sawja_pack
 
@@ -126,7 +131,7 @@ sawja_pack.cmo: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
 sawja_pack.cmx: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmx)
 	$(OCAMLOPT) -pack $(MODULES:=.cmx) -o $@
 
-doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
+doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
 	cp $(JAVALIB)/jBasics.mli ./javalib_pack.JBasics.mli
 	cp $(JAVALIB)/jCode.mli ./javalib_pack.JCode.mli
@@ -135,7 +140,7 @@ doc: $(MODULE_INTERFACES:=.cmi) ../intro.ocamldoc
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
-		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) ./{javalib_pack.Javalib,javalib_pack.JBasics,javalib_pack.JCode}.mli
+		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) ./{javalib_pack.Javalib,javalib_pack.JBasics,javalib_pack.JCode}.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
