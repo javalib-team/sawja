@@ -553,7 +553,7 @@ struct
 		   failwith "A Native Method shouldn't be found in the workset"
 		 else
 		   let ms = cm.cm_signature in
-		   let m_class = JPrint.class_name ~jvm:true cs
+		   let m_class = JPrint.object_type ~jvm:true (TClass cs)
 		   and m_name = ms_name ms
 		   and m_signature =
 		     JPrint.method_descriptor ~jvm:true (ms_args ms)
