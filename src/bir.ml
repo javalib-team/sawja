@@ -1597,7 +1597,7 @@ let jump_stack dico pc' stack =
 exception NonemptyStack_backward_jump
 exception Type_constraint_on_Uninit
 exception Content_constraint_on_Uninit
-
+exception InconsistentDebugInfo of int*int*int
 
 let value_compare e1 e2 =
   match e1, e2 with
@@ -1613,10 +1613,233 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-let bc2ir dico mode ch_link ssa pp_var jump_target load_type arrayload_type code =
-  let rec loop as_ts_jump ins ts_in as_in pc fresh_counter =
+(* Check that debug info on local variables are consistent:
 
-    (* Simplifying redundant assignt on the fly : see one instr ahead *)
+   (1) Context must be initialized at pc=0: arguments of method using pp_var
+   info at pc=0 and other local variables at UnDef value.  Context is
+   initialized with debug info of local_variable_table on the fly for
+   pcs not initialized by propagation before access to their
+   context. (using the custom limit bounds [start,start+length[ for
+   variable name scope because we need to know at jump_target pcs if a
+   variable has no name anymore at next_pc ...).
+
+   (2) Retrieve and propagate debug info of a variable when a OpStore
+   is done (from the pc beyond the OpStore).  Propagate info to
+   successors of [pc]: if successor is a jump target do (3).
+
+   (3) Check that our propagated debug info at a pc (for each variable
+   on which we have a debug info) is consistent with debug info of pc
+   successors that are jump_target pcs and propagate information
+   regarding the special case. 
+
+   (4) Check at each use of a variable (OpLoad, OpIInc) that our
+   propagated info on this variable is the same that the one in the
+   local_variable_table (using pp_var =
+   JCode.get_local_variable_info).
+
+   => If verified: we can use debug info on variables in
+   transformation
+
+*)
+
+type var_name_deb = UnDef | NoName | Name of string
+
+let pp_var2vardeb f = 
+  fun x i -> 
+    match f x i with 
+	None -> NoName 
+      | Some s -> Name s
+
+let ch_debug_info debugi jump_target pp_var darray code = 
+  let succs = succs code in
+  let new_as_succ as_succ pc = 
+    (* Initialize a pc with debug
+       info of local_variable_table *)
+    let init_by_default pc =
+      (* VM specification indicates that limit bounds
+	 (start, start+length) are inclusive but start+length
+	 includes jump target where variables will have no name in
+	 next pc. Then we need to reduce bounds to
+	 [start,start+length[. *)
+      List.iter
+	(fun (start,len,name,_,i) -> 
+	   if pc>=start && pc < start + len
+	   then 
+	     darray.(pc) <- Ptmap.add i (Name name) darray.(pc))
+	debugi
+    in
+      if Ptset.mem pc as_succ 
+      then as_succ 
+      else
+	begin
+	  init_by_default pc;
+	  Ptset.add pc as_succ
+	end
+  in
+  let iter_on_lvars = (Array.make (code.c_max_locals) 0) in
+    (fun as_succ pc -> 
+       let op = code.c_code.(pc) in
+       let succs = succs pc in
+       let as_succ = new_as_succ as_succ pc in
+	 (* see (3) *)
+       let check_all as_succ dom_bj darray jump_pc =
+	 let as_succ = new_as_succ as_succ jump_pc in
+	   Array.iteri
+	     (fun i _ -> 
+		match
+		  (Ptmap.mem i dom_bj,
+		   Ptmap.mem i darray.(jump_pc))
+		with
+		    (* We only have info of local_variable_table in both
+		       pcs (that is to say no information in this
+		       case) *)
+		    (false,false) -> ()
+
+		  (* There is a name information on variable on each pc :
+		     
+		     - Check if it is the same info: 
+		     
+		     ** if it is ok info is consistent, no change
+		     
+		     ** if not: check if we already propagate info from
+		     the [jump_pc] point (pc < jump_pc):
+
+		     +++ if it is the case: check if value is UnDef, if
+		     yes the variable could not have been accessed without a
+		     definition (OpStore) so it's ok, if no raise an
+		     Exception because variable may have been accessed
+		     with an uncorrect name
+
+		     +++ if it is not the case (pc > jump_pc): put the
+		     value of variable at jump_pc to UnDef, it forbids to
+		     use the variable without a definition.
+
+		  *)
+		  | (true,true) -> 
+		      let bj, aj = Ptmap.find i dom_bj, Ptmap.find i darray.(jump_pc) in
+			if not (bj = aj) 
+			then 
+			  if jump_pc > pc
+			  then
+			    darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
+			  else
+			    if aj = UnDef 
+			    then () 
+			    else
+			      raise (InconsistentDebugInfo (pc,jump_pc,i))
+
+		  (* There is information on variable at [pc] but no information on [jump_pc]:
+		     
+		     - Check if we already propagate info from the [jump_pc]
+		     point (pc > jump_pc):
+
+		     ** If it is the case: ok variable could not have been
+		     accessed without a definition or a merge with a NoName
+		     value
+
+		     ** If not (pc < jump_pc): IF variable at [pc] has a
+		     NoName value THEN it's compatible with no information =>
+		     put variable at NoName in [jump_pc] ELSE it's not
+		     compatible with no information => put variable at UnDef
+		     in [jump_pc].
+
+		  *)
+		  | (true,false) -> 
+		      if jump_pc > pc 
+		      then 
+			if (Ptmap.find i dom_bj = NoName) 
+			then darray.(jump_pc) <- Ptmap.add i NoName darray.(jump_pc)
+			else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
+		      else () 
+
+		  (* There is no information on variable at [pc] but
+		     information on [jump_pc]:
+
+		     - Check if we already propagate info from the [jump_pc]
+		     point (pc > jump_pc):
+
+		     ** If it is the case: IF variable at [jump_pc] has value
+		     UnDef THEN the variable could not have been accessed
+		     without a definition => continue propagation ELSE raise
+		     an Exception because variable may have been accessed
+		     with an uncorrect name
+
+		     ** If not (pc < jump_pc): IF variable at [jump_pc] has a
+		     NoName value THEN it's compatible with no information =>
+		     continue propagation (but do not allow to access to
+		     variable) ELSE it's not compatible with no information
+		     => put variable at UnDef in [jump_pc].  *)
+		  | (false,true) -> 
+		      let aj = Ptmap.find i darray.(jump_pc) in
+			if jump_pc > pc
+			then 
+			  if (aj = NoName)
+			  then ()
+			  else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
+			else 
+			  if aj = UnDef 
+			  then () 
+			  else
+			    raise (InconsistentDebugInfo (pc,jump_pc,i)))
+	     iter_on_lvars;
+	   as_succ
+       in
+	 (* for all instructions except OpStore *)
+       let normal_instr darray = 
+	 List.fold_left 
+	   (fun as_succ i -> 
+	      let j_targ = jump_target.(i) in
+		if j_targ
+		  (* case (3)*)
+		then check_all as_succ darray.(pc) darray i
+		  (* case (2) *)
+		else 
+		  (darray.(i) <- darray.(pc); as_succ)
+	   ) 
+	   as_succ
+	   succs
+       in
+	 match op with 
+	     OpStore (_,n) -> 
+	       List.fold_left 
+		 (fun as_succ i -> 
+		    let j_targ = jump_target.(i) in
+		      if j_targ
+		      then
+			(* case (3) *)
+			check_all 
+			  as_succ
+			  (Ptmap.add n (pp_var pc n) darray.(pc)) 
+			  darray
+			  i
+		      else 
+			(* case (2) *)
+			(darray.(i) <- Ptmap.add n (pp_var pc n) darray.(pc); as_succ))
+		 as_succ
+		 succs 
+	   | OpLoad (_,n)
+	   | OpIInc (n,_) -> 
+	       let ok = 
+		 (* case (4) *)
+		 try 
+		   Ptmap.find n darray.(pc) = (pp_var pc n)
+		 with Not_found -> false
+	       in
+		 if not ok then raise (InconsistentDebugInfo (pc,pc,n));
+		 normal_instr darray
+
+	   | _ -> normal_instr darray)
+
+
+let bc2ir ?(no_debug=false) dico mode ch_link ssa pp_var jump_target load_type arrayload_type cm code =
+  let rec loop ch_debug as_ts_jump ins ts_in as_in pc fresh_counter =
+    let ch_debug = 
+      match ch_debug with 
+	  None -> None (* it should be in case there is no debug info available *)
+	| Some (check_fun,as_succ) -> 
+	    Some (check_fun,check_fun as_succ pc)
+    in
+      (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
       let next_pc = try next code.c_code pc with End_of_method -> pc in
 	match code.c_code.(next_pc) with
@@ -1626,7 +1849,6 @@ let bc2ir dico mode ch_link ssa pp_var jump_target load_type arrayload_type code
 	      else Some (make_var dico (OriginalVar (n,pp_var next_pc n)))
 	  | _ -> None
     in
-    let succs = normal_next code pc in
     let (ts_in,as_in) =
       if jump_target.(pc) then
 	try MapPc.find pc as_ts_jump
@@ -1640,54 +1862,97 @@ let bc2ir dico mode ch_link ssa pp_var jump_target load_type arrayload_type code
 	    ([],[])
       else (ts_in,as_in)
     in
-    let ts_out = type_next code.c_code.(pc) ts_in in
-    let (as_out,instrs) = bc2bir_instr dico mode pp_var ch_link ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store code.c_code.(pc)  in
+    let succs = normal_next code pc in
+    let jump_succs = List.filter (fun i -> jump_target.(i)) succs in
+    let op = code.c_code.(pc) in
+    let ts_out = type_next op ts_in in
+    let (as_out,instrs) = bc2bir_instr dico mode pp_var ch_link ssa fresh_counter pc load_type arrayload_type ts_in as_in next_store op  in
 
       (* fail on backward branchings on a non-empty stack *)
       if List.length as_out>0 then
 	if (List.exists (fun j -> j<pc) succs) then raise NonemptyStack_backward_jump;
-
-    let jump_succs = List.filter (fun i -> jump_target.(i)) succs in
-    let branch_assigns = para_assign dico pc jump_succs as_out in
-    let ins =
-      if is_jump_instr code.c_code.(pc) then
-	(pc,branch_assigns@instrs)::ins
-      else
-	(pc,instrs@branch_assigns)::ins
-    in
-    let as_ts_jump =
-      List.fold_left
-	(fun as_jump pc' ->
-	   try
-	     let (ts_jmp,as_jmp) = MapPc.find pc' as_jump in
-	       (* check constraint on expr uninit and jumping forward on a non empty stack
-		  all defined predecessor advice must match what is reached *)
-	       if (ts_jmp <> ts_out) then raise Type_constraint_on_Uninit ;
-	       let jmp_s =  jump_stack dico pc' as_out in
-		 if (not (value_compare_stack as_jmp jmp_s)) then
-		   ( Printf.printf "\n %s\n" (string_of_int pc') ;
-		     Printf.printf "%s \n" (print_stackmap as_jmp) ;
-		     Printf.printf "%s \n" (print_stackmap jmp_s) ;
-		     raise Content_constraint_on_Uninit )
-		 else as_jump
-	   with Not_found ->
-	     (* when first advice for pc', no constraint to check. add the advice in the map *)
-	     let st = jump_stack dico pc' as_out in
-	       MapPc.add pc' (ts_out,st) as_jump)
-	as_ts_jump
-	jump_succs in
-      try
-	loop as_ts_jump ins ts_out as_out (next code.c_code pc) fresh_counter
-      with End_of_method ->  ins
+      let branch_assigns = para_assign dico pc jump_succs as_out in
+      let ins =
+	if is_jump_instr op then
+	  (pc,branch_assigns@instrs)::ins
+	else
+	  (pc,instrs@branch_assigns)::ins
+      in
+      let as_ts_jump =
+	List.fold_left
+	  (fun as_jump pc' ->
+	     try
+	       let (ts_jmp,as_jmp) = MapPc.find pc' as_jump in
+		 (* check constraint on expr uninit and jumping forward
+		    on a non empty stack all defined predecessor advice
+		    must match what is reached *)
+		 if (ts_jmp <> ts_out) then raise Type_constraint_on_Uninit ;
+		 let jmp_s =  jump_stack dico pc' as_out in
+		   if (not (value_compare_stack as_jmp jmp_s)) then
+		     ( Printf.printf "\n %s\n" (string_of_int pc') ;
+		       Printf.printf "%s \n" (print_stackmap as_jmp) ;
+		       Printf.printf "%s \n" (print_stackmap jmp_s) ;
+		       raise Content_constraint_on_Uninit )
+		   else as_jump
+	     with Not_found ->
+	       (* when first advice for pc', no constraint to check. add
+		  the advice in the map *)
+	       let st = jump_stack dico pc' as_out in
+		 MapPc.add pc' (ts_out,st) as_jump)
+	  as_ts_jump
+	  jump_succs in
+	try
+	  loop ch_debug as_ts_jump ins ts_out as_out (next code.c_code pc) fresh_counter
+	with End_of_method ->  ins
   in
-    loop MapPc.empty [] [] [] 0 (ref 0)
+    (* Initialize context for checking debug information on
+       variables (see ch_debug_info function)*)
+  let ch_debug_init = 
+    if no_debug then None
+    else
+      match code.c_local_variable_table with
+	  None -> None
+	| Some debugi -> 
+	    let pp_var = pp_var2vardeb pp_var in
+	    let darray = 
+	      Array.make (Array.length code.c_code) Ptmap.empty 
+	    in
+	      (* initialize method's arguments with a valid value
+		 (they are considered as assigned at first pc...) and
+		 other local variables with UnDef value *)
+	      let args_numb = 
+		(List.fold_left 
+		   (fun nb_loc_arg -> 
+		      function  
+			  TBasic jbt when ((jbt = `Double) or (jbt = `Long)) ->
+			    nb_loc_arg + 2
+			| _ -> nb_loc_arg + 1)
+		   (if cm.cm_static then 0 else 1)
+		   (ms_args cm.cm_signature))
+	      in
+		(Array.iteri
+		   (fun i _ -> 
+		      if i < args_numb
+		      then
+			darray.(0) <- Ptmap.add i (pp_var 0 i) darray.(0)
+		      else
+			darray.(0) <- Ptmap.add i UnDef darray.(0))
+		   (Array.make 
+		      (code.c_max_locals)
+		      ()));
+		let ch_fun = ch_debug_info debugi jump_target pp_var darray code in
+		  Some (ch_fun,Ptset.singleton 0)
+  in
+    loop ch_debug_init MapPc.empty [] [] [] 0 (ref 0)
 
-let search_name_localvar static code i x =
+let search_name_localvar no_debug static code i x =
   if x=0 && (not static) then Some "this"
-  else match JCode.get_local_variable_info x i code with
-    | None ->  None
-    | Some (s,_) -> Some s
-
+  else 
+    if no_debug then None
+    else
+      match JCode.get_local_variable_info x i code with
+	| None ->  None
+	| Some (s,_) -> Some s
 
 let compute_jump_target code =
   let jump_target = Array.make (Array.length code.c_code) false in
@@ -1909,24 +2174,30 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
-	  (*    Array.iteri
-		(fun i op ->
-		match op with
-		OpLoad (_,x)
-		| OpStore (_,x) ->
-		Printf.printf "%s at line %d, var name is %s\n" (JDump.opcode op) i
-		(match JCode.get_local_variable_info x i code with | None -> "?" | Some (s,_) -> s)
-		| _ -> ()
-		) code.c_code; *)
-	  let pp_var = search_name_localvar cm.cm_static code in
+	  let pp_var no_debug = search_name_localvar no_debug cm.cm_static code in
 	  let jump_target = compute_jump_target code in
 	  let (load_type,arrayload_type) = BCV.run bcv cm code in
-	  let dico = make_dictionary () in
-	  let res = bc2ir dico mode ch_link ssa pp_var jump_target load_type arrayload_type code in
-	  (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
+	  let pp_var, dico, res = 
+	    try 
+	      let dico = make_dictionary () in
+		( pp_var false,
+		  dico,
+		  bc2ir ~no_debug:false
+		    dico mode ch_link ssa (pp_var false) jump_target 
+		    load_type arrayload_type cm code)
+	    with InconsistentDebugInfo (_pc,_topc,_vari)-> 
+	      prerr_endline ("Warning: Debug information of local_variable_table attribute of method "^(JPrint.class_method_signature cm.cm_class_method_signature)^" cannot be used for code transformation because it is inconsistent");
+	      let dico = make_dictionary () in
+		( pp_var true,
+		  dico, 
+		  bc2ir ~no_debug:true
+		    dico mode ch_link ssa (pp_var true) jump_target 
+		    load_type arrayload_type cm code)
+	  in
+	    (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
 	  let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
 	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
-	  (* let _ = print_unflattened_code ir_code in *)
+	    (* let _ = print_unflattened_code ir_code in *)
 	  let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
 	  let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
 	    remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl

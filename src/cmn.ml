@@ -87,12 +87,7 @@ struct
       | CatchVar _ -> true
       | _ -> false
 
-  let compare_originalvar x y = 
-    match (x, y) with
-      | (OriginalVar (x,_),OriginalVar (y,_)) -> compare x y
-      | (x,y) -> compare x y
-
-  module DicoVarMap = Map.Make(struct type t=unindexed_var let compare = compare_originalvar end)
+  module DicoVarMap = Map.Make(struct type t=unindexed_var let compare = compare end)
 
   type dictionary =
       { mutable var_map : var DicoVarMap.t;
