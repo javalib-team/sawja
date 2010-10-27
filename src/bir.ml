@@ -1656,11 +1656,6 @@ let ch_debug_info debugi jump_target pp_var darray code =
     (* Initialize a pc with debug
        info of local_variable_table *)
     let init_by_default pc =
-      (* VM specification indicates that limit bounds
-	 (start, start+length) are inclusive but start+length
-	 includes jump target where variables will have no name in
-	 next pc. Then we need to reduce bounds to
-	 [start,start+length[. *)
       List.iter
 	(fun (start,len,name,_,i) -> 
 	   if pc>=start && pc < start + len
