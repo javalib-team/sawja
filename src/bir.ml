@@ -1680,9 +1680,15 @@ let ch_debug_info debugi jump_target pp_var darray code =
     (fun as_succ pc -> 
        let op = code.c_code.(pc) in
        let succs = succs pc in
+	 (* If current [pc] was not the successor of a precedent
+	    program point, then initialize its context with
+	    local_variable_table *)
        let as_succ = new_as_succ as_succ pc in
 	 (* see (3) *)
        let check_all as_succ dom_bj darray jump_pc =
+	 (* If [jump_pc] was not the successor of a
+	    precedent program point, then initialize its context with
+	    local_variable_table *)
 	 let as_succ = new_as_succ as_succ jump_pc in
 	   Array.iteri
 	     (fun i _ -> 
@@ -1784,39 +1790,27 @@ let ch_debug_info debugi jump_target pp_var darray code =
 	     iter_on_lvars;
 	   as_succ
        in
-	 (* for all instructions except OpStore *)
-       let normal_instr darray = 
+	 
+       let apply_instr_context darray cur_context = 
 	 List.fold_left 
 	   (fun as_succ i -> 
 	      let j_targ = jump_target.(i) in
 		if j_targ
 		  (* case (3)*)
-		then check_all as_succ darray.(pc) darray i
+		then check_all as_succ cur_context darray i
 		  (* case (2) *)
 		else 
-		  (darray.(i) <- darray.(pc); as_succ)
+		  (darray.(i) <- cur_context; 
+		   (* Add successor [i] as a program point
+		      initialized *)
+		   Ptset.add i as_succ)
 	   ) 
 	   as_succ
 	   succs
        in
 	 match op with 
 	     OpStore (_,n) -> 
-	       List.fold_left 
-		 (fun as_succ i -> 
-		    let j_targ = jump_target.(i) in
-		      if j_targ
-		      then
-			(* case (3) *)
-			check_all 
-			  as_succ
-			  (Ptmap.add n (pp_var pc n) darray.(pc)) 
-			  darray
-			  i
-		      else 
-			(* case (2) *)
-			(darray.(i) <- Ptmap.add n (pp_var pc n) darray.(pc); as_succ))
-		 as_succ
-		 succs 
+	       apply_instr_context darray (Ptmap.add n (pp_var pc n) darray.(pc))
 	   | OpLoad (_,n)
 	   | OpIInc (n,_) -> 
 	       let ok = 
@@ -1826,9 +1820,9 @@ let ch_debug_info debugi jump_target pp_var darray code =
 		 with Not_found -> false
 	       in
 		 if not ok then raise (InconsistentDebugInfo (pc,pc,n));
-		 normal_instr darray
+		 apply_instr_context darray darray.(pc)
 
-	   | _ -> normal_instr darray)
+	   | _ -> apply_instr_context darray darray.(pc))
 
 
 let bc2ir ?(no_debug=false) dico mode ch_link ssa pp_var jump_target load_type arrayload_type cm code =
