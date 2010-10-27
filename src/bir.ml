@@ -1542,7 +1542,7 @@ let is_jump_instr = function
   | OpGoto _ -> true
   | _ -> false
 
-module MapPc = Map.Make(struct type t=int let compare = compare end)
+module MapPc = Ptmap
 
 let is_branchvar_in_stack succs =
   let test = function
