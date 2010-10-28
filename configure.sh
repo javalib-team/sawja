@@ -49,7 +49,7 @@ RECODEBIN=`which recode`
 # The perl executable
 PERL=`which perl`
 # The debug flag
-DEBUG=yes
+DEBUG=no
 # The shared option flag
 SHARED=
 # The path to the Javalib libraries
@@ -135,8 +135,8 @@ Options:
   \t\t This also needs to be the Javalib installation directory
   -l default \t Perform a local installation in the default directory.
   \t\t This coincides with the default Javalib installation directory
-  -d FLAG \t Use the debug flag when compiling.
-  -b FLAG \t Compile Sawja to use the Buddy BDD library.
+  -d FLAG \t Use the debug flag when compiling (default: no).
+  -b FLAG \t Compile Sawja to use the Buddy BDD library (default: no).
   -h  \t\t Print this message and exit."
 }
 #   -s  \t\t Complile a dynamically loadable plugin (cmxs).
@@ -318,22 +318,23 @@ echo " done."
 # Tell the user what to do next: compile and install Sawja 
 #
 SAWJA=`$FINDER query sawja 2>/dev/null`
+ALR_INST=$?
 echo ""
 echo "WHAT'S NEXT: all dependencies are satisfied." | fmt
-if [ $? = 0 ]; then
+if [ $ALR_INST = 0 ]; then
 	echo " A version of Sawja is already installed."
 	echo " Compile, remove and install Sawja with the following commands:" | fmt
     else echo " Compile and install Sawja with the following commands:" | fmt
     fi
 if [ "$LOCALDEST" ]; then
-    if [ $? = 0 ]; then
+    if [ $ALR_INST = 0 ]; then
 	echo "    make && make remove install"
     else echo "    make && make install"
     fi   
 else
-    if [ $? = 0 ]; then
+    if [ $ALR_INST = 0 ]; then
 	echo "    make && sudo make remove install"
-    else echo "    make && sudo make remove install"
+    else echo "    make && sudo make install"
     fi   
 fi
 echo ""
