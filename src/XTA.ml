@@ -695,8 +695,8 @@ let get_XTA_program
   in
 
   let initial_state program entry_points native_throwable: XTAState.t=
-    let state = XTAState.bot (1,1,Sys.max_array_length,Sys.max_array_length,1)
-      
+    (* TODO: calculate init size on number of fields or methods of program ? *)
+    let state = XTAState.bot (1,1,10000,100000,1)
     in
       List.iter
         (function `Method ((),cn,ms) ->

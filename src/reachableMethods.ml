@@ -77,7 +77,8 @@ let compute_csts program : Constraints.cst list =
     []
 
 let initial_state (entry_points:class_method_signature list) : State.t =
-  let state = State.bot (1,1,1,Sys.max_array_length,1)
+  (* TODO: calculate size on number of methods of program ? *)
+  let state = State.bot (1,1,1,100000,1)
   in
     List.iter
       (function cms ->
