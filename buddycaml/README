@@ -1,0 +1,9 @@
+download BUDDY 2.4 (http://sourceforge.net/projects/buddy/)
+apply the patch in ./patch on sources files (necessary if you use a Macintoch (performances problem))
+compile and install BUDDY 2.4
+
+make BUDDYLIB=<path2buddylib> BUDDYH=<path2buddh> 
+     <path2buddylib> must contain file libbdd.a (/usr/local/lib/ by default)
+     <path2buddh> must contain file bdd.h (/usr/local/include/ by default)
+
+make install OR make sudo install

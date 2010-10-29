@@ -1,0 +1,5 @@
+version = "0.1"
+description = "Wrapper for the Buddy BDD library"
+archive(native) = "obuddy.cmxa"
+archive(byte) = "obuddy.cma"
+requires = "unix,bigarray"

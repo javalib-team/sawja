@@ -1,9 +1,13 @@
-.PHONY:all sawja install clean cleanall cleandoc doc
+.PHONY:all buddycaml sawja install clean cleanall cleandoc doc
 
 all:sawja
 
 sawja:
 	$(MAKE) -C src
+
+# Package-specific targets
+buddycaml installbuddycaml removebuddycaml:%buddycaml:
+	$(MAKE) -C buddycaml $*
 
 install remove:
 	$(MAKE) -C src $@
@@ -11,7 +15,13 @@ install remove:
 distclean:clean
 	$(RM) Makefile.config
 
-clean cleanall cleandoc doc:
+clean cleanall :
+	$(MAKE) -C src $@
+	$(MAKE) -C doc $@
+	$(MAKE) -C buddycaml $@
+	$(RM) *~
+
+cleandoc doc:
 	$(MAKE) -C src $@
 	$(MAKE) -C doc $@
 	$(RM) *~

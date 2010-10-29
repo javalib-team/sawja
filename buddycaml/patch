@@ -1,0 +1,16 @@
+--- buddy-2.4/src/kernel.h	2004-07-13 22:51:49.000000000 +0200
++++ buddy-2.4/src/kernel.h	2009-10-21 21:54:42.000000000 +0200
+@@ -44,6 +44,13 @@
+#include <setjmp.h>
+#include "bdd.h"
+
++/*=== BSD ==============================================================*/
++/* longjmp, setjmp is too slow on BSD */
++#if defined(__MACH__)
++#define longjmp _longjmp
++#define setjmp  _setjmp
++#endif
++
+/*=== SANITY CHECKS ====================================================*/
+
+   /* Make sure we use at least 32 bit integers */
