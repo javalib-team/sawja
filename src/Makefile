@@ -94,10 +94,10 @@ classDomain.ml:$(CLASS_DOMAIN)
 	cp $< $@
 
 jPrintHtml.cmo:jPrintHtml.ml
-	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" -c $<
+	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -p -e 'BEGIN{open(CSS,$(CSS));\$$css=\"\\\"\\\"\";while(<CSS>){chomp(\$$_);\$$css=\"\$$css^\\n\\\"\$$_\\\\n\\\"\";} print \"# 1 \\\"$<\\\"\n\";}s/\\\"\(\* CSS \*\)\\\"/\$$css/;'" -c $<
 
 jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
-	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -0777 -p -e 'BEGIN{open(CSS,$(CSS));\$$css = <CSS>;print \"# 1 \\\"$<\\\"\n\";}s/\(\* CSS \*\)/\$$css/;'" $(FOR_PACK) -c $<
+	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -p -e 'BEGIN{open(CSS,$(CSS));\$$css=\"\\\"\\\"\";while(<CSS>){chomp(\$$_);\$$css=\"\$$css^\\n\\\"\$$_\\\\n\\\"\";} print \"# 1 \\\"$<\\\"\n\";}s/\\\"\(\* CSS \*\)\\\"/\$$css/;'" $(FOR_PACK) -c $<
 
 safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
 	$(RM) $@

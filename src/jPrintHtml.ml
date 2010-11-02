@@ -682,25 +682,25 @@ struct
      replaced by the actual CSS. (cf. Makefile) *)
   let default_css = "(* CSS *)"
     
-  let default_js = "function showInfoList(e){
-    var siblings = e.parentNode.childNodes;
-    var len = siblings.length;
-
-    for(var i = 0; i < len; i++){
-        var sibling = siblings[i];
-    	if (sibling.nodeName == \"UL\"
-	    && sibling.className == \"clickable\"){
-	    var style = sibling.style;
-	    if (style.visibility != \"visible\"){
-		style.position = \"static\";
-                style.visibility = \"visible\";
-	    } else{
-		style.visibility = \"hidden\";
-                style.position = \"absolute\";
-	    }
-	}
-    }
-}"
+  let default_js = "function showInfoList(e){\n"^
+    "    var siblings = e.parentNode.childNodes;\n"^
+    "    var len = siblings.length;\n"^
+    "\n"^
+    "    for(var i = 0; i < len; i++){\n"^
+    "        var sibling = siblings[i];\n"^
+    "    	if (sibling.nodeName == \"UL\"\n"^
+    "	    && sibling.className == \"clickable\"){\n"^
+    "	    var style = sibling.style;\n"^
+    "	    if (style.visibility != \"visible\"){\n"^
+    "		style.position = \"static\";\n"^
+    "                style.visibility = \"visible\";\n"^
+    "	    } else{\n"^
+    "		style.visibility = \"hidden\";\n"^
+    "                style.position = \"absolute\";\n"^
+    "	    }\n"^
+    "	}\n"^
+    "    }\n"^
+    "}"
     
   let print_program
       ?css ?js ?(info=void_info) program outputdir =

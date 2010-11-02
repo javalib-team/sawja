@@ -60,7 +60,7 @@ BUDDY=no
 # The ocamlopt flags (depends on DEBUG)
 OPT_FLAGS=
 # The ocamlc flags (depends on DEBUG)
-FLAGS="-w Ae"
+FLAGS="-w Aer"
 
 # The camlp4o pretty-printer
 PP=
@@ -215,7 +215,7 @@ case $BUDDY in
 	fi;;
     no | NO | n | N)
 	msg "inf" "Buddy flag set to no. Sawja won't use the buddy BDD package"
-	INCUDE="-package javalib";;
+	INCLUDE="-package javalib";;
     *)  msg "err" "buddy BDD library option $BUDDY is not recognized"
 esac
 
