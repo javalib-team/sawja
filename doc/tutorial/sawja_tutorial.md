@@ -311,7 +311,7 @@ the *A3Bir* representation is exactly the same.
 
 ~~~~~
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~bcv:false) 
+      (fun _ -> JBir.transform ~bcv:false ~ch_link:false) 
       (Some (fun code pp -> code.JBir.pc_ir2bc.(pp)))
       prta
 ~~~~~

@@ -4,6 +4,9 @@ From 1.1.1 to 1.2
 New features:
 * Add pruned SSA (Static Single Assignement) form for JBir and A3Bir
   representation
+* JControlFlow:
+  - Add modules PP_* to access and navigate in code for all IRs (JBir,
+    A3Bir, JBirSSA, A3BirSSA).
 * JProgram: map_program functions allow to update the
   static_lookup_method of a program by giving program point
   correspondance between new and old code representation
@@ -12,11 +15,19 @@ New features:
   efficient than the balanced trees of OCaml
 * Add some dataflow analyses examples: available expression, reachable
   defenition, live variable
+* Integration of the module buddycaml in Sawja distribution that
+  allows to bind the BDD package, BuDDy (C library), to caml (could be
+  used in Sawja using option configure.sh -b yes).
 
 Bug fixes:
 * JBir & A3Bir: 
   - MayInit instructions were not generated for OpPutStatic
     instructions (when a static field was not in the stack)
+  - Intermediate representations were using only one name per local
+    variable (e.g. local variable '2') when debug info was
+    available. Now it uses correctly the local_variable_table
+    information (N.B: debug info is checked during transformation and
+    could be rejected if it is inconsistent).
 * JBir: 
   - Check (CheckArithmetic) was not generated on OpDiv and OpRem instructions
 * JControlFlow: 
@@ -28,6 +39,10 @@ Bug fixes:
     method instead of invoked methods
   - arguments numbers were not correct: receiver was not taking in
     account in non-static methods
+* XTA and ReachableMethods: Sys.max_array_length value was used to
+  initialize some XTAState domains. On 64bits systems it could leads
+  to an Out_of_memory exception. Those values are replaced by
+  constants.
 
 Minor changes:
 * JBir & A3Bir: 
@@ -45,9 +60,8 @@ Minor changes:
   - If an instruction has no possible predecessor it is removed during
     transformation
 * JControlFlow:
-  - Add modules PP_* to access and navigate in code for all IRs (JBir,
-    A3Bir, JBirSSA, A3BirSSA), acces and navigation of JCode
-    representation is put in module PP_BC
+  - Acces and navigation in JCode representation is put in module
+    PP_BC
 * JPrintHtml: 
   - add return type of invoked methods on display
   - arguments types of caller methods of a method are now displayed
@@ -61,7 +75,8 @@ Known bug:
 * Native methods are only handle by RTA and may only be under 
   approximate with our stub generator, or under or over approximate by
   hand
-* Inlining of subroutines does not allow to keep correspondance between program points and line numbers
+* Inlining of subroutines does not allow to keep correspondance
+  between program points and line numbers
 
 
 From 1.1 to 1.1.1

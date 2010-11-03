@@ -1,15 +1,12 @@
 <h2>About this Version</h2>
 
 <p>
-This version (1.1.1) fixes important bugs in RRTA and XTA, and some
-minor bugs detailled in CHANGELOG file.
-</p>
-<p>
-The major difference brought by version 1.1 is the addition of a
-module which allows to inline not nested subroutines, the modification
-of BIR code representation (represented as an array) and the addition
-of a new call graph computation algorithm (XTA). Moreover JVMTI has
-been added, it allows to trace native methods actions in an execution,
-this information may be used for call graph computation with RTA
-algorithm. Others minor changes are detailled in the CHANGELOG file.
+The major difference brought by this version (1.2) is the addition of
+a pruned SSA (Static Single Assignement) form for the IRs
+(Intermediate Representations: JBir and A3Bir). This version also adds
+features regarding IRs (easy way to access and navigate in code,
+efficient data structure, (optional) generation of check instructions
+for linking operations, etc.) and fixes some minor bugs in IRs
+transformation and HTML output. See details of these changes and other
+minor changes in the CHANGELOG file.
 </p>

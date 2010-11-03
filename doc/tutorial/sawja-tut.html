@@ -3,12 +3,11 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta name="generator" content=
-"HTML Tidy for Linux/x86 (vers 25 March 2009), see www.w3.org" />
+"HTML Tidy for Linux (vers 25 March 2009), see www.w3.org" />
 <title>Sawja tutorial -</title>
 <meta http-equiv="Content-Type" content=
 "text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
-<meta name="date" content="" />
 <link rel="stylesheet" href="style-tut.css" type="text/css" />
 </head>
 <body>
@@ -45,8 +44,7 @@ printer</a></li>
 </li>
 </ul>
 </div>
-<div id="introduction">
-<h1><a href="#TOC">Introduction</a></h1>
+<h1 id="introduction"><a href="#TOC">Introduction</a></h1>
 <p><em>Sawja</em> is a library written in <em>OCaml</em>, relying
 on the <em>Javalib</em> to provide a high level representation of
 <em>Java</em> byte-code programs. Whereas <em>Javalib</em> is
@@ -78,17 +76,16 @@ formalized and proved to be semantics-preserving<sup><a href="#fn2"
 class="footnoteRef" id="fnref2" name="fnref2">2</a></sup>.</p>
 <p><em>Sawja</em> also provides functions to map a program using a
 particular code representation to another.</p>
-</div>
-<div id="global-architecture">
-<h1><a href="#TOC">Global architecture</a></h1>
+<h1 id="global-architecture"><a href="#TOC">Global
+architecture</a></h1>
 <p>In this section, we present the different modules of
 <em>Sawja</em> and how they interact together. While reading the
 next sections, we recommend you to have a look at <em>Sawja</em>
 API at the same time. All modules of <em>Sawja</em> are sub-modules
 of the package module <em>Sawja_pack</em> in order to avoid
 possible namespace conflicts.</p>
-<div id="jprogram-module">
-<h2><a href="#TOC"><em>JProgram</em> module</a></h2>
+<h2 id="jprogram-module"><a href="#TOC"><em>JProgram</em>
+module</a></h2>
 <p>This module defines:</p>
 <ul>
 <li>the types representing the class hierarchy.</li>
@@ -120,10 +117,8 @@ the invoked class name and method signature, it returns a set of
 potential couples of (<strong>class_name</strong>,
 <strong>method_signature</strong>) that may be called.</li>
 </ul>
-</div>
-<div id="jcra-jrta-and-jrrta-modules">
-<h2><a href="#TOC"><em>JCRA</em>, <em>JRTA</em> and <em>JRRTA</em>
-modules</a></h2>
+<h2 id="jcra-jrta-and-jrrta-modules"><a href="#TOC"><em>JCRA</em>,
+<em>JRTA</em> and <em>JRRTA</em> modules</a></h2>
 <p>Each of these modules implements a function
 <strong>parse_program</strong> (the signature varies) which returns
 a program parametrized by the <strong>Javalib.jcode</strong>
@@ -144,9 +139,8 @@ are always loaded by <em>Sun JVM</em>.</p>
 the call-graph, and their cost (time and memory consumption), we
 get the following order : <em>CRA</em> &lt; <em>RTA</em> &lt;
 <em>RRTA</em> &lt; <em>XTA</em>.</p>
-</div>
-<div id="jnativestubs-module">
-<h2><a href="#TOC"><em>JNativeStubs</em> module</a></h2>
+<h2 id="jnativestubs-module"><a href="#TOC"><em>JNativeStubs</em>
+module</a></h2>
 <p>This module allows to define stubs for native methods,
 containing information about native method calls and native object
 allocations. Stubs can be stored in files, loaded and merged. The
@@ -172,9 +166,8 @@ format to describe stubs looks like:</p>
 </pre>
 <p><em>JRTA</em> admits a stub file as optional argument to handle
 native methods.</p>
-</div>
-<div id="jcontrolflow-module">
-<h2><a href="#TOC"><em>JControlFlow</em> module</a></h2>
+<h2 id="jcontrolflow-module"><a href="#TOC"><em>JControlFlow</em>
+module</a></h2>
 <p><em>JControlFlow</em> provides many functions related to class,
 field an method resolution. Static lookup functions for
 <strong>invokevirtual</strong>, <strong>invokeinterface</strong>,
@@ -183,10 +176,8 @@ are also present.</p>
 <p>This module also contains an internal module <strong>PP</strong>
 which allows to navigate through the control flow graph of a
 program.</p>
-</div>
-<div id="jbir-and-a3bir-modules">
-<h2><a href="#TOC"><em>JBir</em> and <em>A3Bir</em>
-modules</a></h2>
+<h2 id="jbir-and-a3bir-modules"><a href="#TOC"><em>JBir</em> and
+<em>A3Bir</em> modules</a></h2>
 <p>These modules both declare a type <strong>t</strong> defining an
 intermediate code representation. Both representations are
 stack-less. <em>A3Bir</em> looks like a three-address code
@@ -198,9 +189,8 @@ takes as parameters a concrete method and its associated
 <strong>t</strong>. This function coupled with
 <strong>JProgram.map_program2</strong> can be used to transform a
 whole program loaded with <em>RTA</em> algorithm for example.</p>
-</div>
-<div id="jprinthtml-module">
-<h2><a href="#TOC"><em>JPrintHtml</em> module</a></h2>
+<h2 id="jprinthtml-module"><a href="#TOC"><em>JPrintHtml</em>
+module</a></h2>
 <p>This module provides one function per code representation to
 dump a program into a set of <strong>.html</strong> files (one per
 class) related together by the control flow graph. Each printing
@@ -217,10 +207,7 @@ a module of signature <em>HTMLPrinter</em> containing a function
 <strong>print_program</strong>, similar to the others printing
 functions present in <em>JPrintHtml</em>. We will give an example
 in the tutorial.</p>
-</div>
-</div>
-<div id="tutorial">
-<h1><a href="#TOC">Tutorial</a></h1>
+<h1 id="tutorial"><a href="#TOC">Tutorial</a></h1>
 <p>To begin this tutorial, open an <em>OCaml</em> toplevel, for
 instance using the <em>Emacs</em> <strong>tuareg-mode</strong>, and
 load the following libraries in the given order:</p>
@@ -252,8 +239,8 @@ using the command <strong>make ocaml</strong> in the sources
 repository of <em>Sawja</em>. This command builds an executable
 named <strong>ocaml</strong> which is the result of the
 <strong>ocamlmktop</strong> command.</p>
-<div id="loading-and-printing-a-program">
-<h2><a href="#TOC">Loading and printing a program</a></h2>
+<h2 id="loading-and-printing-a-program"><a href="#TOC">Loading and
+printing a program</a></h2>
 <p>In this section, we present how to load a program with
 <em>Sawja</em> and some basic manipulations we can do on it to
 recover interesting information.</p>
@@ -341,17 +328,15 @@ first need to build an <strong>info</strong> type.</p>
 <dd>The destination directory must exist, otherwise an exception
 will be raised.</dd>
 </dl>
-</div>
-<div id="transforming-a-program-with-bir">
-<h2><a href="#TOC">Transforming a program with
-<em>Bir</em></a></h2>
+<h2 id="transforming-a-program-with-bir"><a href=
+"#TOC">Transforming a program with <em>Bir</em></a></h2>
 <p>In this section we present a sample of code transforming a
 program loaded with <em>RTA</em> to <em>JBir</em> representation.
 The procedure to obtain the <em>A3Bir</em> representation is
 exactly the same.</p>
 <pre>
 <code>    let pbir = JProgram.map_program2
-      (fun _ -&gt; JBir.transform ~bcv:false) 
+      (fun _ -&gt; JBir.transform ~bcv:false ~ch_link:false) 
       (Some (fun code pp -&gt; code.JBir.pc_ir2bc.(pp)))
       prta
 </code>
@@ -387,9 +372,8 @@ pretty-print one class, for instance
 the incriminated methods won't have any body in the <em>.html</em>
 representation.</dd>
 </dl>
-</div>
-<div id="writing-your-own-html-printer">
-<h2><a href="#TOC">Writing your own HTML printer</a></h2>
+<h2 id="writing-your-own-html-printer"><a href="#TOC">Writing your
+own HTML printer</a></h2>
 <p>Here we study the case of <strong>JCode.jcode</strong> printer,
 and show in details how it is implemented.</p>
 <p>We remember that the module interface to implement is
@@ -502,8 +486,7 @@ very simple:</p>
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]
 </code>
-</pre></div>
-</div>
+</pre>
 <div class="footnotes">
 <hr />
 <ol>

@@ -234,8 +234,8 @@ type phi_node = {
       variable in the array corresponds to the index of the program
       point predecessor in [preds.(phi_node_pc)].*)
   use_set : VarSet.t;
-  (** Set of used variables in the phi node (a simplified view of
-      [use] without information on predecessor)*)
+  (** (simplified view of [use] without information on predecessor)
+      Set of used variables in the phi node*)
 }
 
 (** [t] is the parameter type for A3BirSSA methods. *)

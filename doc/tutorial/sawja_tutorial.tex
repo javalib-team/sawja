@@ -340,7 +340,7 @@ to obtain the \emph{A3Bir} representation is exactly the same.
 
 \begin{verbatim}
     let pbir = JProgram.map_program2
-      (fun _ -> JBir.transform ~bcv:false) 
+      (fun _ -> JBir.transform ~bcv:false ~ch_link:false) 
       (Some (fun code pp -> code.JBir.pc_ir2bc.(pp)))
       prta
 \end{verbatim}
@@ -490,5 +490,4 @@ simple:
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]
 \end{verbatim}
-
 \end{document}
