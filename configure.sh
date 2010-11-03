@@ -49,7 +49,7 @@ RECODEBIN=`which recode`
 # The perl executable
 PERL=`which perl`
 # The debug flag
-DEBUG=no
+DEBUG=yes
 # The shared option flag
 SHARED=
 # The path to the Javalib libraries
@@ -136,7 +136,7 @@ Options:
   \t\t This also needs to be the Javalib installation directory
   -l default \t Perform a local installation in the default directory.
   \t\t This coincides with the default Javalib installation directory
-  -d FLAG \t Use the debug flag when compiling (default: no).
+  -d FLAG \t Use the debug flag when compiling (default: yes).
   -b FLAG \t Compile Sawja to use the Buddy BDD library (default: no).
   -h  \t\t Print this message and exit."
 }

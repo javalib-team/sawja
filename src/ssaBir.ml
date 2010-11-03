@@ -242,25 +242,37 @@ struct
   let print_phi_nodes ?(phi_simpl=true) l =
     JUtil.print_list_sep_map "; " (print_phi_node ~phi_simpl:phi_simpl) l
 
-  let app_phi_nodes phi_simpl preds l s =
-    if l = [] then s
+  let app_phi_nodes phi_simpl pc preds l =
+    if l = [] then ""
     else 
       let head = 
 	if phi_simpl
 	then
 	  ""
 	else
-	  "preds := ("^(JUtil.print_list_sep_map 
-			 ", " string_of_int (Array.to_list preds))
-	  ^"); "
+	  Printf.sprintf
+	  "%3s (preds(%d) := (%s))\n"
+	    ""
+	    pc
+	    (JUtil.print_list_sep_map 
+	       ", " string_of_int (Array.to_list preds))
       in
-	head^(print_phi_nodes ~phi_simpl:phi_simpl l)^"; "^s
+	List.fold_left
+	  (fun s phi -> 
+	     s^(Printf.sprintf
+		  "%4s %s;\n"
+		  ""
+		  (print_phi_node ~phi_simpl:phi_simpl phi)))
+	  head
+	  l	     
 
   let rec print_code phi_simpl preds phi_nodes code i acc =
     if i<0 then acc
     else print_code phi_simpl preds phi_nodes code (i-1)
-      (Printf.sprintf "%3d: %s" i 
-	 ((app_phi_nodes phi_simpl preds.(i)) phi_nodes.(i) (Instr.print_instr code.(i)))::acc)
+      (Printf.sprintf "%s%3d: %s" 
+	 (app_phi_nodes phi_simpl i preds.(i) phi_nodes.(i)) 
+	 i 
+	 (Instr.print_instr code.(i))::acc)
 
   let print ?(phi_simpl=true) m =
     let size = Array.length (m.code) in
