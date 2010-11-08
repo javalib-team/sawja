@@ -2053,34 +2053,44 @@ let flatten_code code exc_tbl =
   in
      (instrs,(Array.of_list pc_list), map, exc_tbl)
 
-(* find instructions that have no predecessors and then that cannot be
-   executed ...*)
-let find_dead_instrs code handlers = 
-  let dead_instr = Array.make (Array.length code) true in
-    dead_instr.(0) <- false;
+(* find predecessors of instructions ...*)
+let find_preds_instrs code handlers = 
+  let dead_instr = Array.make (Array.length code) Ptset.empty in
+    dead_instr.(0) <- Ptset.add 0 dead_instr.(0);
     Array.iteri
       (fun i ins -> 
 	 match ins with
-	   | Ifd (_ , j) -> dead_instr.(i+1) <- false; dead_instr.(j) <- false
-	   | Goto j -> dead_instr.(j) <- false
+	   | Ifd (_ , j) -> 
+	       dead_instr.(i+1) <- Ptset.add i dead_instr.(i+1); 
+	       dead_instr.(j) <- Ptset.add i dead_instr.(j);
+	   | Goto j -> dead_instr.(j) <- Ptset.add i dead_instr.(j)
 	   | Throw _
 	   | Return _ -> ()
-	   | _ -> dead_instr.(i+1) <- false
+	   | _ -> dead_instr.(i+1) <- Ptset.add i dead_instr.(i+1)
       )
       code;
-    List.iter (fun e -> dead_instr.(e.e_handler) <- false) handlers;
+    List.iter 
+      (fun e -> 
+	 let in_scope = ref e.e_start in
+	   while !in_scope < e.e_end do
+	     dead_instr.(e.e_handler) <- Ptset.add !in_scope dead_instr.(e.e_handler);
+	     in_scope := succ !in_scope
+	   done
+      ) 
+      handlers;
     dead_instr
 
 (* remove instructions of code without predecessors and modify jump, handlers and correspondance tables in consequence. *)
-let remove_dead_instrs code ir2bc bc2ir handlers = 
-  let deadi = find_dead_instrs code handlers in
+let rec remove_dead_instrs code ir2bc bc2ir handlers = 
+  let predsi = find_preds_instrs code handlers in
+  let succ_of_dead = ref Ptset.empty in
   let nb_dead = ref 0 in
     (* calculate program point correspondance between old code and
        code without dead instructions *)
   let new_code_corresp = 
     Array.mapi
       (fun i dead -> 
-	 if dead 
+	 if Ptset.is_empty dead 
 	 then 
 	   ( (* this program point will not exist anymore but we keep
 		a correspondance to modify handlers easily (case of
@@ -2090,7 +2100,7 @@ let remove_dead_instrs code ir2bc bc2ir handlers =
 	       ni)
 	 else
 	   i - !nb_dead)
-      deadi
+      predsi
   in
     if !nb_dead > 0
     then
@@ -2104,16 +2114,18 @@ let remove_dead_instrs code ir2bc bc2ir handlers =
 	let _ =
 	  Array.iteri
 	    (fun i ins -> 
-	       if deadi.(i)
+	       if Ptset.is_empty predsi.(i)
 	       then
 		 nb_dead_current := succ !nb_dead_current
 	       else
-		 (new_ir2bc.(i - !nb_dead_current) <- ir2bc.(i);
-		  new_code.(i - !nb_dead_current) <- 
-		    match ins with
-			Goto pc -> Goto (new_code_corresp.(pc))
-		      | Ifd (g, pc) -> Ifd (g, new_code_corresp.(pc))
-		      | ins -> ins)
+		 ( if Ptset.cardinal predsi.(i) = 1 && Ptset.is_empty predsi.(Ptset.choose predsi.(i))
+		   then succ_of_dead := Ptset.add i !succ_of_dead;
+		   new_ir2bc.(i - !nb_dead_current) <- ir2bc.(i);
+		   new_code.(i - !nb_dead_current) <- 
+		     match ins with
+			 Goto pc -> Goto (new_code_corresp.(pc))
+		       | Ifd (g, pc) -> Ifd (g, new_code_corresp.(pc))
+		       | ins -> ins)
 	    )
 	    code;
 	in
@@ -2122,7 +2134,7 @@ let remove_dead_instrs code ir2bc bc2ir handlers =
 	  let bc2ir = 
 	    Ptmap.mapi 
 	      (fun bc ir -> 
-		 if deadi.(ir)
+		 if Ptset.is_empty predsi.(ir)
 		 then (to_remove := bc::(!to_remove); -1)
 		 else
 		   new_code_corresp.(ir)) 
@@ -2149,12 +2161,16 @@ let remove_dead_instrs code ir2bc bc2ir handlers =
 		 then
 		   h::new_h
 		 else
-		   new_h
+		    new_h
 	    ) 
 	    handlers
 	    []
 	in 
-	  (new_code,new_ir2bc,new_bc2ir,new_exc_tbl)
+	  if Ptset.is_empty !succ_of_dead
+	  then
+	    (new_code,new_ir2bc,new_bc2ir,new_exc_tbl)
+	  else
+	    remove_dead_instrs new_code new_ir2bc new_bc2ir new_exc_tbl
       end
     else
       (code,ir2bc,bc2ir,handlers)      
