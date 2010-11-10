@@ -264,6 +264,14 @@ module T (Var:Cmn.VarSig) (Instr:InstrSig)
 	  code.code;
 	jump_target	  
 
+    (* TODO: get_source_line_number is only exported in JBir, it should probably
+       be added to A3Bir and other representations. *)
+    let get_source_line_number pc_ir m =
+      match m.line_number_table with
+        | None -> None
+        | Some lnt ->
+            JCode.get_source_line_number' m.pc_ir2bc.(pc_ir) lnt
+
     let exception_edges m = exception_edges' m.code m.exc_tbl 
   end
 
