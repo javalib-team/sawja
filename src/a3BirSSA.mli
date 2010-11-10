@@ -276,6 +276,12 @@ val jump_target : t -> bool array
     range contains [i]. *)
 val exception_edges :  t -> (int * exception_handler) list
 
+(** [get_source_line_number pc m] returns the source line number corresponding
+    the program point [pp] of the method code [m].  The line number give a rough
+    idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
+    representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
+val get_source_line_number : int -> t -> int option
+
 (** {2 Printing functions} *)
 
 (** [print_handler exc] returns a string representation for exception handler

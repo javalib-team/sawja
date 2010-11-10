@@ -278,6 +278,12 @@ struct
     let size = Array.length (m.code) in
       print_code phi_simpl m.preds m.phi_nodes m.code (size-1) []
 	
+  let get_source_line_number pc_ir m =
+    match m.line_number_table with
+      | None -> None
+      | Some lnt ->
+          JCode.get_source_line_number' m.pc_ir2bc.(pc_ir) lnt
+
   let exception_edges m = exception_edges' m.code m.exc_tbl 
 end
 

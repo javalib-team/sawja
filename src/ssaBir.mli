@@ -212,8 +212,8 @@ module T (Var : VarSig)
       params : (JBasics.value_type * Var.var) list;
       code : Instr.instr array;
       preds : (int array) array;
-    (** Array of instructions program point that are predecessors of
-      instruction [pc]. *)
+      (** Array of instructions program point that are predecessors of
+	  instruction [pc]. *)
       phi_nodes : (phi_node list) array;
       (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
 	  be executed before the corresponding [code.(pc)] instruction. *)
@@ -245,6 +245,14 @@ module T (Var : VarSig)
 	[i] is an instruction index in [m] and [e] is a handler whose
 	range contains [i]. *)
     val exception_edges :  t -> (int * exception_handler) list
+
+    (** [get_source_line_number pc m] returns the source line number corresponding
+	the program point [pp] of the method code [m].  The line number give a rough
+	idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
+	representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
+    val get_source_line_number : int -> t -> int option
+
+
   end
 
 
