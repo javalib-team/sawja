@@ -253,13 +253,13 @@ open JBasics
   let hash_global = function `Global c ->
     Context.hash c
   let hash_ioc = function `IOC (c,ioc) ->
-    Context.hash c + cn_hash ioc
+    Hashtbl.hash (Context.hash c, cn_hash ioc)
   let hash_field = function `Field (c,ioc,fs) ->
-    Context.hash c + cn_hash ioc + fs_hash fs
+    Hashtbl.hash (Context.hash c, cn_hash ioc, fs_hash fs)
   let hash_method = function `Method (c,ioc,ms) ->
-    Context.hash c + cn_hash ioc + ms_hash ms
+    Hashtbl.hash (Context.hash c, cn_hash ioc, ms_hash ms)
   let hash_pp = function `PP (c,ioc,ms,pc) ->
-    Context.hash c + cn_hash ioc + ms_hash ms + pc
+    Hashtbl.hash (Context.hash c, cn_hash ioc, ms_hash ms, pc)
 
   let hash = function
     | `Global _ as v -> hash_global v
