@@ -42,6 +42,11 @@ end = struct
 
   module HashVar = Hashtbl.Make(Var)
 
+  (* A value of type [cst_to_apply] is uniquely identified by an
+     integer in [cst.id].  It contains a constraint [cst] along with
+     the index of the target variable [cst.target] of the constraint
+     in the field [target], and the index of the dependency variables
+     in [dep]. *)
   type cst_to_apply = {
     id:int; (* identifier for the constraint *)
     target: int;
@@ -61,13 +66,30 @@ end = struct
     if level <= !debug_level
     then prerr_endline string
 
+  (* Algorithm - Main ideas:
+
+     This analysis is based on a work list algorithm.  It also uses a "work set"
+     to avoid constraints to be added twice in the work list: before adding a
+     constraint in the work list, we first check that it is not already in the
+     work list by checking that it is not in the work set.
+
+     The work list is (almost) a FILO implemented efficiently with 2 Caml FIFO
+     (stack): one is list used for "add", the other for "get".  When the "get"
+     list is empty, the "add" one is reversed and used as the "get" one, while
+     an empty list is now used for the add operations.
+
+     The work set is a bit field: it allows to use only a bit per constraints
+     along with a constant access time.
+
+  *)
+
   (* TODO : we should probably use an external fixpoint engine *)
   let work_set constraints (var_init:Var.t list) abState : State.t =
     let nb_constraints = List.length constraints in
     let abState = ref abState
     and work_set_size = ref 0
-    and work_list = ref []
-    and work_list_bis = ref []
+    and work_list = ref [] 		(* list for "add" operations *)
+    and work_list_bis = ref []		(* list for "get" operations *)
     and work_set = BitSet.create nb_constraints in
     let get_from_work_stack () =
       try
@@ -108,13 +130,18 @@ end = struct
       (* and prev_time = ref (Unix.time ()) *)
     in
     let var_csts =
-      (* array which associates to each node the list of constraints that depends
-         on it *)
-      let var_csts2 = DynArray.create () in
+      (* array which associates to each node (var) the list of constraints that
+         depend on it *)
+      let var_csts2 = DynArray.create () in (* TODO: shouldn't it be initialized with a bigger size? *)
       let var_indices = HashVar.create nb_constraints in
+	(* var_indices is the "dictionary" of variables: it associate to each
+	   variable its index. *)
       let var_current = ref 0 in
       let get_var var =
-        (* get the index of the node/var/target [var] *)
+        (* [get_var var] returns the index of the node/var/target [var] found in
+           the dictionary [var_indices].  If [var] is not yet in the dictionary,
+           it is given an new fresh index (using [var_current]) and it is added
+           in the dictionary. *)
         try 
           let vari = HashVar.find var_indices var in
             vari
@@ -136,20 +163,22 @@ end = struct
              let target' = get_var (Constraints.get_target cst) in
              let dep = List.map get_var (Constraints.get_dependencies cst) in
              let id_cst = !current_cst in
+	     let _ =
                assert (target' = HashVar.find var_indices (Constraints.get_target cst));
                incr current_cst;
-               let cst = {id = id_cst; target = target'; dep= dep; cst = cst} in
-	         if dep = [] then
-                   add_to_work_stack [cst]
-                 else
-                   List.iter
-                     (fun vari ->
-                        DynArray.set var_csts2 vari
-                          (cst::DynArray.get var_csts2 vari))
-                     dep;
-                 assert
-                   (cst.target =
-                       HashVar.find var_indices (Constraints.get_target cst.cst))
+	     in
+             let cst = {id = id_cst; target = target'; dep= dep; cst = cst} in
+	       if dep = [] then
+                 add_to_work_stack [cst]
+               else
+                 List.iter
+                   (fun vari ->
+                      DynArray.set var_csts2 vari
+                        (cst::DynArray.get var_csts2 vari))
+                   dep;
+               assert
+                 (cst.target =
+                     HashVar.find var_indices (Constraints.get_target cst.cst))
           )
           constraints;
         List.iter

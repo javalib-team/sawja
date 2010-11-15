@@ -103,6 +103,7 @@ end = struct
   let isBot v = (v == Bot)
   let isTop v = (v == Top)
   let equal v1 v2 = match v1,v2 with
+    | v1,v2 when v1==v2 -> true
     | Stack v1, Stack v2 ->
         (List.length v1 == List.length v2)
         && List.for_all2 Var.equal v1 v2
