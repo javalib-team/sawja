@@ -64,7 +64,7 @@ META: META.source ../Makefile.config
 		sed 's/requires = "javalib"/requires = "javalib,ptrees"/' $< > $@ ; \
 	fi
 
-install: META sawja.cm[ia] sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cm[iox] sawja_pack.o 
+install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
 	$(INSTALL) sawja $^ bir.cmi sawja.a
 
 remove:
