@@ -38,9 +38,12 @@ module Dom = struct
   let bot = false
   let isBot = (not)
   let join ?(modifies=ref false) v1 v2 =
-    if v1 != (v1 or v2) then modifies := true;
-    v1 or v2
-  let join_ad = join
+    let res = v1 or v2 in
+      if v1 != res then modifies := true;
+      res
+  let join_ad ?(do_join=true) =
+    ignore do_join; (* so simple that do_join is useless *)
+    join
   let equal = (==)
   let get_analysis () v = v
   let pprint fmt v = Format.pp_print_string fmt (string_of_bool v)

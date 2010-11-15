@@ -36,7 +36,7 @@ module Make :
       val of_set : JBasics.ClassSet.t -> t
       val to_set : t -> JBasics.ClassSet.t
       val join : ?modifies:bool ref -> t -> t -> t
-      val join_ad : ?modifies:bool ref -> t -> t -> t
+      val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> t -> t
       val equal : t -> t -> bool
       val get_analysis : unit -> 'a -> 'a
       val pprint : Format.formatter -> t -> unit

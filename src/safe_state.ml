@@ -60,8 +60,14 @@ module type S = sig
   val get_pinfo : 'a JProgram.program -> t -> JPrintHtml.info -> JPrintHtml.info
 
   
-  val join_ad : ?modifies:bool ref -> abData -> analysisDomain -> abData
-  val join : ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
+  val join_ad : ?do_join:bool -> ?modifies:bool ref -> abData -> analysisDomain -> abData
+
+  (* [join ~do_join ~modifies state var ad] it puts the value [ad] at variable
+     [var].  If if [do_join] is [true] it joins the value with the previous
+     value and [modifies] is set to [true] if the resulting value is different
+     from the previous one.  If [do_join] is set [false], then it replace the
+     previous value. *)
+  val join : ?do_join:bool -> ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
   val get : t -> Var.t -> abData
   val get_global : t -> Var.var_global -> Global.t
   val get_IOC : t -> Var.var_ioc -> IOC.t
@@ -75,7 +81,7 @@ module type S = sig
   val get_ab_IOC : abData -> IOC.t
   val get_ab_pp : abData -> PP.t
 
-  
+    
   val iter_global : t -> (t -> Var.var_global -> abData -> unit) 
     -> unit
   val iter_IOC : t -> (t -> Var.var_ioc -> abData-> unit) -> unit
@@ -392,57 +398,57 @@ struct
 
 
   (* TODO: a modify function in hashtbl would improve performances *)
-  let join_ad ?(modifies=ref false) (abs:abData) (data:analysisDomain) : abData =
+  let join_ad ?(do_join=true) ?(modifies=ref false) (abs:abData) (data:analysisDomain) : abData =
     match abs, data with
       | `Global abs, `GlobalDomain v ->
-          `Global (Global.join_ad ~modifies abs v)
+          `Global (Global.join_ad ~do_join ~modifies abs v)
       | `IOC abs, `IOCDomain v ->
-	  `IOC (IOC.join_ad ~modifies abs v)
+	  `IOC (IOC.join_ad ~do_join ~modifies abs v)
       | `Field abs, `FieldDomain v ->
-	  `Field (Field.join_ad ~modifies abs v)
+	  `Field (Field.join_ad ~do_join ~modifies abs v)
       | `Method abs, `MethodDomain v ->
-	  `Method (Method.join_ad ~modifies abs v)
+	  `Method (Method.join_ad ~do_join ~modifies abs v)
       | `PP abs, `PPDomain v ->
-          `PP (PP.join_ad ~modifies abs v)
+          `PP (PP.join_ad ~do_join ~modifies abs v)
       | _ , _ ->
 	  failwith ("type error: failure when trying to join incompatible"
 		    ^" data type (the var type does not match the data type)")
 
   (* TODO: a modify function in hashtbl would improve performances *)
-  let join_ad' ?(modifies=ref false) t (var:Var.t) (data:analysisDomain) : abData =
+  let join_ad' ?(do_join=true) ?(modifies=ref false) t (var:Var.t) (data:analysisDomain) : abData =
     match var, data with
       | `Global _ as var, `GlobalDomain v ->
 	  let old_v =
 	    try HashGlobalVar.find t.global_data var
 	    with Not_found -> Global.bot
-	  in `Global (Global.join_ad ~modifies old_v v)
+	  in `Global (Global.join_ad ~do_join ~modifies old_v v)
       | `IOC _ as var, `IOCDomain v ->
 	  let old_v =
 	    try HashIOCVar.find t.ioc_data var
 	    with Not_found -> IOC.bot
-	  in `IOC (IOC.join_ad ~modifies old_v v)
+	  in `IOC (IOC.join_ad ~do_join ~modifies old_v v)
       | `Field _ as var, `FieldDomain v ->
 	  let old_v =
 	    try HashFieldVar.find t.field_data var
 	    with Not_found -> Field.bot
-	  in `Field (Field.join_ad ~modifies old_v v)
+	  in `Field (Field.join_ad ~do_join ~modifies old_v v)
       | `Method _ as var, `MethodDomain v ->
 	  let old_v =
 	    try HashMethodVar.find t.method_data var
 	    with Not_found -> Method.bot
-	  in `Method (Method.join_ad ~modifies old_v v)
+	  in `Method (Method.join_ad ~do_join ~modifies old_v v)
       | `PP _ as var, `PPDomain v ->
           let old_v =
 	    try HashPPVar.find t.pp_data var
             with Not_found -> PP.bot
-	  in `PP (PP.join_ad ~modifies old_v v)
+	  in `PP (PP.join_ad ~do_join ~modifies old_v v)
       | _ , _ ->
 	  failwith ("type error: failure when trying to join incompatible"
 		    ^" data type (the var type does not match the data type)")
 
   (* TODO: a modify function in hashtbl would improve performances *)
-  let join ?(modifies=ref false) t var data =
-    match var, join_ad' ~modifies t var data with
+  let join ?(do_join=true) ?(modifies=ref false) t var data =
+    match var, join_ad' ~do_join ~modifies t var data with
       | `Global _ as var, (`Global new_v) ->
 	  if !modifies then HashGlobalVar.replace t.global_data var new_v
       | `IOC _ as var, (`IOC new_v) ->

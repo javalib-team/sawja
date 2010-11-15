@@ -35,7 +35,7 @@ module type S = sig
   val get_dependencies : cst -> variable list
   val get_target : cst -> variable
   val pprint : Format.formatter -> cst -> unit
-  val apply_cst : ?modifies:bool ref -> State.t -> cst -> unit
+  val apply_cst : ?do_join:bool -> ?modifies:bool ref -> State.t -> cst -> unit
 end
 
 module Make (State:State.S) = struct
@@ -53,11 +53,11 @@ module Make (State:State.S) = struct
   let get_dependencies cst = cst.dependencies
   let get_target cst = cst.target
 
-  let apply_cst : ?modifies:bool ref -> State.t -> cst -> unit =
-    fun ?(modifies=ref false) abst cst ->
+  let apply_cst : ?do_join:bool -> ?modifies:bool ref -> State.t -> cst -> unit =
+    fun ?(do_join=true) ?(modifies=ref false) abst cst ->
       let target = get_target cst in
       let new_var = cst.transferFun abst in
-	State.join ~modifies abst target new_var
+	State.join ~do_join ~modifies abst target new_var
 
   let pprint fmt cst =
     let pp_concat f pp_open pp_close pp_sep = function

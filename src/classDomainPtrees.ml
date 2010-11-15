@@ -66,6 +66,13 @@ module Make (S:sig end) = struct
     | Set s -> s
     | Bot | Top -> invalid_arg "to_set"
 
+  let equal v1 v2 = match v1,v2 with
+    | Bot, Bot -> true
+    | Top, Top -> true
+    | Set s1, Set s2 ->
+        s1==s2 || ClassSet.equal s1 s2
+    | _, _ -> false
+
   let join ?(modifies=ref false) v1 v2 =
     match v1,v2 with
       | _, Bot -> v1
@@ -87,15 +94,12 @@ module Make (S:sig end) = struct
                then v2
                else Set s)
 
-  let join_ad = join
-
-  let equal v1 v2 = match v1,v2 with
-    | Bot, Bot -> true
-    | Top, Top -> true
-    | Set s1, Set s2 ->
-        s1==s2 || ClassSet.equal s1 s2
-    | _, _ -> false
-
+  let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
+    if do_join
+    then join ~modifies v1 v2
+    else if equal v1 v2
+    then v1
+    else (modifies := true;v2)
 
   let get_analysis () v = v
 

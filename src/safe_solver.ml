@@ -26,11 +26,13 @@ module Make (Constraints:Constraints.S) :sig
       solver *)
   val debug_level : int ref
 
-  (** [solve_constraints prog csts state init] compute the fixpoint of
-      the constraints [csts], starting from the initial state [state] by
-      applying the constraints that depends on nothing or on initial
-      variables [init]. *)
+  (** [solve_constraints ~optimize_join prog csts state init] compute the
+      fixpoint of the constraints [csts], starting from the initial state
+      [state] by applying the constraints that depends on nothing or on initial
+      variables [init].  If [optimize_join] is true, then it try do avoid
+      joining useless values, but this cost some computations. *)
   val solve_constraints :
+    ?optimize_join:bool ->
     'a ->
     Constraints.cst list ->
     Constraints.State.t ->
@@ -66,6 +68,33 @@ end = struct
     if level <= !debug_level
     then prerr_endline string
 
+  (* [do_join () vari] returns true if vari depends on more than one
+     constraints, false otherwise. *)
+  let do_join var_csts =
+    let do_join_bs =
+      let do_join_bs =
+        BitSet.create (Array.length var_csts) in
+      let nb_depcsts = Array.make (Array.length var_csts) 0 in
+        (* nb_depcsts contains, for each variable index [var], the number of
+           constraints on which [var] depends, i.e.m the number of constraints
+           that have [var] has target.  If this number is 1, then there is no need
+           to join the result of the constraint application with the previous
+           value, otherwise it is needed. *)
+        Array.iter
+          (fun csts ->
+             List.iter
+               (fun cst ->
+                  nb_depcsts.(cst.target) <- (succ nb_depcsts.(cst.target)))
+               csts
+          )
+          var_csts;
+        Array.iteri
+          (fun vari nb_depcst -> if nb_depcst > 1 then BitSet.set do_join_bs vari)
+          nb_depcsts;
+        do_join_bs
+    in
+      function vari -> BitSet.is_set do_join_bs vari
+
   (* Algorithm - Main ideas:
 
      This analysis is based on a work list algorithm.  It also uses a "work set"
@@ -84,7 +113,7 @@ end = struct
   *)
 
   (* TODO : we should probably use an external fixpoint engine *)
-  let work_set constraints (var_init:Var.t list) abState : State.t =
+  let work_set ?(optimize_join=false) constraints (var_init:Var.t list) abState : State.t =
     let nb_constraints = List.length constraints in
     let abState = ref abState
     and work_set_size = ref 0
@@ -188,9 +217,6 @@ end = struct
              let v = get_var v in
                add_to_work_stack (DynArray.get var_csts2 v))
 	  var_init;
-        (* DynArray.iteri *)
-        (*   (fun vari ) *)
-        (*   constraints *)
 
         if !debug_level > 1 then
           begin
@@ -217,6 +243,13 @@ end = struct
           end;
         DynArray.to_array var_csts2
     in
+
+    let do_join =
+      if optimize_join
+      then do_join var_csts
+      else (fun _ -> true)
+    in
+
       if !debug_level > 2 then
         (print_debug 3 "start iterating\n";
          print_times ();
@@ -231,7 +264,7 @@ end = struct
             (* let start = (Unix.times ()).Unix.tms_utime in *)
             (* if !debug_level > 1 then *)
             (*   Constraints.pprint Format.std_formatter cst.cst; *)
-            Constraints.apply_cst ~modifies !abState cst.cst;
+            Constraints.apply_cst ~do_join:(do_join cst.target) ~modifies !abState cst.cst;
             if !debug_level > 2 then
               (let print_cst cst =
                  print_string ("{id:"^string_of_int cst.id
@@ -282,14 +315,13 @@ end = struct
               ^ " cst application did not modified the abstract state.\n"));
         !abState
 
-  (* TODO : compute the predecessors of each pp and if a pp contains
-     only one predecessors then do not join the values *)
   let solve_constraints
+      ?(optimize_join=false)
       (_:'a)                            (* not used anymore *)
       (constraints:Constraints.cst list)
       (abState:State.t)
       (var_init:Var.t list) : State.t =
     print_debug 3 "start the solver\n";
     if !debug_level > 2 then print_times ();
-    work_set constraints var_init abState
+    work_set ~optimize_join constraints var_init abState
 end

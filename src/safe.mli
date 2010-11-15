@@ -74,7 +74,7 @@ module Domain : sig
     (** [join modifies v1 v2] returns the union of [v1] and [v2] and sets
         [modifies] to true iff the result is different from [v1]. *)
     val join : ?modifies:bool ref -> t -> t -> t
-    val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+    val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
     val equal : t -> t -> bool
     val get_analysis : analysisID -> t -> analysisDomain
     val pprint : Format.formatter -> t -> unit
@@ -90,7 +90,7 @@ module Domain : sig
     val bot : t
     val isBot : analysisDomain -> bool
     val join : ?modifies:bool ref -> t -> t -> t
-    val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+    val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
     val equal : t -> t -> bool
     val get_analysis : analysisID -> t -> analysisDomain
     val pprint : Format.formatter -> t -> unit
@@ -110,7 +110,7 @@ module Domain : sig
     val isBot : analysisDomain -> bool
     val isTop : analysisDomain -> bool  
     val join : ?modifies:bool ref -> t -> t -> t
-    val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+    val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
     val equal : t -> t -> bool
     val get_analysis : analysisID -> t -> analysisDomain
     val pprint : Format.formatter -> t -> unit
@@ -274,11 +274,11 @@ module State : sig
 
       
     val join_ad :
-      ?modifies:bool ref -> abData -> analysisDomain -> abData
+      ?do_join:bool -> ?modifies:bool ref -> abData -> analysisDomain -> abData
       
     (** [join] must only be used for initialization of State and
 	must not be during constraints resolution.*)
-    val join : ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
+    val join : ?do_join:bool -> ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
       
     (** {2 Access to data content}*)
 
@@ -350,7 +350,7 @@ module Constraints : sig
         [abst].  The result of the constraint (given by [cst.transferFun]) is
         joined to the current value stored in [abst].  [modifies] is set to true
         if the application of constraint modified the state [abst].*)
-    val apply_cst : ?modifies:bool ref -> State.t -> cst -> unit
+    val apply_cst : ?do_join:bool -> ?modifies:bool ref -> State.t -> cst -> unit
   end
 
   module Make : functor (State : State.S) ->
@@ -363,10 +363,13 @@ module Solver : sig
     (** [debug_level] defines the debugging level (verbosity) of the solver *)
     val debug_level : int ref
 
-    (** [solve_constraints prog csts state init] compute the fixpoint of the
-        constraints [csts], starting from the initial state [state] by applying
-        the constraints that depends on nothing or on initial variables [init]. *)
+    (** [solve_constraints ~optimize_join prog csts state init] compute the
+        fixpoint of the constraints [csts], starting from the initial state
+        [state] by applying the constraints that depends on nothing or on
+        initial variables [init].  If [optimize_join] is true, then it try do
+        avoid joining useless values, but this cost some computations. *)
     val solve_constraints :
+      ?optimize_join:bool ->
       'a ->
       Constraints.cst list ->
       Constraints.State.t ->

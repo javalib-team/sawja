@@ -255,7 +255,14 @@ let get_XTA_program
 	  (d11,d22,d33))
 	else
 	  (d1,d2,d3)
-    let join_ad = join
+
+    let join_ad ?(do_join=true) =
+      ignore do_join;
+      (* TODO: operations on this domain are not monotonic (because of the use
+         of bet_except_* functions).  Therefore, avoiding to join with the
+         previous value would be unsafe... *)
+      join
+
     let equal ((d1,d2,d3) as v1) ((d1',d2',d3') as v2) = 
       if v1 == v2
       then true

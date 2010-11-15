@@ -56,7 +56,7 @@ module type S = sig
   val bot : t
   val isBot : analysisDomain -> bool
   val join : ?modifies:bool ref -> t -> t -> t
-  val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+  val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
   val equal : t -> t -> bool
   val get_analysis : analysisID -> t -> analysisDomain
   val pprint : Format.formatter -> t -> unit
@@ -72,7 +72,7 @@ module Stack(Var:S) : sig
   val isBot : analysisDomain -> bool
   val isTop : analysisDomain -> bool
   val join : ?modifies:bool ref -> t -> t -> t
-  val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+  val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
   val equal : t -> t -> bool
   val get_analysis : analysisID -> t -> analysisDomain
   val pprint : Format.formatter -> t -> unit
@@ -131,7 +131,12 @@ end = struct
             then Stack l1
             else (modifies := true; Stack l')
 
-  let join_ad = join
+  let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
+    if do_join
+    then join ~modifies v1 v2
+    else if equal v1 v2
+    then v1
+    else (modifies := true;v2)
 
   let push v = function
     | Stack l -> Stack (v::l)
@@ -200,7 +205,7 @@ module Local (Var:S) :sig
   val bot : t
   val isBot : analysisDomain -> bool
   val join : ?modifies:bool ref -> t -> t -> t
-  val join_ad : ?modifies:bool ref -> t -> analysisDomain -> t
+  val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
   val equal : t -> t -> bool
   val get_analysis : analysisID -> t -> analysisDomain
   val pprint : Format.formatter -> t -> unit
@@ -227,8 +232,6 @@ end = struct
           then v1
           else (modifies := true; Local l')
 
-  let join_ad = join
-
   let equal v1 v2 = match v1,v2 with
     | v1, v2 when v1==v2 -> true
     | Bot, _
@@ -237,6 +240,13 @@ end = struct
         0 == (Ptmap.compare
                 (fun v1 v2 -> if Var.equal v1 v2 then 0 else -1)
                 l1 l2)
+
+  let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
+    if do_join
+    then join ~modifies v1 v2
+    else if equal v1 v2
+    then v1
+    else (modifies := true;v2)
 
   let get_var v = function
     | Bot -> Var.bot
@@ -366,15 +376,15 @@ struct
     | RDom x -> Right.isBot x
     | LDom x -> Left.isBot x
 
-  let join_ad ?(modifies=ref false) (l,r) v =
+  let join_ad ?(do_join=true) ?(modifies=ref false) (l,r) v =
     match v with
       | LDom v ->
-	  let l' = Left.join_ad ~modifies l v in
+	  let l' = Left.join_ad ~do_join ~modifies l v in
 	    if !modifies
 	    then (l',r)
 	    else (l,r)
       | RDom v ->
-	  let r' = Right.join_ad ~modifies r v in
+	  let r' = Right.join_ad ~do_join ~modifies r v in
 	    if !modifies
 	    then (l,r')
 	    else (l,r)
@@ -404,7 +414,7 @@ module Empty : S = struct
   type analysisDomain = [`VoidData]
   let bot = ()
   let isBot _ = true
-  let join_ad ?modifies () `VoidData = ignore modifies
+  let join_ad ?do_join ?modifies () `VoidData = ignore do_join;ignore modifies
   let join  ?modifies () () = ignore modifies
   let equal () () = true
   let get_analysis `Void () = `VoidData
