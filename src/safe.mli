@@ -359,7 +359,13 @@ end
 
 module Solver : sig
   module Make : functor (Constraints : Constraints.S) -> sig
+
+    (** [debug_level] defines the debugging level (verbosity) of the solver *)
     val debug_level : int ref
+
+    (** [solve_constraints prog csts state init] compute the fixpoint of the
+        constraints [csts], starting from the initial state [state] by applying
+        the constraints that depends on nothing or on initial variables [init]. *)
     val solve_constraints :
       'a ->
       Constraints.cst list ->

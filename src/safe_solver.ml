@@ -90,7 +90,8 @@ end = struct
     and work_set_size = ref 0
     and work_list = ref [] 		(* list for "add" operations *)
     and work_list_bis = ref []		(* list for "get" operations *)
-    and work_set = BitSet.create nb_constraints in
+    and work_set = BitSet.create nb_constraints
+    in
     let get_from_work_stack () =
       try
 	let cst =
@@ -132,30 +133,31 @@ end = struct
     let var_csts =
       (* array which associates to each node (var) the list of constraints that
          depend on it *)
-      let var_csts2 = DynArray.create () in (* TODO: shouldn't it be initialized with a bigger size? *)
+      let var_csts2 = DynArray.make nb_constraints in
       let var_indices = HashVar.create nb_constraints in
 	(* var_indices is the "dictionary" of variables: it associate to each
 	   variable its index. *)
-      let var_current = ref 0 in
-      let get_var var =
+      let get_var : Var.t -> int =
         (* [get_var var] returns the index of the node/var/target [var] found in
            the dictionary [var_indices].  If [var] is not yet in the dictionary,
            it is given an new fresh index (using [var_current]) and it is added
            in the dictionary. *)
-        try 
-          let vari = HashVar.find var_indices var in
-            vari
-        with Not_found ->
-          let new_var = !var_current in
-            incr var_current;
-            HashVar.add var_indices var new_var;
-            let length = DynArray.length var_csts2 in
-              if new_var >= length
-              then
-                DynArray.append
-                  (DynArray.init (new_var+1-length) (fun _ -> []))
-                  var_csts2;
-              new_var
+        let var_current = ref 0 in
+          function var ->
+            try 
+              let vari = HashVar.find var_indices var in
+                vari
+            with Not_found ->
+              let new_var = !var_current in
+                incr var_current;
+                HashVar.add var_indices var new_var;
+                let length = DynArray.length var_csts2 in
+                  if new_var >= length
+                  then
+                    DynArray.append
+                      (DynArray.init (new_var+1-length) (fun _ -> []))
+                      var_csts2;
+                  new_var
       in
       let current_cst = ref 0 in
         List.iter
@@ -186,17 +188,12 @@ end = struct
              let v = get_var v in
                add_to_work_stack (DynArray.get var_csts2 v))
 	  var_init;
+        (* DynArray.iteri *)
+        (*   (fun vari ) *)
+        (*   constraints *)
 
         if !debug_level > 1 then
           begin
-            (* print_debug 4 "dictionnary :\n"; *)
-            (* HashVar.iter *)
-            (*   (fun var index -> *)
-            (*      (Var.pprint Format.str_formatter var); *)
-            (*      print_debug 4 (string_of_int index ^" <-| "); *)
-            (*      print_debug 4 (Format.flush_str_formatter ()); *)
-            (*      print_debug 4 "\n") *)
-            (*   var_indices; *)
             let print_cst cst =
               print_string ("{id:"^string_of_int cst.id
                             ^ ", target:"^string_of_int cst.target
