@@ -71,6 +71,7 @@ end = struct
   (* [do_join () vari] returns true if vari depends on more than one
      constraints, false otherwise. *)
   let do_join var_csts =
+    (* let _ = print_times (); Printf.eprintf "computing dep csts of each targets\n" in *)
     let do_join_bs =
       let do_join_bs =
         BitSet.create (Array.length var_csts) in
@@ -91,6 +92,12 @@ end = struct
         Array.iteri
           (fun vari nb_depcst -> if nb_depcst > 1 then BitSet.set do_join_bs vari)
           nb_depcsts;
+        (* let _ = *)
+        (*   print_times (); *)
+        (*   Printf.eprintf *)
+        (*     "computing dep csts of each targets finished (%i out of %i have several deps)\n%!" *)
+        (*     (BitSet.count do_join_bs) (Array.length var_csts); *)
+        (* in *)
         do_join_bs
     in
       function vari -> BitSet.is_set do_join_bs vari

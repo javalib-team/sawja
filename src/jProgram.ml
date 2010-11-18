@@ -196,6 +196,25 @@ let get_fields ioc = Javalib.get_fields (to_ioc ioc)
 let fold f s p = ClassMap.fold (fun _ c s -> f s c) p.classes s
 let iter f p = ClassMap.iter (fun _ c -> f c) p.classes
 
+
+let cf_iter f node = Javalib.cf_iter f (to_ioc node)
+let if_iter f node = Javalib.if_iter f (to_ioc node)
+let f_iter f node = Javalib.f_iter f (to_ioc node)
+
+let cf_fold f node = Javalib.cf_fold f (to_ioc node)
+let if_fold f node = Javalib.if_fold f (to_ioc node)
+let f_fold f node = Javalib.f_fold f (to_ioc node)
+
+let am_iter f node = Javalib.am_iter f (to_ioc node)
+let cm_iter f node = Javalib.cm_iter f (to_ioc node)
+let m_iter f node = Javalib.m_iter f (to_ioc node)
+
+let am_fold f node = Javalib.am_fold f (to_ioc node)
+let cm_fold f node = Javalib.cm_fold f (to_ioc node)
+let m_fold f node = Javalib.m_fold f (to_ioc node)
+
+
+
 (* Access to the hierarchy *)
 
 let rec extends_class c1 c2 =

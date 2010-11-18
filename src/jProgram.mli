@@ -95,6 +95,20 @@ type 'a program = { classes : 'a node ClassMap.t;
 val iter : ('a node -> unit) -> 'a program -> unit
 val fold : ('b -> 'a node -> 'b) -> 'b -> 'a program -> 'b
 
+val cf_iter : (class_field -> unit) -> 'a node -> unit
+val if_iter : (interface_field -> unit) -> 'a node -> unit
+val f_iter : (any_field -> unit) -> 'a node -> unit
+val cf_fold : (class_field -> 'b -> 'b) -> 'a node -> 'b -> 'b
+val if_fold : (interface_field -> 'b -> 'b) -> 'a node -> 'b -> 'b
+val f_fold : (any_field -> 'b -> 'b) -> 'a node -> 'b -> 'b
+
+val cm_iter : ('a concrete_method -> unit) -> 'a node -> unit
+val am_iter : (abstract_method -> unit) -> 'a node -> unit
+val m_iter : ('a jmethod -> unit) -> 'a node -> unit
+val cm_fold : ('a concrete_method -> 'b -> 'b) -> 'a node -> 'b -> 'b
+val am_fold : (abstract_method -> 'b -> 'b) -> 'a node -> 'b -> 'b
+val m_fold : ('a jmethod -> 'b -> 'b) -> 'a node -> 'b -> 'b
+
 (** {2 Classes access functions.}*)
 
 (** [get_node p cn] returns the class named [cn] in

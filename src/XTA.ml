@@ -860,7 +860,7 @@ let get_XTA_program
   and state = initial_state program entry_points native_throwable in
   let state =
     (* XTASolver.debug_level := 4; *)
-    XTASolver.solve_constraints program csts state (entry_points:>XTAVar.t list)
+    XTASolver.solve_constraints ~optimize_join:true program csts state (entry_points:>XTAVar.t list)
   in
     get_XTA_program state program
 
