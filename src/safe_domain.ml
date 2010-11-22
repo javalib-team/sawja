@@ -255,21 +255,10 @@ end = struct
           Ptmap.find v l
         with Not_found -> Var.bot
 
-  let set_var v d l = 
-    if Var.equal Var.bot d
-    then
-      match l with
-	  Bot -> l
-	| Local l' -> 
-	    try
-	      ignore(Ptmap.find v l');
-	      Local (Ptmap.remove v l')
-	    with Not_found -> l
-    else
-      match l with
-	| Bot -> 
-	    Local (Ptmap.add v d Ptmap.empty)
-	| Local l' -> Local (Ptmap.add v d l')
+  let set_var v d = function
+    | Bot -> 
+	Local (Ptmap.add v d Ptmap.empty)
+    | Local l -> Local (Ptmap.add v d l)
 
   let pprint fmt =
     let print_string = Format.pp_print_string fmt
