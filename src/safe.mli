@@ -88,6 +88,10 @@ module Domain : sig
     type analysisID = Var.analysisID
     type analysisDomain = t
     val bot : t
+    val init : t
+      (** [init] is an initial value for local variables: it is not bottom but
+          contains no local variable (it correspond to a reachable point in the
+          code). *)
     val isBot : analysisDomain -> bool
     val join : ?modifies:bool ref -> t -> t -> t
     val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t

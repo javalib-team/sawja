@@ -203,6 +203,7 @@ module Local (Var:S) :sig
   type analysisID = Var.analysisID
   type analysisDomain = t
   val bot : t
+  val init : t
   val isBot : analysisDomain -> bool
   val join : ?modifies:bool ref -> t -> t -> t
   val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
@@ -219,6 +220,9 @@ end = struct
 
   let bot = Bot
   let isBot = function Bot -> true | _ -> false
+
+  let init = Local Ptmap.empty
+
   let join ?(modifies=ref false) v1 v2 = match v1,v2 with
     | v1,v2 when v1==v2 -> v1
     | _, Bot -> v1
