@@ -455,7 +455,8 @@ module InstrRep (Var:Cmn.VarSig) : sig
 
   (** [print_instr ins] returns a string representation for instruction [ins]. *)
   val print_instr: ?show_type:bool -> instr -> string
+  val print_basic_expr : ?show_type:bool -> basic_expr -> string
   val print_expr: ?show_type:bool -> expr -> string
   val instr_jump_to: instr -> int option
-
+  
 end

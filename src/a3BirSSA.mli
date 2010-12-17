@@ -288,6 +288,10 @@ val get_source_line_number : int -> t -> int option
     [exc]. *)
 val print_handler : exception_handler -> string
 
+(** [print_basic_expr e] returns a string representation for basic expression
+    [e]. *)
+val print_basic_expr : ?show_type:bool -> basic_expr -> string
+
 (** [print_expr e] returns a string representation for expression [e]. *)
 val print_expr : ?show_type:bool -> expr -> string
 
