@@ -52,7 +52,7 @@ type info = {
     nor filter anything. *)
 val void_info : info
   
-
+(*
 (** {2 Printing a JCode.jcode program.} *)
 
 (** [print_program ~css ~js ~info program outputdir] generates html
@@ -94,7 +94,7 @@ val print_jbir_program : ?css:string -> ?js:string -> ?info:info
     [outputdir] is a file. *)
 val print_a3bir_program : ?css:string -> ?js:string -> ?info:info
   -> A3Bir.t program -> string -> unit
-
+*)
 (** {2 Building a Printer for any program representation.} *)
 
 (** Abstract type representing basic elements to build html instructions. *)
@@ -115,7 +115,7 @@ val simple_elem : string -> elem
     program. If it is not the case, no hyperlink will be generated.
     The current class_name [cn] is necessary to build a relative
     hyperlink. *)
-val value_elem : ?dim:int -> 'a program -> class_name -> value_type -> elem
+val value_elem : ?dim:int -> 'a program option -> class_name -> value_type -> elem
 
 (** [field_elem ~called_cname p cn fcn fs] builds an [elem] from
     a program [p], a current class name [cn], a field class name [fcn]
@@ -124,7 +124,7 @@ val value_elem : ?dim:int -> 'a program -> class_name -> value_type -> elem
     [A] corresponds to [cn] class name. If you want to specify the [A]
     string, you can provide the optional parameter [~called_cname].
 *)
-val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
+val field_elem : ?called_cname:string -> 'a program option -> class_name -> class_name
   -> field_signature -> elem
 
 (** [invoke_elem ~called_cname p cn ms pp ccn cms] builds an [elem]
@@ -138,7 +138,7 @@ val field_elem : ?called_cname:string -> 'a program -> class_name -> class_name
     specify the [A] string, you can provide the optional parameter
     [~called_cname].
 *)
-val invoke_elem : ?called_cname:string -> 'a program -> class_name ->
+val invoke_elem : ?called_cname:string -> 'a program option -> class_name ->
   method_signature -> int -> class_name -> method_signature -> elem
 
 (** [method_args_elem p cn ms] builds an [elem] from a program [p],
@@ -146,7 +146,7 @@ val invoke_elem : ?called_cname:string -> 'a program -> class_name ->
     generated [elem] is a list of method parameters [(A,B,int)] where
     class references are hyperlinks (if they are present in [p]).
 *)
-val method_args_elem : 'a program -> class_name -> method_signature -> elem
+val method_args_elem : 'a program option -> class_name -> method_signature -> elem
 
 module type HTMLPrinter =
 sig
@@ -163,6 +163,21 @@ sig
       corresponding to [outputdir] is a file. *)
   val print_program :
     ?css:string -> ?js:string -> ?info:info -> code program -> string -> unit
+
+  (** [print_class ~css ~js ~info ioc outputdir] generates html files
+      representing the interface or class [ioc] in the output
+      directory [outputdir], given the annotation information [info]
+      ([void_info] by default), an optional Cascading Style Sheet
+      (CSS) [css] and an optional JavaScript file [js]. If [css] or
+      [js] is not provided, a default CSS or JavaScript file is
+      generated. No links on types and methods are done when
+      [print_class] is used, it should only be used when user does not
+      have the program representation. @raise Sys_error if the output
+      directory [outputdir] does not exist. @raise Invalid_argument if
+      the name corresponding to [outputdir] is a file.*)
+  val print_class :
+    ?css:string -> ?js:string -> ?info:info -> code Javalib.interface_or_class -> string -> unit
+
 end
 
 module type PrintInterface =
@@ -182,7 +197,7 @@ sig
 
   (** Function to provide in order to display the source variable
       names in the method signatures. *)
-  val method_param_names : code program -> class_name -> method_signature
+  val method_param_names : code Javalib.interface_or_class -> method_signature
     -> string list option
 
   (** Function to provide in order to display instructions. Given
@@ -190,9 +205,20 @@ sig
   current method signature, the instruction you want to display and
   its program point, you must provide a list of [elem] by using the
   functions defined in {!JPrintHtml} module. *)
-  val inst_html : code program -> class_name -> method_signature -> int
+  val inst_html : code program option -> code Javalib.interface_or_class -> method_signature -> int
     -> instr -> elem list
-
 end
 
 module Make (S : PrintInterface) : HTMLPrinter
+
+(** {2 Built printers for Sawja program representations.} *)
+
+module JCodePrinter : HTMLPrinter with type code = JCode.jcode
+
+module JBirPrinter : HTMLPrinter with type code = JBir.t
+
+module A3BirPrinter : HTMLPrinter with type code = A3Bir.t
+
+module JBirSSAPrinter : HTMLPrinter with type code = JBirSSA.t
+
+module A3BirSSAPrinter : HTMLPrinter with type code = A3BirSSA.t
