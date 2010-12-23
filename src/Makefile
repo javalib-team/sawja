@@ -36,7 +36,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 	jProgram classDomain jsrInline cmn bir jBir a3Bir \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	ssaBir jBirSSA a3BirSSA \
-	jControlFlow jPrintHtml safe reachableMethods jNativeStubs \
+	jControlFlow jPrintUtil jPrintHtml jPrintPlugin safe reachableMethods jNativeStubs \
 	jCRA jRTA jRRTA XTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
 	$(DATAFLOW)availableExprSSA 
@@ -44,7 +44,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jProgram classDomain jNativeStubs jsrInline \
 	cmn jBir a3Bir ssaBir jBirSSA a3BirSSA\
-	jControlFlow jPrintHtml safe reachableMethods \
+	jControlFlow jPrintHtml jPrintPlugin safe reachableMethods \
 	jCRA XTA jRTA jRRTA 
 
 MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir,$(MODULE_INTERFACES))
