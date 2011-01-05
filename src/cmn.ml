@@ -208,7 +208,7 @@ module Common = struct
     | `Byte n -> Printf.sprintf "%d" n
     | `Short a -> Printf.sprintf "%d " a
     | `Class c -> Printf.sprintf "%s" (JDumpBasics.object_value_signature c)
-    | `String s -> Printf.sprintf "'%s'" s
+    | `String s -> Printf.sprintf "'%s'" (String.escaped s)
 
   let print_unop = function
     | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)
