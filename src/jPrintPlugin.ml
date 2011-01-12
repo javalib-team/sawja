@@ -48,7 +48,7 @@ type method_tag =
   | Argument of int * info_or_annot_tag
   | Return of info_tag
   | PreThis of info_tag
-  | PostThis of info_tag
+   | PostThis of info_tag
 *)  
 
 type method_info = 
@@ -358,7 +358,7 @@ struct
   (* TODO: si pas d'info sur aucun PP d'une methode, ne pas dumper
      les PP on affichera alors juste la signature de la méthode dans
      le plugin ... Faire pareil pour si aucun info pour une méthode
-     ou champs, voir classe ? => surement *)
+     ou champs => DONE *)
   let ioc2xml_info info ioc = 
     let cn = get_name ioc in
     let cl_warn = 
@@ -369,7 +369,10 @@ struct
     let fields_tags = 
       FieldMap.fold
 	(fun fs _ tree_list ->
-	   (gen_field_tag fs (gen_info_sig (info.p_field cn fs)))::tree_list
+	   let infos = info.p_field cn fs in
+	     match infos with
+		 [] -> tree_list
+	       | _ -> (gen_field_tag fs (gen_info_sig infos))::tree_list
 	)
 	(get_fields ioc)
 	[]
@@ -385,24 +388,41 @@ struct
 		     match cm.cm_implementation with
 		       | Native -> []
 		       | Java code ->
-			   let tree_list = ref [] in
+			   let tree_list = ref [] 
+			   and info_pp = ref false in
 			     S.iter_code
 			       (fun pp insts ->
 				  List.iter
 				    (fun inst -> 
-				       tree_list:=
-					 (gen_info_pp S.inst_disp ioc ms pp inst (info.p_pp cn ms pp))
-				       ::(!tree_list))
+				       let infos = info.p_pp cn ms pp in
+					 begin
+					   match infos with
+					       [] -> ()
+					     | _ -> info_pp := true
+					 end;
+					 tree_list:=
+					   (gen_info_pp S.inst_disp ioc ms pp inst infos)
+					 ::(!tree_list))
 				    insts
 			       )
 			       code;
-			     !tree_list
+			     if !info_pp
+			     then
+			       !tree_list
+			     else
+			       []
 		   end
-	   in	       
-	     (* TODO: give details on how print method sig
-		(access, modifier, annot ?, argument names)*)
-	     (gen_info_method_tag  (S.method_param_names ioc ms) ms ((gen_info_msig (info.p_method cn ms))@tlpp))
-	     ::tlm
+	   in
+	   let infos = info.p_method cn ms in
+	     match (tlpp,infos) with
+		 [],[] -> 
+		   tlm
+	       | _,_ ->
+		   (* TODO: give details on how print method sig (access,
+		      modifier, annot ?)*)
+		   (gen_info_method_tag  (S.method_param_names ioc ms) ms ((gen_info_msig infos)@tlpp))
+		   ::tlm
+
 	)
 	(get_methods ioc)
 	[]
@@ -411,7 +431,7 @@ struct
 
   let gen_class_info_doc info ioc =
     gen_class_tag ioc (ioc2xml_info info ioc)
-    
+      
       
   let print_info (info_p: plugin_info) ioc outputdir = 
     let cs = get_name ioc in
@@ -435,8 +455,8 @@ struct
     let package_and_source = 
       "warn"::(cn_package cs)
     and cname = cn_simple_name cs in
-    (*let cpath = ExtString.String.map
-      (fun c -> if c = '.' then '/' else c) (cn_name cs) in*)
+      (*let cpath = ExtString.String.map
+	(fun c -> if c = '.' then '/' else c) (cn_name cs) in*)
     let doc = gen_class_warn_doc (S.to_plugin_warning ioc) info_p ioc in
       create_package_dir outputdir package_and_source;
       let out =
