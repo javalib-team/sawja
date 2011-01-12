@@ -154,16 +154,7 @@ module Common = struct
 
   type mode = Normal | Flat | Addr3 
 
-  type const =
-      [ `ANull
-      | `Byte of int
-      | `Class of object_type
-      | `Double of float
-      | `Float of float
-      | `Int of int32
-      | `Long of int64
-      | `Short of int
-      | `String of string ]
+  type const = JCode.jconst
 
   type conv = I2L | I2F | I2D   | L2I | L2F | L2D   | F2I | F2L | F2D  | D2I | D2L | D2F  | I2B | I2C | I2S
 
@@ -207,8 +198,8 @@ module Common = struct
     | `Double f -> Printf.sprintf "%f" f
     | `Byte n -> Printf.sprintf "%d" n
     | `Short a -> Printf.sprintf "%d " a
+    | `String s -> Printf.sprintf "'%s'" (jstr_pp s)
     | `Class c -> Printf.sprintf "%s" (JDumpBasics.object_value_signature c)
-    | `String s -> Printf.sprintf "'%s'" (String.escaped s)
 
   let print_unop = function
     | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)

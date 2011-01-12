@@ -28,16 +28,7 @@ open Javalib_pack
 (** {3 Expressions} *)
 
 (** Constants *)
-type const =
-    [ `ANull
-    | `Byte of int
-    | `Class of JBasics.object_type
-    | `Double of float
-    | `Float of float
-    | `Int of int32
-    | `Long of int64
-    | `Short of int
-    | `String of string ]
+type const = JCode.jconst
 
 (** Abstract data type for variables *)
 type var

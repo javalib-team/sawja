@@ -43,7 +43,7 @@ type virtual_call_kind =
 module InstrRep (Var:Cmn.VarSig) = 
 struct
   type expr =
-    | Const of const
+    | Const of jconst
     | Var of JBasics.value_type * Var.var
     | Unop of unop * expr
     | Binop of binop * expr * expr

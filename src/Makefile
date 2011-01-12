@@ -145,7 +145,7 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
 clean:
-	$(RM) safe.ml classDomain.ml .depend *.cmo *.cmx *.annot *.obj *.o *~ \
+	$(RM) safe.ml classDomain.ml .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *~ \
 	  $(DATAFLOW)*.{cmo,cmx,annot,o,obj} $(DATAFLOW)*.~
 cleanall: clean
 	$(RM) ocaml *.cma *.cmxa *.cmxs *.a *.cmi META $(DATAFLOW)*.cmi

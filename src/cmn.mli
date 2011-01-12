@@ -118,16 +118,7 @@ module Common : sig
 
   type mode = Normal | Flat | Addr3
 
-  type const =
-      [ `ANull
-      | `Byte of int
-      | `Class of JBasics.object_type
-      | `Double of float
-      | `Float of float
-      | `Int of int32
-      | `Long of int64
-      | `Short of int
-      | `String of string ]
+  type const = JCode.jconst
 
   type conv = | I2L  | I2F  | I2D  | L2I  | L2F  | L2D  | F2I  | F2L  | F2D | D2I  | D2L  | D2F | I2B  | I2C  | I2S
 
@@ -158,7 +149,7 @@ val basic_to_num : JBasics.jvm_basic_type ->
 
 (* Printing functions *)
 
-val print_const : const -> string
+val print_const : JCode.jconst -> string
 
 val print_unop : unop -> string
 
