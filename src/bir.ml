@@ -1664,7 +1664,7 @@ let ch_debug_info debugi jump_target pp_var darray code =
 	 could consider that it's always a NoName info.  We must use
 	 this information in first pc of method to propagate it in our
 	 debug info table and when we use the class debug info
-	 table to be coherent.  *)
+	 table.  *)
       let noname_array = 
 	(Array.init (code.c_max_locals) (fun vnum -> (vnum,true))) 
       in
@@ -1677,6 +1677,7 @@ let ch_debug_info debugi jump_target pp_var darray code =
 	  (fun (vnum,always_noname) noname_list -> 
 	     if always_noname
 	     then 
+	       (* End of initialization of darray *)
 	       (darray.(0) <- Ptmap.add vnum NoName darray.(0);
 		vnum::noname_list)
 	     else noname_list)
@@ -1946,28 +1947,31 @@ let bc2ir ?(no_debug=false) dico mode ch_link ssa pp_var jump_target load_type a
 	      (* initialize method's arguments with a valid value
 		 (they are considered as assigned at first pc...) and
 		 other local variables with UnDef value *)
-	      let args_numb = 
-		(List.fold_left 
-		   (fun nb_loc_arg -> 
-		      function  
-			  TBasic jbt when ((jbt = `Double) or (jbt = `Long)) ->
-			    nb_loc_arg + 2
-			| _ -> nb_loc_arg + 1)
-		   (if cm.cm_static then 0 else 1)
-		   (ms_args cm.cm_signature))
-	      in
-		(Array.iteri
-		   (fun i _ -> 
-		      if i < args_numb
-		      then
-			darray.(0) <- Ptmap.add i (pp_var 0 i) darray.(0)
-		      else
-			darray.(0) <- Ptmap.add i UnDef darray.(0))
-		   (Array.make 
-		      (code.c_max_locals)
-		      ()));
-		let ch_fun = ch_debug_info debugi jump_target pp_var darray code in
-		  Some (ch_fun,Ptset.singleton 0)
+	      (* Caution: since a little hack is done, darray is also
+		 initialized with NoName in 'ch_debug_info' function for
+		 variables that never have name in the whole method code*)
+	    let args_numb = 
+	      (List.fold_left 
+		 (fun nb_loc_arg -> 
+		    function  
+			TBasic jbt when ((jbt = `Double) or (jbt = `Long)) ->
+			  nb_loc_arg + 2
+		      | _ -> nb_loc_arg + 1)
+		 (if cm.cm_static then 0 else 1)
+		 (ms_args cm.cm_signature))
+	    in
+	      (Array.iteri
+		 (fun i _ -> 
+		    if i < args_numb
+		    then
+		      darray.(0) <- Ptmap.add i (pp_var 0 i) darray.(0)
+		    else
+		      darray.(0) <- Ptmap.add i UnDef darray.(0))
+		 (Array.make 
+		    (code.c_max_locals)
+		    ()));
+	      let ch_fun = ch_debug_info debugi jump_target pp_var darray code in
+		Some (ch_fun,Ptset.singleton 0)
   in
     loop ch_debug_init MapPc.empty [] [] [] 0 (ref 0)
 
