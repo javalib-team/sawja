@@ -140,7 +140,7 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
-		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) ./{javalib_pack.Javalib,javalib_pack.JBasics,javalib_pack.JCode}.mli
+		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 

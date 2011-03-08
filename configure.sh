@@ -47,7 +47,9 @@ FINDER=`which ocamlfind`
 # The path to recode (used to fix accents in the documentation)
 RECODEBIN=`which recode`
 # The perl executable
-PERL=`which perl`
+PERL=
+# The text-based web browser - for the doc generation
+LYNX=
 # The debug flag
 DEBUG=yes
 # The shared option flag
@@ -251,7 +253,8 @@ fi
 #
 # Check Perl
 #
-if [ $PERL ]; then
+PERL=`which perl`
+if [ $? = 0 ]; then
   msg "inf" "Perl found at $PERL"
 else
   msg "err" "Perl not found.
@@ -260,6 +263,18 @@ Use your system's software packaging tools to install Perl, or download it from:
 http://www.perl.org/get.html"
 fi
 
+#
+# Check browser
+#
+LYNX=`which lynx`
+if [ $? = 0 ]; then
+  msg "inf" "Lynx found at $LYNX"
+else
+  msg "err" "Lynx not found.
+
+Use your system's software packaging tools to install Lynx, or download it from:
+http://lynx.isc.org"
+fi
 
 #
 # Check for Javalib and Buddy.
@@ -274,7 +289,8 @@ fi
 #
 # Check Recode
 #
-if [ $RECODEBIN ]; then
+RECODEBIN=`which recode`
+if [ $? != 0 ]; then
   msg "inf" "Recode found at $RECODEBIN"
   RECODE="-pp \"$RECODEBIN UTF-8..Latin-1 <\""
 else
@@ -293,7 +309,7 @@ else
 fi
 
 cp4=`which camlp4o`
-if [ -z "$cp4" ]; then
+if [ $? != 0 ]; then
   msg "err" "No camlp4o executable found"
 fi
 msg "inf" "Camlp4o found at $cp4"
@@ -324,7 +340,7 @@ echo -n "  ."
 # Configuration variables
 echo "" >> $makeconfig
 echo "# Variables detected at configure-time" >> $makeconfig
-for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL RECODE DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
+for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL LYNX RECODE DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
   echo "$var=${!var}" >> $makeconfig
 done
 echo -n "."
