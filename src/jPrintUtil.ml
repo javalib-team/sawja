@@ -1,3 +1,15 @@
+let mkdirp path perm =
+  let rec mkdirp path =
+    try
+      Unix.mkdir path perm
+    with Unix.Unix_error (Unix.ENOENT, _, _) ->
+      let parent = Filename.dirname path in
+	if parent <> path then mkdirp parent;
+	Unix.mkdir path perm 
+  in
+    mkdirp path
+
+
 
 type html_tree = | CustomTag of string * (html_tree list) * string
 		 | SimpleTag of string
@@ -34,7 +46,7 @@ let create_package_dir outputdir package =
 	let create_dir dirname =
 	  if not(Sys.file_exists dirname
 		 && Sys.is_directory dirname) then
-	    Unix.mkdir dirname perm in
+	    mkdirp dirname perm in
 	let dirname =
 	  List.fold_left
 	    (fun dirname basename ->
