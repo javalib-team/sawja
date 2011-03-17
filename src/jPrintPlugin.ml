@@ -6,36 +6,88 @@ open JPrintUtil
 
 exception NoDebugInfo of class_name
 
+(* Tags and attributes*)
+let warn_tag = "warning"
+let warn_pp_tag = "warning_pp"
+let wmsg_tag = "msg"
+let wpp_line = "line"
+let wpp_pc = "pc"
+let warn_pp_precise = "precise"
+let wastnode = "astnode"
+let wcname = "cname"
+let wvtype = "jtype"
+let wsenter = "synch_enter"
+let wvname = "vname"
+
+let desc_attr = "descriptor"
+
+let meth_arg="arg_desc"
+let meth_sig_on = "on"
+let meth_arg_num = "arg"
+
+let info_tag = "info"
+let ival_tag = "value"
+let pp_tag = "pp"
+
+
+
+let replace_all ~str ~sub ~by =
+  let continue = ref true
+  and s = ref str
+  and i = ref 0 in
+    while !continue do
+      let (c,str) = ExtString.String.replace ~str:!s ~sub ~by in
+	s := str;
+	continue := c;
+	incr i
+    done;
+    (!i,!s)
+
+let replace_forb_ch s =
+  snd 
+    (replace_all
+       ~str:(snd (replace_all ~str:s ~sub:"<" ~by:"^"))
+       ~sub:">" ~by:"$")
+
+
+let method_sig_desc ms =
+  (replace_forb_ch (ms_name ms) ^":(")
+  ^(List.fold_left
+      (fun msg t -> 
+	 msg^(JDumpBasics.type2shortstring t))
+      ""
+      (ms_args ms))
+  ^(")"^JDumpBasics.rettype2shortstring (ms_rtype ms))
+
 
 module AdaptedASTGrammar = 
 struct
   type identifier = 
-      SimpleName of string 
+      SimpleName of string * value_type option
 	(** It could be a variable identifier, field name, class name,
 	  etc. Only use the shortest name possible (no package name
 	  before class name, no class name before a field name, etc.).*)
   type expression = 
-    (*| NullLiteral 
-    | StringLiteral of string
-    | TypeLiteral of identifier
-    | OtherLiteral of float*)
-	(* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
-    | Assignment of value_type option * identifier
+      (*| NullLiteral 
+	| StringLiteral of string
+	| TypeLiteral of identifier
+	| OtherLiteral of float*)
+      (* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
+    | Assignment of identifier
 	(** Identifier must be the identifier of the left_side of
 	    assignment (field's name or variable's name)*)
     | ClassInstanceCreation of class_name
     | ArrayCreation of value_type
-    | MethodInvocation of class_method_signature (* ms ? *)
-    | ArrayAccess of value_type (* Ok if a[][] we could not know, optimistic (only one tab access on a line ?)*)
-    | ArrayStore of value_type (* It will be searched only in left_side of assignements*)
-    (*| InfixExpression of infix_operator (* ? => no because we do not know if it appears in source ...*)*)
-    | InstanceOf of identifier option
-    | Cast of identifier
+    | MethodInvocation of class_name * method_signature (* ms ? *)
+    | ArrayAccess of value_type option(* Ok if a[][] we could not know, optimistic (only one tab access on a line ?)*)
+    | ArrayStore of value_type option(* It will be searched only in left_side of assignements*)
+    | InstanceOf of object_type
+    | Cast of object_type
 	
   type statement = 
       If (*of InfixExpr option *) (* => same reason than for infix expr*)
 	(** Includes all If 'like' statements (If, For, While, ConditionnalExpr, etc.) *)
-    | Catch of identifier (*type given by handlers table*)
+    | Catch of class_name (*type given by handlers table*)
     | Finally
     | Switch 
     | Synchronized of bool(* ?Monitor exit corresponds to end parenthisis...*)
@@ -48,30 +100,43 @@ struct
     | Expression of expression 
     | Name of identifier
 
-  let node_unit2attributes = 
+  let vt_opt2attrs = 
+    function
+	None -> []
+      | Some vt -> [wvtype,JPrint.value_type ~jvm:false vt]
+
+  let ast_node2attributes = 
     function
 	Statement st -> 
 	  (match st with
-	       If -> "IfStatement"
-	     | Catch _ -> "CatchClause"
-	     | Finally -> "TryStatement"
-	     | Switch -> "SwitchStatement"
-	     | Synchronized _ -> "SynchronizedStatement"
-	     | Return -> "ReturnStatement"
-	     | Throw -> "ThrowStatement")
+	       If -> [wastnode,"IfStatement"]
+	     | Catch cn -> [(wastnode,"CatchClause");(wcname,cn_name cn)]
+	     | Finally -> [wastnode,"TryStatement"]
+	     | Switch -> [wastnode,"SwitchStatement"]
+	     | Synchronized enterb -> [(wastnode,"SynchronizedStatement");(wsenter,string_of_bool enterb)]
+	     | Return -> [wastnode,"ReturnStatement"]
+	     | Throw -> [wastnode,"ThrowStatement"])
       | Expression e -> 
 	  (match e with
-	    | Assignment _ -> "Assignment"
-	    | ClassInstanceCreation _ -> "ClassInstanceCreation"
-	    | ArrayCreation _ -> "ArrayCreation"
-	    | MethodInvocation _ -> "MethodInvocation"
-	    | ArrayAccess _ -> "ArrayAccess"
-	    | ArrayStore _ -> "ArrayStore ??"
-	    | InstanceOf _ -> "InstanceOfExpression"
-	    | Cast _ -> "CastExpression")
+	    | Assignment id -> 
+		let id_attrs = 
+		  match id with
+		      SimpleName (name, vt_opt) -> 
+			(wvname,name)::(vt_opt2attrs vt_opt)
+		in
+		  (wastnode,"Assignment")::id_attrs
+	    | ClassInstanceCreation cn -> [(wastnode,"ClassInstanceCreation");(wcname,cn_name cn)]
+	    | ArrayCreation vt -> (wastnode,"ArrayCreation")::(vt_opt2attrs (Some vt))
+	    | MethodInvocation (cn,ms) -> [(wastnode,"MethodInvocation"); (wcname, cn_name cn);
+					   (wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
+	    | ArrayAccess vt_opt -> (wastnode,"ArrayAccess")::(vt_opt2attrs vt_opt)
+	    | ArrayStore vt_opt -> (wastnode,"ArrayStore")::(vt_opt2attrs vt_opt)
+	    | InstanceOf ot -> (wastnode,"InstanceOfExpression")::(vt_opt2attrs (Some(TObject ot)))
+	    | Cast ot -> (wastnode,"CastExpression")::(vt_opt2attrs (Some(TObject ot))))
       | Name id -> 
 	  (match id with
-	       SimpleName _ -> "SimpleName")
+	       SimpleName (name,vt_opt) -> 
+		 (wastnode,"SimpleName")::(wvname,name)::(vt_opt2attrs vt_opt))
 end
 
 type method_info = 
@@ -80,13 +145,13 @@ type method_info =
   | Return of string
   | This of string
 
-type warning_pp = 
+type 'a warning_pp = 
     (*line * description *)
-    LineWarning of string
+    LineWarning of string * 'a option
       (* idem + AST information ... *)
   | PreciseLineWarning of string * AdaptedASTGrammar.node_unit
 
-type plugin_info = 
+type 'a plugin_info = 
     {
       p_infos : 
 	(string list 
@@ -101,7 +166,7 @@ type plugin_info =
 	(string list 
 	 * string list FieldMap.t 
 	 * method_info list MethodMap.t 
-	 * warning_pp list Ptmap.t MethodMap.t) 
+	 * 'a warning_pp list Ptmap.t MethodMap.t) 
 	ClassMap.t;
       (** warnings to display for a class (one entry in ClassMap.t): 
 	  (class_warnings * fields_warnings * methods_warnings * pc_warnings)*)
@@ -110,10 +175,11 @@ type plugin_info =
 module type PluginPrinter =
 sig
   type code
+  type expr
 
-  val print_class: plugin_info -> code interface_or_class -> string -> unit
+  val print_class: expr plugin_info -> code interface_or_class -> string -> unit
 
-  val print_program: plugin_info -> code program -> string -> unit
+  val print_program: expr plugin_info -> code program -> string -> unit
  
 end
 
@@ -122,6 +188,7 @@ sig
 
   type instr
   type code
+  type expr
 
   (** [get_source_line_number pc code] returns the source line number
       corresponding the program point pp of the method code m.*)
@@ -141,40 +208,10 @@ sig
       warning_pp SimpleWarning in a PreciseWarning of warning.
   *)
     
-  val to_plugin_warning : code jmethod -> warning_pp list Ptmap.t 
-    -> warning_pp list Ptmap.t
+  val to_plugin_warning : code jmethod -> expr warning_pp list Ptmap.t 
+    -> expr warning_pp list Ptmap.t
 
 end
-
-let warn_tag = "warning"
-let warn_pp_tag = "warning_pp"
-let wmsg_tag = "msg"
-let meth_arg="arg_desc"
-let meth_sig_on = "on"
-let meth_arg_num = "arg"
-let wpp_line = "line"
-let wpp_pc = "pc"
-let info_tag = "info"
-let ival_tag = "value"
-let pp_tag = "pp"
-
-let replace_all ~str ~sub ~by =
-  let continue = ref true
-  and s = ref str
-  and i = ref 0 in
-    while !continue do
-      let (c,str) = ExtString.String.replace ~str:!s ~sub ~by in
-	s := str;
-	continue := c;
-	incr i
-    done;
-    (!i,!s)
-
-let replace_forb_ch s =
-  snd 
-    (replace_all
-       ~str:(snd (replace_all ~str:s ~sub:"<" ~by:"^"))
-       ~sub:">" ~by:"$")
 
 let gen_warning_sig wlist = 
   List.map 
@@ -224,12 +261,13 @@ let gen_warning_pp line pc wlist  =
     (function wsig -> 
        let attrs = 
 	 match wsig with
-	     LineWarning msg -> 
-	       [(wpp_pc,string_of_int pc);(wpp_line,string_of_int line);(wmsg_tag,msg)]
-	   | PreciseLineWarning (msg,_ast_node) -> 
-	       (wpp_pc,string_of_int pc)::(wpp_line,string_of_int line)::(wmsg_tag,msg)
-	       ::[]
-	       (*::ast_node2attributes*)
+	     LineWarning (msg,_) -> 
+	       [(warn_pp_precise, "false");(wpp_pc,string_of_int pc)
+	       ;(wpp_line,string_of_int line);(wmsg_tag,msg)]
+	   | PreciseLineWarning (msg,ast_node) -> 
+	       (warn_pp_precise, "true")::(wpp_pc,string_of_int pc)
+	       ::(wpp_line,string_of_int line)::(wmsg_tag,msg)
+	       ::(AdaptedASTGrammar.ast_node2attributes ast_node)
        in
 	 gen_simple_tag warn_pp_tag attrs)
     wlist
@@ -254,29 +292,19 @@ let gen_info_pp disp line pc ilist  =
 
 let gen_field_tag fs warnings = 
   let attrs = 
-    ("descriptor",(fs_name fs)^":"^(JDumpBasics.type2shortstring (fs_type fs)))::[]
+    (desc_attr,(fs_name fs)^":"^(JDumpBasics.type2shortstring (fs_type fs)))::[]
   in
     gen_custom_tag "field" attrs warnings
 
-
-let method_sig_desc ms =
-  (replace_forb_ch (ms_name ms) ^":(")
-  ^(List.fold_left
-      (fun msg t -> 
-	 msg^(JDumpBasics.type2shortstring t))
-      ""
-      (ms_args ms))
-  ^(")"^JDumpBasics.rettype2shortstring (ms_rtype ms))
-
 let gen_method_tag ms warnings = 
   let attrs = 
-    ("descriptor",method_sig_desc ms)::[]
+    (desc_attr,method_sig_desc ms)::[]
   in
     gen_custom_tag "method" attrs warnings
 
 let gen_info_method_tag mpn ms infos = 
   let attrs = 
-    ("descriptor",method_sig_desc ms)
+    (desc_attr,method_sig_desc ms)
     ::("rtype",JPrint.return_type (ms_rtype ms))
     ::("name",replace_forb_ch (ms_name ms))::[]
   in
@@ -321,6 +349,7 @@ let gen_class_tag ioc treel =
 module Make (S : PrintInterface) =
 struct
   type code = S.code
+  type expr = S.expr
 
   let ioc2xml_warn precise_warn info ioc = 
     let cn = get_name ioc in
@@ -495,7 +524,7 @@ struct
 	  [] -> None
 	| _ -> Some (gen_class_tag ioc tree_list)
 
-  let print_info (info_p: plugin_info) ioc outputdir = 
+  let print_info (info_p: 'a plugin_info) ioc outputdir = 
     let cs = get_name ioc in
     let package_and_source = 
       match get_sourcefile ioc with 
@@ -515,7 +544,7 @@ struct
 	      print_html_tree ~spc:3 doc out;
 	      close_out out
 
-  let print_warnings (info_p: plugin_info) ioc outputdir = 
+  let print_warnings (info_p: 'a plugin_info) ioc outputdir = 
     let cs = get_name ioc in
     let package_and_source = 
       "warn"::(cn_package cs)
@@ -535,11 +564,11 @@ struct
 	      print_html_tree ~spc:3 doc out;
 	      close_out out
 
-  let print_class (info_p: plugin_info) ioc outputdir = 
+  let print_class (info_p: 'a plugin_info) ioc outputdir = 
     print_warnings info_p ioc outputdir;
     print_info info_p ioc outputdir
 
-  let print_program (info_p: plugin_info) (p: S.code program) outputdir = 
+  let print_program (info_p: 'a plugin_info) (p: S.code program) outputdir = 
     ClassMap.iter
       (fun _ node -> 
 	 print_class info_p (to_ioc node) outputdir)
@@ -561,24 +590,127 @@ let get_code ioc ms =
 
 module JCodePrinter = Make(
   struct
+    
+    open JCode
+    open AdaptedASTGrammar
 
-    type code = JCode.jcode
-    type instr = JCode.jopcode
+    type code = jcode
+    type instr = jopcode
+    type expr = unit
 
     (* include JCodeUtil from JPrintUtil that contains common code
        with JPrintHtml*)
     include JCodeUtil
     
     let get_source_line_number pp code =
-      JCode.get_source_line_number pp code
+      get_source_line_number pp code
 
     let inst_disp pp code = 
       (* TODO: create a display function that uses names of variables ?*)
-      JPrint.jopcode code.JCode.c_code.(pp)
+      JPrint.jopcode code.c_code.(pp)
  	  
-    (* TODO: implements AST desc ...*)
-    let to_plugin_warning _jm pp_warn_map = pp_warn_map
-      (*match jm with
+    let find_ast_node code pc op = 
+      let catch_or_finally = 
+	List.fold_left
+	  (fun nu eh -> 
+	     if eh.e_handler = pc
+	     then 
+	       match eh.e_catch_type with
+		   None -> Some (Statement
+				   Finally)
+		 | Some cn -> Some (Statement
+				      (Catch cn))
+	     else nu
+	  )
+	  None
+	  code.c_exc_tbl
+      in
+	match catch_or_finally with
+	    Some _ -> catch_or_finally
+	  | None -> 
+	      begin
+		match op with
+		  | OpNop | OpPop | OpPop2 | OpDup | OpDupX1 | OpDupX2 | OpDup2 | OpDup2X1 
+		  | OpDup2X2 | OpSwap | OpAdd _ | OpSub _ | OpMult _ | OpDiv _ | OpRem _ 
+		  | OpNeg _ | OpIShl | OpIShr | OpIAnd | OpIOr | OpIXor | OpIUShr | OpLShr
+		  | OpLShl | OpLAnd | OpLOr | OpLXor | OpLUShr | OpI2L | OpI2F | OpI2D 
+		  | OpL2I | OpL2F | OpL2D | OpF2I | OpF2L | OpF2D | OpD2I | OpD2L 
+		  | OpD2F | OpI2B | OpI2C | OpI2S | OpCmp _ | OpGoto _ | OpJsr _ 
+		  | OpRet _ | OpBreakpoint | OpInvalid | OpArrayLength
+		  | OpConst _ -> None
+		  | OpIf (_, _)
+		  | OpIfCmp (_, _) ->  Some (Statement 
+					       If)
+		  | OpLoad (_jvmt,var_num) -> 
+		      (match get_local_variable_info var_num pc code with
+			   None -> None
+			 | Some (name,vt) -> 
+			     Some (Name
+				     (SimpleName (name,Some vt))))
+		  | OpArrayLoad _jvmt -> Some (Expression (ArrayAccess None))
+		  | OpStore (_,var_num) 
+		  | OpIInc (var_num,_) -> 
+		      (match get_local_variable_info var_num pc code with
+			   None -> None
+			 | Some (name,vt) -> 
+			     Some (Expression
+				     (Assignment (SimpleName (name,Some vt)))))
+		  | OpArrayStore _ -> Some (Expression (ArrayStore None))
+		  | OpGetField (_cn, fs)
+		  | OpGetStatic (_cn, fs) -> 
+		      Some (Name
+			      (SimpleName (fs_name fs,Some (fs_type fs))))
+		  | OpPutStatic (_cn,fs) 
+		  | OpPutField (_cn,fs) -> 
+		      Some ( Expression
+			       (Assignment 
+				  (SimpleName (fs_name fs,Some (fs_type fs)))))
+		  | OpTableSwitch _ 
+		  | OpLookupSwitch _ -> Some (Statement Switch)
+		  | OpReturn _ -> Some (Statement Return)
+		  | OpInvoke (invtype, ms) -> 
+		      let cn, ms = 
+			(match invtype with
+			     `Interface cn
+			   | `Special cn
+			   | `Static cn -> (cn,ms)
+			   | `Virtual ot ->
+			       begin
+				 match ot with 
+				     TClass cn -> (cn,ms)
+				   | TArray _ -> (java_lang_object,ms)
+			       end
+			)
+		      in
+			if (ms_name ms) = "<init>"
+			then 
+			  (* TODO: not ok in case of super.<init> ... but it's special case no ?*)
+			  Some (Expression
+				  (ClassInstanceCreation cn))
+			else
+			  Some (Expression
+				  (MethodInvocation (cn,ms)))
+		  | OpNew cn -> Some (Expression
+					(ClassInstanceCreation cn))
+		  | OpNewArray vt -> Some (Expression
+					     (ArrayCreation vt))
+		  | OpAMultiNewArray (ot,_) -> Some (Expression
+						       (ArrayCreation (TObject ot)))
+		  | OpThrow -> Some (Statement
+				       Throw)
+		  | OpCheckCast ot -> Some (Expression
+					      (Cast ot))
+		  | OpInstanceOf ot-> Some (Expression 
+					      (InstanceOf ot))
+		  | OpMonitorEnter -> Some (Statement
+					      (Synchronized true))
+		  | OpMonitorExit -> Some (Statement
+					     (Synchronized false))
+	      end  
+
+
+    let to_plugin_warning jm pp_warn_map = 
+      match jm with
 	  AbstractMethod _ -> pp_warn_map
 	| ConcreteMethod cm -> 
 	    begin
@@ -586,44 +718,166 @@ module JCodePrinter = Make(
 		  Native -> pp_warn_map
 		| Java laz -> let code = Lazy.force laz in
 		    Ptmap.mapi
-		      (fun _pc ppwlist -> 
-			 List.map 
-			   (fun ppw -> 
-			      match ppw with
-				  PreciseWarning _ -> ppw
-				| LineWarning _ -> ppw )
-			   ppwlist)
+		      (fun pc ppwlist -> 
+			 let op = code.c_code.(pc) in
+			   List.map 
+			     (fun ppw -> 
+				match ppw with
+				    PreciseLineWarning _ -> ppw
+				  | LineWarning (msg,_) as lw -> 
+				      (match find_ast_node code pc op with
+					   Some node -> PreciseLineWarning (msg,node)
+					 | None -> lw)
+			     )
+			     ppwlist)
 		      pp_warn_map
-	    end*)
+	    end
 			 
-	
-
   end)
 
 module JBirPrinter = Make(
   struct
+    open JBir
+    open AdaptedASTGrammar
 
     type code = JBir.t
     type instr = JBir.instr
+    type expr = JBir.expr
 
     include JBirUtil
-      
+
     let get_source_line_number pp code =
       JBir.get_source_line_number pp code
 
     let inst_disp pp code = 
       JBir.print_instr code.JBir.code.(pp)
-	  
-(* TODO: implements AST desc ...*)
-    let to_plugin_warning _ioc warn = warn
+	
+    let find_ast_node_of_expr =
+      function 
+	| JBir.Const _ -> None
+	| JBir.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
+	| JBir.Binop (_,_,_) -> None
+	| JBir.Unop (JBir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
+	| JBir.Unop (JBir.Cast ot,_) -> Some (Expression(Cast ot))
+	| JBir.Unop (_,_) -> None
+	| JBir.Var (vt,var) -> 
+	    Some (Name (SimpleName (var_name_g var,Some vt)))
+	| JBir.Field (_,_,fs) 
+	| JBir.StaticField (_,fs) -> 
+	    Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
 
+    let find_ast_node =
+      function
+	 | JBir.Goto _ 
+	 | JBir.MayInit _ 
+	 | JBir.Nop -> None
+	 | JBir.AffectField (_,_,fs,_)
+	 | JBir.AffectStaticField (_,fs,_) -> 
+	     Some ( Expression
+		      (Assignment 
+			 (SimpleName (fs_name fs,Some (fs_type fs)))))
+	 | JBir.Ifd ((_cmp,_e1,_e2), _pc) -> 
+	     Some (Statement 
+		     If)
+	 | JBir.Return _ -> 
+	     Some (Statement Return)
+	 | JBir.Throw _ -> 
+	     Some (Statement Throw)
+	 | JBir.AffectVar (v,e) -> 
+	     Some (Expression
+		     (Assignment 
+			(SimpleName (JBir.var_name_g v,Some (JBir.type_of_expr e)))))
+	 | JBir.MonitorEnter _e -> 
+	     Some (Statement
+		     (Synchronized true))
+	 | JBir.MonitorExit _e -> 
+	     Some (Statement
+		     (Synchronized false))
+	 | JBir.NewArray (_v,vt,_le) -> 
+	     Some (Expression
+		     (ArrayCreation vt))
+	 | JBir.New (_v,cn,_vtl,_le) -> 
+	     Some (Expression
+		     (ClassInstanceCreation cn))
+	 | JBir.AffectArray (_e1,_e2,e3) -> 
+	     Some (Expression (ArrayStore (Some (JBir.type_of_expr e3))))		  
+	 | JBir.InvokeVirtual (_,_e,vk,ms,_le) ->
+	     let cn = 
+	       match vk with
+		   VirtualCall ot -> 
+		     begin
+		       match ot with 
+			   TClass cn -> cn
+			 | TArray _ -> java_lang_object
+		     end
+		 | InterfaceCall cn -> cn
+	     in
+	       Some (Expression
+		       (MethodInvocation (cn,ms)))
+	 | JBir.InvokeStatic (_,cn,ms,_le) 
+	 | JBir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
+	     Some (Expression
+		     (MethodInvocation (cn,ms)))
+	 | JBir.Check _ -> None
+
+
+
+    let to_plugin_warning jm pp_warn_map = 
+      let get_precise_warn_generation code pc op lw msg =
+	let try_catch_or_finally _unit = 
+	  let rec iter_handlers =
+	      function
+		  [] -> lw
+		| eh::r -> 
+		    if eh.e_handler = pc
+		    then 
+		      match eh.e_catch_type with
+			  None -> PreciseLineWarning (msg,Statement Finally)
+			| Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
+		    else iter_handlers r
+	  in
+	    iter_handlers code.exc_tbl
+	in
+	(match find_ast_node op with
+	     Some node -> PreciseLineWarning (msg,node)
+	   | None -> try_catch_or_finally ())
+      in
+	match jm with
+	    AbstractMethod _ -> pp_warn_map
+	  | ConcreteMethod cm -> 
+	      begin
+		match cm.cm_implementation with
+		    Native -> pp_warn_map
+		  | Java laz -> let code = Lazy.force laz in
+		      Ptmap.mapi
+			(fun pc ppwlist -> 
+			   let op = code.code.(pc) in
+			     List.map 
+			       (fun ppw -> 
+				  match ppw with
+				      PreciseLineWarning _ -> ppw
+				    | LineWarning (msg,None) as lw -> 
+					get_precise_warn_generation code pc op lw msg
+				    | LineWarning (msg,Some expr) as lw -> 
+					(match find_ast_node_of_expr expr with
+					     Some node -> PreciseLineWarning (msg,node)
+					   | None -> 
+					       get_precise_warn_generation code pc op lw msg)
+			       )
+			       ppwlist)
+			pp_warn_map
+	      end
   end)
 
 module A3BirPrinter = Make(
   struct
 
+    open A3Bir
+    open AdaptedASTGrammar
+
     type code = A3Bir.t
     type instr = A3Bir.instr
+    type expr = A3Bir.expr
 
     include A3BirUtil
       
@@ -632,9 +886,122 @@ module A3BirPrinter = Make(
 
     let inst_disp pp code = 
       A3Bir.print_instr code.A3Bir.code.(pp)
-	  
-(* TODO: implements AST desc ...*)
-    let to_plugin_warning _ioc warn = warn
+	
+    let find_ast_node_of_expr =
+      function 
+	| A3Bir.BasicExpr(Var (vt,var)) -> 
+	    Some (Name (SimpleName (var_name_g var,Some vt)))
+	| A3Bir.BasicExpr(Const _) -> None
+	| A3Bir.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
+	| A3Bir.Binop (_,_,_) -> None
+	| A3Bir.Unop (A3Bir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
+	| A3Bir.Unop (A3Bir.Cast ot,_) -> Some (Expression(Cast ot))
+	| A3Bir.Unop (_,_) -> None
+	| A3Bir.Field (_,_,fs) 
+	| A3Bir.StaticField (_,fs) -> 
+	    Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
+
+    let find_ast_node =
+      function
+	| A3Bir.Goto _ 
+	| A3Bir.MayInit _ 
+	| A3Bir.Nop -> None
+	| A3Bir.AffectField (_,_,fs,_)
+	| A3Bir.AffectStaticField (_,fs,_) -> 
+	    Some ( Expression
+		     (Assignment 
+			(SimpleName (fs_name fs,Some (fs_type fs)))))
+	| A3Bir.Ifd ((_cmp,_e1,_e2), _pc) -> 
+	    Some (Statement 
+		    If)
+	| A3Bir.Return _ -> 
+	    Some (Statement Return)
+	| A3Bir.Throw _ -> 
+	    Some (Statement Throw)
+	| A3Bir.AffectVar (v,e) -> 
+	    Some (Expression
+		    (Assignment 
+		       (SimpleName (A3Bir.var_name_g v,Some (A3Bir.type_of_expr e)))))
+	| A3Bir.MonitorEnter _e -> 
+	    Some (Statement
+		    (Synchronized true))
+	| A3Bir.MonitorExit _e -> 
+	    Some (Statement
+		    (Synchronized false))
+	| A3Bir.NewArray (_v,vt,_le) -> 
+	    Some (Expression
+		    (ArrayCreation vt))
+	| A3Bir.New (_v,cn,_vtl,_le) -> 
+	    Some (Expression
+		    (ClassInstanceCreation cn))
+	| A3Bir.AffectArray (_e1,_e2,e3) -> 
+	    Some (Expression (ArrayStore (Some (A3Bir.type_of_basic_expr e3))))		  
+	| A3Bir.InvokeVirtual (_,_e,vk,ms,_le) ->
+	    let cn = 
+	      match vk with
+		  VirtualCall ot -> 
+		    begin
+		      match ot with 
+			  TClass cn -> cn
+			| TArray _ -> java_lang_object
+		    end
+		| InterfaceCall cn -> cn
+	    in
+	      Some (Expression
+		      (MethodInvocation (cn,ms)))
+	| A3Bir.InvokeStatic (_,cn,ms,_le) 
+	| A3Bir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
+	    Some (Expression
+		    (MethodInvocation (cn,ms)))
+	| A3Bir.Check _ -> None
+
+
+
+    let to_plugin_warning jm pp_warn_map = 
+      let get_precise_warn_generation code pc op lw msg =
+	let try_catch_or_finally _unit = 
+	  let rec iter_handlers =
+	    function
+		[] -> lw
+	      | eh::r -> 
+		  if eh.e_handler = pc
+		  then 
+		    match eh.e_catch_type with
+			None -> PreciseLineWarning (msg,Statement Finally)
+		      | Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
+		  else iter_handlers r
+	  in
+	    iter_handlers code.exc_tbl
+	in
+	  (match find_ast_node op with
+	       Some node -> PreciseLineWarning (msg,node)
+	     | None -> try_catch_or_finally ())
+      in
+	match jm with
+	    AbstractMethod _ -> pp_warn_map
+	  | ConcreteMethod cm -> 
+	      begin
+		match cm.cm_implementation with
+		    Native -> pp_warn_map
+		  | Java laz -> let code = Lazy.force laz in
+		      Ptmap.mapi
+			(fun pc ppwlist -> 
+			   let op = code.code.(pc) in
+			     List.map 
+			       (fun ppw -> 
+				  match ppw with
+				      PreciseLineWarning _ -> ppw
+				    | LineWarning (msg,None) as lw -> 
+					get_precise_warn_generation code pc op lw msg
+				    | LineWarning (msg,Some expr) as lw -> 
+					(match find_ast_node_of_expr expr with
+					     Some node -> PreciseLineWarning (msg,node)
+					   | None -> 
+					       get_precise_warn_generation code pc op lw msg)
+			       )
+			       ppwlist)
+			pp_warn_map
+	      end
 
   end)
 
@@ -643,6 +1010,7 @@ module JBirSSAPrinter = Make(
 
     type code = JBirSSA.t
     type instr = JBirSSA.instr
+    type expr = JBirSSA.expr
 
     include JBirSSAUtil
       
@@ -652,7 +1020,9 @@ module JBirSSAPrinter = Make(
     let inst_disp pp code = 
       JBirSSA.print_instr code.JBirSSA.code.(pp)
 	  
-(* TODO: implements AST desc ...*)
+    (* TODO: implements AST desc ... See how to be generic for all JBir
+       representations (we may have to define a common extern interface,
+       since we only have access to the functor)*)
     let to_plugin_warning _ioc warn = warn
 
   end)
@@ -662,6 +1032,7 @@ module A3BirSSAPrinter = Make(
 
     type code = A3BirSSA.t
     type instr = A3BirSSA.instr
+    type expr = A3BirSSA.expr
 
     include A3BirSSAUtil
 
@@ -670,8 +1041,8 @@ module A3BirSSAPrinter = Make(
 	
     let inst_disp pp code = 
       A3BirSSA.print_instr code.A3BirSSA.code.(pp)
-    	  
-(* TODO: implements AST desc ...*)
+    	
+    (* TODO: implements AST desc ... Same thing as JBirSSA ...*)
     let to_plugin_warning _ioc warn = warn
 
   end)

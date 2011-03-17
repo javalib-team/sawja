@@ -25,7 +25,7 @@ open JProgram
 module AdaptedASTGrammar :
 sig
   type identifier = 
-      SimpleName of string 
+      SimpleName of string * value_type option
 	(** It could be a variable identifier, field name, class name,
 	    etc. Only use the shortest name possible (no package name
 	    before class name, no class name before a field name, etc.).*)
@@ -35,7 +35,7 @@ sig
     | TypeLiteral of identifier
     | OtherLiteral of float*)
 	(* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
-    | Assignment of value_type option * identifier
+    | Assignment of identifier
 	(** Corresponds to assignement instructions ('*store' (except
 	    array), 'put*field').Identifier must be the identifier of
 	    the left_side of assignment (field's name or variable's
@@ -44,23 +44,23 @@ sig
 	(** Corresponds to a 'new' instruction and <init> method calls*)
     | ArrayCreation of value_type
 	(** Corresponds to '*newarray' instructions *)
-    | MethodInvocation of class_method_signature 
+    | MethodInvocation of class_name * method_signature 
 	(** Corresponds to 'invoke*' instructions*)
-    | ArrayAccess of value_type 
+    | ArrayAccess of value_type option
 	(** Corresponds to 'arrayload' instructions with type of array*)
-    | ArrayStore of value_type 
+    | ArrayStore of value_type option
 	(** Corresponds to 'arraystore' instructions with type of
 	    array, only difference with ArrayAccess is that it will be
 	    searched only in left_side of assignements*)
 	(*| InfixExpression of infix_operator (* ? => no because we do not know if it appears in source ...*)*)
-    | InstanceOf of identifier option
+    | InstanceOf of object_type
 	(** Corresponds to 'instanceof' instructions*)
-    | Cast of identifier
+    | Cast of object_type
 	(** Corresponds to 'checkcast' instructions*)
   type statement = 
       If
 	(** Corresponds to 'if+goto' instructionsIncludes all If 'like' statements (If, For, While, ConditionnalExpr, etc.) *)
-    | Catch of identifier (*type given by handlers table*)
+    | Catch of class_name (*type given by handlers table*)
 	(** Corresponds to handlers entrypoints with a filtered type of exception (not finally clause) *)
     | Finally 
 	(** Corresponds to a finally handlers entrypoints *)
@@ -89,16 +89,19 @@ type method_info =
   | Return of string
   | This of string
 
-(** Warning on a program point, 2 types are allowed*)
-type warning_pp = 
-    LineWarning of string
-      (**warning description *)
+(** Warning on a program point, 2 types are allowed. The type variable
+    'a could be used if location of warning is more precise than an
+    program point instruction (i.e.: expr in JBir representation).*)
+type 'a warning_pp = 
+    LineWarning of string * 'a option
+      (**warning description * optional precision depending of code
+	 representation (used for PreciseLineWarning generation)*)
   | PreciseLineWarning of string * AdaptedASTGrammar.node_unit 
       (** same as LineWarning * AST information *)
 
 (** This type represents warnings and information that will
     be displayed with the Java source code. *)
-type plugin_info = 
+type 'a plugin_info = 
     {
       p_infos : 
 	(string list 
@@ -113,7 +116,7 @@ type plugin_info =
 	(string list 
 	 * string list FieldMap.t 
 	 * method_info list MethodMap.t 
-	 * warning_pp list Ptmap.t MethodMap.t) 
+	 * 'a warning_pp list Ptmap.t MethodMap.t) 
 	ClassMap.t;
       (** warnings to display for a class (one entry in ClassMap.t): 
 	  (class_warnings * fields_warnings * methods_warnings * pc_warnings)*)
@@ -127,6 +130,8 @@ sig
 
   type instr
   type code
+
+  type expr
 
   (** [get_source_line_number pc code] returns the source line number corresponding the program point pp of the method code m.*)
   val get_source_line_number : int -> code -> int option
@@ -146,28 +151,29 @@ sig
       knowledge of org.eclipse.jdt.core.dom.AST representation. See
       existant implementation of to_plugin_warning or simply return the same Ptmap.t.
 *)    
-  val to_plugin_warning : code jmethod ->  warning_pp list Ptmap.t 
-    -> warning_pp list Ptmap.t
+  val to_plugin_warning : code jmethod ->  expr warning_pp list Ptmap.t 
+    -> expr warning_pp list Ptmap.t
 
 end
 
 module type PluginPrinter =
 sig
   type code
+  type expr
 
   (** [print_class info ioc outputdir] generates plugin's
       information files for the interface or class [ioc] in the output
       directory [outputdir], given the plugin's information [info].
       @raise Invalid_argument if the name corresponding to [outputdir]
       is a file.*)
-  val print_class: plugin_info -> code interface_or_class -> string -> unit
+  val print_class: expr plugin_info -> code interface_or_class -> string -> unit
 
   (** [print_program info program outputdir] generates plugin's
       information files for the program [p] in the output directory
       [outputdir], given the plugin's information [info].  @raise
       Invalid_argument if the name corresponding to [outputdir] is a
       file. *)
-  val print_program: plugin_info -> code program -> string -> unit
+  val print_program: expr plugin_info -> code program -> string -> unit
     
 end
 
@@ -175,13 +181,13 @@ module Make (S : PrintInterface) : PluginPrinter
 
 (** {2 Built printers for Sawja program representations.} *)
 
-module JCodePrinter : PluginPrinter with type code = JCode.jcode
+module JCodePrinter : PluginPrinter with type code = JCode.jcode and type expr = unit
 
-module JBirPrinter : PluginPrinter with type code = JBir.t
+module JBirPrinter : PluginPrinter with type code = JBir.t and type expr = JBir.expr
 
-module A3BirPrinter : PluginPrinter with type code = A3Bir.t
+module A3BirPrinter : PluginPrinter with type code = A3Bir.t and type expr = A3Bir.expr
 
-module JBirSSAPrinter : PluginPrinter with type code = JBirSSA.t
+module JBirSSAPrinter : PluginPrinter with type code = JBirSSA.t and type expr = JBirSSA.expr
 
-module A3BirSSAPrinter : PluginPrinter with type code = A3BirSSA.t
+module A3BirSSAPrinter : PluginPrinter with type code = A3BirSSA.t and type expr = A3BirSSA.expr
 
