@@ -109,13 +109,13 @@ struct
     function
 	Statement st -> 
 	  (match st with
-	       If -> [wastnode,"IfStatement"]
-	     | Catch cn -> [(wastnode,"CatchClause");(wcname,cn_name cn)]
-	     | Finally -> [wastnode,"TryStatement"]
-	     | Switch -> [wastnode,"SwitchStatement"]
-	     | Synchronized enterb -> [(wastnode,"SynchronizedStatement");(wsenter,string_of_bool enterb)]
-	     | Return -> [wastnode,"ReturnStatement"]
-	     | Throw -> [wastnode,"ThrowStatement"])
+	       If -> [wastnode,"If"]
+	     | Catch cn -> [(wastnode,"Catch");(wcname,cn_name cn)]
+	     | Finally -> [wastnode,"Finally"]
+	     | Switch -> [wastnode,"Switch"]
+	     | Synchronized enterb -> [(wastnode,"Synchronized");(wsenter,string_of_bool enterb)]
+	     | Return -> [wastnode,"Return"]
+	     | Throw -> [wastnode,"Throw"])
       | Expression e -> 
 	  (match e with
 	    | Assignment id -> 
@@ -131,8 +131,8 @@ struct
 					   (wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
 	    | ArrayAccess vt_opt -> (wastnode,"ArrayAccess")::(vt_opt2attrs vt_opt)
 	    | ArrayStore vt_opt -> (wastnode,"ArrayStore")::(vt_opt2attrs vt_opt)
-	    | InstanceOf ot -> (wastnode,"InstanceOfExpression")::(vt_opt2attrs (Some(TObject ot)))
-	    | Cast ot -> (wastnode,"CastExpression")::(vt_opt2attrs (Some(TObject ot))))
+	    | InstanceOf ot -> (wastnode,"InstanceOf")::(vt_opt2attrs (Some(TObject ot)))
+	    | Cast ot -> (wastnode,"Cast")::(vt_opt2attrs (Some(TObject ot))))
       | Name id -> 
 	  (match id with
 	       SimpleName (name,vt_opt) -> 
