@@ -30,7 +30,6 @@ let class_cname = "name"
 let class_sf = "sourcefile"
 let class_inner = "inner"
 let class_anon = "anon"
-let class_super = "super"
 
 let info_tag = "info"
 let ival_tag = "value"
@@ -88,7 +87,7 @@ struct
 	    assignment (field's name or variable's name)*)
     | ClassInstanceCreation of class_name
     | ArrayCreation of value_type
-    | MethodInvocation of class_name * method_signature (* ms ? *)
+    | MethodInvocation of class_name option * method_signature (* ms ? *)
     | ArrayAccess of value_type option(* Ok if a[][] we could not know, optimistic (only one tab access on a line ?)*)
     | ArrayStore of value_type option(* It will be searched only in left_side of assignements*)
     | InstanceOf of object_type
@@ -137,8 +136,10 @@ struct
 		  (wastnode,"Assignment")::id_attrs
 	    | ClassInstanceCreation cn -> [(wastnode,"ClassInstanceCreation");(wcname,cn_name cn)]
 	    | ArrayCreation vt -> (wastnode,"ArrayCreation")::(vt_opt2attrs (Some vt))
-	    | MethodInvocation (cn,ms) -> [(wastnode,"MethodInvocation"); (wcname, cn_name cn);
-					   (wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
+	    | MethodInvocation (None,ms) -> [(wastnode,"MethodInvocation");
+					     (wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
+	    | MethodInvocation (Some cn,ms) -> [(wastnode,"MethodInvocation"); (wcname, cn_name cn);
+						(wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
 	    | ArrayAccess vt_opt -> (wastnode,"ArrayAccess")::(vt_opt2attrs vt_opt)
 	    | ArrayStore vt_opt -> (wastnode,"ArrayStore")::(vt_opt2attrs vt_opt)
 	    | InstanceOf ot -> (wastnode,"InstanceOf")::(vt_opt2attrs (Some(TObject ot)))
@@ -353,16 +354,8 @@ let gen_class_tag ioc treel =
 		     then
 		       (match ic.ic_source_name with
 			    None -> 
-			      let super = 
-				match ioc with
-				    JInterface _ -> java_lang_object
-				  | JClass c -> 
-				      (match c.c_super_class with
-					   None -> java_lang_object
-					 | Some csuper -> csuper)
-			      in
 			      [(class_cname,cn_name classname); (class_inner,true_val); 
-			       (class_anon,true_val); (class_super,cn_name super)]
+			       (class_anon,true_val)]
 			  | Some scnin -> 
 			      [(class_cname,scnin); (class_inner,true_val)])
 		     else name_inner_anon r)
@@ -710,27 +703,15 @@ module JCodePrinter = Make(
 		  | OpLookupSwitch _ -> Some (Statement Switch)
 		  | OpReturn _ -> Some (Statement Return)
 		  | OpInvoke (invtype, ms) -> 
-		      let cn, ms = 
-			(match invtype with
-			     `Interface cn
-			   | `Special cn
-			   | `Static cn -> (cn,ms)
-			   | `Virtual ot ->
-			       begin
-				 match ot with 
-				     TClass cn -> (cn,ms)
-				   | TArray _ -> (java_lang_object,ms)
-			       end
-			)
+		      let cn_opt, ms = 
+			match invtype with
+			    `Interface cn
+			  | `Special cn
+			  | `Static cn -> (Some cn,ms)
+			  | `Virtual _ot -> (None ,ms)
 		      in
-			if (ms_name ms) = "<init>"
-			then 
-			  (* TODO: not ok in case of super.<init> ... but it's special case no ?*)
-			  Some (Expression
-				  (ClassInstanceCreation cn))
-			else
-			  Some (Expression
-				  (MethodInvocation (cn,ms)))
+			Some (Expression
+				(MethodInvocation (cn_opt,ms)))
 		  | OpNew cn -> Some (Expression
 					(ClassInstanceCreation cn))
 		  | OpNewArray vt -> Some (Expression
@@ -842,23 +823,13 @@ module JBirPrinter = Make(
 		     (ClassInstanceCreation cn))
 	 | JBir.AffectArray (_e1,_e2,e3) -> 
 	     Some (Expression (ArrayStore (Some (JBir.type_of_expr e3))))		  
-	 | JBir.InvokeVirtual (_,_e,vk,ms,_le) ->
-	     let cn = 
-	       match vk with
-		   VirtualCall ot -> 
-		     begin
-		       match ot with 
-			   TClass cn -> cn
-			 | TArray _ -> java_lang_object
-		     end
-		 | InterfaceCall cn -> cn
-	     in
-	       Some (Expression
-		       (MethodInvocation (cn,ms)))
+	 | JBir.InvokeVirtual (_,_e,_vk,ms,_le) ->
+	     Some (Expression
+		     (MethodInvocation (None,ms)))
 	 | JBir.InvokeStatic (_,cn,ms,_le) 
 	 | JBir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
 	     Some (Expression
-		     (MethodInvocation (cn,ms)))
+		     (MethodInvocation (Some cn,ms)))
 	 | JBir.Check _ -> None
 
 
@@ -977,23 +948,13 @@ module A3BirPrinter = Make(
 		    (ClassInstanceCreation cn))
 	| A3Bir.AffectArray (_e1,_e2,e3) -> 
 	    Some (Expression (ArrayStore (Some (A3Bir.type_of_basic_expr e3))))		  
-	| A3Bir.InvokeVirtual (_,_e,vk,ms,_le) ->
-	    let cn = 
-	      match vk with
-		  VirtualCall ot -> 
-		    begin
-		      match ot with 
-			  TClass cn -> cn
-			| TArray _ -> java_lang_object
-		    end
-		| InterfaceCall cn -> cn
-	    in
-	      Some (Expression
-		      (MethodInvocation (cn,ms)))
+	| A3Bir.InvokeVirtual (_,_e,_vk,ms,_le) ->
+	    Some (Expression
+		    (MethodInvocation (None,ms)))
 	| A3Bir.InvokeStatic (_,cn,ms,_le) 
 	| A3Bir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
 	    Some (Expression
-		    (MethodInvocation (cn,ms)))
+		    (MethodInvocation (Some cn,ms)))
 	| A3Bir.Check _ -> None
 
 
