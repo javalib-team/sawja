@@ -25,9 +25,19 @@ let meth_arg="arg_desc"
 let meth_sig_on = "on"
 let meth_arg_num = "arg"
 
+let class_tag = "class"
+let class_cname = "name"
+let class_sf = "sourcefile"
+let class_inner = "inner"
+let class_anon = "anon"
+let class_super = "super"
+
 let info_tag = "info"
 let ival_tag = "value"
 let pp_tag = "pp"
+
+let true_val = "true"
+let false_val = "false"
 
 
 
@@ -262,10 +272,10 @@ let gen_warning_pp line pc wlist  =
        let attrs = 
 	 match wsig with
 	     LineWarning (msg,_) -> 
-	       [(warn_pp_precise, "false");(wpp_pc,string_of_int pc)
+	       [(warn_pp_precise, false_val);(wpp_pc,string_of_int pc)
 	       ;(wpp_line,string_of_int line);(wmsg_tag,msg)]
 	   | PreciseLineWarning (msg,ast_node) -> 
-	       (warn_pp_precise, "true")::(wpp_pc,string_of_int pc)
+	       (warn_pp_precise, true_val)::(wpp_pc,string_of_int pc)
 	       ::(wpp_line,string_of_int line)::(wmsg_tag,msg)
 	       ::(AdaptedASTGrammar.ast_node2attributes ast_node)
        in
@@ -330,19 +340,50 @@ let gen_info_method_tag mpn ms infos =
 
 let gen_class_tag ioc treel = 
   let classname = get_name ioc in
-  let sourcefile_att = 
-    match get_sourcefile ioc with
-	Some name -> 
-	  let pack = 
-	    List.fold_left 
-	      (fun pack element -> pack ^ element ^ ".") 
-	      "" (cn_package classname)
-	  in	      
-	  let pname =  pack ^name in
-	  [("name",cn_name classname);("sourcefile",pname)]
-      | None -> [("name",cn_name (get_name ioc))]
+  let attrs =
+    let class_attrs = 
+      let rec name_inner_anon inner_list =
+	match inner_list with
+	    [] -> [(class_cname,cn_name classname)]
+	  | ic::r -> 
+	      (match ic.ic_class_name with
+		   None -> name_inner_anon r
+		 | Some cn -> 
+		     if (cn_equal classname cn)
+		     then
+		       (match ic.ic_source_name with
+			    None -> 
+			      let super = 
+				match ioc with
+				    JInterface _ -> java_lang_object
+				  | JClass c -> 
+				      (match c.c_super_class with
+					   None -> java_lang_object
+					 | Some csuper -> csuper)
+			      in
+			      [(class_cname,cn_name classname); (class_inner,true_val); 
+			       (class_anon,true_val); (class_super,cn_name super)]
+			  | Some scnin -> 
+			      [(class_cname,scnin); (class_inner,true_val)])
+		     else name_inner_anon r)
+      in
+	name_inner_anon (get_inner_classes ioc)
+    in
+    let sourcefile_attrs = 
+      match get_sourcefile ioc with
+	  Some name -> 
+	    let pack = 
+	      List.fold_left 
+		(fun pack element -> pack ^ element ^ ".") 
+		"" (cn_package classname)
+	    in	      
+	    let pname =  pack ^name in
+	      (class_sf,pname)::class_attrs
+	| None -> class_attrs
+    in
+      sourcefile_attrs
   in 
-    gen_custom_tag "class" sourcefile_att treel
+    gen_custom_tag class_tag attrs treel
       
 
 
