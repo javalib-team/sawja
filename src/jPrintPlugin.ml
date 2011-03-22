@@ -38,29 +38,8 @@ let pp_tag = "pp"
 let true_val = "true"
 let false_val = "false"
 
-
-
-let replace_all ~str ~sub ~by =
-  let continue = ref true
-  and s = ref str
-  and i = ref 0 in
-    while !continue do
-      let (c,str) = ExtString.String.replace ~str:!s ~sub ~by in
-	s := str;
-	continue := c;
-	incr i
-    done;
-    (!i,!s)
-
-let replace_forb_ch s =
-  snd 
-    (replace_all
-       ~str:(snd (replace_all ~str:s ~sub:"<" ~by:"^"))
-       ~sub:">" ~by:"$")
-
-
 let method_sig_desc ms =
-  (replace_forb_ch (ms_name ms) ^":(")
+  ((ms_name ms) ^":(")
   ^(List.fold_left
       (fun msg t -> 
 	 msg^(JDumpBasics.type2shortstring t))
@@ -87,7 +66,8 @@ struct
 	    assignment (field's name or variable's name)*)
     | ClassInstanceCreation of class_name
     | ArrayCreation of value_type
-    | MethodInvocation of class_name option * method_signature (* ms ? *)
+    | MethodInvocationNonVirtual of class_name * method_signature (* ms ? *)
+    | MethodInvocationVirtual of object_type * method_signature 
     | ArrayAccess of value_type option(* Ok if a[][] we could not know, optimistic (only one tab access on a line ?)*)
     | ArrayStore of value_type option(* It will be searched only in left_side of assignements*)
     | InstanceOf of object_type
@@ -109,10 +89,13 @@ struct
     | Expression of expression 
     | Name of identifier
 
+  let ot2attr ot = 
+    (wvtype,JPrint.object_type ~jvm:true ot)
+
   let vt_opt2attrs = 
     function
 	None -> []
-      | Some vt -> [wvtype,JPrint.value_type ~jvm:false vt]
+      | Some vt -> [wvtype,JPrint.value_type ~jvm:true vt]
 
   let ast_node2attributes = 
     function
@@ -136,14 +119,14 @@ struct
 		  (wastnode,"Assignment")::id_attrs
 	    | ClassInstanceCreation cn -> [(wastnode,"ClassInstanceCreation");(wcname,cn_name cn)]
 	    | ArrayCreation vt -> (wastnode,"ArrayCreation")::(vt_opt2attrs (Some vt))
-	    | MethodInvocation (None,ms) -> [(wastnode,"MethodInvocation");
-					     (wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
-	    | MethodInvocation (Some cn,ms) -> [(wastnode,"MethodInvocation"); (wcname, cn_name cn);
+	    | MethodInvocationNonVirtual (cn,ms) -> [(wastnode,"MethodInvocationNonVirtual"); (wcname, cn_name cn);
+						(wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
+	    | MethodInvocationVirtual (ot,ms) -> [(wastnode,"MethodInvocationVirtual"); (ot2attr ot);
 						(wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
 	    | ArrayAccess vt_opt -> (wastnode,"ArrayAccess")::(vt_opt2attrs vt_opt)
 	    | ArrayStore vt_opt -> (wastnode,"ArrayStore")::(vt_opt2attrs vt_opt)
-	    | InstanceOf ot -> (wastnode,"InstanceOf")::(vt_opt2attrs (Some(TObject ot)))
-	    | Cast ot -> (wastnode,"Cast")::(vt_opt2attrs (Some(TObject ot))))
+	    | InstanceOf ot -> [(wastnode,"InstanceOf");(ot2attr ot)]
+	    | Cast ot -> [(wastnode,"Cast");(ot2attr ot)])
       | Name id -> 
 	  (match id with
 	       SimpleName (name,vt_opt) -> 
@@ -290,7 +273,6 @@ let gen_info_pp disp line pc ilist  =
 	     None -> -1
 	   | Some l -> l
   in
-  let disp = replace_forb_ch disp in
   let attrs = [(wpp_pc,string_of_int pc);(wpp_line,string_of_int line);(ival_tag,disp)] in
   let infos = 
     List.map
@@ -317,7 +299,7 @@ let gen_info_method_tag mpn ms infos =
   let attrs = 
     (desc_attr,method_sig_desc ms)
     ::("rtype",JPrint.return_type (ms_rtype ms))
-    ::("name",replace_forb_ch (ms_name ms))::[]
+    ::("name",ms_name ms)::[]
   in
   let args = 
     ExtList.List.mapi
@@ -703,15 +685,17 @@ module JCodePrinter = Make(
 		  | OpLookupSwitch _ -> Some (Statement Switch)
 		  | OpReturn _ -> Some (Statement Return)
 		  | OpInvoke (invtype, ms) -> 
-		      let cn_opt, ms = 
+		      begin
 			match invtype with
 			    `Interface cn
 			  | `Special cn
-			  | `Static cn -> (Some cn,ms)
-			  | `Virtual _ot -> (None ,ms)
-		      in
-			Some (Expression
-				(MethodInvocation (cn_opt,ms)))
+			  | `Static cn -> 
+			      Some (Expression
+				      (MethodInvocationNonVirtual (cn,ms)))
+			  | `Virtual ot -> 
+			      Some (Expression
+				      (MethodInvocationVirtual (ot,ms)))
+		      end
 		  | OpNew cn -> Some (Expression
 					(ClassInstanceCreation cn))
 		  | OpNewArray vt -> Some (Expression
@@ -823,13 +807,20 @@ module JBirPrinter = Make(
 		     (ClassInstanceCreation cn))
 	 | JBir.AffectArray (_e1,_e2,e3) -> 
 	     Some (Expression (ArrayStore (Some (JBir.type_of_expr e3))))		  
-	 | JBir.InvokeVirtual (_,_e,_vk,ms,_le) ->
-	     Some (Expression
-		     (MethodInvocation (None,ms)))
+	 | JBir.InvokeVirtual (_,_e,vk,ms,_le) ->
+	     begin
+	       match vk with
+		   VirtualCall ot -> 
+		     Some (Expression
+			     (MethodInvocationVirtual (ot,ms)))
+		 | InterfaceCall cn -> 
+		     Some (Expression
+			     (MethodInvocationNonVirtual (cn,ms)))
+	     end
 	 | JBir.InvokeStatic (_,cn,ms,_le) 
 	 | JBir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
 	     Some (Expression
-		     (MethodInvocation (Some cn,ms)))
+		     (MethodInvocationNonVirtual (cn,ms)))
 	 | JBir.Check _ -> None
 
 
@@ -947,14 +938,21 @@ module A3BirPrinter = Make(
 	    Some (Expression
 		    (ClassInstanceCreation cn))
 	| A3Bir.AffectArray (_e1,_e2,e3) -> 
-	    Some (Expression (ArrayStore (Some (A3Bir.type_of_basic_expr e3))))		  
-	| A3Bir.InvokeVirtual (_,_e,_vk,ms,_le) ->
-	    Some (Expression
-		    (MethodInvocation (None,ms)))
+	    Some (Expression (ArrayStore (Some (A3Bir.type_of_basic_expr e3))))
+	| A3Bir.InvokeVirtual (_,_e,vk,ms,_le) ->
+	    begin
+	      match vk with
+		  VirtualCall ot -> 
+		    Some (Expression
+			    (MethodInvocationVirtual (ot,ms)))
+		| InterfaceCall cn -> 
+		    Some (Expression
+			    (MethodInvocationNonVirtual (cn,ms)))
+	    end
 	| A3Bir.InvokeStatic (_,cn,ms,_le) 
 	| A3Bir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
 	    Some (Expression
-		    (MethodInvocation (Some cn,ms)))
+		    (MethodInvocationNonVirtual (cn,ms)))
 	| A3Bir.Check _ -> None
 
 

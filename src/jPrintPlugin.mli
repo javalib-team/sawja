@@ -44,10 +44,12 @@ sig
 	(** Corresponds to a 'new' instruction and <init> method calls*)
     | ArrayCreation of value_type
 	(** Corresponds to '*newarray' instructions *)
-    | MethodInvocation of class_name option* method_signature 
-	(** Corresponds to 'invoke*' instructions (class_name must be used only for non virtual invocations !)*)
+    | MethodInvocationNonVirtual of class_name * method_signature (* ms ? *)
+	(** Corresponds to 'invokestatic', 'invokespecial' or 'invokeinterface' instructions*)
+    | MethodInvocationVirtual of object_type * method_signature 
+	(** Corresponds to 'invokevirtual' instruction only*)
     | ArrayAccess of value_type option
-	(** Corresponds to 'arrayload' instructions with type of array*)
+	(** Corresponds to 'arrayload' instructions with optional exact type of value accessed (not array type!)*)
     | ArrayStore of value_type option
 	(** Corresponds to 'arraystore' instructions with type of
 	    array, only difference with ArrayAccess is that it will be

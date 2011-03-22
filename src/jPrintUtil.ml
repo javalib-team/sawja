@@ -1,3 +1,14 @@
+let replace_forb_xml_ch s =
+    ExtString.String.replace_chars
+      (function
+	   '&' -> "&amp;"
+	 | '<' -> "&lt;"
+	 | '>' -> "&gt;"
+	 | '"' -> "&quot;"
+	 | '\'' -> "&apos;"
+	 | c -> Char.escaped c)
+      s
+
 let mkdirp path perm =
   let rec mkdirp path =
     try
@@ -9,8 +20,6 @@ let mkdirp path perm =
   in
     mkdirp path
 
-
-
 type html_tree = | CustomTag of string * (html_tree list) * string
 		 | SimpleTag of string
 		 | PCData of string
@@ -21,6 +30,12 @@ let gen_tag_attributes attributes =
     (List.map (fun (k,v) -> k ^ "=" ^ "\"" ^ v ^ "\"") attributes)
     
 let gen_opening_tag ?(iscustom=true) tagname attributes =
+  let attributes = 
+    List.map
+      (fun (a,v) -> 
+	 (replace_forb_xml_ch a, replace_forb_xml_ch v))
+      attributes
+  in      
   let tag_attributes = (gen_tag_attributes attributes) in
     "<" ^ tagname
     ^ (if tag_attributes <> "" then " " else "")
