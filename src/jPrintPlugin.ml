@@ -338,8 +338,8 @@ let gen_class_tag ioc treel =
 			    None -> 
 			      [(class_cname,cn_name classname); (class_inner,true_val); 
 			       (class_anon,true_val)]
-			  | Some scnin -> 
-			      [(class_cname,scnin); (class_inner,true_val)])
+			  | Some _ -> 
+			      [(class_cname,cn_name classname); (class_inner,true_val)])
 		     else name_inner_anon r)
       in
 	name_inner_anon (get_inner_classes ioc)
