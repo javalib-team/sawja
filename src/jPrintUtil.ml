@@ -1,3 +1,25 @@
+(*
+ * This file is part of SAWJA
+ * Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
+ * Copyright (c)2009 Nicolas Barre (INRIA)
+ * Copyright (c)2010 Vincent Monfort (INRIA)
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ *)
+
+
 let replace_forb_xml_ch s =
     ExtString.String.replace_chars
       (function
@@ -69,31 +91,35 @@ let create_package_dir outputdir package =
 	       Filename.concat dirname basename
 	    ) (Filename.concat outputdir hd) tl in
 	  create_dir dirname
-	      
-let print_html_tree ?(spc=0) htmltree out =
-  let out = IO.output_channel out in
+	    
+let print_html_tree_ext ?(spc=0) htmltree out =
   let rec print dec htmltree =
     let spc = String.make (dec * spc) ' ' in
-    match htmltree with
-      | CustomTag (opening,tree,closing) ->
-	  IO.write out '\n';
-	  IO.nwrite out spc;
-	  IO.nwrite out opening;
-	  List.iter (fun tree -> print (dec+1) tree) tree;
-	  IO.write out '\n';
-	  IO.nwrite out spc;
-	  IO.nwrite out closing;
-	  
-      | SimpleTag tag ->
-	  IO.write out '\n';
-	  IO.nwrite out spc;
-	  IO.nwrite out tag;
-      | PCData data ->
-	  IO.write out '\n';
-	  IO.nwrite out spc;
-	  IO.nwrite out data;
+      match htmltree with
+	| CustomTag (opening,tree,closing) ->
+	    IO.write out '\n';
+	    IO.nwrite out spc;
+	    IO.nwrite out opening;
+	    List.iter (fun tree -> print (dec+1) tree) tree;
+	    IO.write out '\n';
+	    IO.nwrite out spc;
+	    IO.nwrite out closing;
+	    
+	| SimpleTag tag ->
+	    IO.write out '\n';
+	    IO.nwrite out spc;
+	    IO.nwrite out tag;
+	| PCData data ->
+	    let data = replace_forb_xml_ch data in
+	      IO.write out '\n';
+	      IO.nwrite out spc;
+	      IO.nwrite out data;
   in
     print 0 htmltree
+
+let print_html_tree ?(spc=0) htmltree out =
+  let out = IO.output_channel out in
+    print_html_tree_ext ~spc:spc htmltree out
 
 open Javalib_pack    
 open JBasics
