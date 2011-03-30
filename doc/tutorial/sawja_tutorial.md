@@ -37,7 +37,7 @@ Construction Algorithms*. OOPSLA 2000. See
 [^2]: D. Demange, T. Jensen and D. Pichardie. *A Provably Correct
 Stackless Intermediate Representation For Java Bytecode*. Research
 Report 7021, INRIA, 2009. See
-[http://irisa.fr/celtique/ext/bir](http://irisa.fr/celtique/ext/bir).
+[http://www.irisa.fr/celtique/ext/bir](http://www.irisa.fr/celtique/ext/bir).
 	
 Global architecture
 ===================
