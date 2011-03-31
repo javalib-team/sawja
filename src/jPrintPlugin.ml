@@ -1,21 +1,19 @@
 (*
  * This file is part of SAWJA
- * Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
- * Copyright (c)2009 Nicolas Barre (INRIA)
- * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2011 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program.  If not, see
+ * License along with this program.  If not, see 
  * <http://www.gnu.org/licenses/>.
  *)
 
@@ -186,6 +184,58 @@ type 'a plugin_info =
       (** warnings to display for a class (one entry in ClassMap.t): 
 	  (class_warnings * fields_warnings * methods_warnings * pc_warnings)*)
     }
+
+
+type ('c,'f,'m,'p) info = ('c list 
+	     * 'f list FieldMap.t 
+	     * 'm list MethodMap.t 
+	     * 'p list Ptmap.t MethodMap.t)
+
+let find_class_infos cn map = 
+  try ClassMap.find cn map
+  with Not_found -> 
+    ([],FieldMap.empty,MethodMap.empty,MethodMap.empty)
+
+let find_field_infos fs map = 
+  try FieldMap.find fs map with Not_found -> []
+
+let find_meth_infos fs map = 
+  try MethodMap.find fs map with Not_found -> []
+
+let find_pp_infos ms pc map = 
+  let pmap = 
+    try MethodMap.find ms map 
+    with Not_found -> Ptmap.empty
+  in
+  let ppinfos = 
+    try Ptmap.find pc pmap 
+    with Not_found -> []
+  in
+    (pmap,ppinfos)
+
+let add_class_info i cn map =
+  let (ci,fi,mi,ppi) = find_class_infos cn map in
+    ClassMap.add cn (i::ci,fi,mi,ppi) map
+
+let add_field_info i cn fs map = 
+  let (ci,fi,mi,ppi) = find_class_infos cn map in
+  let fil = find_field_infos fs fi in
+  let fi = FieldMap.add fs (i::fil) fi in
+    ClassMap.add cn (ci,fi,mi,ppi) map
+
+let add_method_info i cn ms map = 
+  let (ci,fi,mi,ppi) = find_class_infos cn map in
+  let mil = find_meth_infos ms mi in
+  let mi = MethodMap.add ms (i::mil) mi in
+    ClassMap.add cn (ci,fi,mi,ppi) map
+
+let add_pp_info i cn ms pc map = 
+  let (ci,fi,mi,ppi) = find_class_infos cn map in
+  let (pmap,ppil) = find_pp_infos ms pc ppi in
+  let ppi = MethodMap.add ms (Ptmap.add pc (i::ppil) pmap) ppi in
+    ClassMap.add cn (ci,fi,mi,ppi) map
+
+
 
 module type PluginPrinter =
 sig

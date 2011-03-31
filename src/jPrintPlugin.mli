@@ -1,3 +1,21 @@
+(*
+ * This file is part of SAWJA
+ * Copyright (c)2011 Vincent Monfort (INRIA)
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program.  If not, see 
+ * <http://www.gnu.org/licenses/>.
+ *)
 
 (** Printer for Eclipse plugin for SAWJA *)
 
@@ -123,6 +141,24 @@ type 'a plugin_info =
       (** warnings to display for a class (one entry in ClassMap.t): 
 	  (class_warnings * fields_warnings * methods_warnings * pc_warnings)*)
     }
+
+(**{3 Utility functions to construct the {!plugin_info} structure}*)
+
+type ('c,'f,'m,'p) info = ('c list 
+	     * 'f list FieldMap.t 
+	     * 'm list MethodMap.t 
+	     * 'p list Ptmap.t MethodMap.t)
+
+val add_class_info : 'c -> class_name -> ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+
+val add_field_info : 'f -> class_name -> field_signature -> 
+  ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+
+val add_method_info : 'm -> class_name -> method_signature -> 
+  ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+
+val add_pp_info : 'p -> class_name -> method_signature -> int -> 
+  ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
 
 (** {2 Building a Printer for any program representation.} *)
 
