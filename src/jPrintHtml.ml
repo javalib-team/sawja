@@ -119,8 +119,8 @@ let gen_hidden_list hlist =
       ) hlist in
     gen_custom_tag "ul" [("class",clickable_class)] ullist
       
-type elem = | SimpleExpr of html_tree list
-	    | DynamicExpr of (html_tree list) * ((html_tree list) list)
+type elem = | SimpleExpr of xml_tree list
+	    | DynamicExpr of (xml_tree list) * ((xml_tree list) list)
 		
 let gen_inst inst_params =
   let (visible_parameters, hidden_parameters) =
@@ -716,7 +716,7 @@ struct
 	       			Filename.concat "" (package @ [cname ^ ".html"])))
 	       in
 		 output_string out doctype;
-		 print_html_tree doc out;
+		 print_xml_tree doc out;
 		 close_out out
 	  ) program.classes
 
@@ -763,7 +763,7 @@ struct
 	       		 Filename.concat "" (package @ [cname ^ ".html"])))
 	in
 	  output_string out doctype;
-	  print_html_tree doc out;
+	  print_xml_tree doc out;
 	  close_out out
 
 end

@@ -112,7 +112,7 @@ let parse analysis arg_list plugin_output usage_msg =
   let xml_desc = gen_xml_desc analysis arg_list output_name in
   let string_out = IO.output_string () in
   let sxml_desc = 
-    print_html_tree_ext xml_desc string_out;
+    print_xml_tree_ext xml_desc string_out;
     IO.close_out string_out
   in
   let args = 

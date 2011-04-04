@@ -49,6 +49,7 @@ let class_cname = "name"
 let class_sf = "sourcefile"
 let class_inner = "inner"
 let class_anon = "anon"
+let html_info_tag = "html"
 
 let info_tag = "info"
 let ival_tag = "value"
@@ -242,9 +243,9 @@ sig
   type code
   type expr
 
-  val print_class: expr plugin_info -> code interface_or_class -> string -> unit
+  val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
 
-  val print_program: expr plugin_info -> code program -> string -> unit
+  val print_program: ?html_info:bool -> expr plugin_info -> code program -> string -> unit
  
 end
 
@@ -285,9 +286,14 @@ let gen_warning_sig wlist =
 	 gen_simple_tag warn_tag attr)
     wlist
 
-let gen_info_sig ilist = 
+let gen_info_sig fhtml ilist = 
   List.map 
-    (fun info -> gen_custom_tag info_tag [] [PCData info])
+    (fun info -> 
+       let info_xml = 
+	 fhtml info
+       in
+       gen_custom_tag info_tag [] [info_xml]
+    )
     ilist
 
 let gen_warning_msig wlist = 
@@ -303,7 +309,7 @@ let gen_warning_msig wlist =
 	 gen_simple_tag warn_tag attr)
     wlist
 
-let gen_info_msig ilist = 
+let gen_info_msig fhtml ilist = 
   List.map 
     (fun info -> 
        let attr, msg = 
@@ -313,7 +319,7 @@ let gen_info_msig ilist =
 	   | Return msg -> ([(meth_sig_on,"return")],msg)
 	   | This msg -> ([(meth_sig_on,"this")],msg)
        in
-	 gen_custom_tag info_tag attr [PCData msg])
+	 gen_custom_tag info_tag attr [(fhtml msg)])
     ilist
 
 let gen_warning_pp line pc wlist  =
@@ -338,7 +344,7 @@ let gen_warning_pp line pc wlist  =
     wlist
 
 
-let gen_info_pp disp line pc ilist  =
+let gen_info_pp fhtml disp line pc ilist  =
   let line = 
 	 match line with
 	     None -> -1
@@ -348,7 +354,7 @@ let gen_info_pp disp line pc ilist  =
   let infos = 
     List.map
       (fun info -> 
-	 gen_custom_tag info_tag [] [PCData info])
+	 gen_custom_tag info_tag [] [(fhtml info)])
       ilist
   in
     gen_custom_tag pp_tag attrs infos
@@ -392,13 +398,18 @@ let gen_info_method_tag mpn ms infos =
   in
     gen_custom_tag "method" attrs (args@infos)
 
-let gen_class_tag ioc treel = 
+let gen_class_tag ?(html=false) ioc treel = 
   let classname = get_name ioc in
   let attrs =
+    let others_attrs = 
+      if html
+      then [(html_info_tag,true_val)]
+      else []
+    in
     let class_attrs = 
       let rec name_inner_anon inner_list =
 	match inner_list with
-	    [] -> [(class_cname,cn_name classname)]
+	    [] -> (class_cname,cn_name classname)::others_attrs
 	  | ic::r -> 
 	      (match ic.ic_class_name with
 		   None -> name_inner_anon r
@@ -407,10 +418,12 @@ let gen_class_tag ioc treel =
 		     then
 		       (match ic.ic_source_name with
 			    None -> 
-			      [(class_cname,cn_name classname); (class_inner,true_val); 
-			       (class_anon,true_val)]
+			      (class_cname,cn_name classname):: 
+			       (class_inner,true_val):: 
+				(class_anon,true_val)::others_attrs
 			  | Some _ -> 
-			      [(class_cname,cn_name classname); (class_inner,true_val)])
+			      (class_cname,cn_name classname)::
+				(class_inner,true_val)::others_attrs)
 		     else name_inner_anon r)
       in
 	name_inner_anon (get_inner_classes ioc)
@@ -508,7 +521,7 @@ struct
 	end
       else []
       
-   let ioc2xml_info info ioc = 
+   let ioc2xml_info fhtml info ioc = 
     let cn = get_name ioc in
       if ClassMap.mem cn info.p_infos
       then
@@ -519,14 +532,14 @@ struct
 	  let class_tags = 
 	    match iclass with
 		[] -> []
-	      | l -> gen_info_sig l
+	      | l -> gen_info_sig fhtml l
 	  in
 	  let fields_tags = 
 	    FieldMap.fold
 	      (fun fs infos tree_list ->
 		 match infos with
 		     [] -> tree_list
-		   | _ -> (gen_field_tag fs (gen_info_sig infos))::tree_list
+		   | _ -> (gen_field_tag fs (gen_info_sig fhtml infos))::tree_list
 	      )
 	      ifields
 	      []
@@ -567,6 +580,7 @@ struct
 				  [] -> tree_list
 				| _ -> 
 				    (gen_info_pp 
+				       fhtml
 				       (pc_disp pc)
 				       (get_source_line pc)
 				       pc ipplist)
@@ -587,7 +601,7 @@ struct
 			   (gen_info_method_tag  
 			      (S.method_param_names ioc ms) 
 			      ms 
-			      ((gen_info_msig ims_meths)@tlpp))
+			      ((gen_info_msig fhtml ims_meths)@tlpp))
 			   ::tlm
 		 in
 		   tlm
@@ -605,20 +619,26 @@ struct
 	  [] -> None 
 	| _ -> Some (gen_class_tag ioc tree_list)
 	    
-  let gen_class_info_doc info ioc =
-    let tree_list = ioc2xml_info info ioc in
+  let gen_class_info_doc html info ioc =
+    let fhtml = if html then 
+      (fun s -> PCData s)
+    else
+      ((*TODO: check it is valid html for plugin*)
+	fun s -> CData s)
+    in
+    let tree_list = ioc2xml_info fhtml info ioc in
       match tree_list with
 	  [] -> None
-	| _ -> Some (gen_class_tag ioc tree_list)
+	| _ -> Some (gen_class_tag ~html:html ioc tree_list)
 
-  let print_info (info_p: 'a plugin_info) ioc outputdir = 
+  let print_info html (info_p: 'a plugin_info) ioc outputdir = 
     let cs = get_name ioc in
     let package_and_source = 
       match get_sourcefile ioc with 
 	  None -> assert false
 	| Some filename ->  "info"::(cn_package cs @ [filename])
     and cname = cn_simple_name cs in
-    let doc = gen_class_info_doc info_p ioc in
+    let doc = gen_class_info_doc html info_p ioc in
       match doc with
 	  None -> ()
 	| Some doc -> 
@@ -628,7 +648,7 @@ struct
 	       		  (List.fold_left
 	       		     Filename.concat "" (package_and_source @ [cname ^ ".xml"])))
 	    in
-	      print_html_tree ~spc:3 doc out;
+	      print_xml_tree ~spc:3 doc out;
 	      close_out out
 
   let print_warnings (info_p: 'a plugin_info) ioc outputdir = 
@@ -648,17 +668,17 @@ struct
 	       		  (List.fold_left
 	       		     Filename.concat "" (package_and_source @ [cname ^ ".xml"])))
 	    in
-	      print_html_tree ~spc:3 doc out;
+	      print_xml_tree ~spc:3 doc out;
 	      close_out out
 
-  let print_class (info_p: 'a plugin_info) ioc outputdir = 
+  let print_class ?(html_info=false) (info_p: 'a plugin_info) ioc outputdir = 
     print_warnings info_p ioc outputdir;
-    print_info info_p ioc outputdir
+    print_info html_info info_p ioc outputdir
 
-  let print_program (info_p: 'a plugin_info) (p: S.code program) outputdir = 
+  let print_program ?(html_info=false) (info_p: 'a plugin_info) (p: S.code program) outputdir = 
     ClassMap.iter
       (fun _ node -> 
-	 print_class info_p (to_ioc node) outputdir)
+	 print_class ~html_info:html_info info_p (to_ioc node) outputdir)
       p.classes
 
 end

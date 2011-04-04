@@ -42,9 +42,10 @@ let mkdirp path perm =
   in
     mkdirp path
 
-type html_tree = | CustomTag of string * (html_tree list) * string
-		 | SimpleTag of string
-		 | PCData of string
+type xml_tree = | CustomTag of string * (xml_tree list) * string
+		| SimpleTag of string
+		| PCData of string
+		| CData of string
 		     
 
 let gen_tag_attributes attributes =
@@ -67,10 +68,10 @@ let gen_opening_tag ?(iscustom=true) tagname attributes =
 let gen_closing_tag tagname =
   "</" ^ tagname ^ ">"
 
-let gen_custom_tag tagname attributes htmltree =
+let gen_custom_tag tagname attributes xmltree =
   let opening_tag = gen_opening_tag tagname attributes
   and closing_tag = gen_closing_tag tagname in
-    CustomTag (opening_tag, htmltree, closing_tag)
+    CustomTag (opening_tag, xmltree, closing_tag)
       
 let gen_simple_tag tagname attributes =
   SimpleTag(gen_opening_tag ~iscustom:false tagname attributes)
@@ -92,34 +93,46 @@ let create_package_dir outputdir package =
 	    ) (Filename.concat outputdir hd) tl in
 	  create_dir dirname
 	    
-let print_html_tree_ext ?(spc=0) htmltree out =
-  let rec print dec htmltree =
+let print_xml_tree_ext ?(br=true) ?(spc=0) xmltree out =
+  let rec print dec xmltree =
     let spc = String.make (dec * spc) ' ' in
-      match htmltree with
+      match xmltree with
 	| CustomTag (opening,tree,closing) ->
-	    IO.write out '\n';
+	    if br then
+	      IO.write out '\n';
 	    IO.nwrite out spc;
 	    IO.nwrite out opening;
 	    List.iter (fun tree -> print (dec+1) tree) tree;
-	    IO.write out '\n';
+	    if br then
+	      IO.write out '\n';
 	    IO.nwrite out spc;
 	    IO.nwrite out closing;
 	    
 	| SimpleTag tag ->
-	    IO.write out '\n';
+	    if br then
+	      IO.write out '\n';
 	    IO.nwrite out spc;
 	    IO.nwrite out tag;
 	| PCData data ->
 	    let data = replace_forb_xml_ch data in
-	      IO.write out '\n';
+	      if br then
+		IO.write out '\n';
 	      IO.nwrite out spc;
 	      IO.nwrite out data;
-  in
-    print 0 htmltree
+	| CData data ->
+	    if br then
+	      IO.write out '\n';
+	    IO.nwrite out spc;
+	    IO.nwrite out "<![CDATA[";
+	    IO.nwrite out data;
+	    IO.nwrite out "]]>";
 
-let print_html_tree ?(spc=0) htmltree out =
+  in
+    print 0 xmltree
+
+let print_xml_tree ?(spc=0) xmltree out =
   let out = IO.output_channel out in
-    print_html_tree_ext ~spc:spc htmltree out
+    print_xml_tree_ext ~spc:spc xmltree out
 
 open Javalib_pack    
 open JBasics
