@@ -23,7 +23,8 @@
 let replace_forb_xml_ch s =
     ExtString.String.replace_chars
       (function
-	   '&' -> "&amp;"
+(* This one is problematic if replacements are already done*)
+(*	   '&' -> "&amp;"*)
 	 | '<' -> "&lt;"
 	 | '>' -> "&gt;"
 	 | '"' -> "&quot;"
@@ -52,13 +53,7 @@ let gen_tag_attributes attributes =
   String.concat " "
     (List.map (fun (k,v) -> k ^ "=" ^ "\"" ^ v ^ "\"") attributes)
     
-let gen_opening_tag ?(iscustom=true) tagname attributes =
-  let attributes = 
-    List.map
-      (fun (a,v) -> 
-	 (replace_forb_xml_ch a, replace_forb_xml_ch v))
-      attributes
-  in      
+let gen_opening_tag ?(iscustom=true) tagname attributes =      
   let tag_attributes = (gen_tag_attributes attributes) in
     "<" ^ tagname
     ^ (if tag_attributes <> "" then " " else "")

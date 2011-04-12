@@ -270,11 +270,9 @@ let fs2anchorname cs fs =
     (cn2anchorname cs) ^ ":" ^ fname ^ ":" ^ fstype2string
       
 let ms2anchorname cs ms =
-  let mname = ms_name ms in
+  let msname = ms_name ms in
   let mparameters = ms_args ms in
   let mreturntype = ms_rtype ms in
-  let msname = Str.global_replace (Str.regexp_string "<") "-"
-    (Str.global_replace (Str.regexp_string ">") "-" mname) in
     (cn2anchorname cs) ^ ":" ^ msname ^ ":"
     ^ (String.concat ""
 	 (List.map type2anchorstring mparameters))
@@ -307,15 +305,7 @@ let fieldsignature2html program ioc fs =
   let ftype = fs_type fs in
     (PCData (header ^ " ")) :: (valuetype2html program ftype cs)
     @ [PCData (" " ^ fname ^ ";")]
-      
-let htmlize s =
-  ExtString.String.replace_chars
-    (fun c ->
-       match c with
-	 | '<' -> "&lt;"
-	 | '>' -> "&gt;"
-	 | _ -> String.make 1 c) s
-    
+
 let methodcallers2html cs ms info =
   match info.p_callers cs ms with
     | None -> []
@@ -325,9 +315,9 @@ let methodcallers2html cs ms info =
 	     let anchor = ms2anchorname ccs cms in
 	     let href = (get_relative_file cs ccs) ^ "#" ^ anchor in
 	     let ccname = cn_name ccs in
-	     let cmname = htmlize (ms_name cms) in
+	     let cmname = ms_name cms in
 	     let vtl = JPrint.value_type_list (ms_args cms) in
-	     let cmsig = htmlize (JPrint.method_signature cms) in
+	     let cmsig = JPrint.method_signature cms in
 	       [gen_titled_hyperlink href 
 		  (ccname ^ "." ^ cmname ^vtl) cmsig] :: l
 	  ) callers [] in
@@ -423,8 +413,8 @@ let invoke_elem ?called_cname program cs ms pp callcs callms =
 	     let anchor = ms2anchorname rcs rms in
 	     let href = (get_relative_file cs rcs) ^ "#" ^ anchor in
 	     let rcname = cn_name rcs in
-	     let rmname = htmlize (ms_name rms) in
-	     let rmsig = htmlize (JPrint.method_signature rms) in
+	     let rmname = ms_name rms in
+	     let rmsig = JPrint.method_signature rms in
 	       [gen_titled_hyperlink href (rcname ^ "." ^ rmname) rmsig] :: l
 	  )
 	  (program.static_lookup_method cs ms pp) []
@@ -432,8 +422,8 @@ let invoke_elem ?called_cname program cs ms pp callcs callms =
   let callcname = match called_cname with
     | Some x -> x
     | None -> cn_name callcs in
-  let callmname = htmlize (ms_name callms) in
-  let callmsig = htmlize (JPrint.method_signature callms) in
+  let callmname = ms_name callms in
+  let callmsig = JPrint.method_signature callms in
     DynamicExpr ([gen_titled_span
 		    [PCData (callcname ^ "." ^ callmname)] [] callmsig],
 		 match mlookupshtml with
