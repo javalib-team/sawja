@@ -1,6 +1,9 @@
 # This is the tutorial Makefile
 # You need to install pandoc
 
+# Just for test on tutorial code
+-include ../../Makefile.config
+
 all: sawja_tutorial.tex sawja_tutorial.pdf sawja-tut.html
 
 .DELETE_ON_ERROR:sawja-tut.html sawja_tutorial.tex
@@ -22,6 +25,12 @@ sawja_tutorial.pdf: sawja_tutorial.tex
 	rm -f sawja_tutorial.log 
 	rm -f sawja_tutorial.toc 
 	rm -f sawja_tutorial.out
+
+test: tutorial.ml
+	$(OCAMLC) -package sawja -c $^
+	@echo "tutorial.ml file is compiling with version of Sawja installed."
+	@echo "please check sawja_tutorial.md correspond to the same code."
+	rm tutorial.cmi tutorial.cmo tutorial.annot
 
 clean:
 	rm -f sawja_tutorial.tex sawja_tutorial.pdf sawja-tut.html
