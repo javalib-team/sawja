@@ -1,5 +1,5 @@
 download BUDDY 2.4 (http://sourceforge.net/projects/buddy/)
-apply the patch in ./patch on sources files (necessary if you use a Macintoch (performances problem))
+apply the patch in ./patch on sources files (necessary if you use a Macintosh (performances problem))
 compile and install BUDDY 2.4
 
 make BUDDYLIB=<path2buddylib> BUDDYH=<path2buddh> 
