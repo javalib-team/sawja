@@ -253,7 +253,7 @@ the parsed program **prta**. We first need to build an **info** type.
       (fun cn ->
         let ioc = get_node prta cn in
           match ioc with
-           | Class c ->
+           | Class _c ->
              if ClassMap.mem (get_name ioc) instantiated_classes then
                ["Instantiated"] else ["Not instantiatied"]
            | _ -> []
@@ -268,7 +268,7 @@ the parsed program **prta**. We first need to build an **info** type.
         let m = get_method (get_node prta cn) ms in
            match m with
             | AbstractMethod _ -> ["Abstract Method"]
-            | ConcreteMethod cm ->
+            | ConcreteMethod _cm ->
               let cms = make_cms cn ms in
               let parse =
                 if ClassMethodMap.mem cms prta.parsed_methods then
@@ -296,7 +296,7 @@ Then we just need to call the printing function:
 
 ~~~~~
     let output = "./prta"
-    let () = JPrintHtml.print_program ~info:simple_info prta output
+    let () = JPrintHtml.JCodePrinter.print_program ~info:simple_info prta output
 ~~~~~
 
 Note:
@@ -337,7 +337,7 @@ Or generate the *.html* files corresponding to *JBir* program:
 
 ~~~~~
     let output = "./pbir"
-    let () = JPrintHtml.print_jbir_program pbir output
+    let () = JPrintHtml.JBirPrinter.print_program pbir output
 ~~~~~
 
 Note:
@@ -455,7 +455,7 @@ If you don't want any html effect, the above function
 becomes very simple:
 
 ~~~~~
-    let inst_html program _ _ _ op =
+    let inst_html _program _ _ _ op =
       let inst =
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]

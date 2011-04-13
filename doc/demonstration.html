@@ -38,7 +38,7 @@
   raised.</p>
 
 <pre><code>    let outputdir = "./test"
-    let () = JPrintHtml.print_program prta outputdir;;
+    let () = JPrintHtml.JCodePrinter.print_program prta outputdir;;
 </code></pre>
 
 <p>You can open the file <strong>./test/Test.html</strong> with a web
@@ -57,5 +57,5 @@
 <p>To see how <em>JBir</em> representation looks like, we can generate
 the corresponding <strong>.html</strong> files.</p>
 
-<pre><code>    let () = JPrintHtml.print_jbir_program pbir output;;
+<pre><code>    let () = JPrintHtml.JBirPrinter.print_program pbir output;;
 </code></pre>

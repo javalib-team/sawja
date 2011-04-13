@@ -23,5 +23,8 @@ clean cleanall :
 
 cleandoc doc:
 	$(MAKE) -C src $@
-	$(MAKE) -C doc $@
 	$(RM) *~
+
+# Documentation for release (generate INSTALL and README)
+cleandocr docr:
+	$(MAKE) -C doc $@

@@ -203,7 +203,7 @@ sig
       information files for the interface or class [ioc] in the output
       directory [outputdir], given the plugin's information [info]. If
       [html] is given and true then string data in
-      {!plugin_info.p_infos} (only) must be valid html (between <div>
+      {!plugin_info}[.p_infos] (only) must be valid html (between <div>
       tags). @raise Invalid_argument if the name corresponding to
       [outputdir] is a file.*)
   val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
@@ -211,7 +211,7 @@ sig
   (** [print_program ?html info program outputdir] generates plugin's
       information files for the program [p] in the output directory
       [outputdir], given the plugin's information [info]. If [html] is
-      given and true then string data in {!plugin_info.p_infos} (only)
+      given and true then string data in {!plugin_info}[.p_infos] (only)
       must be valid html (between <div> tags). @raise Invalid_argument
       if the name corresponding to [outputdir] is a file. *)
   val print_program: ?html_info:bool -> expr plugin_info -> code program -> string -> unit

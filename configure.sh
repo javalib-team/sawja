@@ -15,6 +15,7 @@
 ###     
 ###     
 ### Copyright (c)2010 Florent Kirchner
+### Copyright (c)2010 Vincent Monfort
 ###     
 ### This program is free software: you can redistribute it and/or
 ### modify it under the terms of the GNU Lesser General Public License
@@ -48,8 +49,6 @@ FINDER=`which ocamlfind`
 RECODEBIN=`which recode`
 # The perl executable
 PERL=
-# The text-based web browser - for the doc generation
-LYNX=
 # The debug flag
 DEBUG=yes
 # The shared option flag
@@ -264,19 +263,6 @@ http://www.perl.org/get.html"
 fi
 
 #
-# Check browser
-#
-LYNX=`which lynx`
-if [ $? = 0 ]; then
-  msg "inf" "Lynx found at $LYNX"
-else
-  msg "err" "Lynx not found.
-
-Use your system's software packaging tools to install Lynx, or download it from:
-http://lynx.isc.org"
-fi
-
-#
 # Check for Javalib and Buddy.
 #
 JAVALIB=`$FINDER query javalib 2>/dev/null`
@@ -340,7 +326,7 @@ echo -n "  ."
 # Configuration variables
 echo "" >> $makeconfig
 echo "# Variables detected at configure-time" >> $makeconfig
-for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL LYNX RECODE DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
+for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL RECODE DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
   echo "$var=${!var}" >> $makeconfig
 done
 echo -n "."
