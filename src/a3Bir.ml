@@ -35,7 +35,6 @@ type virtual_call_kind =
 
 module InstrRep (Var:Cmn.VarSig) = 
 struct
-  type var_i = Var.var
 
   type basic_expr = 
     | Const of const
@@ -332,4 +331,64 @@ let transform ?(bcv=false) ?(ch_link=false) j_m j_code =
   let code = Bir.transform_addr3 ~bcv:bcv ~ch_link:ch_link j_m j_code in 
     bir2a3bir code
   
+module type InstrRepSig = 
+sig
+  
+  type vari
+    
+  include Cmn.VarSig with type var = vari
 
+  type basic_expr = 
+    | Const of const
+    | Var of value_type * vari
+	
+  type expr =
+    | BasicExpr of basic_expr
+    | Unop of unop * basic_expr
+    | Binop of binop * basic_expr * basic_expr
+    | Field of basic_expr * class_name * field_signature
+    | StaticField of class_name * field_signature
+	
+  type check = 
+    | CheckNullPointer of basic_expr
+    | CheckArrayBound of basic_expr * basic_expr
+    | CheckArrayStore of basic_expr * basic_expr
+    | CheckNegativeArraySize of basic_expr
+    | CheckCast of basic_expr * object_type
+    | CheckArithmetic of basic_expr
+    | CheckLink of jopcode
+
+  type instr =
+    | Nop
+    | AffectVar of vari * expr
+    | AffectArray of basic_expr * basic_expr * basic_expr
+    | AffectField of basic_expr * class_name * field_signature * basic_expr
+    | AffectStaticField of class_name * field_signature * expr
+    | Goto of int
+    | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * basic_expr * basic_expr ) * int
+    | Throw of basic_expr
+    | Return of basic_expr option
+    | New of vari * class_name * value_type list * (basic_expr list)
+	(* var :=  class (parameters) *)
+    | NewArray of vari * value_type * (basic_expr list)
+	(* var :=  value_type[e1]...[e2] *) 
+    | InvokeStatic of vari option * class_name * method_signature * basic_expr list
+    | InvokeVirtual of vari option * basic_expr * virtual_call_kind * method_signature * basic_expr list
+    | InvokeNonVirtual
+	of vari option * basic_expr * class_name * method_signature * basic_expr list
+    | MonitorEnter of basic_expr
+    | MonitorExit of basic_expr 
+    | MayInit of class_name
+    | Check of check 
+	
+  val type_of_basic_expr : basic_expr -> Javalib_pack.JBasics.value_type
+
+  val type_of_expr :  expr -> JBasics.value_type
+
+  val print_basic_expr : ?show_type:bool -> basic_expr -> string    
+
+  val print_expr : ?show_type:bool -> expr -> string
+    
+  val print_instr : ?show_type:bool -> instr -> string
+
+end

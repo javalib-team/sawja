@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Printer for Eclipse plugin for SAWJA *)
+(** Printer for SAWJA Eclipse plugin *)
 
 open Javalib_pack
 open JBasics

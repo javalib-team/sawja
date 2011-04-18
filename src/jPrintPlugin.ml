@@ -832,10 +832,145 @@ module JCodePrinter = Make(
 			 
   end)
 
+(* Common functions for JBir-like instruction representation (JBir and JBirSSA)*)
+module MakeBirInstrsFunctions (S : JBir.InstrRepSig) =
+struct
+
+  open JBir
+  open AdaptedASTGrammar
+
+
+  let find_ast_node_of_expr =
+    function 
+      | S.Const _ -> None
+      | S.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
+      | S.Binop (_,_,_) -> None
+      | S.Unop (JBir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
+      | S.Unop (JBir.Cast ot,_) -> Some (Expression(Cast ot))
+      | S.Unop (_,_) -> None
+      | S.Var (vt,var) -> 
+	  Some (Name (SimpleName (S.var_name_g var,Some vt)))
+      | S.Field (_,_,fs) 
+      | S.StaticField (_,fs) -> 
+	  Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
+
+  let find_ast_node =
+    function
+      | S.Goto _ 
+      | S.MayInit _ 
+      | S.Nop -> None
+      | S.AffectField (_,_,fs,_)
+      | S.AffectStaticField (_,fs,_) -> 
+	  Some ( Expression
+		   (Assignment 
+		      (SimpleName (fs_name fs,Some (fs_type fs)))))
+      | S.Ifd ((_cmp,_e1,_e2), _pc) -> 
+	  Some (Statement 
+		  If)
+      | S.Return _ -> 
+	  Some (Statement Return)
+      | S.Throw _ -> 
+	  Some (Statement Throw)
+      | S.AffectVar (v,e) -> 
+	  Some (Expression
+		  (Assignment 
+		     (SimpleName (S.var_name_g v,Some (S.type_of_expr e)))))
+      | S.MonitorEnter _e -> 
+	  Some (Statement
+		  (Synchronized true))
+      | S.MonitorExit _e -> 
+	  Some (Statement
+		  (Synchronized false))
+      | S.NewArray (_v,vt,_le) -> 
+	  Some (Expression
+		  (ArrayCreation vt))
+      | S.New (_v,cn,_vtl,_le) -> 
+	  Some (Expression
+		  (ClassInstanceCreation cn))
+      | S.AffectArray (_e1,_e2,e3) -> 
+	  Some (Expression (ArrayStore (Some (S.type_of_expr e3))))		  
+      | S.InvokeVirtual (_,_e,vk,ms,_le) ->
+	  begin
+	    match vk with
+		VirtualCall ot -> 
+		  Some (Expression
+			  (MethodInvocationVirtual (ot,ms)))
+	      | InterfaceCall cn -> 
+		  Some (Expression
+			  (MethodInvocationNonVirtual (cn,ms)))
+	  end
+      | S.InvokeStatic (_,cn,ms,_le) 
+      | S.InvokeNonVirtual (_,_,cn,ms,_le) -> 
+	  Some (Expression
+		  (MethodInvocationNonVirtual (cn,ms)))
+      | S.Check _ -> None
+end
+
+(* Common functions for JBir-like code (t) and exception representation (JBir and A3Bir)*)
+module MakeBirCodeExcFunctions (S : JBir.TSig) =
+struct
+
+  open AdaptedASTGrammar
+
+  let to_plugin_warning' jm pp_warn_map ast_of_i ast_of_e =
+    let get_precise_warn_generation code pc op lw msg =
+      let try_catch_or_finally _unit = 
+	let rec iter_handlers =
+	  function
+	      [] -> lw
+	    | eh::r -> 
+		if eh.S.e_handler = pc
+		then 
+		  match eh.S.e_catch_type with
+		      None -> PreciseLineWarning (msg,Statement Finally)
+		    | Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
+		else iter_handlers r
+	in
+	  iter_handlers code.S.exc_tbl
+      in
+	(match ast_of_i op with
+	     Some node -> PreciseLineWarning (msg,node)
+	   | None -> try_catch_or_finally ())
+    in
+      match jm with
+	  AbstractMethod _ -> pp_warn_map
+	| ConcreteMethod cm -> 
+	    begin
+	      match cm.cm_implementation with
+		  Native -> pp_warn_map
+		| Java laz -> let code = Lazy.force laz in
+		    Ptmap.mapi
+		      (fun pc ppwlist -> 
+			 let op = code.S.code.(pc) in
+			   List.map 
+			     (fun ppw -> 
+				match ppw with
+				    PreciseLineWarning _ -> ppw
+				  | LineWarning (msg,None) as lw -> 
+				      get_precise_warn_generation code pc op lw msg
+				  | LineWarning (msg,Some expr) as lw -> 
+				      (match ast_of_e expr with
+					   Some node -> PreciseLineWarning (msg,node)
+					 | None -> 
+					     get_precise_warn_generation code pc op lw msg)
+			     )
+			     ppwlist)
+		      pp_warn_map
+	    end
+
+
+  let inst_disp' printf pp code = 
+    printf code.S.code.(pp)
+
+  let get_source_line_number pp code =
+    S.get_source_line_number pp code
+
+
+end
+
 module JBirPrinter = Make(
   struct
     open JBir
-    open AdaptedASTGrammar
 
     type code = JBir.t
     type instr = JBir.instr
@@ -843,261 +978,183 @@ module JBirPrinter = Make(
 
     include JBirUtil
 
-    let get_source_line_number pp code =
-      JBir.get_source_line_number pp code
+    include MakeBirInstrsFunctions(struct include JBir type vari = JBir.var end)
 
-    let inst_disp pp code = 
-      JBir.print_instr code.JBir.code.(pp)
+    include MakeBirCodeExcFunctions
+	(struct 
+	   include JBir type var_e = JBir.var type instri = JBir.instr end)
+
+    let inst_disp = 
+      inst_disp' print_instr
 	
-    let find_ast_node_of_expr =
-      function 
-	| JBir.Const _ -> None
-	| JBir.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
-	| JBir.Binop (_,_,_) -> None
-	| JBir.Unop (JBir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
-	| JBir.Unop (JBir.Cast ot,_) -> Some (Expression(Cast ot))
-	| JBir.Unop (_,_) -> None
-	| JBir.Var (vt,var) -> 
-	    Some (Name (SimpleName (var_name_g var,Some vt)))
-	| JBir.Field (_,_,fs) 
-	| JBir.StaticField (_,fs) -> 
-	    Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
-
-    let find_ast_node =
-      function
-	 | JBir.Goto _ 
-	 | JBir.MayInit _ 
-	 | JBir.Nop -> None
-	 | JBir.AffectField (_,_,fs,_)
-	 | JBir.AffectStaticField (_,fs,_) -> 
-	     Some ( Expression
-		      (Assignment 
-			 (SimpleName (fs_name fs,Some (fs_type fs)))))
-	 | JBir.Ifd ((_cmp,_e1,_e2), _pc) -> 
-	     Some (Statement 
-		     If)
-	 | JBir.Return _ -> 
-	     Some (Statement Return)
-	 | JBir.Throw _ -> 
-	     Some (Statement Throw)
-	 | JBir.AffectVar (v,e) -> 
-	     Some (Expression
-		     (Assignment 
-			(SimpleName (JBir.var_name_g v,Some (JBir.type_of_expr e)))))
-	 | JBir.MonitorEnter _e -> 
-	     Some (Statement
-		     (Synchronized true))
-	 | JBir.MonitorExit _e -> 
-	     Some (Statement
-		     (Synchronized false))
-	 | JBir.NewArray (_v,vt,_le) -> 
-	     Some (Expression
-		     (ArrayCreation vt))
-	 | JBir.New (_v,cn,_vtl,_le) -> 
-	     Some (Expression
-		     (ClassInstanceCreation cn))
-	 | JBir.AffectArray (_e1,_e2,e3) -> 
-	     Some (Expression (ArrayStore (Some (JBir.type_of_expr e3))))		  
-	 | JBir.InvokeVirtual (_,_e,vk,ms,_le) ->
-	     begin
-	       match vk with
-		   VirtualCall ot -> 
-		     Some (Expression
-			     (MethodInvocationVirtual (ot,ms)))
-		 | InterfaceCall cn -> 
-		     Some (Expression
-			     (MethodInvocationNonVirtual (cn,ms)))
-	     end
-	 | JBir.InvokeStatic (_,cn,ms,_le) 
-	 | JBir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
-	     Some (Expression
-		     (MethodInvocationNonVirtual (cn,ms)))
-	 | JBir.Check _ -> None
-
-
-
     let to_plugin_warning jm pp_warn_map = 
-      let get_precise_warn_generation code pc op lw msg =
-	let try_catch_or_finally _unit = 
-	  let rec iter_handlers =
-	      function
-		  [] -> lw
-		| eh::r -> 
-		    if eh.e_handler = pc
-		    then 
-		      match eh.e_catch_type with
-			  None -> PreciseLineWarning (msg,Statement Finally)
-			| Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
-		    else iter_handlers r
-	  in
-	    iter_handlers code.exc_tbl
-	in
-	(match find_ast_node op with
-	     Some node -> PreciseLineWarning (msg,node)
-	   | None -> try_catch_or_finally ())
-      in
-	match jm with
-	    AbstractMethod _ -> pp_warn_map
-	  | ConcreteMethod cm -> 
-	      begin
-		match cm.cm_implementation with
-		    Native -> pp_warn_map
-		  | Java laz -> let code = Lazy.force laz in
-		      Ptmap.mapi
-			(fun pc ppwlist -> 
-			   let op = code.code.(pc) in
-			     List.map 
-			       (fun ppw -> 
-				  match ppw with
-				      PreciseLineWarning _ -> ppw
-				    | LineWarning (msg,None) as lw -> 
-					get_precise_warn_generation code pc op lw msg
-				    | LineWarning (msg,Some expr) as lw -> 
-					(match find_ast_node_of_expr expr with
-					     Some node -> PreciseLineWarning (msg,node)
-					   | None -> 
-					       get_precise_warn_generation code pc op lw msg)
-			       )
-			       ppwlist)
-			pp_warn_map
-	      end
+      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
+
   end)
+
+(* Common functions for A3Bir-like instruction representation (A3Bir and A3BirSSA)*)
+module MakeA3BirInstrsFunctions (S : A3Bir.InstrRepSig) =
+struct
+
+  open A3Bir
+  open AdaptedASTGrammar
+
+  let find_ast_node_of_expr =
+    function 
+      | S.BasicExpr(S.Var (vt,var)) -> 
+	  Some (Name (SimpleName (S.var_name_g var,Some vt)))
+      | S.BasicExpr(S.Const _) -> None
+      | S.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
+      | S.Binop (_,_,_) -> None
+      | S.Unop (A3Bir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
+      | S.Unop (A3Bir.Cast ot,_) -> Some (Expression(Cast ot))
+      | S.Unop (_,_) -> None
+      | S.Field (_,_,fs) 
+      | S.StaticField (_,fs) -> 
+	  Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
+
+  let find_ast_node =
+    function
+      | S.Goto _ 
+      | S.MayInit _ 
+      | S.Nop -> None
+      | S.AffectField (_,_,fs,_)
+      | S.AffectStaticField (_,fs,_) -> 
+	  Some ( Expression
+		   (Assignment 
+		      (SimpleName (fs_name fs,Some (fs_type fs)))))
+      | S.Ifd ((_cmp,_e1,_e2), _pc) -> 
+	  Some (Statement 
+		  If)
+      | S.Return _ -> 
+	  Some (Statement Return)
+      | S.Throw _ -> 
+	  Some (Statement Throw)
+      | S.AffectVar (v,e) -> 
+	  Some (Expression
+		  (Assignment 
+		     (SimpleName (S.var_name_g v,Some (S.type_of_expr e)))))
+      | S.MonitorEnter _e -> 
+	  Some (Statement
+		  (Synchronized true))
+      | S.MonitorExit _e -> 
+	  Some (Statement
+		  (Synchronized false))
+      | S.NewArray (_v,vt,_le) -> 
+	  Some (Expression
+		  (ArrayCreation vt))
+      | S.New (_v,cn,_vtl,_le) -> 
+	  Some (Expression
+		  (ClassInstanceCreation cn))
+      | S.AffectArray (_e1,_e2,e3) -> 
+	  Some (Expression (ArrayStore (Some (S.type_of_basic_expr e3))))
+      | S.InvokeVirtual (_,_e,vk,ms,_le) ->
+	  begin
+	    match vk with
+		VirtualCall ot -> 
+		  Some (Expression
+			  (MethodInvocationVirtual (ot,ms)))
+	      | InterfaceCall cn -> 
+		  Some (Expression
+			  (MethodInvocationNonVirtual (cn,ms)))
+	  end
+      | S.InvokeStatic (_,cn,ms,_le) 
+      | S.InvokeNonVirtual (_,_,cn,ms,_le) -> 
+	  Some (Expression
+		  (MethodInvocationNonVirtual (cn,ms)))
+      | S.Check _ -> None
+end
 
 module A3BirPrinter = Make(
   struct
 
     open A3Bir
-    open AdaptedASTGrammar
 
     type code = A3Bir.t
     type instr = A3Bir.instr
     type expr = A3Bir.expr
 
     include A3BirUtil
+
+    include MakeA3BirInstrsFunctions(struct include A3Bir type vari = A3Bir.var end)
       
-    let get_source_line_number pp code =
-      A3Bir.get_source_line_number pp code
-
-    let inst_disp pp code = 
-      A3Bir.print_instr code.A3Bir.code.(pp)
-	
-    let find_ast_node_of_expr =
-      function 
-	| A3Bir.BasicExpr(Var (vt,var)) -> 
-	    Some (Name (SimpleName (var_name_g var,Some vt)))
-	| A3Bir.BasicExpr(Const _) -> None
-	| A3Bir.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
-	| A3Bir.Binop (_,_,_) -> None
-	| A3Bir.Unop (A3Bir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
-	| A3Bir.Unop (A3Bir.Cast ot,_) -> Some (Expression(Cast ot))
-	| A3Bir.Unop (_,_) -> None
-	| A3Bir.Field (_,_,fs) 
-	| A3Bir.StaticField (_,fs) -> 
-	    Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
-
-    let find_ast_node =
-      function
-	| A3Bir.Goto _ 
-	| A3Bir.MayInit _ 
-	| A3Bir.Nop -> None
-	| A3Bir.AffectField (_,_,fs,_)
-	| A3Bir.AffectStaticField (_,fs,_) -> 
-	    Some ( Expression
-		     (Assignment 
-			(SimpleName (fs_name fs,Some (fs_type fs)))))
-	| A3Bir.Ifd ((_cmp,_e1,_e2), _pc) -> 
-	    Some (Statement 
-		    If)
-	| A3Bir.Return _ -> 
-	    Some (Statement Return)
-	| A3Bir.Throw _ -> 
-	    Some (Statement Throw)
-	| A3Bir.AffectVar (v,e) -> 
-	    Some (Expression
-		    (Assignment 
-		       (SimpleName (A3Bir.var_name_g v,Some (A3Bir.type_of_expr e)))))
-	| A3Bir.MonitorEnter _e -> 
-	    Some (Statement
-		    (Synchronized true))
-	| A3Bir.MonitorExit _e -> 
-	    Some (Statement
-		    (Synchronized false))
-	| A3Bir.NewArray (_v,vt,_le) -> 
-	    Some (Expression
-		    (ArrayCreation vt))
-	| A3Bir.New (_v,cn,_vtl,_le) -> 
-	    Some (Expression
-		    (ClassInstanceCreation cn))
-	| A3Bir.AffectArray (_e1,_e2,e3) -> 
-	    Some (Expression (ArrayStore (Some (A3Bir.type_of_basic_expr e3))))
-	| A3Bir.InvokeVirtual (_,_e,vk,ms,_le) ->
-	    begin
-	      match vk with
-		  VirtualCall ot -> 
-		    Some (Expression
-			    (MethodInvocationVirtual (ot,ms)))
-		| InterfaceCall cn -> 
-		    Some (Expression
-			    (MethodInvocationNonVirtual (cn,ms)))
-	    end
-	| A3Bir.InvokeStatic (_,cn,ms,_le) 
-	| A3Bir.InvokeNonVirtual (_,_,cn,ms,_le) -> 
-	    Some (Expression
-		    (MethodInvocationNonVirtual (cn,ms)))
-	| A3Bir.Check _ -> None
-
-
+    include MakeBirCodeExcFunctions
+	      (struct 
+		 include A3Bir type var_e = A3Bir.var type instri = A3Bir.instr end)
 
     let to_plugin_warning jm pp_warn_map = 
-      let get_precise_warn_generation code pc op lw msg =
-	let try_catch_or_finally _unit = 
-	  let rec iter_handlers =
-	    function
-		[] -> lw
-	      | eh::r -> 
-		  if eh.e_handler = pc
-		  then 
-		    match eh.e_catch_type with
-			None -> PreciseLineWarning (msg,Statement Finally)
-		      | Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
-		  else iter_handlers r
-	  in
-	    iter_handlers code.exc_tbl
-	in
-	  (match find_ast_node op with
-	       Some node -> PreciseLineWarning (msg,node)
-	     | None -> try_catch_or_finally ())
-      in
-	match jm with
-	    AbstractMethod _ -> pp_warn_map
-	  | ConcreteMethod cm -> 
-	      begin
-		match cm.cm_implementation with
-		    Native -> pp_warn_map
-		  | Java laz -> let code = Lazy.force laz in
-		      Ptmap.mapi
-			(fun pc ppwlist -> 
-			   let op = code.code.(pc) in
-			     List.map 
-			       (fun ppw -> 
-				  match ppw with
-				      PreciseLineWarning _ -> ppw
-				    | LineWarning (msg,None) as lw -> 
-					get_precise_warn_generation code pc op lw msg
-				    | LineWarning (msg,Some expr) as lw -> 
-					(match find_ast_node_of_expr expr with
-					     Some node -> PreciseLineWarning (msg,node)
-					   | None -> 
-					       get_precise_warn_generation code pc op lw msg)
-			       )
-			       ppwlist)
-			pp_warn_map
-	      end
+      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
+
+    let inst_disp = inst_disp' print_instr 
 
   end)
 
+(* Common functions for SSA-like code (t) and exception representation (JBirSSA and A3BirSSA)*)
+module MakeSSACodeExcFunctions (S : SsaBir.TSsaSig) =
+struct
+
+  open AdaptedASTGrammar
+
+  let to_plugin_warning' jm pp_warn_map ast_of_i ast_of_e =
+    let get_precise_warn_generation code pc op lw msg =
+      let try_catch_or_finally _unit = 
+	let rec iter_handlers =
+	  function
+	      [] -> lw
+	    | eh::r -> 
+		if eh.S.e_handler = pc
+		then 
+		  match eh.S.e_catch_type with
+		      None -> PreciseLineWarning (msg,Statement Finally)
+		    | Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
+		else iter_handlers r
+	in
+	  iter_handlers code.S.exc_tbl
+      in
+	(match ast_of_i op with
+	     Some node -> PreciseLineWarning (msg,node)
+	   | None -> try_catch_or_finally ())
+    in
+      match jm with
+	  AbstractMethod _ -> pp_warn_map
+	| ConcreteMethod cm -> 
+	    begin
+	      match cm.cm_implementation with
+		  Native -> pp_warn_map
+		| Java laz -> let code = Lazy.force laz in
+		    Ptmap.mapi
+		      (fun pc ppwlist -> 
+			 let op = code.S.code.(pc) in
+			   List.map 
+			     (fun ppw -> 
+				match ppw with
+				    PreciseLineWarning _ -> ppw
+				  | LineWarning (msg,None) as lw -> 
+				      get_precise_warn_generation code pc op lw msg
+				  | LineWarning (msg,Some expr) as lw -> 
+				      (match ast_of_e expr with
+					   Some node -> PreciseLineWarning (msg,node)
+					 | None -> 
+					     get_precise_warn_generation code pc op lw msg)
+			     )
+			     ppwlist)
+		      pp_warn_map
+	    end
+
+
+  let inst_disp' printf pp code = 
+    printf code.S.code.(pp)
+
+  let get_source_line_number pp code =
+    S.get_source_line_number pp code
+
+
+end
+
 module JBirSSAPrinter = Make(
   struct
+
+    open JBirSSA
 
     type code = JBirSSA.t
     type instr = JBirSSA.instr
@@ -1105,36 +1162,47 @@ module JBirSSAPrinter = Make(
 
     include JBirSSAUtil
       
-    let get_source_line_number pp code =
-      JBirSSA.get_source_line_number pp code
+    include MakeBirInstrsFunctions(struct include JBirSSA type vari = JBirSSA.var end)
 
-    let inst_disp pp code = 
-      JBirSSA.print_instr code.JBirSSA.code.(pp)
-	  
-    (* TODO: implements AST desc ... See how to be generic for all JBir
-       representations (we may have to define a common extern interface,
-       since we only have access to the functor)*)
-    let to_plugin_warning _ioc warn = warn
+    include MakeSSACodeExcFunctions
+	(struct include JBirSSA type var_t = JBirSSA.var 
+				type var_e = JBirSSA.var
+				type var_set = JBirSSA.VarSet.t
+				type instr_t = JBirSSA.instr
+	 end)
+
+   let inst_disp = 
+      inst_disp' print_instr
+	
+    let to_plugin_warning jm pp_warn_map = 
+      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
 
   end)
 
 module A3BirSSAPrinter = Make(
   struct
-
+    
+    open A3BirSSA
+        
     type code = A3BirSSA.t
     type instr = A3BirSSA.instr
     type expr = A3BirSSA.expr
 
     include A3BirSSAUtil
 
-    let get_source_line_number pp code =
-      A3BirSSA.get_source_line_number pp code
+    include MakeA3BirInstrsFunctions(struct include A3BirSSA type vari = A3BirSSA.var end)
+
+    include MakeSSACodeExcFunctions
+	(struct include A3BirSSA type var_t = A3BirSSA.var 
+				 type var_e = A3BirSSA.var 
+				 type var_set = A3BirSSA.VarSet.t
+				 type instr_t = A3BirSSA.instr
+	 end)
+
+   let inst_disp = 
+      inst_disp' print_instr
 	
-    let inst_disp pp code = 
-      A3BirSSA.print_instr code.A3BirSSA.code.(pp)
-    	
-    (* TODO: implements AST desc ... Same thing as JBirSSA ...*)
-    let to_plugin_warning _ioc warn = warn
+    let to_plugin_warning jm pp_warn_map = 
+      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
 
   end)
-

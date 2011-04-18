@@ -98,9 +98,27 @@ module Var : sig
 
 end
 
+(** Common exception signature depending on "variable" type*)
+module type ExceptionSig = 
+sig
+  type var_e
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : var_e
+  }
+
+  (** [print_handler exc] returns a string representation for
+      exception handler [exc]. *)
+  val print_handler : exception_handler -> string
+end
+
 (** Common exception type and functions depending on "variable" type *)
 module Exception : functor (Vars:VarSig) ->  
 sig
+  type var_e = Vars.var
   type exception_handler = {
     e_start : int;
     e_end : int;

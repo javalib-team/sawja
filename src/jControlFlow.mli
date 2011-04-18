@@ -204,7 +204,8 @@ val implements_interface_or_subinterface_transitively : 'a class_node ->
 
 (** {3 Access to instructions and navigation}*)
 
-(** Manipulation of generic program pointers *)
+(** Manipulation of generic program pointers (should not be used when
+    a specific code representation (JCode, JBir, etc.) is manipulated, use PP_* instead).*)
 module PP : sig
   type 'a t
   exception NoCode of (class_name * method_signature)
@@ -234,6 +235,7 @@ module PP : sig
   val hash : 'a t -> int
 end
 
+(** Common signature (corresponding to {!PP}) included in PP_* modules *)
 module type GenericPPSig = sig
   type code
   type t = code PP.t

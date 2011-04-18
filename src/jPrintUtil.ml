@@ -54,6 +54,12 @@ let gen_tag_attributes attributes =
     (List.map (fun (k,v) -> k ^ "=" ^ "\"" ^ v ^ "\"") attributes)
     
 let gen_opening_tag ?(iscustom=true) tagname attributes =      
+    let attributes = 
+    List.map
+      (fun (k,v) -> 
+	 replace_forb_xml_ch k, replace_forb_xml_ch v)
+      attributes
+  in
   let tag_attributes = (gen_tag_attributes attributes) in
     "<" ^ tagname
     ^ (if tag_attributes <> "" then " " else "")

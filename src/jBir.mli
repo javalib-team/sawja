@@ -531,3 +531,89 @@ module InstrRep (Var:Cmn.VarSig) : sig
   val print_expr: ?show_type:bool -> expr -> string
   val instr_jump_to: instr -> int option
 end
+
+(* instruction representation *)
+module type InstrRepSig = 
+sig
+  
+  type vari
+  
+  include Cmn.VarSig with type var = vari
+
+  type expr =
+    | Const of const
+    | Var of JBasics.value_type * vari
+    | Unop of unop * expr
+    | Binop of binop * expr * expr
+    | Field of expr * JBasics.class_name * JBasics.field_signature
+    | StaticField of JBasics.class_name * JBasics.field_signature
+
+  type check =
+    | CheckNullPointer of expr
+    | CheckArrayBound of expr * expr
+    | CheckArrayStore of expr * expr
+    | CheckNegativeArraySize of expr
+    | CheckCast of expr * JBasics.object_type
+    | CheckArithmetic of expr
+    | CheckLink of JCode.jopcode
+
+  type instr =
+    | Nop
+    | AffectVar of vari * expr
+    | AffectArray of expr * expr * expr
+    | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
+    | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
+    | Goto of int
+    | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
+    | Throw of expr
+    | Return of expr option
+    | New of vari * JBasics.class_name * JBasics.value_type list * (expr list)
+    | NewArray of vari * JBasics.value_type * (expr list)
+    | InvokeStatic
+	of vari option * JBasics.class_name * JBasics.method_signature * expr list
+    | InvokeVirtual
+	of vari option * expr * virtual_call_kind * JBasics.method_signature * expr list
+    | InvokeNonVirtual
+	of vari option * expr * JBasics.class_name * JBasics.method_signature * expr list
+    | MonitorEnter of expr
+    | MonitorExit of expr
+    | MayInit of JBasics.class_name
+    | Check of check
+
+  val type_of_expr :  expr -> JBasics.value_type
+
+  val print_expr : ?show_type:bool -> expr -> string
+
+  val print_instr : ?show_type:bool -> instr -> string
+
+end
+
+module type TSig  =
+sig
+
+  type var
+
+  type instri
+
+  include Cmn.ExceptionSig with type var_e = var
+
+  type t = {
+    vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
+    params : (JBasics.value_type * var) list;
+    code : instri array;
+    exc_tbl : exception_handler list;
+    line_number_table : (int * int) list option;
+    pc_bc2ir : int Ptmap.t;
+    pc_ir2bc : int array
+  }
+
+  val jump_target : t -> bool array
+    
+  val get_source_line_number : int -> t -> int option
+
+  val exception_edges : t -> (int * exception_handler) list
+
+  val print : t -> string list
+
+end
+

@@ -118,8 +118,23 @@ struct
 
 end
 
+module type ExceptionSig = 
+sig
+  type var_e
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : var_e
+  }
+
+  val print_handler : exception_handler -> string
+end
+
 module Exception (Var_e: VarSig) = struct
   (* Exceptions *)
+  type var_e = Var_e.var
   type exception_handler = {
     e_start : int;
     e_end : int;

@@ -39,6 +39,11 @@ val var_orig : var -> bool
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
 
+
+(** [var_name_debug v] returns, if possible, the original variable name of [v], 
+    if the initial class was compiled using debug information. *)
+val var_name_debug : var -> string option
+
 (** [var_name_g v] returns a string representation of the variable [v]. 
     If the initial class was compiled using debug information, original 
     variable names are build on this information. It is equivalent to

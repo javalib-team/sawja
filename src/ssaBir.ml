@@ -192,10 +192,10 @@ end
 
 module T (Var:VarSig) (Instr:Bir.InstrSig) =
 struct
-  include Cmn.Exception (Var)
   type var_t = Var.var
-  type var_set = Var.VarSet.t
   type instr_t = Instr.instr
+  type var_set = Var.VarSet.t
+  include Cmn.Exception (Var)
   type phi_node = {
     def : Var.var;
     use : Var.var array;
@@ -311,7 +311,9 @@ sig
   type var_t
   type var_set
   type instr_t
-  type exception_handler
+  
+  include Cmn.ExceptionSig with type var_e = var_t
+
   type phi_node = {
     def : var_t;
     (** The variable defined in the phi node*)
@@ -323,6 +325,7 @@ sig
     (** Set of used variable in the phi node (no information on
 	predecessor program point for a used variable)*)
   }
+
   type t = {
     vars : var_t array;  
     (** All variables that appear in the method. [vars.(i)] is the variable of
@@ -352,6 +355,32 @@ sig
     pc_ir2bc : int array; 
     (** map from ir code line to bytecode code line *)
   }  
+
+  val jump_target : t -> bool array
+
+  (** [print_phi_node phi] returns a string representation for phi node [phi]. *)
+  val print_phi_node : ?phi_simpl:bool -> phi_node -> string
+
+  (** [print_phi_nodes phi_list] returns a string representation for phi nodes 
+      [phi_list]. *)
+  val print_phi_nodes : ?phi_simpl:bool -> phi_node list -> string
+
+  (** [print c] returns a list of string representations for instruction of [c]
+      (one string for each program point of the code [c]). *)
+  val print : ?phi_simpl:bool -> t -> string list
+    
+  (** [exception_edges m] returns a list of edges [(i,e);...] where
+      [i] is an instruction index in [m] and [e] is a handler whose
+      range contains [i]. *)
+  val exception_edges :  t -> (int * exception_handler) list
+
+  (** [get_source_line_number pc m] returns the source line number corresponding
+      the program point [pp] of the method code [m].  The line number give a rough
+      idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
+      representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
+  val get_source_line_number : int -> t -> int option
+
+
 end 
 
 
