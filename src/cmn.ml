@@ -162,6 +162,13 @@ module Exception (Var_e: VarSig) = struct
       (Var_e.var_name_g exc.e_catch_var)  
 end
 
+module type InstrSig = 
+  sig
+    type instr
+    val print_instr: ?show_type:bool -> instr -> string
+    val instr_jump_to: instr -> int option
+  end
+
 (* Common types and functions that does not depend on variables for
    all IRS*)
 module Common = struct

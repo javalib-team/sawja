@@ -19,12 +19,13 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Common code for intermediate representations JBir and A3Bir.*)
+(** Only for internal purpose: Common code for intermediate
+    representations JBir and A3Bir.*)
 
 open Javalib_pack
 open JBasics
 
-(** Common "variable" type and functions signature for JBir and A3Bir that could be used for functors depending on variable type.*)
+(** Common "variable" type and functions signature for all IR representations that could be used for functors depending on variable type.*)
 module type VarSig = 
 sig
   type var
@@ -129,6 +130,14 @@ sig
   val exception_edges': 'a array -> exception_handler list -> (int * exception_handler) list
   val print_handler : exception_handler -> string
 end
+
+(**Common representation of instructions*)
+module type InstrSig = 
+  sig
+    type instr
+    val print_instr: ?show_type:bool -> instr -> string
+    val instr_jump_to: instr -> int option
+  end
 
 (** Common types and functions that does not depend on "variable" type
     for all IRS *)

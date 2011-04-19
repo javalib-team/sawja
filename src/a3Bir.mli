@@ -25,20 +25,7 @@ open Javalib_pack
 
 (** {2 Language} *)
 
-(** {3 Expressions} *)
-
-(** Constants *)
-type const = [
-  | `ANull
-  | `Int of int32
-  | `Long of int64
-  | `Float of float
-  | `Double of float
-  | `Byte of int
-  | `Short of int
-  | `String of JBasics.jstr
-  | `Class of JBasics.object_type
-]
+(** {3 Variables} *)
 
 (** Abstract data type for variables *)
 type var
@@ -49,9 +36,6 @@ val var_equal : var -> var -> bool
 (** [var_orig v] is [true] if and only if the variable [v] was already used at
     bytecode level. *)
 val var_orig : var -> bool
-
-(** Used only for internal transformations. *)
-val var_ssa : var -> bool
 
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
@@ -71,6 +55,31 @@ val bc_num : var -> int option
 
 (** [index v] returns the hash value of the given variable. *)
 val index : var -> int
+
+
+(** This module allows to build efficient sets of [var] values. *)
+module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+
+(** This module allows to build maps of elements indexed by [var] values. *)
+module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
+(** Used only for internal transformations. *)
+val var_ssa : var -> bool
+
+(** {3 Expressions} *)
+
+(** Constants *)
+type const = [
+  | `ANull
+  | `Int of int32
+  | `Long of int64
+  | `Float of float
+  | `Double of float
+  | `Byte of int
+  | `Short of int
+  | `String of JBasics.jstr
+  | `Class of JBasics.object_type
+]
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
@@ -333,14 +342,6 @@ exception Bad_stack
     multi-array of dimension zero. *)
 exception Bad_Multiarray_dimension
 
-(** {2 Containers} *)
-
-(** This module allows to build efficient sets of [var] values. *)
-module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-
-(** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
-
 (** {2 Only used for internal purpose} *)
 
 
@@ -465,17 +466,16 @@ module InstrRep (Var:Cmn.VarSig) : sig
   
 end
 
-  
-module type InstrRepSig = 
+(** Common signature for instructions of A3Bir and A3BirSSA representations*)  
+module type InstrSig = 
 sig
   open JBasics
-  type vari
-    
-  include Cmn.VarSig with type var = vari
+
+  include Cmn.VarSig
 
   type basic_expr = 
     | Const of const
-    | Var of value_type * vari
+    | Var of value_type * var
 	
   type expr =
     | BasicExpr of basic_expr
@@ -495,7 +495,7 @@ sig
 
   type instr =
     | Nop
-    | AffectVar of vari * expr
+    | AffectVar of var * expr
     | AffectArray of basic_expr * basic_expr * basic_expr
     | AffectField of basic_expr * class_name * field_signature * basic_expr
     | AffectStaticField of class_name * field_signature * expr
@@ -503,14 +503,14 @@ sig
     | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * basic_expr * basic_expr ) * int
     | Throw of basic_expr
     | Return of basic_expr option
-    | New of vari * class_name * value_type list * (basic_expr list)
+    | New of var * class_name * value_type list * (basic_expr list)
 	(* var :=  class (parameters) *)
-    | NewArray of vari * value_type * (basic_expr list)
+    | NewArray of var * value_type * (basic_expr list)
 	(* var :=  value_type[e1]...[e2] *) 
-    | InvokeStatic of vari option * class_name * method_signature * basic_expr list
-    | InvokeVirtual of vari option * basic_expr * virtual_call_kind * method_signature * basic_expr list
+    | InvokeStatic of var option * class_name * method_signature * basic_expr list
+    | InvokeVirtual of var option * basic_expr * virtual_call_kind * method_signature * basic_expr list
     | InvokeNonVirtual
-	of vari option * basic_expr * class_name * method_signature * basic_expr list
+	of var option * basic_expr * class_name * method_signature * basic_expr list
     | MonitorEnter of basic_expr
     | MonitorExit of basic_expr 
     | MayInit of class_name
@@ -527,3 +527,6 @@ sig
   val print_instr : ?show_type:bool -> instr -> string
 
 end
+
+(** Common signature for code of JBir and A3Bir representations*)
+module type CodeSig  = JBir.CodeSig

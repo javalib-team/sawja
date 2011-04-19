@@ -25,10 +25,7 @@ open Javalib_pack
 
 (** {2 Language} *)
 
-(** {3 Expressions} *)
-
-(** Constants *)
-type const = JCode.jconst
+(** {3 Variables} *)
 
 (** Abstract data type for variables *)
 type var
@@ -39,9 +36,6 @@ val var_equal : var -> var -> bool
 (** [var_orig v] is [true] if and only if the variable [v] was already used at
     bytecode level. *)
 val var_orig : var -> bool
-
-(** Used only for internal transformations. *)
-val var_ssa : var -> bool
 
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
@@ -61,6 +55,20 @@ val bc_num : var -> int option
 
 (** [index v] returns the hash value of the given variable. *)
 val index : var -> int
+
+(** This module allows to build efficient sets of [var] values. *)
+module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+
+(** This module allows to build maps of elements indexed by [var] values. *)
+module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
+(** Used only for internal transformations. *)
+val var_ssa : var -> bool
+
+(** {3 Expressions} *)
+
+(** Constants *)
+type const = JCode.jconst
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
@@ -364,17 +372,7 @@ exception Bad_Multiarray_dimension
   (** [Bad_Multiarray_dimension] is raise when attempting to transforming a
       multi array of dimension zero. *)
 
-(** {2 Containers} *)
-
-(** This module allows to build efficient sets of [var] values. *)
-module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-
-(** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
-
-
 (** {2 Only used for internal purpose} *)
-
 
 module InstrRep (Var:Cmn.VarSig) : sig
 
@@ -532,17 +530,15 @@ module InstrRep (Var:Cmn.VarSig) : sig
   val instr_jump_to: instr -> int option
 end
 
-(* instruction representation *)
-module type InstrRepSig = 
+(** Common signature for instructions of JBir and JBirSSA representations*)
+module type InstrSig = 
 sig
   
-  type vari
-  
-  include Cmn.VarSig with type var = vari
+  include Cmn.VarSig
 
   type expr =
     | Const of const
-    | Var of JBasics.value_type * vari
+    | Var of JBasics.value_type * var
     | Unop of unop * expr
     | Binop of binop * expr * expr
     | Field of expr * JBasics.class_name * JBasics.field_signature
@@ -559,7 +555,7 @@ sig
 
   type instr =
     | Nop
-    | AffectVar of vari * expr
+    | AffectVar of var * expr
     | AffectArray of expr * expr * expr
     | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
     | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
@@ -567,14 +563,14 @@ sig
     | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
     | Throw of expr
     | Return of expr option
-    | New of vari * JBasics.class_name * JBasics.value_type list * (expr list)
-    | NewArray of vari * JBasics.value_type * (expr list)
+    | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
+    | NewArray of var * JBasics.value_type * (expr list)
     | InvokeStatic
-	of vari option * JBasics.class_name * JBasics.method_signature * expr list
+	of var option * JBasics.class_name * JBasics.method_signature * expr list
     | InvokeVirtual
-	of vari option * expr * virtual_call_kind * JBasics.method_signature * expr list
+	of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
     | InvokeNonVirtual
-	of vari option * expr * JBasics.class_name * JBasics.method_signature * expr list
+	of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
     | MonitorEnter of expr
     | MonitorExit of expr
     | MayInit of JBasics.class_name
@@ -588,24 +584,36 @@ sig
 
 end
 
-module type TSig  =
+(** Common signature for code of JBir and A3Bir representations*)
+module type CodeSig  =
 sig
 
   type var
 
-  type instri
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 
-  include Cmn.ExceptionSig with type var_e = var
+  type instr
+
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : JBasics.class_name option;
+    e_catch_var : var
+  }
 
   type t = {
     vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
     params : (JBasics.value_type * var) list;
-    code : instri array;
+    code : instr array;
     exc_tbl : exception_handler list;
     line_number_table : (int * int) list option;
     pc_bc2ir : int Ptmap.t;
     pc_ir2bc : int array
   }
+
+  val print_handler : exception_handler -> string
 
   val jump_target : t -> bool array
     

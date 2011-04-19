@@ -103,7 +103,7 @@ module type IRSig = sig
       range contains [i]. *)
   val exception_edges :  t -> (int * exception_handler) list
 
-  module InstrRep : functor(Var : Cmn.VarSig) -> Bir.InstrSig
+  module InstrRep : functor(Var : Cmn.VarSig) -> Cmn.InstrSig
 
 end
 
@@ -190,7 +190,7 @@ sig
   module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = int * (ir_var * int)
 end
 
-module T (Var:VarSig) (Instr:Bir.InstrSig) =
+module T (Var:VarSig) (Instr:Cmn.InstrSig) =
 struct
   type var_t = Var.var
   type instr_t = Instr.instr
@@ -848,3 +848,4 @@ struct
       }
 
 end
+

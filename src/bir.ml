@@ -27,14 +27,6 @@ open JCode
 
 include Cmn.Common
 
-
-module type InstrSig = 
-  sig
-    type instr
-    val print_instr: ?show_type:bool -> instr -> string
-    val instr_jump_to: instr -> int option
-  end
-
 type virtual_call_kind =
   | VirtualCall of object_type
   | InterfaceCall of JBasics.class_name
@@ -231,7 +223,7 @@ struct
 end
 
 (* code representation*)
-module T (Var:Cmn.VarSig) (Instr:InstrSig) 
+module T (Var:Cmn.VarSig) (Instr:Cmn.InstrSig) 
   =
   struct
     include Cmn.Exception (Var)
@@ -2418,16 +2410,14 @@ module AgregatBool = struct
 end
 
 (* instruction representation common for all code representations based on JBir (JBirSSA) *)
-module type InstrRepSig = 
+module type InstrSig = 
 sig
 
-  type vari
-
-  include Cmn.VarSig with type var = vari
+  include Cmn.VarSig
 
   type expr =
     | Const of const
-    | Var of JBasics.value_type * vari
+    | Var of JBasics.value_type * var
     | Unop of unop * expr
     | Binop of binop * expr * expr
     | Field of expr * JBasics.class_name * JBasics.field_signature
@@ -2444,7 +2434,7 @@ sig
 
   type instr =
     | Nop
-    | AffectVar of vari * expr
+    | AffectVar of var * expr
     | AffectArray of expr * expr * expr
     | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
     | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
@@ -2452,14 +2442,14 @@ sig
     | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
     | Throw of expr
     | Return of expr option
-    | New of vari * JBasics.class_name * JBasics.value_type list * (expr list)
-    | NewArray of vari * JBasics.value_type * (expr list)
+    | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
+    | NewArray of var * JBasics.value_type * (expr list)
     | InvokeStatic
-	of vari option * JBasics.class_name * JBasics.method_signature * expr list
+	of var option * JBasics.class_name * JBasics.method_signature * expr list
     | InvokeVirtual
-	of vari option * expr * virtual_call_kind * JBasics.method_signature * expr list
+	of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
     | InvokeNonVirtual
-	of vari option * expr * JBasics.class_name * JBasics.method_signature * expr list
+	of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
     | MonitorEnter of expr
     | MonitorExit of expr
     | MayInit of JBasics.class_name
@@ -2474,24 +2464,35 @@ sig
 end
 
 
-module type TSig  =
+module type CodeSig  =
 sig
 
   type var
 
-  type instri
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 
-  include Cmn.ExceptionSig with type var_e = var
+  type instr
+
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : class_name option;
+    e_catch_var : var
+  }
 
   type t = {
     vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
     params : (JBasics.value_type * var) list;
-    code : instri array;
+    code : instr array;
     exc_tbl : exception_handler list;
     line_number_table : (int * int) list option;
     pc_bc2ir : int Ptmap.t;
     pc_ir2bc : int array
   }
+
+  val print_handler : exception_handler -> string
 
   val jump_target : t -> bool array
     

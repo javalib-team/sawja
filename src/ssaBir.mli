@@ -104,7 +104,7 @@ module type IRSig = sig
 
   (** functor that allows to have the same instruction representation
       with different "variable" type *)
-  module InstrRep : functor(Var : Cmn.VarSig) -> Bir.InstrSig
+  module InstrRep : functor(Var : Cmn.VarSig) -> Cmn.InstrSig
 
 end
 
@@ -212,7 +212,7 @@ end
 
 (** Functor to create code representation from SSA "variable" and "instruction" *)
 module T (Var : VarSig) 
-  (Instr : Bir.InstrSig) 
+  (Instr : Cmn.InstrSig) 
   : sig
     type var_t = Var.var
     type instr_t = Instr.instr

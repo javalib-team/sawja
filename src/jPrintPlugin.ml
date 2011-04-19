@@ -833,7 +833,7 @@ module JCodePrinter = Make(
   end)
 
 (* Common functions for JBir-like instruction representation (JBir and JBirSSA)*)
-module MakeBirInstrsFunctions (S : JBir.InstrRepSig) =
+module MakeBirInstrsFunctions (S : JBir.InstrSig) =
 struct
 
   open JBir
@@ -907,7 +907,7 @@ struct
 end
 
 (* Common functions for JBir-like code (t) and exception representation (JBir and A3Bir)*)
-module MakeBirCodeExcFunctions (S : JBir.TSig) =
+module MakeBirCodeExcFunctions (S : JBir.CodeSig) =
 struct
 
   open AdaptedASTGrammar
@@ -978,11 +978,9 @@ module JBirPrinter = Make(
 
     include JBirUtil
 
-    include MakeBirInstrsFunctions(struct include JBir type vari = JBir.var end)
+    include MakeBirInstrsFunctions(JBir)
 
-    include MakeBirCodeExcFunctions
-	(struct 
-	   include JBir type var_e = JBir.var type instri = JBir.instr end)
+    include MakeBirCodeExcFunctions(JBir)
 
     let inst_disp = 
       inst_disp' print_instr
@@ -993,7 +991,7 @@ module JBirPrinter = Make(
   end)
 
 (* Common functions for A3Bir-like instruction representation (A3Bir and A3BirSSA)*)
-module MakeA3BirInstrsFunctions (S : A3Bir.InstrRepSig) =
+module MakeA3BirInstrsFunctions (S : A3Bir.InstrSig) =
 struct
 
   open A3Bir
@@ -1076,11 +1074,9 @@ module A3BirPrinter = Make(
 
     include A3BirUtil
 
-    include MakeA3BirInstrsFunctions(struct include A3Bir type vari = A3Bir.var end)
+    include MakeA3BirInstrsFunctions(A3Bir)
       
-    include MakeBirCodeExcFunctions
-	      (struct 
-		 include A3Bir type var_e = A3Bir.var type instri = A3Bir.instr end)
+    include MakeBirCodeExcFunctions(A3Bir)
 
     let to_plugin_warning jm pp_warn_map = 
       to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
@@ -1090,7 +1086,7 @@ module A3BirPrinter = Make(
   end)
 
 (* Common functions for SSA-like code (t) and exception representation (JBirSSA and A3BirSSA)*)
-module MakeSSACodeExcFunctions (S : SsaBir.TSsaSig) =
+module MakeSSACodeExcFunctions (S : JBirSSA.CodeSig) =
 struct
 
   open AdaptedASTGrammar
@@ -1162,16 +1158,11 @@ module JBirSSAPrinter = Make(
 
     include JBirSSAUtil
       
-    include MakeBirInstrsFunctions(struct include JBirSSA type vari = JBirSSA.var end)
+    include MakeBirInstrsFunctions(JBirSSA)
 
-    include MakeSSACodeExcFunctions
-	(struct include JBirSSA type var_t = JBirSSA.var 
-				type var_e = JBirSSA.var
-				type var_set = JBirSSA.VarSet.t
-				type instr_t = JBirSSA.instr
-	 end)
+    include MakeSSACodeExcFunctions(JBirSSA)
 
-   let inst_disp = 
+    let inst_disp = 
       inst_disp' print_instr
 	
     let to_plugin_warning jm pp_warn_map = 
@@ -1190,16 +1181,11 @@ module A3BirSSAPrinter = Make(
 
     include A3BirSSAUtil
 
-    include MakeA3BirInstrsFunctions(struct include A3BirSSA type vari = A3BirSSA.var end)
+    include MakeA3BirInstrsFunctions(A3BirSSA)
 
-    include MakeSSACodeExcFunctions
-	(struct include A3BirSSA type var_t = A3BirSSA.var 
-				 type var_e = A3BirSSA.var 
-				 type var_set = A3BirSSA.VarSet.t
-				 type instr_t = A3BirSSA.instr
-	 end)
+    include MakeSSACodeExcFunctions(A3BirSSA)
 
-   let inst_disp = 
+    let inst_disp = 
       inst_disp' print_instr
 	
     let to_plugin_warning jm pp_warn_map = 

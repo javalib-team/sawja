@@ -213,3 +213,9 @@ let transform_from_a3bir = SsaA3Bir.transform_from_ir
 
 let transform ?(bcv=false) ?(ch_link=false) cm code = 
   SsaA3Bir.transform_from_ir (A3Bir.transform ~bcv:bcv ~ch_link:ch_link cm code)
+
+(** Common signature for instructions of ABir and ABirSSA representations*)
+module type InstrSig = A3Bir.InstrSig
+
+(** Common signature for code of JBirSSA and A3BirSSA representations*)
+module type CodeSig = JBirSSA.CodeSig

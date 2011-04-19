@@ -344,3 +344,10 @@ val transform :
 
 (** See {!A3Bir} Exceptions section*)
 
+(** {2 Only used for internal purpose} *)
+
+(** Common signature for instructions of ABir and ABirSSA representations*)
+module type InstrSig = A3Bir.InstrSig
+
+(** Common signature for code of JBirSSA and A3BirSSA representations*)
+module type CodeSig = JBirSSA.CodeSig

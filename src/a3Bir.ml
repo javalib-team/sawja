@@ -331,16 +331,14 @@ let transform ?(bcv=false) ?(ch_link=false) j_m j_code =
   let code = Bir.transform_addr3 ~bcv:bcv ~ch_link:ch_link j_m j_code in 
     bir2a3bir code
   
-module type InstrRepSig = 
+module type InstrSig = 
 sig
   
-  type vari
-    
-  include Cmn.VarSig with type var = vari
+  include Cmn.VarSig
 
   type basic_expr = 
     | Const of const
-    | Var of value_type * vari
+    | Var of value_type * var
 	
   type expr =
     | BasicExpr of basic_expr
@@ -360,7 +358,7 @@ sig
 
   type instr =
     | Nop
-    | AffectVar of vari * expr
+    | AffectVar of var * expr
     | AffectArray of basic_expr * basic_expr * basic_expr
     | AffectField of basic_expr * class_name * field_signature * basic_expr
     | AffectStaticField of class_name * field_signature * expr
@@ -368,14 +366,14 @@ sig
     | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * basic_expr * basic_expr ) * int
     | Throw of basic_expr
     | Return of basic_expr option
-    | New of vari * class_name * value_type list * (basic_expr list)
+    | New of var * class_name * value_type list * (basic_expr list)
 	(* var :=  class (parameters) *)
-    | NewArray of vari * value_type * (basic_expr list)
+    | NewArray of var * value_type * (basic_expr list)
 	(* var :=  value_type[e1]...[e2] *) 
-    | InvokeStatic of vari option * class_name * method_signature * basic_expr list
-    | InvokeVirtual of vari option * basic_expr * virtual_call_kind * method_signature * basic_expr list
+    | InvokeStatic of var option * class_name * method_signature * basic_expr list
+    | InvokeVirtual of var option * basic_expr * virtual_call_kind * method_signature * basic_expr list
     | InvokeNonVirtual
-	of vari option * basic_expr * class_name * method_signature * basic_expr list
+	of var option * basic_expr * class_name * method_signature * basic_expr list
     | MonitorEnter of basic_expr
     | MonitorExit of basic_expr 
     | MayInit of class_name
@@ -392,3 +390,5 @@ sig
   val print_instr : ?show_type:bool -> instr -> string
 
 end
+
+module type CodeSig  = JBir.CodeSig
