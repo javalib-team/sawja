@@ -17,8 +17,13 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(** ArgPlugin is a wrapper to module Arg that normalize arguments for
+    the Sawja's Eclipse Plugin.*)
 
-(** ArgPlugin is a wrapper to module Arg that normalize arguments for Sawja's Eclipse Plugin*)
+(** ArgPlugin is a wrapper to module Arg that normalize arguments for
+    the Sawja's Eclipse Plugin. The final executable must use
+    ArgPlugin to could be "installed" and executed by the Sawja's
+    Eclipse Plugin.*)
 
 (** Adapted version of Arg.spec*)
 type spec = 
@@ -48,8 +53,8 @@ type usage_msg = string
 type analysis = string * string
 
 (** Output path of XML data generated for the
-plugin by {!JPrintPlugin.PluginPrinter.print_class} or
-{!JPrintPlugin.PluginPrinter.print_program}*)
+plugin by {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_class} or
+{!JPrintPlugin.NewCodePrinter.PluginPrinter.print_program}*)
 type plugin_output = 
     PluginOutput of (string * (string -> unit))
       (** [PluginOutput (key, f)] with key the argument name for this

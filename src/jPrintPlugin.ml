@@ -67,633 +67,630 @@ let method_sig_desc ms =
       (ms_args ms))
   ^(")"^JDumpBasics.rettype2shortstring (ms_rtype ms))
 
-
-module AdaptedASTGrammar = 
-struct
-  type identifier = 
-      SimpleName of string * value_type option
-	(** It could be a variable identifier, field name, class name,
-	  etc. Only use the shortest name possible (no package name
-	  before class name, no class name before a field name, etc.).*)
-  type expression = 
-      (*| NullLiteral 
-	| StringLiteral of string
-	| TypeLiteral of identifier
-	| OtherLiteral of float*)
-      (* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
-    | Assignment of identifier
-	(** Identifier must be the identifier of the left_side of
-	    assignment (field's name or variable's name)*)
-    | ClassInstanceCreation of class_name
-    | ArrayCreation of value_type
-    | MethodInvocationNonVirtual of class_name * method_signature (* ms ? *)
-    | MethodInvocationVirtual of object_type * method_signature 
-    | ArrayAccess of value_type option(* Ok if a[][] we could not know, optimistic (only one tab access on a line ?)*)
-    | ArrayStore of value_type option(* It will be searched only in left_side of assignements*)
-    | InstanceOf of object_type
-    | Cast of object_type
-	
-  type statement = 
-      If (*of InfixExpr option *) (* => same reason than for infix expr*)
-	(** Includes all If 'like' statements (If, For, While, ConditionnalExpr, etc.) *)
-    | Catch of class_name (*type given by handlers table*)
-    | Finally
-    | Switch 
-    | Synchronized of bool(* ?Monitor exit corresponds to end parenthisis...*)
-    | Return
-    | Throw
-	(*| AssertStat (*How to find them in bytecode: creation of a field
-	  in class + creation of exception to throw*)*)
-  type node_unit = 
-      Statement of statement 
-    | Expression of expression 
-    | Name of identifier
-
-  let ot2attr ot = 
-    (wvtype,JPrint.object_type ~jvm:true ot)
-
-  let vt_opt2attrs = 
-    function
-	None -> []
-      | Some vt -> [wvtype,JPrint.value_type ~jvm:true vt]
-
-  let ast_node2attributes = 
-    function
-	Statement st -> 
-	  (match st with
-	       If -> [wastnode,"If"]
-	     | Catch cn -> [(wastnode,"Catch");(wcname,cn_name cn)]
-	     | Finally -> [wastnode,"Finally"]
-	     | Switch -> [wastnode,"Switch"]
-	     | Synchronized enterb -> [(wastnode,"Synchronized");(wsenter,string_of_bool enterb)]
-	     | Return -> [wastnode,"Return"]
-	     | Throw -> [wastnode,"Throw"])
-      | Expression e -> 
-	  (match e with
-	    | Assignment id -> 
-		let id_attrs = 
-		  match id with
-		      SimpleName (name, vt_opt) -> 
-			(wvname,name)::(vt_opt2attrs vt_opt)
-		in
-		  (wastnode,"Assignment")::id_attrs
-	    | ClassInstanceCreation cn -> [(wastnode,"ClassInstanceCreation");(wcname,cn_name cn)]
-	    | ArrayCreation vt -> (wastnode,"ArrayCreation")::(vt_opt2attrs (Some vt))
-	    | MethodInvocationNonVirtual (cn,ms) -> [(wastnode,"MethodInvocationNonVirtual"); (wcname, cn_name cn);
-						(wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
-	    | MethodInvocationVirtual (ot,ms) -> [(wastnode,"MethodInvocationVirtual"); (ot2attr ot);
-						(wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
-	    | ArrayAccess vt_opt -> (wastnode,"ArrayAccess")::(vt_opt2attrs vt_opt)
-	    | ArrayStore vt_opt -> (wastnode,"ArrayStore")::(vt_opt2attrs vt_opt)
-	    | InstanceOf ot -> [(wastnode,"InstanceOf");(ot2attr ot)]
-	    | Cast ot -> [(wastnode,"Cast");(ot2attr ot)])
-      | Name id -> 
-	  (match id with
-	       SimpleName (name,vt_opt) -> 
-		 (wastnode,"SimpleName")::(wvname,name)::(vt_opt2attrs vt_opt))
-end
-
 type method_info = 
   | MethodSignature of string
   | Argument of int * string
   | Return of string
   | This of string
 
-type 'a warning_pp = 
-    (*line * description *)
-    LineWarning of string * 'a option
-      (* idem + AST information ... *)
-  | PreciseLineWarning of string * AdaptedASTGrammar.node_unit
+type 'a warning_pp = string * 'a option
 
 type 'a plugin_info = 
     {
       p_infos : 
 	(string list 
 	 * string list FieldMap.t 
-	 * method_info list MethodMap.t 
-	 * string list Ptmap.t MethodMap.t) 
+	 * (method_info list * string list Ptmap.t) MethodMap.t) 
 	ClassMap.t;
-      (** infos that could be displayed for a class (one entry in ClassMap.t): 
-	  (class_infos * fields_infos * methods_infos * pc_infos)*)
 
       p_warnings : 
 	(string list 
 	 * string list FieldMap.t 
-	 * method_info list MethodMap.t 
-	 * 'a warning_pp list Ptmap.t MethodMap.t) 
+	 * (method_info list * 'a warning_pp list Ptmap.t) MethodMap.t) 
 	ClassMap.t;
-      (** warnings to display for a class (one entry in ClassMap.t): 
-	  (class_warnings * fields_warnings * methods_warnings * pc_warnings)*)
     }
 
 
-type ('c,'f,'m,'p) info = ('c list 
-	     * 'f list FieldMap.t 
-	     * 'm list MethodMap.t 
-	     * 'p list Ptmap.t MethodMap.t)
+type ('c,'f,'m,'p) iow = ('c list 
+			   * 'f list FieldMap.t 
+			   * ('m list * 'p list Ptmap.t) MethodMap.t)
 
 let find_class_infos cn map = 
   try ClassMap.find cn map
   with Not_found -> 
-    ([],FieldMap.empty,MethodMap.empty,MethodMap.empty)
+    ([],FieldMap.empty,MethodMap.empty)
 
 let find_field_infos fs map = 
   try FieldMap.find fs map with Not_found -> []
 
-let find_meth_infos fs map = 
-  try MethodMap.find fs map with Not_found -> []
+let find_meth_infos ms map = 
+  try MethodMap.find ms map with Not_found -> ([],Ptmap.empty)
 
 let find_pp_infos ms pc map = 
-  let pmap = 
-    try MethodMap.find ms map 
-    with Not_found -> Ptmap.empty
+  let (mil,pmap) = 
+    try MethodMap.find ms map
+    with Not_found -> ([],Ptmap.empty)
   in
   let ppinfos = 
     try Ptmap.find pc pmap 
     with Not_found -> []
   in
-    (pmap,ppinfos)
+    ((mil,pmap),ppinfos)
 
-let add_class_info i cn map =
-  let (ci,fi,mi,ppi) = find_class_infos cn map in
-    ClassMap.add cn (i::ci,fi,mi,ppi) map
+let add_class_iow i cn map =
+  let (ci,fi,mi) = find_class_infos cn map in
+    ClassMap.add cn (i::ci,fi,mi) map
 
-let add_field_info i cn fs map = 
-  let (ci,fi,mi,ppi) = find_class_infos cn map in
+let add_field_iow i cn fs map = 
+  let (ci,fi,mi) = find_class_infos cn map in
   let fil = find_field_infos fs fi in
   let fi = FieldMap.add fs (i::fil) fi in
-    ClassMap.add cn (ci,fi,mi,ppi) map
+    ClassMap.add cn (ci,fi,mi) map
 
-let add_method_info i cn ms map = 
-  let (ci,fi,mi,ppi) = find_class_infos cn map in
-  let mil = find_meth_infos ms mi in
-  let mi = MethodMap.add ms (i::mil) mi in
-    ClassMap.add cn (ci,fi,mi,ppi) map
+let add_meth_iow i cn ms map = 
+  let (ci,fi,mi) = find_class_infos cn map in
+  let (mil,ptmap) = find_meth_infos ms mi in
+  let mi = MethodMap.add ms (i::mil,ptmap) mi in
+    ClassMap.add cn (ci,fi,mi) map
 
-let add_pp_info i cn ms pc map = 
-  let (ci,fi,mi,ppi) = find_class_infos cn map in
-  let (pmap,ppil) = find_pp_infos ms pc ppi in
-  let ppi = MethodMap.add ms (Ptmap.add pc (i::ppil) pmap) ppi in
-    ClassMap.add cn (ci,fi,mi,ppi) map
-
-
-
-module type PluginPrinter =
-sig
-  type code
-  type expr
-
-  val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
-
-  val print_program: ?html_info:bool -> expr plugin_info -> code program -> string -> unit
- 
-end
-
-module type PrintInterface =
-sig
-
-  type instr
-  type code
-  type expr
-
-  (** [get_source_line_number pc code] returns the source line number
-      corresponding the program point pp of the method code m.*)
-  val get_source_line_number : int -> code -> int option
-
-  (** [inst_disp code pc] returns a string representation of instruction at program point [pc].*)
-  val inst_disp : int -> code -> string
-
-  (** Function to provide in order to display the source variable
-      names in the method signatures. *)
-  val method_param_names : code Javalib.interface_or_class -> method_signature
-    -> string list option
-
-  (** Allows to construct detailed warning but it requires good
-      knowledge of org.eclipse.jdt.core.dom.AST representation. See
-      existant implementation of to_plugin_warning or simply transform a
-      warning_pp SimpleWarning in a PreciseWarning of warning.
-  *)
-    
-  val to_plugin_warning : code jmethod -> expr warning_pp list Ptmap.t 
-    -> expr warning_pp list Ptmap.t
-
-end
-
-let gen_warning_sig wlist = 
-  List.map 
-    (fun msg ->
-       let attr = [(wmsg_tag,msg)] in
-	 gen_simple_tag warn_tag attr)
-    wlist
-
-let gen_info_sig fhtml ilist = 
-  List.map 
-    (fun info -> 
-       let info_xml = 
-	 fhtml info
-       in
-       gen_custom_tag info_tag [] [info_xml]
-    )
-    ilist
-
-let gen_warning_msig wlist = 
-  List.map 
-    (fun meth_i -> 
-       let attr = 
-	 match meth_i with
-	   | MethodSignature msg -> [(meth_sig_on,"method");(wmsg_tag,msg)]
-	   | Argument (num,msg) -> [(meth_sig_on,"argument");(meth_arg_num,string_of_int num);(wmsg_tag,msg)]
-	   | Return msg -> [(meth_sig_on,"return");(wmsg_tag,msg)]
-	   | This msg -> [(meth_sig_on,"this");(wmsg_tag,msg)]
-       in
-	 gen_simple_tag warn_tag attr)
-    wlist
-
-let gen_info_msig fhtml ilist = 
-  List.map 
-    (fun info -> 
-       let attr, msg = 
-	 match info with
-	   | MethodSignature msg -> ([(meth_sig_on,"method")],msg)
-	   | Argument (num,msg) -> ([(meth_sig_on,"argument");(meth_arg_num,string_of_int num)],msg)
-	   | Return msg -> ([(meth_sig_on,"return")],msg)
-	   | This msg -> ([(meth_sig_on,"this")],msg)
-       in
-	 gen_custom_tag info_tag attr [(fhtml msg)])
-    ilist
-
-let gen_warning_pp line pc wlist  =
-  let line = 
-	 match line with
-	     None -> -1
-	   | Some l -> l
-  in
-  List.map
-    (function wsig -> 
-       let attrs = 
-	 match wsig with
-	     LineWarning (msg,_) -> 
-	       [(warn_pp_precise, false_val);(wpp_pc,string_of_int pc)
-	       ;(wpp_line,string_of_int line);(wmsg_tag,msg)]
-	   | PreciseLineWarning (msg,ast_node) -> 
-	       (warn_pp_precise, true_val)::(wpp_pc,string_of_int pc)
-	       ::(wpp_line,string_of_int line)::(wmsg_tag,msg)
-	       ::(AdaptedASTGrammar.ast_node2attributes ast_node)
-       in
-	 gen_simple_tag warn_pp_tag attrs)
-    wlist
+let add_pp_iow i cn ms pc map = 
+  let (ci,fi,mi) = find_class_infos cn map in
+  let ((mil,pmap),ppil) = find_pp_infos ms pc mi in
+  let mi = MethodMap.add ms (mil,(Ptmap.add pc (i::ppil) pmap)) mi in
+    ClassMap.add cn (ci,fi,mi) map
 
 
-let gen_info_pp fhtml disp line pc ilist  =
-  let line = 
-	 match line with
-	     None -> -1
-	   | Some l -> l
-  in
-  let attrs = [(wpp_pc,string_of_int pc);(wpp_line,string_of_int line);(ival_tag,disp)] in
-  let infos = 
-    List.map
-      (fun info -> 
-	 gen_custom_tag info_tag [] [(fhtml info)])
-      ilist
-  in
-    gen_custom_tag pp_tag attrs infos
-      
-
-let gen_field_tag fs warnings = 
-  let attrs = 
-    (desc_attr,(fs_name fs)^":"^(JDumpBasics.type2shortstring (fs_type fs)))::[]
-  in
-    gen_custom_tag "field" attrs warnings
-
-let gen_method_tag ms warnings = 
-  let attrs = 
-    (desc_attr,method_sig_desc ms)::[]
-  in
-    gen_custom_tag "method" attrs warnings
-
-let gen_info_method_tag mpn ms infos = 
-  let attrs = 
-    (desc_attr,method_sig_desc ms)
-    ::("rtype",JPrint.return_type (ms_rtype ms))
-    ::("name",ms_name ms)::[]
-  in
-  let args = 
-    ExtList.List.mapi
-      (fun i vt -> 
-	 let name =
-	   match mpn with 
-	       None -> []
-	     | Some mpn -> 
-		 try ("name",List.nth mpn i)::[] with _ -> []
-	 in
-	 let arg_attrs = 
-	   ("num",string_of_int i)
-	   ::("type",JPrint.value_type vt)
-	   ::name
-	 in
-	   gen_simple_tag meth_arg arg_attrs
-      )
-      (ms_args ms)
-  in
-    gen_custom_tag "method" attrs (args@infos)
-
-let gen_class_tag ?(html=false) ioc treel = 
-  let classname = get_name ioc in
-  let attrs =
-    let others_attrs = 
-      if html
-      then [(html_info_tag,true_val)]
-      else []
-    in
-    let class_attrs = 
-      let rec name_inner_anon inner_list =
-	match inner_list with
-	    [] -> (class_cname,cn_name classname)::others_attrs
-	  | ic::r -> 
-	      (match ic.ic_class_name with
-		   None -> name_inner_anon r
-		 | Some cn -> 
-		     if (cn_equal classname cn)
-		     then
-		       (match ic.ic_source_name with
-			    None -> 
-			      (class_cname,cn_name classname):: 
-			       (class_inner,true_val):: 
-				(class_anon,true_val)::others_attrs
-			  | Some _ -> 
-			      (class_cname,cn_name classname)::
-				(class_inner,true_val)::others_attrs)
-		     else name_inner_anon r)
-      in
-	name_inner_anon (get_inner_classes ioc)
-    in
-    let sourcefile_attrs = 
-      match get_sourcefile ioc with
-	  Some name -> 
-	    let pack = 
-	      List.fold_left 
-		(fun pack element -> pack ^ element ^ ".") 
-		"" (cn_package classname)
-	    in	      
-	    let pname =  pack ^name in
-	      (class_sf,pname)::class_attrs
-	| None -> class_attrs
-    in
-      sourcefile_attrs
-  in 
-    gen_custom_tag class_tag attrs treel
-      
-
-
-module Make (S : PrintInterface) =
+module NewCodePrinter = 
 struct
-  type code = S.code
-  type expr = S.expr
 
-  let ioc2xml_warn precise_warn info ioc = 
-    let cn = get_name ioc in
-      if ClassMap.mem cn info.p_warnings
-      then
-	begin
-	  let wclass, wfields, wmeths, wpps = 
-	    ClassMap.find cn info.p_warnings 
-	  in
-	  let cl_warn =
-	    gen_warning_sig wclass
-	  in
-	  let fields_tags = 
-	    FieldMap.fold
-	      (fun fs wsiglist tree_list -> 
-		 (gen_field_tag fs (gen_warning_sig wsiglist))::tree_list
-	      )
-	      wfields
-	      []
-	  in
-	  let meths_tags = 
-	    MethodMap.fold
-	      (fun ms jm tlm -> 
-		 let get_source_line pc =
-		   match jm with
-		       AbstractMethod _ -> None
-		     | ConcreteMethod cm -> 
-			 begin
-			   match cm.cm_implementation with
-			     | Native -> None
-			     | Java lazcode -> 
-				 S.get_source_line_number pc (Lazy.force lazcode)
-				   
-			 end
-		 in
-		 let tlm = 
-		   let tlpp = 
-		     try
-		       let wpps_of_meth = 
-			 precise_warn jm (MethodMap.find ms wpps) in
-			 Ptmap.fold
-			   (fun pc wpplist tree_list -> 
-			      match wpplist with 
-				  [] -> tree_list
-				| _ -> (gen_warning_pp (get_source_line pc) pc wpplist)@tree_list
-			   )
-			   wpps_of_meth
-			   []
-		     with Not_found -> []
+  module AdaptedASTGrammar = 
+  struct
+    type identifier = 
+	SimpleName of string * value_type option
+	  (** It could be a variable identifier, field name, class name,
+	      etc. Only use the shortest name possible (no package name
+	      before class name, no class name before a field name, etc.).*)
+    type expression = 
+	(*| NullLiteral 
+	  | StringLiteral of string
+	  | TypeLiteral of identifier
+	  | OtherLiteral of float*)
+	(* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
+      | Assignment of identifier
+	  (** Identifier must be the identifier of the left_side of
+	      assignment (field's name or variable's name)*)
+      | ClassInstanceCreation of class_name
+      | ArrayCreation of value_type
+      | MethodInvocationNonVirtual of class_name * method_signature (* ms ? *)
+      | MethodInvocationVirtual of object_type * method_signature 
+      | ArrayAccess of value_type option(* Ok if a[][] we could not know, optimistic (only one tab access on a line ?)*)
+      | ArrayStore of value_type option(* It will be searched only in left_side of assignements*)
+      | InstanceOf of object_type
+      | Cast of object_type
+	  
+    type statement = 
+	If (*of InfixExpr option *) (* => same reason than for infix expr*)
+	  (** Includes all If 'like' statements (If, For, While, ConditionnalExpr, etc.) *)
+      | Catch of class_name (*type given by handlers table*)
+      | Finally
+      | Switch 
+      | Synchronized of bool(* ?Monitor exit corresponds to end parenthisis...*)
+      | Return
+      | Throw
+	  (*| AssertStat (*How to find them in bytecode: creation of a field
+	    in class + creation of exception to throw*)*)
+    type node_unit = 
+	Statement of statement 
+      | Expression of expression 
+      | Name of identifier
+
+    let ot2attr ot = 
+      (wvtype,JPrint.object_type ~jvm:true ot)
+
+    let vt_opt2attrs = 
+      function
+	  None -> []
+	| Some vt -> [wvtype,JPrint.value_type ~jvm:true vt]
+
+    let ast_node2attributes = 
+      function
+	  Statement st -> 
+	    (match st with
+		 If -> [wastnode,"If"]
+	       | Catch cn -> [(wastnode,"Catch");(wcname,cn_name cn)]
+	       | Finally -> [wastnode,"Finally"]
+	       | Switch -> [wastnode,"Switch"]
+	       | Synchronized enterb -> [(wastnode,"Synchronized");(wsenter,string_of_bool enterb)]
+	       | Return -> [wastnode,"Return"]
+	       | Throw -> [wastnode,"Throw"])
+	| Expression e -> 
+	    (match e with
+	       | Assignment id -> 
+		   let id_attrs = 
+		     match id with
+			 SimpleName (name, vt_opt) -> 
+			   (wvname,name)::(vt_opt2attrs vt_opt)
 		   in
-		   let wms_meths = 
-		     try 
-		       MethodMap.find ms wmeths
-		     with Not_found -> []
-		   in
-		     match wms_meths, tlpp with
-			 [],[] -> tlm
-		       | _ -> 
-			   (gen_method_tag ms 
-			      ((gen_warning_msig wms_meths)@tlpp)
-			   )::tlm 
-		 in
-		   tlm
-	      )
-	      (get_methods ioc)
-	      []
-	  in
-	    cl_warn@fields_tags@meths_tags
-	end
-      else []
+		     (wastnode,"Assignment")::id_attrs
+	       | ClassInstanceCreation cn -> [(wastnode,"ClassInstanceCreation");(wcname,cn_name cn)]
+	       | ArrayCreation vt -> (wastnode,"ArrayCreation")::(vt_opt2attrs (Some vt))
+	       | MethodInvocationNonVirtual (cn,ms) -> [(wastnode,"MethodInvocationNonVirtual"); (wcname, cn_name cn);
+							(wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
+	       | MethodInvocationVirtual (ot,ms) -> [(wastnode,"MethodInvocationVirtual"); (ot2attr ot);
+						     (wvname,ms_name ms); (desc_attr, method_sig_desc ms)]
+	       | ArrayAccess vt_opt -> (wastnode,"ArrayAccess")::(vt_opt2attrs vt_opt)
+	       | ArrayStore vt_opt -> (wastnode,"ArrayStore")::(vt_opt2attrs vt_opt)
+	       | InstanceOf ot -> [(wastnode,"InstanceOf");(ot2attr ot)]
+	       | Cast ot -> [(wastnode,"Cast");(ot2attr ot)])
+	| Name id -> 
+	    (match id with
+		 SimpleName (name,vt_opt) -> 
+		   (wastnode,"SimpleName")::(wvname,name)::(vt_opt2attrs vt_opt))
+  end
+
+  type 'a precise_warning_pp = 
+      LineWarning of 'a warning_pp
+	(**warning description * optional precision depending of code
+	   representation (used for PreciseLineWarning generation)*)
+    | PreciseLineWarning of string * AdaptedASTGrammar.node_unit
+	(** same as LineWarning * AST information **)
+
+  module type PluginPrinter =
+  sig
+    type code
+    type expr
+
+    val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
+
+    val print_program: ?html_info:bool -> expr plugin_info -> code program -> string -> unit
       
-   let ioc2xml_info fhtml info ioc = 
-    let cn = get_name ioc in
-      if ClassMap.mem cn info.p_infos
-      then
-	begin
-	  let iclass, ifields, imeths, ipps = 
-	    ClassMap.find cn info.p_infos 
-	  in
-	  let class_tags = 
-	    match iclass with
-		[] -> []
-	      | l -> gen_info_sig fhtml l
-	  in
-	  let fields_tags = 
-	    FieldMap.fold
-	      (fun fs infos tree_list ->
-		 match infos with
-		     [] -> tree_list
-		   | _ -> (gen_field_tag fs (gen_info_sig fhtml infos))::tree_list
-	      )
-	      ifields
-	      []
-	  in
-	  let meths_tags = 
-	    MethodMap.fold
-	      (fun ms jm tlm -> 
-		 let code = 
-		    match jm with
-		       AbstractMethod _ -> None
-		     | ConcreteMethod cm -> 
-			 begin
-			   match cm.cm_implementation with
-			     | Native -> None
-			     | Java lazcode -> 
-				 Some (Lazy.force lazcode)
-			 end
-		 in
-		 let get_source_line pc =
-		   match code with
-		       None -> None
-		     | Some code -> 
-			 S.get_source_line_number pc code
-		 in
-		 let pc_disp pc =
-		    match code with
-			None -> ""
-		      | Some code -> 
-			  S.inst_disp pc code
-		 in
-		 let tlm = 
-		   let tlpp = 
-		     try
-		       let ipps_of_meth = (MethodMap.find ms ipps) in
-			 Ptmap.fold
-			   (fun pc ipplist tree_list -> 
-			      match ipplist with 
-				  [] -> tree_list
-				| _ -> 
-				    (gen_info_pp 
-				       fhtml
-				       (pc_disp pc)
-				       (get_source_line pc)
-				       pc ipplist)
-				    ::tree_list
-			   )
-			   ipps_of_meth
-			   []
-		     with Not_found -> []
-		   in
-		   let ims_meths = 
-		     try 
-		       MethodMap.find ms imeths
-		     with Not_found -> []
-		   in
-		     match ims_meths, tlpp with
-			 [],[] -> tlm
-		       | _ -> 
-			   (gen_info_method_tag  
-			      (S.method_param_names ioc ms) 
-			      ms 
-			      ((gen_info_msig fhtml ims_meths)@tlpp))
-			   ::tlm
-		 in
-		   tlm
-	      )
-	      (get_methods ioc)
-	      []
-	  in
-	    class_tags@fields_tags@meths_tags
-	end
-      else []
-	
-  let gen_class_warn_doc precise_warn info ioc =
-    let tree_list = ioc2xml_warn precise_warn info ioc in
-      match tree_list with
-	  [] -> None 
-	| _ -> Some (gen_class_tag ioc tree_list)
-	    
-  let gen_class_info_doc html info ioc =
-    let fhtml = if html then 
-      (fun s -> PCData s)
-    else
-      ((*TODO: check it is valid html for plugin*)
-	fun s -> CData s)
+  end
+
+  module type PrintInterface =
+  sig
+
+    type code
+    type expr
+
+    (** [get_source_line_number pc code] returns the source line number
+	corresponding the program point pp of the method code m.*)
+    val get_source_line_number : int -> code -> int option
+
+    (** [inst_disp code pc] returns a string representation of instruction at program point [pc].*)
+    val inst_disp : int -> code -> string
+
+    (** Function to provide in order to display the source variable
+	names in the method signatures. *)
+    val method_param_names : code Javalib.interface_or_class -> method_signature
+      -> string list option
+
+    (** Allows to construct detailed warning but it requires good
+	knowledge of org.eclipse.jdt.core.dom.AST representation. See
+	existant implementation of to_plugin_warning or simply transform a
+	warning_pp SimpleWarning in a PreciseWarning of warning.
+    *)
+      
+    val to_plugin_warning : code jmethod -> expr precise_warning_pp list Ptmap.t 
+      -> expr precise_warning_pp list Ptmap.t
+
+  end
+
+  let gen_warning_sig wlist = 
+    List.map 
+      (fun msg ->
+	 let attr = [(wmsg_tag,msg)] in
+	   gen_simple_tag warn_tag attr)
+      wlist
+
+  let gen_info_sig fhtml ilist = 
+    List.map 
+      (fun info -> 
+	 let info_xml = 
+	   fhtml info
+	 in
+	   gen_custom_tag info_tag [] [info_xml]
+      )
+      ilist
+
+  let gen_warning_msig wlist = 
+    List.map 
+      (fun meth_i -> 
+	 let attr = 
+	   match meth_i with
+	     | MethodSignature msg -> [(meth_sig_on,"method");(wmsg_tag,msg)]
+	     | Argument (num,msg) -> [(meth_sig_on,"argument");(meth_arg_num,string_of_int num);(wmsg_tag,msg)]
+	     | Return msg -> [(meth_sig_on,"return");(wmsg_tag,msg)]
+	     | This msg -> [(meth_sig_on,"this");(wmsg_tag,msg)]
+	 in
+	   gen_simple_tag warn_tag attr)
+      wlist
+
+  let gen_info_msig fhtml ilist = 
+    List.map 
+      (fun info -> 
+	 let attr, msg = 
+	   match info with
+	     | MethodSignature msg -> ([(meth_sig_on,"method")],msg)
+	     | Argument (num,msg) -> ([(meth_sig_on,"argument");(meth_arg_num,string_of_int num)],msg)
+	     | Return msg -> ([(meth_sig_on,"return")],msg)
+	     | This msg -> ([(meth_sig_on,"this")],msg)
+	 in
+	   gen_custom_tag info_tag attr [(fhtml msg)])
+      ilist
+
+  let gen_warning_pp line pc wlist  =
+    let line = 
+      match line with
+	  None -> -1
+	| Some l -> l
     in
-    let tree_list = ioc2xml_info fhtml info ioc in
-      match tree_list with
-	  [] -> None
-	| _ -> Some (gen_class_tag ~html:html ioc tree_list)
+      List.map
+	(function wsig -> 
+	   let attrs = 
+	     match wsig with
+		 LineWarning (msg,_) -> 
+		   [(warn_pp_precise, false_val);(wpp_pc,string_of_int pc)
+		   ;(wpp_line,string_of_int line);(wmsg_tag,msg)]
+	       | PreciseLineWarning (msg,ast_node) -> 
+		   (warn_pp_precise, true_val)::(wpp_pc,string_of_int pc)
+		   ::(wpp_line,string_of_int line)::(wmsg_tag,msg)
+		   ::(AdaptedASTGrammar.ast_node2attributes ast_node)
+	   in
+	     gen_simple_tag warn_pp_tag attrs)
+	wlist
 
-  let print_info html (info_p: 'a plugin_info) ioc outputdir = 
-    let cs = get_name ioc in
-    let package_and_source = 
-      match get_sourcefile ioc with 
-	  None -> assert false
-	| Some filename ->  "info"::(cn_package cs @ [filename])
-    and cname = cn_simple_name cs in
-    let doc = gen_class_info_doc html info_p ioc in
-      match doc with
-	  None -> ()
-	| Some doc -> 
-	    create_package_dir outputdir package_and_source;
-	    let out =
-	      open_out (Filename.concat outputdir
-	       		  (List.fold_left
-	       		     Filename.concat "" (package_and_source @ [cname ^ ".xml"])))
+
+  let gen_info_pp fhtml disp line pc ilist  =
+    let line = 
+      match line with
+	  None -> -1
+	| Some l -> l
+    in
+    let attrs = [(wpp_pc,string_of_int pc);(wpp_line,string_of_int line);(ival_tag,disp)] in
+    let infos = 
+      List.map
+	(fun info -> 
+	   gen_custom_tag info_tag [] [(fhtml info)])
+	ilist
+    in
+      gen_custom_tag pp_tag attrs infos
+	
+
+  let gen_field_tag fs warnings = 
+    let attrs = 
+      (desc_attr,(fs_name fs)^":"^(JDumpBasics.type2shortstring (fs_type fs)))::[]
+    in
+      gen_custom_tag "field" attrs warnings
+
+  let gen_method_tag ms warnings = 
+    let attrs = 
+      (desc_attr,method_sig_desc ms)::[]
+    in
+      gen_custom_tag "method" attrs warnings
+
+  let gen_info_method_tag mpn ms infos = 
+    let attrs = 
+      (desc_attr,method_sig_desc ms)
+      ::("rtype",JPrint.return_type (ms_rtype ms))
+      ::("name",ms_name ms)::[]
+    in
+    let args = 
+      ExtList.List.mapi
+	(fun i vt -> 
+	   let name =
+	     match mpn with 
+		 None -> []
+	       | Some mpn -> 
+		   try ("name",List.nth mpn i)::[] with _ -> []
+	   in
+	   let arg_attrs = 
+	     ("num",string_of_int i)
+	     ::("type",JPrint.value_type vt)
+	     ::name
+	   in
+	     gen_simple_tag meth_arg arg_attrs
+	)
+	(ms_args ms)
+    in
+      gen_custom_tag "method" attrs (args@infos)
+
+  let gen_class_tag ?(html=false) ioc treel = 
+    let classname = get_name ioc in
+    let attrs =
+      let others_attrs = 
+	if html
+	then [(html_info_tag,true_val)]
+	else []
+      in
+      let class_attrs = 
+	let rec name_inner_anon inner_list =
+	  match inner_list with
+	      [] -> (class_cname,cn_name classname)::others_attrs
+	    | ic::r -> 
+		(match ic.ic_class_name with
+		     None -> name_inner_anon r
+		   | Some cn -> 
+		       if (cn_equal classname cn)
+		       then
+			 (match ic.ic_source_name with
+			      None -> 
+				(class_cname,cn_name classname):: 
+				  (class_inner,true_val):: 
+				  (class_anon,true_val)::others_attrs
+			    | Some _ -> 
+				(class_cname,cn_name classname)::
+				  (class_inner,true_val)::others_attrs)
+		       else name_inner_anon r)
+	in
+	  name_inner_anon (get_inner_classes ioc)
+      in
+      let sourcefile_attrs = 
+	match get_sourcefile ioc with
+	    Some name -> 
+	      let pack = 
+		List.fold_left 
+		  (fun pack element -> pack ^ element ^ ".") 
+		  "" (cn_package classname)
+	      in	      
+	      let pname =  pack ^name in
+		(class_sf,pname)::class_attrs
+	  | None -> class_attrs
+      in
+	sourcefile_attrs
+    in 
+      gen_custom_tag class_tag attrs treel
+	
+
+
+  module Make (S : PrintInterface) =
+  struct
+    type code = S.code
+    type expr = S.expr
+
+    let ioc2xml_warn precise_warn info ioc = 
+      let cn = get_name ioc in
+	if ClassMap.mem cn info.p_warnings
+	then
+	  begin
+	    let wclass, wfields, wmeth_pp = 
+	      ClassMap.find cn info.p_warnings 
 	    in
-	      print_xml_tree ~spc:3 doc out;
-	      close_out out
-
-  let print_warnings (info_p: 'a plugin_info) ioc outputdir = 
-    let cs = get_name ioc in
-    let package_and_source = 
-      "warn"::(cn_package cs)
-    and cname = cn_simple_name cs in
-      (*let cpath = ExtString.String.map
-	(fun c -> if c = '.' then '/' else c) (cn_name cs) in*)
-    let doc = gen_class_warn_doc (S.to_plugin_warning) info_p ioc in
-      match doc with
-	  None -> ()
-	| Some doc -> 
-	    create_package_dir outputdir package_and_source;
-	    let out =
-	      open_out (Filename.concat outputdir
-	       		  (List.fold_left
-	       		     Filename.concat "" (package_and_source @ [cname ^ ".xml"])))
+	    let cl_warn =
+	      gen_warning_sig wclass
 	    in
-	      print_xml_tree ~spc:3 doc out;
-	      close_out out
+	    let fields_tags = 
+	      FieldMap.fold
+		(fun fs wsiglist tree_list -> 
+		   (gen_field_tag fs (gen_warning_sig wsiglist))::tree_list
+		)
+		wfields
+		[]
+	    in
+	    let meths_tags = 
+	      MethodMap.fold
+		(fun ms jm tlm -> 
+		   let get_source_line pc =
+		     match jm with
+			 AbstractMethod _ -> None
+		       | ConcreteMethod cm -> 
+			   begin
+			     match cm.cm_implementation with
+			       | Native -> None
+			       | Java lazcode -> 
+				   S.get_source_line_number pc (Lazy.force lazcode)
+				     
+			   end
+		   in
+		   let tlm = 
+		     let tlpp = 
+		       try
+			 let wpps_of_meth = 
+			   precise_warn jm (snd (MethodMap.find ms wmeth_pp)) in
+			   Ptmap.fold
+			     (fun pc wpplist tree_list -> 
+				match wpplist with 
+				    [] -> tree_list
+				  | _ -> (gen_warning_pp (get_source_line pc) pc wpplist)@tree_list
+			     )
+			     wpps_of_meth
+			     []
+		       with Not_found -> []
+		     in
+		     let wms_meths = 
+		       try 
+			 fst (MethodMap.find ms wmeth_pp)
+		       with Not_found -> []
+		     in
+		       match wms_meths, tlpp with
+			   [],[] -> tlm
+			 | _ -> 
+			     (gen_method_tag ms 
+				((gen_warning_msig wms_meths)@tlpp)
+			     )::tlm 
+		   in
+		     tlm
+		)
+		(get_methods ioc)
+		[]
+	    in
+	      cl_warn@fields_tags@meths_tags
+	  end
+	else []
+	  
+    let ioc2xml_info fhtml info ioc = 
+      let cn = get_name ioc in
+	if ClassMap.mem cn info.p_infos
+	then
+	  begin
+	    let iclass, ifields, imeth_pp = 
+	      ClassMap.find cn info.p_infos 
+	    in
+	    let class_tags = 
+	      match iclass with
+		  [] -> []
+		| l -> gen_info_sig fhtml l
+	    in
+	    let fields_tags = 
+	      FieldMap.fold
+		(fun fs infos tree_list ->
+		   match infos with
+		       [] -> tree_list
+		     | _ -> (gen_field_tag fs (gen_info_sig fhtml infos))::tree_list
+		)
+		ifields
+		[]
+	    in
+	    let meths_tags = 
+	      MethodMap.fold
+		(fun ms jm tlm -> 
+		   let code = 
+		     match jm with
+			 AbstractMethod _ -> None
+		       | ConcreteMethod cm -> 
+			   begin
+			     match cm.cm_implementation with
+			       | Native -> None
+			       | Java lazcode -> 
+				   Some (Lazy.force lazcode)
+			   end
+		   in
+		   let get_source_line pc =
+		     match code with
+			 None -> None
+		       | Some code -> 
+			   S.get_source_line_number pc code
+		   in
+		   let pc_disp pc =
+		     match code with
+			 None -> ""
+		       | Some code -> 
+			   S.inst_disp pc code
+		   in
+		   let tlm = 
+		     let tlpp = 
+		       try
+			 let ipps_of_meth = snd (MethodMap.find ms imeth_pp) in
+			   Ptmap.fold
+			     (fun pc ipplist tree_list -> 
+				match ipplist with 
+				    [] -> tree_list
+				  | _ -> 
+				      (gen_info_pp 
+					 fhtml
+					 (pc_disp pc)
+					 (get_source_line pc)
+					 pc ipplist)
+				      ::tree_list
+			     )
+			     ipps_of_meth
+			     []
+		       with Not_found -> []
+		     in
+		     let ims_meths = 
+		       try 
+			 fst (MethodMap.find ms imeth_pp)
+		       with Not_found -> []
+		     in
+		       match ims_meths, tlpp with
+			   [],[] -> tlm
+			 | _ -> 
+			     (gen_info_method_tag  
+				(S.method_param_names ioc ms) 
+				ms 
+				((gen_info_msig fhtml ims_meths)@tlpp))
+			     ::tlm
+		   in
+		     tlm
+		)
+		(get_methods ioc)
+		[]
+	    in
+	      class_tags@fields_tags@meths_tags
+	  end
+	else []
+	  
+    let gen_class_warn_doc precise_warn info ioc =
+      let tree_list = ioc2xml_warn precise_warn info ioc in
+	match tree_list with
+	    [] -> None 
+	  | _ -> Some (gen_class_tag ioc tree_list)
+	      
+    let gen_class_info_doc html info ioc =
+      let fhtml = if html then 
+	(fun s -> PCData s)
+      else
+	((*TODO: check it is valid html for plugin*)
+	  fun s -> CData s)
+      in
+      let tree_list = ioc2xml_info fhtml info ioc in
+	match tree_list with
+	    [] -> None
+	  | _ -> Some (gen_class_tag ~html:html ioc tree_list)
 
-  let print_class ?(html_info=false) (info_p: 'a plugin_info) ioc outputdir = 
-    print_warnings info_p ioc outputdir;
-    print_info html_info info_p ioc outputdir
+    let print_info html (info_p: 'a plugin_info) ioc outputdir = 
+      let cs = get_name ioc in
+      let package_and_source = 
+	match get_sourcefile ioc with 
+	    None -> assert false
+	  | Some filename ->  "info"::(cn_package cs @ [filename])
+      and cname = cn_simple_name cs in
+      let doc = gen_class_info_doc html info_p ioc in
+	match doc with
+	    None -> ()
+	  | Some doc -> 
+	      create_package_dir outputdir package_and_source;
+	      let out =
+		open_out (Filename.concat outputdir
+	       		    (List.fold_left
+	       		       Filename.concat "" (package_and_source @ [cname ^ ".xml"])))
+	      in
+		print_xml_tree ~spc:3 doc out;
+		close_out out
 
-  let print_program ?(html_info=false) (info_p: 'a plugin_info) (p: S.code program) outputdir = 
-    ClassMap.iter
-      (fun _ node -> 
-	 print_class ~html_info:html_info info_p (to_ioc node) outputdir)
-      p.classes
+    let print_warnings (info_p: 'a plugin_info) ioc outputdir = 
+      let cs = get_name ioc in
+      let package_and_source = 
+	"warn"::(cn_package cs)
+      and cname = cn_simple_name cs in
+	(*let cpath = ExtString.String.map
+	  (fun c -> if c = '.' then '/' else c) (cn_name cs) in*)
+      let pp2pp_precise c map = 
+	(S.to_plugin_warning)
+	  c
+	  (Ptmap.map 
+	     (fun lpp -> 
+		List.map (fun (s,prec) -> LineWarning (s,prec)) lpp)
+	     map)
+      in
+      let doc = gen_class_warn_doc pp2pp_precise info_p ioc in
+	match doc with
+	    None -> ()
+	  | Some doc -> 
+	      create_package_dir outputdir package_and_source;
+	      let out =
+		open_out (Filename.concat outputdir
+	       		    (List.fold_left
+	       		       Filename.concat "" (package_and_source @ [cname ^ ".xml"])))
+	      in
+		print_xml_tree ~spc:3 doc out;
+		close_out out
+
+    let print_class ?(html_info=false) (info_p: 'a plugin_info) ioc outputdir = 
+      print_warnings info_p ioc outputdir;
+      print_info html_info info_p ioc outputdir
+
+    let print_program ?(html_info=false) (info_p: 'a plugin_info) (p: S.code program) outputdir = 
+      ClassMap.iter
+	(fun _ node -> 
+	   print_class ~html_info:html_info info_p (to_ioc node) outputdir)
+	p.classes
+
+  end
+
 
 end
 
-let get_code ioc ms = 
-  match get_method ioc ms with
-      AbstractMethod _ -> assert false
-    | ConcreteMethod cm -> 
-	begin
-	  match cm.cm_implementation with
-	      Native -> assert false
-	    | Java laz -> 
-		Lazy.force laz
-	end
-
+open NewCodePrinter
 
 module JCodePrinter = Make(
   struct

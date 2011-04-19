@@ -50,6 +50,7 @@ MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jCRA XTA jRTA jRRTA 
 
 MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir,$(MODULE_INTERFACES))
+HIDE_MOD_IN_DOC = -hide JPrintPlugin.NewCodePrinter
 
 FOR_PACK= -for-pack Sawja_pack
 
@@ -141,7 +142,7 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
 	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
 	mkdir -p $(DOCDIR)
-	$(OCAMLDOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
+	$(OCAMLDOC) $(HIDE_MOD_IN_DOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli

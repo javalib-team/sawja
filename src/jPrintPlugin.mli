@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Printer for SAWJA Eclipse plugin *)
+(** Generation of warnings and information for the Sawja's Eclipse plugin *)
 
 open Javalib_pack
 open JBasics
@@ -25,82 +25,31 @@ open Javalib
 open JProgram
 
 
-(** This module allows to generate information data for the Eclipse
-    plugin for SAWJA. It allows to add warning on source code in the
-    JDT (Java Development Toolkit) of Eclipse and to attach
-    information on the analysis state on the code in order to help
-    Java programmer or for debugging purpose on analysis.*)
+(** This module allows to generate information data for the Sawja's
+    Eclipse plugin. It allows to add warning on source code in the JDT
+    (Java Development Toolkit) of Eclipse and to attach information on
+    the analysis state to the source code in order to help Java
+    programmer or for debugging purpose on analysis.
 
- 
-(** {2 Program information.} *)
+    How to generate these information:
+
+    - Fill the {!plugin_info} data structure with the necessary
+    warnings and information (utility functions are given for that)
+    
+    - Use the printer for the code representation used by your
+    analysis and print the data structure
+    ({!NewCodePrinter.PluginPrinter.print_class} or
+    {!NewCodePrinter.PluginPrinter.print_program}) in the output path
+    given by {!ArgPlugin.plugin_output}
+
+    N.B.: Information contained by [p_infos] in {!plugin_info} could
+    be given with HTML code, it must be specified to the print
+    function with the [html_info] optional parameter. Conversely,
+    warnings contained by [p_warnings] must only be standard string.
+*)
 
 
-
-(** This module is an adapted and simplified version of
-    org.eclipse.jdt.core.dom.AST grammar, it allows to produce
-    detailed warnings in order to try to find the exact node concerned
-    in Java source code*)
-module AdaptedASTGrammar :
-sig
-  type identifier = 
-      SimpleName of string * value_type option
-	(** It could be a variable identifier, field name, class name,
-	    etc. Only use the shortest name possible (no package name
-	    before class name, no class name before a field name, etc.).*)
-  type expression = 
-    (*| NullLiteral 
-    | StringLiteral of string
-    | TypeLiteral of identifier
-    | OtherLiteral of float*)
-	(* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
-    | Assignment of identifier
-	(** Corresponds to assignement instructions ('*store' (except
-	    array), 'put*field').Identifier must be the identifier of
-	    the left_side of assignment (field's name or variable's
-	    name)*)
-    | ClassInstanceCreation of class_name
-	(** Corresponds to a 'new' instruction and <init> method calls*)
-    | ArrayCreation of value_type
-	(** Corresponds to '*newarray' instructions *)
-    | MethodInvocationNonVirtual of class_name * method_signature (* ms ? *)
-	(** Corresponds to 'invokestatic', 'invokespecial' or 'invokeinterface' instructions*)
-    | MethodInvocationVirtual of object_type * method_signature 
-	(** Corresponds to 'invokevirtual' instruction only*)
-    | ArrayAccess of value_type option
-	(** Corresponds to 'arrayload' instructions with optional exact type of value accessed (not array type!)*)
-    | ArrayStore of value_type option
-	(** Corresponds to 'arraystore' instructions with type of
-	    array, only difference with ArrayAccess is that it will be
-	    searched only in left_side of assignements*)
-	(*| InfixExpression of infix_operator (* ? => no because we do not know if it appears in source ...*)*)
-    | InstanceOf of object_type
-	(** Corresponds to 'instanceof' instructions*)
-    | Cast of object_type
-	(** Corresponds to 'checkcast' instructions*)
-  type statement = 
-      If
-	(** Corresponds to 'if+goto' instructionsIncludes all If 'like' statements (If, For, While, ConditionnalExpr, etc.) *)
-    | Catch of class_name (*type given by handlers table*)
-	(** Corresponds to handlers entrypoints with a filtered type of exception (not finally clause) *)
-    | Finally 
-	(** Corresponds to a finally handlers entrypoints *)
-    | Switch 
-	(** Corresponds to 'tableswitch' and 'lookupswitch' instructions*)
-    | Synchronized of bool
-	(** Corresponds to 'monitor*' instructions, with true value
-	    for 'monitorenter' and false for 'monitorexit'*)
-    | Return
-	(** Corresponds to 'return' instruction.*)
-    | Throw
-	(** Corresponds to 'throw' instruction.*)
-	(*| AssertStat (*How to find them in bytecode: creation of a field
-	  in class + creation of exception to throw*)*)
-  type node_unit = 
-      Statement of statement 
-    | Expression of expression 
-    | Name of identifier
-
-end
+(** {2 Data structure for analysis information.} *)
 
 (** Information on a method signature*)
 type method_info = 
@@ -109,126 +58,238 @@ type method_info =
   | Return of string
   | This of string
 
-(** Warning on a program point, 2 types are allowed. The type variable
-    'a could be used if location of warning is more precise than an
-    program point instruction (i.e.: expr in JBir representation).*)
-type 'a warning_pp = 
-    LineWarning of string * 'a option
-      (**warning description * optional precision depending of code
-	 representation (used for PreciseLineWarning generation)*)
-  | PreciseLineWarning of string * AdaptedASTGrammar.node_unit 
-      (** same as LineWarning * AST information *)
+
+(** Warning on a program point. The type variable 'a could be used if
+    location of warning is more precise than a program point
+    instruction (e.g.: {!JBir.expr} for {!JBir} representation), see
+    specific code representation printer for exact type.*)
+type 'a warning_pp = string * 'a option
 
 (** This type represents warnings and information that will
-    be displayed with the Java source code. *)
+    be displayed in the Java source code. *)
 type 'a plugin_info = 
     {
       p_infos : 
 	(string list 
 	 * string list FieldMap.t 
-	 * method_info list MethodMap.t 
-	 * string list Ptmap.t MethodMap.t) 
+	 * (method_info list * string list Ptmap.t)
+	 MethodMap.t) 
 	ClassMap.t;
-      (** infos that could be displayed for a class (one entry in ClassMap.t): 
-	  (class_infos * fields_infos * methods_infos * pc_infos)*)
+      (** infos that could be displayed for a class (one entry
+	  in ClassMap.t): (class_infos * field_infos FieldMap.t *
+	  (method_infos * pc_infos) MethodMap.t*)
 
       p_warnings : 
 	(string list 
 	 * string list FieldMap.t 
-	 * method_info list MethodMap.t 
-	 * 'a warning_pp list Ptmap.t MethodMap.t) 
+	 * (method_info list * 'a warning_pp list Ptmap.t)
+	 MethodMap.t) 
 	ClassMap.t;
-      (** warnings to display for a class (one entry in ClassMap.t): 
-	  (class_warnings * fields_warnings * methods_warnings * pc_warnings)*)
+      (** warnings to display for a class (one entry in ClassMap.t):
+	  (class_infos * field_infos FieldMap.t * (method_infos *
+	  pc_infos) MethodMap.t*)
     }
 
-(**{3 Utility functions to construct the {!plugin_info} structure}*)
+(**{3 Utility functions to construct the {!plugin_info} data structure}*)
 
-type ('c,'f,'m,'p) info = ('c list 
-	     * 'f list FieldMap.t 
-	     * 'm list MethodMap.t 
-	     * 'p list Ptmap.t MethodMap.t)
+(** Type compatible with [p_infos] or [p_warnings] fields of
+    {!plugin_info}*)
+type ('c,'f,'m,'p) iow = ('c list 
+			   * 'f list FieldMap.t 
+			   * ('m list * 'p list Ptmap.t) MethodMap.t)
 
-val add_class_info : 'c -> class_name -> ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+(** [add_class_iow iow cn cmap] add the info or warning [iow] for the
+    class [cn] to [cmap].*)
+val add_class_iow : 'c -> class_name -> ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-val add_field_info : 'f -> class_name -> field_signature -> 
-  ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+(** [add_field_iow iow cn fs cmap] add the info or warning [iow] for the
+    field [fs] of the class [cn] to [cmap].*)
+val add_field_iow : 'f -> class_name -> field_signature -> 
+  ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-val add_method_info : 'm -> class_name -> method_signature -> 
-  ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+(** [add_meth_iow iow cn ms cmap] add the info or warning [iow] for the
+    method [ms] of the class [cn] to [cmap].*)
+val add_meth_iow : 'm -> class_name -> method_signature -> 
+  ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-val add_pp_info : 'p -> class_name -> method_signature -> int -> 
-  ('c,'f,'m,'p) info ClassMap.t -> ('c,'f,'m,'p) info ClassMap.t
+(** [add_pp_iow iow cn ms pc cmap] add the info or warning [iow] for
+    the program point [pc] in the method [ms] of the class [cn] to
+    [cmap].*)
+val add_pp_iow : 'p -> class_name -> method_signature -> int -> 
+  ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-(** {2 Building a Printer for any program representation.} *)
+(** {2 Printers for Sawja program representations.} *)
 
-
-module type PrintInterface =
+(** Must be used to create a printer for another code representation
+    than those included in Sawja*)
+module NewCodePrinter :
 sig
 
-  type instr
-  type code
+  (** This module is an adapted and simplified version of
+      org.eclipse.jdt.core.dom.AST grammar, it allows to produce
+      detailed warnings in order to try to find the exact node concerned
+      in Java source code*)
+  module AdaptedASTGrammar :
+  sig
+    type identifier = 
+	SimpleName of string * value_type option
+	  (** It could be a variable identifier, field name, class name,
+	      etc. Only use the shortest name possible (no package name
+	      before class name, no class name before a field name, etc.).*)
+    type expression = 
+	(*| NullLiteral 
+	  | StringLiteral of string
+	  | TypeLiteral of identifier
+	  | OtherLiteral of float*)
+	(* Others constants (impossible to differenciate int and bool in bytecode, ...)*)
+      | Assignment of identifier
+	  (** Corresponds to assignement instructions ('*store' (except
+	      array), 'put*field').Identifier must be the identifier of
+	      the left_side of assignment (field's name or variable's
+	      name)*)
+      | ClassInstanceCreation of class_name
+	  (** Corresponds to a 'new' instruction and <init> method calls*)
+      | ArrayCreation of value_type
+	  (** Corresponds to '*newarray' instructions *)
+      | MethodInvocationNonVirtual of class_name * method_signature (* ms ? *)
+	  (** Corresponds to 'invokestatic', 'invokespecial' or 'invokeinterface' instructions*)
+      | MethodInvocationVirtual of object_type * method_signature 
+	  (** Corresponds to 'invokevirtual' instruction only*)
+      | ArrayAccess of value_type option
+	  (** Corresponds to 'arrayload' instructions with optional exact type of value accessed (not array type!)*)
+      | ArrayStore of value_type option
+	  (** Corresponds to 'arraystore' instructions with type of
+	      array, only difference with ArrayAccess is that it will be
+	      searched only in left_side of assignements*)
+	  (*| InfixExpression of infix_operator (* ? => no because we do not know if it appears in source ...*)*)
+      | InstanceOf of object_type
+	  (** Corresponds to 'instanceof' instructions*)
+      | Cast of object_type
+	  (** Corresponds to 'checkcast' instructions*)
+    type statement = 
+	If
+	  (** Corresponds to 'if+goto' instructionsIncludes all If 'like' statements (If, For, While, ConditionnalExpr, etc.) *)
+      | Catch of class_name (*type given by handlers table*)
+	  (** Corresponds to handlers entrypoints with a filtered type of exception (not finally clause) *)
+      | Finally 
+	  (** Corresponds to a finally handlers entrypoints *)
+      | Switch 
+	  (** Corresponds to 'tableswitch' and 'lookupswitch' instructions*)
+      | Synchronized of bool
+	  (** Corresponds to 'monitor*' instructions, with true value
+	      for 'monitorenter' and false for 'monitorexit'*)
+      | Return
+	  (** Corresponds to 'return' instruction.*)
+      | Throw
+	  (** Corresponds to 'throw' instruction.*)
+	  (*| AssertStat (*How to find them in bytecode: creation of a field
+	    in class + creation of exception to throw*)*)
+    type node_unit = 
+	Statement of statement 
+      | Expression of expression 
+      | Name of identifier
+  end
 
-  type expr
+  (** {2 Building a Printer for any program representation.} *)
 
-  (** [get_source_line_number pc code] returns the source line number corresponding the program point pp of the method code m.*)
-  val get_source_line_number : int -> code -> int option
+  (** Precise warning on a program point: [LineWarning of]
+      {!warning_pp} is automatically generated from the data structure
+      for warnings from {!plugin_info}. This warning could be
+      transformed in a [PreciseLineWarning] in the
+      {!PrintInterface.to_plugin_warning} function provided for the
+      specific code representation.*)
+  type 'a precise_warning_pp = 
+      LineWarning of 'a warning_pp
+	(**warning description * optional precision depending of code
+	   representation (used for PreciseLineWarning generation)*)
+    | PreciseLineWarning of string * AdaptedASTGrammar.node_unit
+	(** same as LineWarning * AST information **)
 
-  (*  [iter_code f code] iter on code and apply [f] on [pc instr_list]. *)
-  (*val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit*)
-
-  (** instr -> display * line*)
-  val inst_disp : int -> code -> string
-
-  (** Function to provide in order to display the source variable
-      names in the method signatures. *)
-  val method_param_names : code Javalib.interface_or_class -> method_signature
-    -> string list option
-
-  (** Allows to construct detailed warning but it requires good
-      knowledge of org.eclipse.jdt.core.dom.AST representation. See
-      existant implementation of to_plugin_warning or simply return the same Ptmap.t.
-*)    
-  val to_plugin_warning : code jmethod ->  expr warning_pp list Ptmap.t 
-    -> expr warning_pp list Ptmap.t
-
-end
-
-module type PluginPrinter =
-sig
-  type code
-  type expr
-
-  (** [print_class ?html info ioc outputdir] generates plugin's
-      information files for the interface or class [ioc] in the output
-      directory [outputdir], given the plugin's information [info]. If
-      [html] is given and true then string data in
-      {!plugin_info}[.p_infos] (only) must be valid html (between <div>
-      tags). @raise Invalid_argument if the name corresponding to
-      [outputdir] is a file.*)
-  val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
-
-  (** [print_program ?html info program outputdir] generates plugin's
-      information files for the program [p] in the output directory
-      [outputdir], given the plugin's information [info]. If [html] is
-      given and true then string data in {!plugin_info}[.p_infos] (only)
-      must be valid html (between <div> tags). @raise Invalid_argument
-      if the name corresponding to [outputdir] is a file. *)
-  val print_program: ?html_info:bool -> expr plugin_info -> code program -> string -> unit
+  (** Module that must be implemented to could create a {!PluginPrinter}
+      for a new code representation than those included in Sawja.*)
+  module type PrintInterface =
+  sig
     
+    (** The code representation (equivalent of {!Javalib_pack.JCode.jcode}, {!JBir.t}, etc.*)
+    type code
+
+      (** Type that could be use to provide an information more
+	  precise than an instruction for warnings on program points
+	  (e.g.: [unit] for {!Javalib_pack.JCode}, {!JBir.expr} for {!JBir}, etc.)*)
+    type expr
+
+    (** [get_source_line_number pc code] returns the source line number corresponding the program point pp of the method code m.*)
+    val get_source_line_number : int -> code -> int option
+
+    (** [inst_disp pc code] returns a string representation of the
+	instruction [pc] in [code].*)
+    val inst_disp : int -> code -> string
+
+    (** Function to provide in order to display the source variable
+	names in the method signatures. *)
+    val method_param_names : code Javalib.interface_or_class -> method_signature
+      -> string list option
+
+    (** This function should transform a {!precise_warning_pp} from a
+	[LineWarning] to a [PreciseLineWarning] but it requires good
+	knowledge of org.eclipse.jdt.core.dom.AST representation. See
+	existant implementation of to_plugin_warning or simply return
+	the same Ptmap.t (in this case the precision is the Java
+	source line).  *)
+    val to_plugin_warning : code jmethod ->  expr precise_warning_pp list Ptmap.t 
+      -> expr precise_warning_pp list Ptmap.t
+
+  end
+
+  (** Final module signature of the Printer, it allows to print
+      information for a class or a complete program.*)
+  module type PluginPrinter =
+  sig
+
+    (** The code representation (equivalent of {!Javalib_pack.JCode.jcode}, {!JBir.t}, etc.*)
+    type code
+      (** Type that could be use to provide an information more
+	  precise than an instruction for warnings on program points
+	  (e.g.: [unit] for {!Javalib_pack.JCode}, {!JBir.expr} for {!JBir}, etc.)*)
+    type expr
+
+    (** [print_class ?html info ioc outputdir] generates plugin's
+	information files for the interface or class [ioc] in the output
+	directory [outputdir], given the plugin's information [info]. If
+	[html] is given and true then string data in
+	{!plugin_info}[.p_infos] (only) must be valid html (between <div>
+	tags). @raise Invalid_argument if the name corresponding to
+	[outputdir] is a file.*)
+    val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
+
+    (** [print_program ?html info program outputdir] generates plugin's
+	information files for the program [p] in the output directory
+	[outputdir], given the plugin's information [info]. If [html] is
+	given and true then string data in {!plugin_info}[.p_infos] (only)
+	must be valid html (between <div> tags). @raise Invalid_argument
+	if the name corresponding to [outputdir] is a file. *)
+    val print_program: ?html_info:bool -> expr plugin_info -> code program -> string -> unit
+      
+  end
+
+    (** Functor building a printer for the Sawja's Eclipse plugin
+    given the {!PrintInterface} for a specific code represenation.*)
+  module Make (S : PrintInterface) : PluginPrinter
+
 end
 
-module Make (S : PrintInterface) : PluginPrinter
+(** Printer for the {!Javalib_pack.JCode} code representation.*)
+module JCodePrinter : NewCodePrinter.PluginPrinter with type code = JCode.jcode and type expr = unit
 
-(** {2 Built printers for Sawja program representations.} *)
+(** Printer for the {!JBir} code representation.*)
+module JBirPrinter : NewCodePrinter.PluginPrinter with type code = JBir.t and type expr = JBir.expr
 
-module JCodePrinter : PluginPrinter with type code = JCode.jcode and type expr = unit
+(** Printer for the {!A3Bir} code representation.*)
+module A3BirPrinter : NewCodePrinter.PluginPrinter with type code = A3Bir.t and type expr = A3Bir.expr
 
-module JBirPrinter : PluginPrinter with type code = JBir.t and type expr = JBir.expr
+(** Printer for the {!JBirSSA} code representation.*)
+module JBirSSAPrinter : NewCodePrinter.PluginPrinter with type code = JBirSSA.t and type expr = JBirSSA.expr
 
-module A3BirPrinter : PluginPrinter with type code = A3Bir.t and type expr = A3Bir.expr
-
-module JBirSSAPrinter : PluginPrinter with type code = JBirSSA.t and type expr = JBirSSA.expr
-
-module A3BirSSAPrinter : PluginPrinter with type code = A3BirSSA.t and type expr = A3BirSSA.expr
+(** Printer for the {!A3BirSSA} code representation.*)
+module A3BirSSAPrinter : NewCodePrinter.PluginPrinter with type code = A3BirSSA.t and type expr = A3BirSSA.expr
 

@@ -1,6 +1,6 @@
 {i {C Nicolas Barre, Delphine Demange, Laurent Hubert, Vincent Monfort, David Pichardie and Tiphaine Turpin}}
 
-{i {C November 2010}}
+{i {C April 2011}}
 
 {2 {L Documentation}}
 
@@ -12,6 +12,9 @@
 
 {b {L Printing programs}}
 {!modules: JPrintHtml}
+
+{b {L Create an analysis for the Sawja Eclipse plugin}}
+{!modules: ArgPlugin JPrintPlugin}
 
 {b {L Indexes}}
 
