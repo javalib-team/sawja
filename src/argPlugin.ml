@@ -34,6 +34,7 @@ let string_tag = "string"
 let bool_tag = "bool"
 
 let name_att = "name"
+let sdesc_att = "short_desc"
 let def_attr = "default"
 
 type spec = 
@@ -51,6 +52,8 @@ type plugin_output =
     PluginOutput of (string * (string -> unit))
 
 type key = string 
+
+type name = string
 
 type doc = string 
 
@@ -86,12 +89,12 @@ let gen_xml_desc (name, desc) arg_list plug_out_name =
       | NotPlugin _ -> assert false
     in
       List.fold_right
-	(fun (key,spec,doc) arg_list -> 
+	(fun (key,name,spec,doc) arg_list -> 
 	   match spec with
 	       NotPlugin _ -> arg_list
 	     | _ -> 
 		 let (tag_name,def) = get_tag_and_def spec in
-		 let attrs = (name_att, key)::def in
+		 let attrs = (name_att, key)::(sdesc_att,name)::def in
 		 let desc = [PCData doc] in
 		   (gen_custom_tag tag_name attrs desc)::arg_list
 	)
@@ -117,7 +120,7 @@ let parse analysis arg_list plugin_output usage_msg =
   in
   let args = 
     List.map 
-      (fun (key, spec, doc) -> (key, transform2arg spec, doc)) 
+      (fun (key, _name, spec, doc) -> (key, transform2arg spec, doc)) 
       arg_list
   in
   let new_args =

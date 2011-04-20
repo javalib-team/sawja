@@ -59,10 +59,10 @@ type spec =
 (** key is the option keyword, it must start with a '-' character*)
 type key = string 
 
-(** doc is a one-line description of the corresponding option. 
+(** name is the short description for this option in Eclipse.*)
+type name = string
 
-    N.B.: This description will be used exactly as given in the
-    properties of analysis in Eclipse.*)
+(** doc is a one-line description of the corresponding option.*)
 type doc = string 
 
 type usage_msg = string 
@@ -88,7 +88,7 @@ type plugin_output =
     doc). [plugin_output] is the folder in which information data for
     the plugin must be generated with {!JPrintPlugin} module.
 *)
-val parse : analysis -> (key * spec * doc) list -> plugin_output -> usage_msg -> unit
+val parse : analysis -> (key * name * spec * doc) list -> plugin_output -> usage_msg -> unit
 
 (** [transform2arg spec] transforms an {!spec} to the Arg version.*)
 val transform2arg : spec -> Arg.spec
