@@ -25,48 +25,72 @@
     ArgPlugin to could be "installed" and executed by the Sawja's
     Eclipse Plugin.*)
 
-(** Adapted version of Arg.spec*)
+(** The concrete type describing the behavior associated with a keyword*)
 type spec = 
   | ClassPath of (string -> unit)
+      (** [ClassPath f] with f the function to retrieve the classpath
+	  argument. In Eclipse, by default, ClassPath will be automatically put to the
+	  complete class path of the Java project.*)
   | Path of (string -> unit)
-  | ClassFile of (string -> unit)
+      (** [Path f] with f the function to retrieve the path
+	  argument. Path should represents a path to a folder or file.*)
   | ClassFiles of (string list -> unit)
+      (** [ClassFiles f] with f the function to retrieve the class
+	  name list argument. In Eclipse, by default, ClassFiles will
+	  automatically contain all the classes files of the Java project.*)
+  | ClassFile of (string -> unit)
+      (** [ClassFile f] with f the function to retrieve the class name
+	  argument. In Eclipse this argument must be given by user in
+	  properties of analysis for each Java project.*)
   | String of ((string -> unit) * string option)
       (** [String (f, default)] with f function to retrieve string
-	  argument and default the optional default string value (only
-	  used for description)*)
+	  argument and default the optional default string value
+	  (default value is only used in Eclipse, for executable it's
+	  only a description)*)
   | Boolean of ((bool -> unit) * bool option)
       (** [Boolean (f, default)] with f function to retrieve boolean
 	  argument and default the optional default boolean value
-	  (only used for description)*)
+	  (default value is only used in Eclipse, for executable it's
+	  only a description)*)
   | NotPlugin of Arg.spec
       (** [NotPlugin spec] with spec an Arg.spec will add an argument
 	  that will not appear in the Sawja's Eclipse plugin.*)
 
+(** key is the option keyword, it must start with a '-' character*)
 type key = string 
 
+(** doc is a one-line description of the corresponding option. 
+
+    N.B.: This description will be used exactly as given in the
+    properties of analysis in Eclipse.*)
 type doc = string 
 
 type usage_msg = string 
 
-(** Description of analysis (name, short description)*)
+(** Description of the analysis (name, short description)*)
 type analysis = string * string
 
-(** Output path of XML data generated for the
-plugin by {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_class} or
-{!JPrintPlugin.NewCodePrinter.PluginPrinter.print_program}*)
+(** Output path of the data generated for the plugin by
+    {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_class} or
+    {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_program}*)
 type plugin_output = 
     PluginOutput of (string * (string -> unit))
       (** [PluginOutput (key, f)] with key the argument name for this
-	  argument and f the function to retrieve string description of
-	  the path*)
+	  argument and f the function to retrieve the string
+	  description of the output path*)
 
-(** [parse analysis args_list plugin_output usage_msg] is an adapted version of
-    Arg.parse, it adds a an argument "--argumentsXMLDesc" that
-    describe arguments in a XML format*)
+(** [parse analysis args_list plugin_output usage_msg] is an adapted
+    version of Arg.parse, it adds a an argument "--argumentsXMLDesc"
+    that describe arguments in a XML format. 
+
+    It parses the command line. [analysis] is the analysis
+    description. [args_list] is a list of triples (key, spec,
+    doc). [plugin_output] is the folder in which information data for
+    the plugin must be generated with {!JPrintPlugin} module.
+*)
 val parse : analysis -> (key * spec * doc) list -> plugin_output -> usage_msg -> unit
 
-(** [transform2arg spec] transform an {!spec} to the Arg version of spec.*)
+(** [transform2arg spec] transforms an {!spec} to the Arg version.*)
 val transform2arg : spec -> Arg.spec
 
 

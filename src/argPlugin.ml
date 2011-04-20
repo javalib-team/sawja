@@ -39,8 +39,8 @@ let def_attr = "default"
 type spec = 
   | ClassPath of (string -> unit)
   | Path of (string -> unit)
-  | ClassFile of (string -> unit)
   | ClassFiles of (string list -> unit)
+  | ClassFile of (string -> unit)
   | String of ((string -> unit) * string option)
   | Boolean of ((bool -> unit) * bool option)
   | NotPlugin of Arg.spec
