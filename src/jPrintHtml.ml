@@ -194,7 +194,7 @@ type info_internal =
     {
       p_data : info;
       (** Prints information about the possible method callers. *)
-      p_callers : class_name -> method_signature -> ClassMethSet.t option;
+      p_callers : class_name -> method_signature -> ClassMethodSet.t option;
     }
       
 let get_relative_path frompath topath =
@@ -310,8 +310,9 @@ let methodcallers2html cs ms info =
   match info.p_callers cs ms with
     | None -> []
     | Some callers ->
-	let hl = ClassMethSet.fold
-	  (fun (ccs,cms) l ->
+	let hl = ClassMethodSet.fold
+	  (fun clms l ->
+	     let (ccs,cms) = cms_split clms in
 	     let anchor = ms2anchorname ccs cms in
 	     let href = (get_relative_file cs ccs) ^ "#" ^ anchor in
 	     let ccname = cn_name ccs in
@@ -492,9 +493,9 @@ struct
 			      (fun ccms ->
 				 let rcmset =
 				   try ClassMethodMap.find ccms !rmmap
-				   with Not_found -> ClassMethSet.empty in
+				   with Not_found -> ClassMethodSet.empty in
 				   rmmap := ClassMethodMap.add ccms
-				     (ClassMethSet.add (cn,ms) rcmset) !rmmap
+				     (ClassMethodSet.add (make_cms cn ms) rcmset) !rmmap
 			      ) cmset
 			with Not_found -> ()
 		   ) code;

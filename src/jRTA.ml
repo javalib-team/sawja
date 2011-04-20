@@ -45,16 +45,16 @@ struct
 	(* for each interface, interfaces maps a list of classes
 	   that implements this interface or one of its subinterfaces *)
 	mutable interfaces : ClassSet.t ClassMap.t;
-	mutable static_virtual_lookup : ClassMethodSet.t ClassMethMap.t;
-	mutable static_static_lookup : ClassMethodSet.t ClassMethMap.t;
+	mutable static_virtual_lookup : ClassMethodSet.t ClassMethodMap.t;
+	mutable static_static_lookup : ClassMethodSet.t ClassMethodMap.t;
 	mutable static_special_lookup : (ClassMethodSet.t
-					   ClassMethMap.t) ClassMap.t;
+					   ClassMethodMap.t) ClassMap.t;
 	(* the clinits fields contains a set of class indexes whose clinit
 	   methods have already been added to the workset *)
 	mutable clinits : ClassSet.t;
 	workset : (class_name * JCode.jcode concrete_method) Wlist.wlist;
 	classpath : Javalib.class_path;
-	mutable native_methods : ClassMethSet.t;
+	mutable native_methods : ClassMethodSet.t;
 	parse_natives : bool;
 	native_methods_info : JNativeStubs.t }
 
@@ -278,7 +278,7 @@ struct
 		   if not(m.has_been_parsed) then
 		     (m.has_been_parsed <- true;
 		      p.native_methods <-
-			ClassMethSet.add (cs,ms) p.native_methods;
+			ClassMethodSet.add (make_cms cs ms) p.native_methods;
 		      if (p.parse_natives) then Wlist.add (cs,cm) p.workset
 		     )
 	       | Java _ ->
@@ -321,9 +321,9 @@ struct
 	(fun _ (rc,cm) ->
 	   let rcs = rc.c_info.c_name in
 	     add_to_workset p (rcs,ms);
-	     let s = ClassMethMap.find (cs,ms) p.static_virtual_lookup in
+	     let s = ClassMethodMap.find (make_cms cs ms) p.static_virtual_lookup in
 	       p.static_virtual_lookup <-
-		 ClassMethMap.add (cs,ms)
+		 ClassMethodMap.add (make_cms cs ms)
 		 (ClassMethodSet.add cm.cm_class_method_signature s)
 		 p.static_virtual_lookup
 	) virtual_lookup_map
@@ -337,7 +337,7 @@ struct
 	(c_info.memorized_virtual_calls <-
 	   MethodSet.add ms c_info.memorized_virtual_calls;
 	 p.static_virtual_lookup <-
-	   ClassMethMap.add (cs,ms)
+	   ClassMethodMap.add (make_cms cs ms)
 	   ClassMethodSet.empty p.static_virtual_lookup;
 	 let instantiated_classes =
 	   if ( c_info.is_instantiated ) then
@@ -413,13 +413,13 @@ struct
   let update_special_lookup_set p current_class_sig cs ms s =
     let cmmap =
       try ClassMap.find current_class_sig p.static_special_lookup
-      with _ -> ClassMethMap.empty in
+      with _ -> ClassMethodMap.empty in
     let rset =
-      try ClassMethMap.find (cs,ms) cmmap
+      try ClassMethodMap.find (make_cms cs ms) cmmap
       with _ -> ClassMethodSet.empty in
       p.static_special_lookup <-
 	(ClassMap.add current_class_sig
-	   (ClassMethMap.add (cs,ms)
+	   (ClassMethodMap.add (make_cms cs ms)
 	      (ClassMethodSet.union rset s) cmmap)
 	   p.static_special_lookup)
 
@@ -439,11 +439,11 @@ struct
     let c = to_class_node (get_class_info p cs).class_data in
     let (rc,cm) = JControlFlow.invoke_static_lookup c ms in
     let rcs = rc.c_info.c_name in
-      (if not( ClassMethMap.mem (cs,ms) p.static_static_lookup ) then
+      (if not( ClassMethodMap.mem (make_cms cs ms) p.static_static_lookup ) then
        	 let s = ClassMethodSet.add cm.cm_class_method_signature
 	   ClassMethodSet.empty in
        	   p.static_static_lookup <-
-	     ClassMethMap.add (cs,ms) s p.static_static_lookup;
+	     ClassMethodMap.add (make_cms cs ms) s p.static_static_lookup;
 	   add_to_workset p (rcs,ms)
       );
       rcs
@@ -589,13 +589,13 @@ struct
     let p =
       { classes = ClassMap.empty;
 	interfaces = ClassMap.empty;
-	static_virtual_lookup = ClassMethMap.empty;
-	static_static_lookup = ClassMethMap.empty;
+	static_virtual_lookup = ClassMethodMap.empty;
+	static_static_lookup = ClassMethodMap.empty;
 	static_special_lookup = ClassMap.empty;
 	clinits = ClassSet.empty;
 	workset = workset;
 	classpath = classpath;
-	native_methods = ClassMethSet.empty;
+	native_methods = ClassMethodSet.empty;
 	parse_natives = parse_natives;
 	native_methods_info = native_methods_info }
     in
@@ -621,7 +621,7 @@ struct
       try
         let p = new_program_cache instantiated entrypoints native_stubs classpath in
           iter_workset p;
-          if not (ClassMethSet.is_empty p.native_methods)
+          if not (ClassMethodSet.is_empty p.native_methods)
           then prerr_endline "The program contains native method. Beware that native methods' side effects may invalidate the result of the analysis.";
           Javalib.close_class_path classpath;
           let instantiated_classes =
@@ -649,13 +649,13 @@ end
 
 let static_virtual_lookup virtual_lookup_map cs ms =
   try
-    ClassMethMap.find (cs,ms) virtual_lookup_map
+    ClassMethodMap.find (make_cms cs ms) virtual_lookup_map
   with _ ->
     (* probably dead code *)
     ClassMethodSet.empty
 
 let static_static_lookup static_lookup_map cs ms =
-  ClassMethMap.find (cs,ms) static_lookup_map
+  ClassMethodMap.find (make_cms cs ms) static_lookup_map
 
 let static_interface_lookup virtual_lookup_map interfaces_map cs ms =
   let s = ref ClassMethodSet.empty in
@@ -668,7 +668,7 @@ let static_interface_lookup virtual_lookup_map interfaces_map cs ms =
     !s
 
 let static_special_lookup special_lookup_map cs ccs cms =
-  ClassMethMap.find (ccs,cms) (ClassMap.find cs special_lookup_map)
+  ClassMethodMap.find (make_cms ccs cms) (ClassMap.find cs special_lookup_map)
 
 let static_lookup_method p :
     class_name -> method_signature -> int -> ClassMethodSet.t =

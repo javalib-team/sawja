@@ -24,20 +24,6 @@ open JBasics
 open JCode
 open Javalib
 
-(* TODO : replace ClassMethMap and ClassMethSet with JBasics.ClassMethodMap and
-   JBasics.ClassMethodSet *)
-module ClassMethMap = Map.Make(
-  struct
-    type t = class_name * method_signature
-    let compare = compare
-  end)
-
-module ClassMethSet = Set.Make(
-  struct
-    type t = class_name * method_signature
-    let compare = compare
-  end)
-
 type 'a class_node = {
   c_info : 'a jclass;
   c_super : 'a class_node option;

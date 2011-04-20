@@ -25,11 +25,6 @@ open Javalib_pack
 open JBasics
 open Javalib
 
-(** {2 Maps and sets.} *)
-
-module ClassMethMap : Map.S with type key = class_name * method_signature
-module ClassMethSet : Set.S with type elt = class_name * method_signature
-
 (** {2 Navigable hierarchy.} *)
 
 (** To be able to navigate more easily in bytecode program, class names are

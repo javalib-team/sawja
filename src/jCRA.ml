@@ -194,7 +194,7 @@ let get_children_classes c children_classes =
 let static_virtual_lookup virtual_lookup_map children_classes c ms =
   let cs = c.c_info.c_name in
     try
-      ClassMethMap.find (cs,ms) !virtual_lookup_map
+      ClassMethodMap.find (make_cms cs ms) !virtual_lookup_map
     with
       | _ ->
 	  let instantiated_classes = get_children_classes c children_classes in
@@ -203,14 +203,14 @@ let static_virtual_lookup virtual_lookup_map children_classes c ms =
 	      instantiated_classes in
 	  let cmset = ClassMethodMaptoSet.to_set cmmap in
 	    virtual_lookup_map :=
-	      ClassMethMap.add (cs,ms) cmset !virtual_lookup_map;
+	      ClassMethodMap.add (make_cms cs ms) cmset !virtual_lookup_map;
 	    cmset
 
 let static_interface_lookup interface_lookup_map classes_map interfaces
     children_classes i ms =
   let cs = i.i_info.i_name in
     try
-      ClassMethMap.find (cs,ms) !interface_lookup_map
+      ClassMethodMap.find (make_cms cs ms) !interface_lookup_map
     with
       | _ ->
 	  let equivalent_classes =
@@ -233,20 +233,20 @@ let static_interface_lookup interface_lookup_map classes_map interfaces
 	      instantiated_classes in
 	  let cmset = ClassMethodMaptoSet.to_set cmmap in
 	    interface_lookup_map :=
-	      ClassMethMap.add (cs,ms) cmset !interface_lookup_map;
+	      ClassMethodMap.add (make_cms cs ms) cmset !interface_lookup_map;
 	    cmset
 
 let static_static_lookup static_lookup_map c ms =
   let cs = c.c_info.c_name in
     try
-      ClassMethMap.find (cs,ms) !static_lookup_map
+      ClassMethodMap.find (make_cms cs ms) !static_lookup_map
     with
       | _ ->
 	  let (_,cm) = JControlFlow.invoke_static_lookup c ms in
 	  let cmset = ClassMethodSet.add cm.cm_class_method_signature
 	    ClassMethodSet.empty in
 	    static_lookup_map :=
-	      ClassMethMap.add (cs,ms) cmset !static_lookup_map;
+	      ClassMethodMap.add (make_cms cs ms) cmset !static_lookup_map;
 	    cmset
 
 let static_special_lookup special_lookup_map current_class c ms =
@@ -255,22 +255,22 @@ let static_special_lookup special_lookup_map current_class c ms =
   let ccmmap =
     try
       ClassMap.find ccs !special_lookup_map
-    with _ -> ClassMethMap.empty in
+    with _ -> ClassMethodMap.empty in
     try
-      ClassMethMap.find (cs,ms) ccmmap
+      ClassMethodMap.find (make_cms cs ms) ccmmap
     with
       | _ ->
 	  let (_,cm) = JControlFlow.invoke_special_lookup current_class c ms in
 	  let cmset = ClassMethodSet.add cm.cm_class_method_signature
 	    ClassMethodSet.empty in
 	    special_lookup_map := ClassMap.add ccs
-	      (ClassMethMap.add (cs,ms) cmset ccmmap) !special_lookup_map;
+	      (ClassMethodMap.add (make_cms cs ms) cmset ccmmap) !special_lookup_map;
 	    cmset
 
 let static_lookup_method =
-  let virtual_lookup_map = ref ClassMethMap.empty
-  and interface_lookup_map = ref ClassMethMap.empty
-  and static_lookup_map = ref ClassMethMap.empty
+  let virtual_lookup_map = ref ClassMethodMap.empty
+  and interface_lookup_map = ref ClassMethodMap.empty
+  and static_lookup_map = ref ClassMethodMap.empty
   and special_lookup_map = ref ClassMap.empty
   and children_classes = ref ClassMap.empty in
     fun classes_map interfaces cs ms pp ->
