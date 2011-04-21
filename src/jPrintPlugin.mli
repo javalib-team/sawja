@@ -69,7 +69,7 @@ type 'a warning_pp = string * 'a option
     be displayed in the Java source code. *)
 type 'a plugin_info = 
     {
-      p_infos : 
+      mutable p_infos : 
 	(string list 
 	 * string list FieldMap.t 
 	 * (method_info list * string list Ptmap.t)
@@ -79,7 +79,7 @@ type 'a plugin_info =
 	  in ClassMap.t): (class_infos * field_infos FieldMap.t *
 	  (method_infos * pc_infos) MethodMap.t*)
 
-      p_warnings : 
+      mutable p_warnings : 
 	(string list 
 	 * string list FieldMap.t 
 	 * (method_info list * 'a warning_pp list Ptmap.t)
@@ -90,13 +90,13 @@ type 'a plugin_info =
 	  pc_infos) MethodMap.t*)
     }
 
-(**{3 Utility functions to construct the {!plugin_info} data structure}*)
+(**{3 Utility functions to fill the {!plugin_info} data structure}*)
 
-(** Type compatible with [p_infos] or [p_warnings] fields of
-    {!plugin_info}*)
+(** [iow] (info or warning) is a type compatible with [p_infos] or
+    [p_warnings] fields of {!plugin_info}*)
 type ('c,'f,'m,'p) iow = ('c list 
-			   * 'f list FieldMap.t 
-			   * ('m list * 'p list Ptmap.t) MethodMap.t)
+			  * 'f list FieldMap.t 
+			  * ('m list * 'p list Ptmap.t) MethodMap.t)
 
 (** [add_class_iow iow cn cmap] add the info or warning [iow] for the
     class [cn] to [cmap].*)
@@ -248,10 +248,15 @@ sig
 
     (** The code representation (equivalent of {!Javalib_pack.JCode.jcode}, {!JBir.t}, etc.*)
     type code
-      (** Type that could be use to provide an information more
-	  precise than an instruction for warnings on program points
-	  (e.g.: [unit] for {!Javalib_pack.JCode}, {!JBir.expr} for {!JBir}, etc.)*)
+      
+    (** Type that could be use to provide an information more precise
+	than an instruction for warnings on program points (e.g.:
+	[unit] for {!Javalib_pack.JCode}, {!JBir.expr} for {!JBir},
+	etc.)*)
     type expr
+
+    (** An empty plugin information data structure*)
+    val empty_infos: expr plugin_info
 
     (** [print_class ?html info ioc outputdir] generates plugin's
 	information files for the interface or class [ioc] in the output

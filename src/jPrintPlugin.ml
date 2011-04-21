@@ -77,13 +77,13 @@ type 'a warning_pp = string * 'a option
 
 type 'a plugin_info = 
     {
-      p_infos : 
+      mutable p_infos : 
 	(string list 
 	 * string list FieldMap.t 
 	 * (method_info list * string list Ptmap.t) MethodMap.t) 
 	ClassMap.t;
 
-      p_warnings : 
+      mutable p_warnings : 
 	(string list 
 	 * string list FieldMap.t 
 	 * (method_info list * 'a warning_pp list Ptmap.t) MethodMap.t) 
@@ -239,6 +239,8 @@ struct
   sig
     type code
     type expr
+
+    val empty_infos: expr plugin_info
 
     val print_class: ?html_info:bool -> expr plugin_info -> code interface_or_class -> string -> unit
 
@@ -446,6 +448,11 @@ struct
   struct
     type code = S.code
     type expr = S.expr
+
+    let (empty_infos:expr plugin_info) = {
+      p_infos = ClassMap.empty;
+      p_warnings = ClassMap.empty
+    }
 
     let ioc2xml_warn precise_warn info ioc = 
       let cn = get_name ioc in
