@@ -22,8 +22,13 @@ run: all
 run.bc: all
 	$(OCAMLC) -linkpkg -o $@ $(SRC:=.cmo)
 
+dvad-plugin: dvad_plugin.cmx
+	$(OCAMLOPT) -linkpkg -o $@ $^
+
 clean:
-	rm -f *.o *.a $(SRC:=.cm[iox]) *~ *.annot test/*~ test/*.class run
+	rm -f *.o *.a $(SRC:=.cm[iox]) *~ *.annot test/*~ test/*.class run dvad-plugin
+
+cleanall:clean
 
 .depend: $(SRC:=.ml)
 	$(OCAMLDEP) $(SRCMLI:=.mli) $(SRC:=.ml) > .depend
