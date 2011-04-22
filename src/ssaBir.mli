@@ -102,10 +102,6 @@ module type IRSig = sig
       range contains [i]. *)
   val exception_edges :  t -> (int * exception_handler) list
 
-  (** functor that allows to have the same instruction representation
-      with different "variable" type *)
-  module InstrRep : functor(Var : Cmn.VarSig) -> Cmn.InstrSig
-
 end
 
 (** Common "variable" type and functions signature for SSA form *)
@@ -257,6 +253,10 @@ module T (Var : VarSig)
     (** [print c] returns a list of string representations for instruction of [c]
 	(one string for each program point of the code [c]). *)
     val print : ?phi_simpl:bool -> t -> string list
+
+    (** [print_simple c] same fun as print with phi_simpl = true (for
+	compatibility with non-SSA representations). *)
+    val print_simple : t -> string list
       
     (** [exception_edges m] returns a list of edges [(i,e);...] where
 	[i] is an instruction index in [m] and [e] is a handler whose
@@ -269,7 +269,13 @@ module T (Var : VarSig)
 	representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
     val get_source_line_number : int -> t -> int option
 
-
+    val vars : t -> Var.var array
+    val params : t -> (JBasics.value_type * Var.var) list
+    val code : t -> Instr.instr array
+    val exc_tbl : t -> exception_handler list
+    val line_number_table : t -> (int * int) list option
+    val pc_bc2ir : t -> int Ptmap.t
+    val pc_ir2bc : t -> int array
   end
 
 

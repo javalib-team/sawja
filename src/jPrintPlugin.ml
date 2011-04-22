@@ -837,7 +837,7 @@ module JCodePrinter = Make(
   end)
 
 (* Common functions for JBir-like instruction representation (JBir and JBirSSA)*)
-module MakeBirInstrsFunctions (S : JBir.InstrSig) =
+module MakeBirInstrsFunctions (S : JBir.Internal.InstrSig) =
 struct
 
   open JBir
@@ -910,31 +910,41 @@ struct
       | S.Check _ -> None
 end
 
-(* Common functions for JBir-like code (t) and exception representation (JBir and A3Bir)*)
-module MakeBirCodeExcFunctions (S : JBir.CodeSig) =
+(* Common functions for all code representations*)
+module MakeCodeExcFunctions (S : Cmn.CodeSig) =
 struct
 
   open AdaptedASTGrammar
+  open S.Internal
 
   let to_plugin_warning' jm pp_warn_map ast_of_i ast_of_e =
-    let get_precise_warn_generation code pc op lw msg =
-      let try_catch_or_finally _unit = 
-	let rec iter_handlers =
-	  function
-	      [] -> lw
-	    | eh::r -> 
-		if eh.S.e_handler = pc
-		then 
-		  match eh.S.e_catch_type with
-		      None -> PreciseLineWarning (msg,Statement Finally)
-		    | Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
-		else iter_handlers r
-	in
-	  iter_handlers code.S.exc_tbl
+    let handlers_pc_map code = 
+      if (Ptmap.is_empty pp_warn_map)
+      then Ptmap.empty
+      else
+	List.fold_left
+	  (fun map eh -> 
+	     Ptmap.add eh.S.e_handler eh.S.e_catch_type map
+	  )
+	  Ptmap.empty
+	  (exc_tbl code)
+    in
+    let get_precise_warn_generation handlers_pc_map pc op lw msg =
+      let try_catch_or_finally = 
+	try 
+	  Some(
+	    match Ptmap.find pc handlers_pc_map with
+		None -> PreciseLineWarning (msg,Statement Finally)
+	      | Some cn -> PreciseLineWarning (msg, Statement (Catch cn)))
+	with Not_found ->
+	  None
       in
-	(match ast_of_i op with
-	     Some node -> PreciseLineWarning (msg,node)
-	   | None -> try_catch_or_finally ())
+	match try_catch_or_finally with
+	    Some pw -> pw
+	  | None -> 
+	      (match ast_of_i op with
+		   Some node -> PreciseLineWarning (msg,node)
+		 | None -> lw)
     in
       match jm with
 	  AbstractMethod _ -> pp_warn_map
@@ -942,29 +952,30 @@ struct
 	    begin
 	      match cm.cm_implementation with
 		  Native -> pp_warn_map
-		| Java laz -> let code = Lazy.force laz in
+		| Java laz -> let cod = Lazy.force laz in
+		  let handlers_map = handlers_pc_map cod in
 		    Ptmap.mapi
 		      (fun pc ppwlist -> 
-			 let op = code.S.code.(pc) in
+			 let op = (code cod).(pc) in
 			   List.map 
 			     (fun ppw -> 
 				match ppw with
 				    PreciseLineWarning _ -> ppw
 				  | LineWarning (msg,None) as lw -> 
-				      get_precise_warn_generation code pc op lw msg
+				      get_precise_warn_generation handlers_map pc op lw msg
 				  | LineWarning (msg,Some expr) as lw -> 
 				      (match ast_of_e expr with
 					   Some node -> PreciseLineWarning (msg,node)
 					 | None -> 
-					     get_precise_warn_generation code pc op lw msg)
+					     get_precise_warn_generation handlers_map pc op lw msg)
 			     )
 			     ppwlist)
 		      pp_warn_map
 	    end
 
 
-  let inst_disp' printf pp code = 
-    printf code.S.code.(pp)
+  let inst_disp' printf pp cod = 
+    printf (code cod).(pp)
 
   let get_source_line_number pp code =
     S.get_source_line_number pp code
@@ -984,7 +995,7 @@ module JBirPrinter = Make(
 
     include MakeBirInstrsFunctions(JBir)
 
-    include MakeBirCodeExcFunctions(JBir)
+    include MakeCodeExcFunctions(JBir)
 
     let inst_disp = 
       inst_disp' print_instr
@@ -995,7 +1006,7 @@ module JBirPrinter = Make(
   end)
 
 (* Common functions for A3Bir-like instruction representation (A3Bir and A3BirSSA)*)
-module MakeA3BirInstrsFunctions (S : A3Bir.InstrSig) =
+module MakeA3BirInstrsFunctions (S : A3Bir.Internal.InstrSig) =
 struct
 
   open A3Bir
@@ -1080,7 +1091,7 @@ module A3BirPrinter = Make(
 
     include MakeA3BirInstrsFunctions(A3Bir)
       
-    include MakeBirCodeExcFunctions(A3Bir)
+    include MakeCodeExcFunctions(A3Bir)
 
     let to_plugin_warning jm pp_warn_map = 
       to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
@@ -1089,67 +1100,6 @@ module A3BirPrinter = Make(
 
   end)
 
-(* Common functions for SSA-like code (t) and exception representation (JBirSSA and A3BirSSA)*)
-module MakeSSACodeExcFunctions (S : JBirSSA.CodeSig) =
-struct
-
-  open AdaptedASTGrammar
-
-  let to_plugin_warning' jm pp_warn_map ast_of_i ast_of_e =
-    let get_precise_warn_generation code pc op lw msg =
-      let try_catch_or_finally _unit = 
-	let rec iter_handlers =
-	  function
-	      [] -> lw
-	    | eh::r -> 
-		if eh.S.e_handler = pc
-		then 
-		  match eh.S.e_catch_type with
-		      None -> PreciseLineWarning (msg,Statement Finally)
-		    | Some cn -> PreciseLineWarning (msg, Statement (Catch cn))
-		else iter_handlers r
-	in
-	  iter_handlers code.S.exc_tbl
-      in
-	(match ast_of_i op with
-	     Some node -> PreciseLineWarning (msg,node)
-	   | None -> try_catch_or_finally ())
-    in
-      match jm with
-	  AbstractMethod _ -> pp_warn_map
-	| ConcreteMethod cm -> 
-	    begin
-	      match cm.cm_implementation with
-		  Native -> pp_warn_map
-		| Java laz -> let code = Lazy.force laz in
-		    Ptmap.mapi
-		      (fun pc ppwlist -> 
-			 let op = code.S.code.(pc) in
-			   List.map 
-			     (fun ppw -> 
-				match ppw with
-				    PreciseLineWarning _ -> ppw
-				  | LineWarning (msg,None) as lw -> 
-				      get_precise_warn_generation code pc op lw msg
-				  | LineWarning (msg,Some expr) as lw -> 
-				      (match ast_of_e expr with
-					   Some node -> PreciseLineWarning (msg,node)
-					 | None -> 
-					     get_precise_warn_generation code pc op lw msg)
-			     )
-			     ppwlist)
-		      pp_warn_map
-	    end
-
-
-  let inst_disp' printf pp code = 
-    printf code.S.code.(pp)
-
-  let get_source_line_number pp code =
-    S.get_source_line_number pp code
-
-
-end
 
 module JBirSSAPrinter = Make(
   struct
@@ -1164,7 +1114,7 @@ module JBirSSAPrinter = Make(
       
     include MakeBirInstrsFunctions(JBirSSA)
 
-    include MakeSSACodeExcFunctions(JBirSSA)
+    include MakeCodeExcFunctions(JBirSSA)
 
     let inst_disp = 
       inst_disp' print_instr
@@ -1187,7 +1137,7 @@ module A3BirSSAPrinter = Make(
 
     include MakeA3BirInstrsFunctions(A3BirSSA)
 
-    include MakeSSACodeExcFunctions(A3BirSSA)
+    include MakeCodeExcFunctions(A3BirSSA)
 
     let inst_disp = 
       inst_disp' print_instr

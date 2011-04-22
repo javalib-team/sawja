@@ -18,8 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-include SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.InstrRep (SsaBir.Var(A3Bir)))
-include A3Bir.InstrRep (SsaBir.Var(A3Bir))    
+include SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.Internal.InstrRep (SsaBir.Var(A3Bir)))
+include A3Bir.Internal.InstrRep (SsaBir.Var(A3Bir))    
 include SsaBir.Var(A3Bir)
 
 module A3Bir2SSA = struct
@@ -195,7 +195,7 @@ end
 module SsaA3Bir = SsaBir.SSA 
   (A3Bir) 
   (SsaBir.Var(A3Bir))
-  (SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.InstrRep (SsaBir.Var(A3Bir))))
+  (SsaBir.T (SsaBir.Var(A3Bir)) (A3Bir.Internal.InstrRep (SsaBir.Var(A3Bir))))
   (struct 
      include A3Bir2SSA
      type ir_t = A3Bir.t
@@ -214,8 +214,25 @@ let transform_from_a3bir = SsaA3Bir.transform_from_ir
 let transform ?(bcv=false) ?(ch_link=false) cm code = 
   SsaA3Bir.transform_from_ir (A3Bir.transform ~bcv:bcv ~ch_link:ch_link cm code)
 
-(** Common signature for instructions of ABir and ABirSSA representations*)
-module type InstrSig = A3Bir.InstrSig
+module Internal = 
+struct
 
-(** Common signature for code of JBirSSA and A3BirSSA representations*)
-module type CodeSig = JBirSSA.CodeSig
+  (** Common signature for instructions of ABir and ABirSSA representations*)
+  module type InstrSig = A3Bir.Internal.InstrSig
+
+  (** Common signature for code of JBirSSA and A3BirSSA representations*)
+  module type CodeSig = JBirSSA.Internal.CodeSig
+
+  let vars = vars
+  let params = params
+  let code = code
+  let exc_tbl = exc_tbl
+  let line_number_table = line_number_table
+  let pc_bc2ir = pc_bc2ir
+  let pc_ir2bc = pc_ir2bc
+
+  (* Just for common interface with SSA forms*)
+  let print_simple = print_simple
+
+
+end

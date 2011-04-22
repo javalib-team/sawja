@@ -29,8 +29,8 @@ open JCode
 include Cmn.Common
 
 type virtual_call_kind =
-    | VirtualCall of object_type
-    | InterfaceCall of class_name
+  | VirtualCall of object_type
+  | InterfaceCall of class_name
 
 
 module InstrRep (Var:Cmn.VarSig) = 
@@ -131,9 +131,9 @@ struct
     | Check of check 
 	
   let instr_jump_to = function
-      | Ifd (_, n)
-      | Goto n -> Some n
-      | _ -> None
+    | Ifd (_, n)
+    | Goto n -> Some n
+    | _ -> None
 
   (************* PRINT ************)
 
@@ -280,7 +280,7 @@ let rec bir2a3bir_expr e = match e with
   | Bir.Binop(binop,expr1,expr2) ->  Binop(bir2a3bir_binop binop,bir2a3bir_basic_expr expr1,bir2a3bir_basic_expr expr2) 
   | Bir.Field(expr,cn,fs) -> Field (expr2var expr, cn, fs)
   | Bir.StaticField(cn,fs) -> StaticField(cn,fs)
-  
+      
 
 let kind2kind = function 
   | Bir.VirtualCall objt -> VirtualCall objt 
@@ -294,7 +294,7 @@ let check2check = function
   | Bir.CheckCast (e,t) -> CheckCast (bir2a3bir_basic_expr e,t)
   | Bir.CheckArithmetic e -> CheckArithmetic (bir2a3bir_basic_expr e)
   | Bir.CheckLink op -> CheckLink op
-  
+      
 let bir2a3bir_instr = function
     Bir.Nop -> Nop
   | Bir.AffectVar (v,expr) -> AffectVar (v,bir2a3bir_expr expr)
@@ -330,65 +330,84 @@ let bir2a3bir bir =
 let transform ?(bcv=false) ?(ch_link=false) j_m j_code =
   let code = Bir.transform_addr3 ~bcv:bcv ~ch_link:ch_link j_m j_code in 
     bir2a3bir code
-  
-module type InstrSig = 
-sig
-  
-  include Cmn.VarSig
+      
+module Internal = 
+struct 
 
-  type basic_expr = 
-    | Const of const
-    | Var of value_type * var
-	
-  type expr =
-    | BasicExpr of basic_expr
-    | Unop of unop * basic_expr
-    | Binop of binop * basic_expr * basic_expr
-    | Field of basic_expr * class_name * field_signature
-    | StaticField of class_name * field_signature
-	
-  type check = 
-    | CheckNullPointer of basic_expr
-    | CheckArrayBound of basic_expr * basic_expr
-    | CheckArrayStore of basic_expr * basic_expr
-    | CheckNegativeArraySize of basic_expr
-    | CheckCast of basic_expr * object_type
-    | CheckArithmetic of basic_expr
-    | CheckLink of jopcode
+  module InstrRep (Var:Cmn.VarSig) = InstrRep(Var)
 
-  type instr =
-    | Nop
-    | AffectVar of var * expr
-    | AffectArray of basic_expr * basic_expr * basic_expr
-    | AffectField of basic_expr * class_name * field_signature * basic_expr
-    | AffectStaticField of class_name * field_signature * expr
-    | Goto of int
-    | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * basic_expr * basic_expr ) * int
-    | Throw of basic_expr
-    | Return of basic_expr option
-    | New of var * class_name * value_type list * (basic_expr list)
-	(* var :=  class (parameters) *)
-    | NewArray of var * value_type * (basic_expr list)
-	(* var :=  value_type[e1]...[e2] *) 
-    | InvokeStatic of var option * class_name * method_signature * basic_expr list
-    | InvokeVirtual of var option * basic_expr * virtual_call_kind * method_signature * basic_expr list
-    | InvokeNonVirtual
-	of var option * basic_expr * class_name * method_signature * basic_expr list
-    | MonitorEnter of basic_expr
-    | MonitorExit of basic_expr 
-    | MayInit of class_name
-    | Check of check 
-	
-  val type_of_basic_expr : basic_expr -> Javalib_pack.JBasics.value_type
-
-  val type_of_expr :  expr -> JBasics.value_type
-
-  val print_basic_expr : ?show_type:bool -> basic_expr -> string    
-
-  val print_expr : ?show_type:bool -> expr -> string
+  module type InstrSig = 
+  sig
     
-  val print_instr : ?show_type:bool -> instr -> string
+    include Cmn.VarSig
+
+    type basic_expr = 
+      | Const of const
+      | Var of value_type * var
+	  
+    type expr =
+      | BasicExpr of basic_expr
+      | Unop of unop * basic_expr
+      | Binop of binop * basic_expr * basic_expr
+      | Field of basic_expr * class_name * field_signature
+      | StaticField of class_name * field_signature
+	  
+    type check = 
+      | CheckNullPointer of basic_expr
+      | CheckArrayBound of basic_expr * basic_expr
+      | CheckArrayStore of basic_expr * basic_expr
+      | CheckNegativeArraySize of basic_expr
+      | CheckCast of basic_expr * object_type
+      | CheckArithmetic of basic_expr
+      | CheckLink of jopcode
+
+    type instr =
+      | Nop
+      | AffectVar of var * expr
+      | AffectArray of basic_expr * basic_expr * basic_expr
+      | AffectField of basic_expr * class_name * field_signature * basic_expr
+      | AffectStaticField of class_name * field_signature * expr
+      | Goto of int
+      | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * basic_expr * basic_expr ) * int
+      | Throw of basic_expr
+      | Return of basic_expr option
+      | New of var * class_name * value_type list * (basic_expr list)
+	  (* var :=  class (parameters) *)
+      | NewArray of var * value_type * (basic_expr list)
+	  (* var :=  value_type[e1]...[e2] *) 
+      | InvokeStatic of var option * class_name * method_signature * basic_expr list
+      | InvokeVirtual of var option * basic_expr * virtual_call_kind * method_signature * basic_expr list
+      | InvokeNonVirtual
+	  of var option * basic_expr * class_name * method_signature * basic_expr list
+      | MonitorEnter of basic_expr
+      | MonitorExit of basic_expr 
+      | MayInit of class_name
+      | Check of check 
+	  
+    val type_of_basic_expr : basic_expr -> Javalib_pack.JBasics.value_type
+
+    val type_of_expr :  expr -> JBasics.value_type
+
+    val print_basic_expr : ?show_type:bool -> basic_expr -> string    
+
+    val print_expr : ?show_type:bool -> expr -> string
+      
+    val print_instr : ?show_type:bool -> instr -> string
+
+  end
+
+  module type CodeSig  = JBir.Internal.CodeSig
+
+  let vars = vars
+  let params = params
+  let code = code
+  let exc_tbl = exc_tbl
+  let line_number_table = line_number_table
+  let pc_bc2ir = pc_bc2ir
+  let pc_ir2bc = pc_ir2bc
+
+  (* Just for common interface with SSA forms*)
+  let print_simple = print
+
 
 end
-
-module type CodeSig  = JBir.CodeSig

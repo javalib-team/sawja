@@ -45,11 +45,12 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jProgram classDomain jNativeStubs jsrInline \
 	cmn jBir a3Bir ssaBir jBirSSA a3BirSSA\
-	jControlFlow jPrintHtml jPrintPlugin argPlugin\
+	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	safe reachableMethods \
 	jCRA XTA jRTA jRRTA 
 
-MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir,$(MODULE_INTERFACES))
+
+MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir jPrintUtil ,$(MODULE_INTERFACES))
 HIDE_MOD_IN_DOC = -hide JPrintPlugin.NewCodePrinter
 
 FOR_PACK= -for-pack Sawja_pack
@@ -146,6 +147,20 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
+
+doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
+	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
+	cp $(JAVALIB)/jBasics.mli ./javalib_pack.JBasics.mli
+	cp $(JAVALIB)/jCode.mli ./javalib_pack.JCode.mli
+	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
+	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
+	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
+	mkdir -p $(DOCDIR)
+	$(OCAMLDOC) $(HIDE_MOD_IN_DOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
+		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
+	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
+	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
+
 
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *~ \

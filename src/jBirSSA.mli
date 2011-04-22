@@ -345,102 +345,122 @@ val transform :
 
 (** See {!JBir} Exceptions section*)
 
+(**/**)
+
 (** {2 Only used for internal purpose} *)
 
-(** Common signature for instructions of JBir and JBirSSA representations*)
-module type InstrSig = JBir.InstrSig
-
-(** Common signature for code of JBirSSA and A3BirSSA representations*)
-module type CodeSig = 
+module Internal :
 sig
 
-  type var
+  (** Common signature for instructions of JBir and JBirSSA representations*)
+  module type InstrSig = JBir.Internal.InstrSig
 
-  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+  (** Common signature for code of JBirSSA and A3BirSSA representations*)
+  module type CodeSig = 
+  sig
 
-  type instr
+    type var
+
+    module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+    module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
+    type instr
+      
+    type exception_handler = {
+      e_start : int;
+      e_end : int;
+      e_handler : int;
+      e_catch_type : JBasics.class_name option;
+      e_catch_var : var
+    }
+
+    type phi_node = {
+      def : var;
+      (** The variable defined in the phi node*)
+      use : var array;
+      (** Array of used variable in the phi node, the index of a used
+	  variable in the array corresponds to the index of the program
+	  point predecessor in [preds.(phi_node_pc)].*)
+      use_set : VarSet.t;
+      (** Set of used variable in the phi node (no information on
+	  predecessor program point for a used variable)*)
+    }
+
+    type t = {
+      vars : var array;  
+      (** All variables that appear in the method. [vars.(i)] is the variable of
+	  index [i]. *)
+      params : (JBasics.value_type * var) list;
+      (** [params] contains the method parameters (including the receiver this for
+	  virtual methods). *)
+      code : instr array;
+      (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
+	  are absolute. *)
+      preds : (int array) array;
+      (** [preds.(pc)] is the array of program points that are predecessors of
+	  instruction [pc]. *)
+      phi_nodes : phi_node list array;
+      (** Array of phi nodes assignments. Each phi nodes assignments at
+	  point [pc] must be executed before the corresponding [code.(pc)]
+	  instruction. *)
+      exc_tbl : exception_handler list;
+      (** [exc_tbl] is the exception table of the method code. Jumps are
+	  absolute. *)
+      line_number_table : (int * int) list option;
+      (** [line_number_table] contains debug information. It is a list of pairs
+	  [(i,j)] where [i] indicates the index into the bytecode array at which the
+	  code for a new line [j] in the original source file begins.  *)
+      pc_bc2ir : int Ptmap.t;
+      (** map from bytecode code line to ir code line (very sparse). *)
+      pc_ir2bc : int array; 
+      (** map from ir code line to bytecode code line *)
+    }  
+
+    (** [print_handler exc] returns a string representation for
+	exception handler [exc]. *)
+    val print_handler : exception_handler -> string
+
+    val jump_target : t -> bool array
+
+    (** [print_phi_node phi] returns a string representation for phi node [phi]. *)
+    val print_phi_node : ?phi_simpl:bool -> phi_node -> string
+
+    (** [print_phi_nodes phi_list] returns a string representation for phi nodes 
+	[phi_list]. *)
+    val print_phi_nodes : ?phi_simpl:bool -> phi_node list -> string
+
+    (** [print c] returns a list of string representations for instruction of [c]
+	(one string for each program point of the code [c]). *)
+    val print : ?phi_simpl:bool -> t -> string list
+      
+    (** [exception_edges m] returns a list of edges [(i,e);...] where
+	[i] is an instruction index in [m] and [e] is a handler whose
+	range contains [i]. *)
+    val exception_edges :  t -> (int * exception_handler) list
+
+    (** [get_source_line_number pc m] returns the source line number corresponding
+	the program point [pp] of the method code [m].  The line number give a rough
+	idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
+	representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
+    val get_source_line_number : int -> t -> int option
+
+
+  end 
+
     
-  type exception_handler = {
-    e_start : int;
-    e_end : int;
-    e_handler : int;
-    e_catch_type : JBasics.class_name option;
-    e_catch_var : var
-  }
+  (** Common accessors to the type t for all representations, it allows
+      to use {!Cmn.CodeSig} that is the lowest common interface for the code
+      of all IRs *)
+  val vars : t -> var array
+  val params : t -> (JBasics.value_type * var) list
+  val code : t -> instr array
+  val exc_tbl : t -> exception_handler list
+  val line_number_table : t -> (int * int) list option
+  val pc_bc2ir : t -> int Ptmap.t
+  val pc_ir2bc : t -> int array
 
-  type phi_node = {
-    def : var;
-    (** The variable defined in the phi node*)
-    use : var array;
-    (** Array of used variable in the phi node, the index of a used
-	variable in the array corresponds to the index of the program
-	point predecessor in [preds.(phi_node_pc)].*)
-    use_set : VarSet.t;
-    (** Set of used variable in the phi node (no information on
-	predecessor program point for a used variable)*)
-  }
+  val print_simple : t -> string list
 
-  type t = {
-    vars : var array;  
-    (** All variables that appear in the method. [vars.(i)] is the variable of
-	index [i]. *)
-    params : (JBasics.value_type * var) list;
-    (** [params] contains the method parameters (including the receiver this for
-	virtual methods). *)
-    code : instr array;
-    (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
-	are absolute. *)
-    preds : (int array) array;
-    (** [preds.(pc)] is the array of program points that are predecessors of
-      instruction [pc]. *)
-    phi_nodes : phi_node list array;
-    (** Array of phi nodes assignments. Each phi nodes assignments at
-	point [pc] must be executed before the corresponding [code.(pc)]
-	instruction. *)
-    exc_tbl : exception_handler list;
-    (** [exc_tbl] is the exception table of the method code. Jumps are
-	absolute. *)
-    line_number_table : (int * int) list option;
-    (** [line_number_table] contains debug information. It is a list of pairs
-	[(i,j)] where [i] indicates the index into the bytecode array at which the
-	code for a new line [j] in the original source file begins.  *)
-    pc_bc2ir : int Ptmap.t;
-    (** map from bytecode code line to ir code line (very sparse). *)
-    pc_ir2bc : int array; 
-    (** map from ir code line to bytecode code line *)
-  }  
-
-  (** [print_handler exc] returns a string representation for
-      exception handler [exc]. *)
-  val print_handler : exception_handler -> string
-
-  val jump_target : t -> bool array
-
-  (** [print_phi_node phi] returns a string representation for phi node [phi]. *)
-  val print_phi_node : ?phi_simpl:bool -> phi_node -> string
-
-  (** [print_phi_nodes phi_list] returns a string representation for phi nodes 
-      [phi_list]. *)
-  val print_phi_nodes : ?phi_simpl:bool -> phi_node list -> string
-
-  (** [print c] returns a list of string representations for instruction of [c]
-      (one string for each program point of the code [c]). *)
-  val print : ?phi_simpl:bool -> t -> string list
-    
-  (** [exception_edges m] returns a list of edges [(i,e);...] where
-      [i] is an instruction index in [m] and [e] is a handler whose
-      range contains [i]. *)
-  val exception_edges :  t -> (int * exception_handler) list
-
-  (** [get_source_line_number pc m] returns the source line number corresponding
-      the program point [pp] of the method code [m].  The line number give a rough
-      idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
-      representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
-  val get_source_line_number : int -> t -> int option
-
-
-end 
-
-
-
+end
+  
+(**/**)

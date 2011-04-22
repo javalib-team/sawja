@@ -344,10 +344,32 @@ val transform :
 
 (** See {!A3Bir} Exceptions section*)
 
+(**/**)
+
 (** {2 Only used for internal purpose} *)
 
-(** Common signature for instructions of ABir and ABirSSA representations*)
-module type InstrSig = A3Bir.InstrSig
+module Internal :
+sig
 
-(** Common signature for code of JBirSSA and A3BirSSA representations*)
-module type CodeSig = JBirSSA.CodeSig
+  (** Common signature for instructions of ABir and ABirSSA representations*)
+  module type InstrSig = A3Bir.Internal.InstrSig
+
+  (** Common signature for code of JBirSSA and A3BirSSA representations*)
+  module type CodeSig = JBirSSA.Internal.CodeSig
+
+  (** Common accessors to the type t for all representations, it allows
+      to use {!Cmn.CodeSig} that is the lowest common interface for the code
+      of all IRs *)
+  val vars : t -> var array
+  val params : t -> (JBasics.value_type * var) list
+  val code : t -> instr array
+  val exc_tbl : t -> exception_handler list
+  val line_number_table : t -> (int * int) list option
+  val pc_bc2ir : t -> int Ptmap.t
+  val pc_ir2bc : t -> int array
+
+  val print_simple : t -> string list
+
+end
+
+(**/**)

@@ -263,6 +263,15 @@ module T (Var:Cmn.VarSig) (Instr:Cmn.InstrSig)
             JCode.get_source_line_number' m.pc_ir2bc.(pc_ir) lnt
 
     let exception_edges m = exception_edges' m.code m.exc_tbl 
+
+    let vars t = t.vars
+    let params t = t.params
+    let code t = t.code
+    let exc_tbl t = t.exc_tbl
+    let line_number_table t = t.line_number_table
+    let pc_bc2ir t = t.pc_bc2ir
+    let pc_ir2bc t = t.pc_ir2bc
+
   end
 
     
@@ -2409,97 +2418,114 @@ module AgregatBool = struct
 
 end
 
-(* instruction representation common for all code representations based on JBir (JBirSSA) *)
-module type InstrSig = 
-sig
+module Internal = 
+struct 
 
-  include Cmn.VarSig
+  module InstrRep (Var:Cmn.VarSig) = InstrRep(Var)
 
-  type expr =
-    | Const of const
-    | Var of JBasics.value_type * var
-    | Unop of unop * expr
-    | Binop of binop * expr * expr
-    | Field of expr * JBasics.class_name * JBasics.field_signature
-    | StaticField of JBasics.class_name * JBasics.field_signature
+  (* instruction representation common for all code representations based on JBir (JBirSSA) *)
+  module type InstrSig = 
+  sig
 
-  type check =
-    | CheckNullPointer of expr
-    | CheckArrayBound of expr * expr
-    | CheckArrayStore of expr * expr
-    | CheckNegativeArraySize of expr
-    | CheckCast of expr * JBasics.object_type
-    | CheckArithmetic of expr
-    | CheckLink of JCode.jopcode
+    include Cmn.VarSig
 
-  type instr =
-    | Nop
-    | AffectVar of var * expr
-    | AffectArray of expr * expr * expr
-    | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
-    | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
-    | Goto of int
-    | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
-    | Throw of expr
-    | Return of expr option
-    | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
-    | NewArray of var * JBasics.value_type * (expr list)
-    | InvokeStatic
-	of var option * JBasics.class_name * JBasics.method_signature * expr list
-    | InvokeVirtual
-	of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
-    | InvokeNonVirtual
-	of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
-    | MonitorEnter of expr
-    | MonitorExit of expr
-    | MayInit of JBasics.class_name
-    | Check of check
+    type expr =
+      | Const of const
+      | Var of JBasics.value_type * var
+      | Unop of unop * expr
+      | Binop of binop * expr * expr
+      | Field of expr * JBasics.class_name * JBasics.field_signature
+      | StaticField of JBasics.class_name * JBasics.field_signature
 
-  val type_of_expr :  expr -> JBasics.value_type
+    type check =
+      | CheckNullPointer of expr
+      | CheckArrayBound of expr * expr
+      | CheckArrayStore of expr * expr
+      | CheckNegativeArraySize of expr
+      | CheckCast of expr * JBasics.object_type
+      | CheckArithmetic of expr
+      | CheckLink of JCode.jopcode
 
-  val print_expr : ?show_type:bool -> expr -> string
+    type instr =
+      | Nop
+      | AffectVar of var * expr
+      | AffectArray of expr * expr * expr
+      | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
+      | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
+      | Goto of int
+      | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
+      | Throw of expr
+      | Return of expr option
+      | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
+      | NewArray of var * JBasics.value_type * (expr list)
+      | InvokeStatic
+	  of var option * JBasics.class_name * JBasics.method_signature * expr list
+      | InvokeVirtual
+	  of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
+      | InvokeNonVirtual
+	  of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
+      | MonitorEnter of expr
+      | MonitorExit of expr
+      | MayInit of JBasics.class_name
+      | Check of check
 
-  val print_instr : ?show_type:bool -> instr -> string
+    val type_of_expr :  expr -> JBasics.value_type
 
-end
+    val print_expr : ?show_type:bool -> expr -> string
+
+    val print_instr : ?show_type:bool -> instr -> string
+
+  end
 
 
-module type CodeSig  =
-sig
+  module type CodeSig  =
+  sig
 
-  type var
+    type var
 
-  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+    module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+    module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 
-  type instr
+    type instr
 
-  type exception_handler = {
-    e_start : int;
-    e_end : int;
-    e_handler : int;
-    e_catch_type : class_name option;
-    e_catch_var : var
-  }
+    type exception_handler = {
+      e_start : int;
+      e_end : int;
+      e_handler : int;
+      e_catch_type : class_name option;
+      e_catch_var : var
+    }
 
-  type t = {
-    vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
-    params : (JBasics.value_type * var) list;
-    code : instr array;
-    exc_tbl : exception_handler list;
-    line_number_table : (int * int) list option;
-    pc_bc2ir : int Ptmap.t;
-    pc_ir2bc : int array
-  }
+    type t = {
+      vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
+      params : (JBasics.value_type * var) list;
+      code : instr array;
+      exc_tbl : exception_handler list;
+      line_number_table : (int * int) list option;
+      pc_bc2ir : int Ptmap.t;
+      pc_ir2bc : int array
+    }
 
-  val print_handler : exception_handler -> string
+    val print_handler : exception_handler -> string
 
-  val jump_target : t -> bool array
-    
-  val get_source_line_number : int -> t -> int option
+    val jump_target : t -> bool array
+      
+    val get_source_line_number : int -> t -> int option
 
-  val exception_edges : t -> (int * exception_handler) list
+    val exception_edges : t -> (int * exception_handler) list
 
-  val print : t -> string list
+    val print : t -> string list
 
+  end
+
+    let vars = vars
+    let params = params
+    let code = code
+    let exc_tbl = exc_tbl
+    let line_number_table = line_number_table
+    let pc_bc2ir = pc_bc2ir
+    let pc_ir2bc = pc_ir2bc
+
+    (* Just for common interface with SSA forms*)
+    let print_simple = print
 end

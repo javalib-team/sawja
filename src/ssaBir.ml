@@ -103,8 +103,6 @@ module type IRSig = sig
       range contains [i]. *)
   val exception_edges :  t -> (int * exception_handler) list
 
-  module InstrRep : functor(Var : Cmn.VarSig) -> Cmn.InstrSig
-
 end
 
 module Var (IR:IRSig) = 
@@ -277,6 +275,8 @@ struct
   let print ?(phi_simpl=true) m =
     let size = Array.length (m.code) in
       print_code phi_simpl m.preds m.phi_nodes m.code (size-1) []
+
+  let print_simple = print ~phi_simpl:true
 	
   let get_source_line_number pc_ir m =
     match m.line_number_table with
@@ -285,6 +285,16 @@ struct
           JCode.get_source_line_number' m.pc_ir2bc.(pc_ir) lnt
 
   let exception_edges m = exception_edges' m.code m.exc_tbl 
+
+ 
+  let vars t = t.vars
+  let params t = t.params
+  let code t = t.code
+  let exc_tbl t = t.exc_tbl
+  let line_number_table t = t.line_number_table
+  let pc_bc2ir t = t.pc_bc2ir
+  let pc_ir2bc t = t.pc_ir2bc
+
 end
 
 module type IR2SsaSig = sig
