@@ -534,9 +534,12 @@ module Internal : sig
   (** Common signature for code of JBir and A3Bir representations*)
   module type CodeSig  = JBir.Internal.CodeSig
 
+
   (** Common accessors to the type t for all representations, it allows
       to use {!Cmn.CodeSig} that is the lowest common interface for the code
-      of all IRs *)
+      of all IRs: *)
+
+
   val vars : t -> var array
   val params : t -> (JBasics.value_type * var) list
   val code : t -> instr array

@@ -357,9 +357,12 @@ sig
   (** Common signature for code of JBirSSA and A3BirSSA representations*)
   module type CodeSig = JBirSSA.Internal.CodeSig
 
+
   (** Common accessors to the type t for all representations, it allows
       to use {!Cmn.CodeSig} that is the lowest common interface for the code
-      of all IRs *)
+      of all IRs: *)
+
+
   val vars : t -> var array
   val params : t -> (JBasics.value_type * var) list
   val code : t -> instr array

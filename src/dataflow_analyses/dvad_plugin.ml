@@ -118,7 +118,7 @@ let run_dead_affect ioc =
 let main cp output cn_string =
   let cn = make_cn cn_string in
   let ioc = get_class cp cn in
-  let bir_ioc = map_interface_or_class_context (JBir.transform ~bcv:true) ioc in
+  let bir_ioc = map_interface_or_class_context JBir.transform ioc in
   let plugin_infos = run_dead_affect bir_ioc in
     (* Print infos on the current class for the Eclipse plugin*)
     JPrintPlugin.JBirPrinter.print_class plugin_infos bir_ioc output
