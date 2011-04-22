@@ -149,6 +149,7 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
 doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
+	sed -i 's/(\*\*\/\*\*)/(\*\*\*\/\*\*\*)/g' *.mli
 	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
 	cp $(JAVALIB)/jBasics.mli ./javalib_pack.JBasics.mli
 	cp $(JAVALIB)/jCode.mli ./javalib_pack.JCode.mli
@@ -160,7 +161,7 @@ doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
-
+	sed -i 's/(\*\*\*\/\*\*\*)/(\*\*\/\*\*)/g' *.mli
 
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *~ \
