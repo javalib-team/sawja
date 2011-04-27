@@ -1,0 +1,11 @@
+This folder contains source files of example analyzes included in the Sawja library and 
+examples of use of these analyzes (Sawja must be installed).
+
+Examples of use:
+---------
+
+* (main.ml) To have an example of dataflow analyzes results, just do 'make' or 'make test'
+
+* (dvad_plugin.ml) To compile the "Dead Variable Affectation Detection" analysis 
+  that could be used with the Sawja Eclipse Plugin:
+  - Do make "dvad-plugin", the dvad-plugin executable will be created

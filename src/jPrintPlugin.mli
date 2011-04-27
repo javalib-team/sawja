@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Generation of warnings and information for the Sawja's Eclipse plugin *)
+(** Generation of warnings and information for the Sawja Eclipse Plugin *)
 
 open Javalib_pack
 open JBasics
@@ -25,8 +25,8 @@ open Javalib
 open JProgram
 
 
-(** This module allows to generate information data for the Sawja's
-    Eclipse plugin. It allows to add warning on source code in the JDT
+(** This module allows to generate information data for the Sawja
+    Eclipse Plugin. It allows to add warning on source code in the JDT
     (Java Development Toolkit) of Eclipse and to attach information on
     the analysis state to the source code in order to help Java
     programmer or for debugging purpose on analysis.
@@ -45,7 +45,7 @@ open JProgram
     N.B.: Information contained by [p_infos] in {!plugin_info} could
     be given with HTML code, it must be specified to the print
     function with the [html_info] optional parameter. Conversely,
-    warnings contained by [p_warnings] must only be standard string.
+    warnings contained by [p_warnings] must only be plain text.
 *)
 
 
@@ -277,7 +277,7 @@ sig
       
   end
 
-    (** Functor building a printer for the Sawja's Eclipse plugin
+    (** Functor building a printer for the Sawja Eclipse Plugin
     given the {!PrintInterface} for a specific code represenation.*)
   module Make (S : PrintInterface) : PluginPrinter
 

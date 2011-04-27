@@ -21,7 +21,7 @@ clean cleanall :
 	$(MAKE) -C buddycaml $@
 	$(RM) *~
 
-cleandoc doc:
+cleandoc doc doc-devel:
 	$(MAKE) -C src $@
 	$(RM) *~
 

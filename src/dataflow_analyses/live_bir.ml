@@ -24,7 +24,7 @@ open Javalib
 
 module Env = struct
   (* lattice of powerset of JBir variables *)
-  include Set.Make(struct type t = JBir.var let compare = compare end)
+  include Set.Make(struct type t = JBir.var let compare v1 v2 = (JBir.index v1) - (JBir.index v2) end)
 
   let print_key  = JBir.var_name_g
 

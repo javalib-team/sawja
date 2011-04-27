@@ -18,11 +18,11 @@
  *)
 
 (** ArgPlugin is a wrapper to module Arg that normalize arguments for
-    the Sawja's Eclipse Plugin.*)
+    the Sawja Eclipse Plugin.*)
 
 (** ArgPlugin is a wrapper to module Arg that normalize arguments for
-    the Sawja's Eclipse Plugin. The final executable must use
-    ArgPlugin to could be "installed" and executed by the Sawja's
+    the Sawja Eclipse Plugin. The final executable must use
+    ArgPlugin to could be "installed" and executed by the Sawja
     Eclipse Plugin.*)
 
 (** The concrete type describing the behavior associated with a keyword*)
@@ -54,7 +54,7 @@ type spec =
 	  only a description)*)
   | NotPlugin of Arg.spec
       (** [NotPlugin spec] with spec an Arg.spec will add an argument
-	  that will not appear in the Sawja's Eclipse plugin.*)
+	  that will not appear in the Sawja Eclipse Plugin.*)
 
 (** key is the option keyword, it must start with a '-' character*)
 type key = string 

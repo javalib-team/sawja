@@ -460,3 +460,240 @@ becomes very simple:
         Javalib.JPrint.jopcode ~jvm:true op in
         [simple_elem inst]
 ~~~~~
+
+Create an analysis for the Sawja Eclipse Plugin
+-----------------------------------------------
+
+In this section we will use the [live variable
+analysis](http://en.wikipedia.org/wiki/Live_variable_analysis),
+included in Sawja as an dataflow analysis example, to create an
+analysis that detects variable assignments never used and we will add
+it in the *Sawja Eclipse Plugin*.
+
+The principle is simple, we use the result of the *live variable
+analysis* for the JBir code representation (Live_bir module in Sawja)
+that returns the live variables before the execution of an instruction.
+For each instruction **JBir.AffectVar (var,expr)** we check that on
+the next instruction the variable **var** is alive, if not it is a
+dead affectation. 
+
+We should notice the programmer in case of dead variable affectation
+because it could be the sign of a bug. As a consequence we want to put
+warnings on the dead affectation instruction and the method containing
+the instruction. We also want to give information on the *live
+variable analysis* result in this case to could see which variables
+are alive for each instruction.
+
+In precedent tutorials we used the *OCaml* toplevel but for this one
+we want to generate an executable, as a consequence we will use the
+native ocaml compiler and construct the file **dvad.ml** step by step
+(from bottom to up).
+
+Head of **dvad.ml** file should load the *Javalib* and *Sawja*
+libraries packages:
+
+~~~~~
+open Javalib_pack
+open Sawja_pack
+~~~~~
+
+First we parse the arguments of our executable using the module
+*ArgPlugin* which is a wrapper to the standard *Arg* module, it will
+allow to directly add our executable in the Eclipse plugin just by
+adding it in a folder. Moreover we will parse a list of class names
+because it will avoid the plugin user to indicate explicitly which
+class to analyze and instead analyze automatically all the classes of
+his project at each compilation (see documentation of *ArgPlugin*).
+
+~~~~~
+(** [_plugin_exec] parses arguments of executable and executes the
+    analysis for each class file given by the arguments*)
+let _plugin_exec =
+ 
+    (* Arguments values*)
+  let targets = ref []
+  and classpath = ref "" 
+  and path_output = ref "" in
+
+    (* Description and instanciation of the arguments*)
+  let exec_args = 
+    [ ("--files", "Class files",
+       ArgPlugin.ClassFiles (fun sl -> targets := sl),
+       "The class files to pass to the dead affectation checker.");
+      ("--classpath", "Class path",
+       ArgPlugin.ClassPath (fun s -> classpath := s),
+       "Locations where class files are looked for.");
+    ]
+  in
+  let usage_msg = "Usage: " ^Sys.argv.(0)^ " [options]" in
+
+    (* Adding analysis description and output, and launch parsing of arguments *)
+    ArgPlugin.parse
+      ("DVAD","Dead Variables Affected Detection: detects variables affected but never read.")
+      exec_args
+      (ArgPlugin.PluginOutput ("--plug_output",(fun s -> path_output := s)))
+      usage_msg;
+    try
+      let cp = Javalib.class_path !classpath in
+
+   	(* Launch analysis for each class *)
+	List.iter
+	  (fun cn_string -> 
+	     main cp !path_output cn_string (*==> Next function to write *)
+          ) 
+	  !targets
+    with e ->
+      (* If an exception is raised, it will appear on the standard
+	 error output and then in the Error Log view of Eclipse*)
+      raise e
+~~~~~
+
+Then we write the main function that will run the analysis on a class
+and finally print the data structure of warnings and information for
+the Eclipse plugin.
+
+~~~~~
+(** [main cp output cn_string] loads the class [cn_string], converts it
+   in JBir representation, runs the analysis and print the information
+   for the plugin. [cp] is a class_path, [output] a folder path for
+   generation of plugin information and [cn_string] the fully
+   qualified name of a Java class file.*)
+let main cp output cn_string =
+  let cn = JBasics.make_cn cn_string in
+  let ioc = Javalib.get_class cp cn in
+  let bir_ioc = Javalib.map_interface_or_class_context JBir.transform ioc in
+  let plugin_infos = run_dead_affect bir_ioc (*==> Next function to write *)
+  in 
+
+    (* Print infos on the current class for the Eclipse plugin*)
+    JPrintPlugin.JBirPrinter.print_class plugin_infos bir_ioc output
+~~~~~
+
+We will now create the empty data structure containing the information
+for the Eclipse plugin and launch the analysis for each method of a
+class.
+
+~~~~~
+(**[run_dead_affect ioc] returns the data structure containing
+   information for the Eclipse plugin. [ioc] is the interface_or_class
+   to check.*)
+let run_dead_affect ioc =
+  let plugin_infos = JPrintPlugin.JBirPrinter.empty_infos in
+    Javalib.cm_iter
+      (fun cm ->
+	 match cm.Javalib.cm_implementation with 
+	     Javalib.Native -> ()
+	   | Javalib.Java lazc -> 
+	       let code = Lazy.force lazc in
+
+	       (* Launch the live variable analysis *)
+	       let live = Live_bir.run code in
+	       let (cn,ms) = JBasics.cms_split cm.Javalib.cm_class_method_signature in
+		 method_dead_affect cn ms code live plugin_infos (*==> Next function to write *)
+      )
+      ioc;
+    plugin_infos
+~~~~~
+
+Finally we could write concrete part of the analysis that checks the
+code of a method and fill the data structure for the plugin.
+
+~~~~~
+(**[method_dead_affect cn ms code live plug_info] modifies the data
+   structure [plug_info] containing information for the Eclipse
+   plugin. [cn] is a class_name, [ms] a method_signature, [code] the
+   JBir code of the method and [live] the result of the live analysis
+   on the code.*)
+let method_dead_affect cn ms code live plugin_infos =
+
+  (*Corner cases: "false" positive on AffectVar instruction*)
+  let not_corner_case i op = 
+
+    (* AffectVar instruction corresponding to a catch(Exception e) statement*)
+      List.for_all
+	(fun exc_h -> not(i = exc_h.JBir.e_handler))
+	code.JBir.exc_tbl
+  in
+  let dead_var_exists = ref false in
+    Array.iteri 
+      (fun i op -> 
+	 (match op with 
+	    | JBir.AffectVar (var,expr) when not_corner_case i op -> 
+
+		(* Is the variable dead at next instruction ?*)
+		let live_res = live (i+1) in
+		let dead_var = not (Live_bir.Env.mem var live_res) in
+		  if dead_var
+		  then 
+		    begin
+
+		      (* We add a warning on the dead affectation instruction*)
+		      let warn_pp = 
+		      	  (Printf.sprintf 
+			  	 "Variable '%s' is affected but never read !" 
+			 	 JBir.var_name_g var, None)
+		      in
+			plugin_infos.JPrintPlugin.p_warnings <- 
+			  JPrintPlugin.add_pp_iow warn_pp cn ms i plugin_infos.JPrintPlugin.p_warnings;
+			dead_var_exists := true
+		    end
+	    | _ -> ()))
+      code.JBir.code;
+
+    (* Fill information for plugin depending on the method analysis result*)
+    fill_debug_infos !dead_var_exists cn ms code live plugin_infos (*==> Last function to write *)
+~~~~~
+
+We just have to add a warning and to fill information from the analysis on a method that contains at least one dead affectation.
+
+~~~~~
+(** Fill debug information, depending if dead
+    affectations are detected*)
+let fill_debug_infos dead_found cn ms code live plugin_infos =
+  let _warns = 
+    if dead_found
+    then
+      plugin_infos.JPrintPlugin.p_warnings <- 
+	JPrintPlugin.add_meth_iow 
+	(JPrintPlugin.MethodSignature "The method contains dead affectation(s).")
+	cn ms plugin_infos.JPrintPlugin.p_warnings
+  and _infos = 
+    if dead_found
+    then
+      begin
+
+      (* We give information on the variables liveness for this
+	 method*)
+      Array.iteri
+	(fun i _ -> 
+	   let info_live = 
+	     Printf.sprintf "Live variables: %s\n"
+	       (Live_bir.to_string (live i)) 
+	   in
+	     plugin_infos.JPrintPlugin.p_infos <- 
+	       JPrintPlugin.add_pp_iow info_live cn ms i plugin_infos.JPrintPlugin.p_infos
+	)
+	code.JBir.code;
+	plugin_infos.JPrintPlugin.p_infos <- 
+	  JPrintPlugin.add_meth_iow 
+	  (JPrintPlugin.MethodSignature "Dead variable affectation(s) found") 
+	  cn ms plugin_infos.JPrintPlugin.p_infos ;
+      end
+    else
+      plugin_infos.JPrintPlugin.p_infos <- 
+	JPrintPlugin.add_meth_iow 
+	  (JPrintPlugin.MethodSignature "No dead variable affectation found") 
+	  cn ms plugin_infos.JPrintPlugin.p_infos;
+  in ()
+~~~~~
+
+Now we have filled the file **dvad.ml** from bottom to up, we could
+create our executable with the following compilation line:
+
+~~~~~
+ocamlfind ocamlopt -package sawja -linkpkg -o dvad dvad.ml
+~~~~~
+
+Then we could copy our executable **dvad** in the folder of
+executables as described on the [Sawja Eclipse Plugin
+page](http://javalib.gforge.inria.fr/eclipse.html).

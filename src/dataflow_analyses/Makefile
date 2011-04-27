@@ -26,9 +26,10 @@ dvad-plugin: dvad_plugin.cmx
 	$(OCAMLOPT) -linkpkg -o $@ $^
 
 clean:
-	rm -f *.o *.a $(SRC:=.cm[iox]) *~ *.annot test/*~ test/*.class run dvad-plugin
+	rm -f *.o *.a dvad_plugin.cm[iox] $(SRC:=.cm[iox]) *~ *.annot test/*~ test/*.class run dvad-plugin
 
 cleanall:clean
+
 
 .depend: $(SRC:=.ml)
 	$(OCAMLDEP) $(SRCMLI:=.mli) $(SRC:=.ml) > .depend
