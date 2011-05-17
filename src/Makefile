@@ -40,7 +40,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 	safe reachableMethods jNativeStubs \
 	jCRA jRTA jRRTA XTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
-	$(DATAFLOW)availableExprSSA 
+	$(DATAFLOW)availableExprSSA
 
 MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jProgram classDomain jNativeStubs jsrInline \
@@ -48,7 +48,7 @@ MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	$(DATAFLOW)live_bir \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	safe reachableMethods \
-	jCRA XTA jRTA jRRTA 
+	jCRA XTA jRTA jRRTA
 
 
 MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir jPrintUtil ,$(MODULE_INTERFACES))
