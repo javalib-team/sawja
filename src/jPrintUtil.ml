@@ -20,16 +20,16 @@
  *)
 
 
-let replace_forb_xml_ch s =
+let replace_forb_xml_ch ?(repl_amp=false) s =
     ExtString.String.replace_chars
       (function
-(* This one is problematic if replacements are already done*)
-(*	   '&' -> "&amp;"*)
+	   (* This one is problematic if replacements are already done*)
+	   '&' when repl_amp -> "&amp;"
 	 | '<' -> "&lt;"
 	 | '>' -> "&gt;"
 	 | '"' -> "&quot;"
 	 | '\'' -> "&apos;"
-	 | c -> Char.escaped c)
+	 | c -> String.make 1 c)
       s
 
 let mkdirp path perm =

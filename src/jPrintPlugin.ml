@@ -975,7 +975,10 @@ struct
 
 
   let inst_disp' printf pp cod = 
-    printf (code cod).(pp)
+    let printf_esc = 
+      (fun i -> JPrintUtil.replace_forb_xml_ch ~repl_amp:true (printf i))
+    in
+      printf_esc (code cod).(pp)
 
   let get_source_line_number pp code =
     S.get_source_line_number pp code

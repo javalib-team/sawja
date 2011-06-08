@@ -21,7 +21,7 @@
 
 (** Utility module for printing XML documents and common printing functions for code representations.*)
 
-val replace_forb_xml_ch : string -> string
+val replace_forb_xml_ch : ?repl_amp:bool -> string -> string
 
 val mkdirp : string -> Unix.file_perm -> unit
 
