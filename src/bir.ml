@@ -1620,271 +1620,276 @@ let value_compare e1 e2 =
 let value_compare_stack s1 s2 =
   List.for_all2 value_compare s1 s2
 
-(* Check that debug info on local variables are consistent:
 
-   (1) Context must be initialized at pc=0: arguments of method using
-   pp_var info at pc=0 and other local variables at UnDef value.
-   Context is initialized with debug info of local_variable_table on
-   the fly for pcs not initialized by propagation before access to
-   their context.  + Little hack: we initialize variables that never
-   have a name in method at NoName.
+module FastCheckInfoDebug = struct
+  (* Check that debug info on local variables are consistent in
+     bytecode representation during transformation:
 
-   (2) Retrieve and propagate debug info of a variable when a OpStore
-   is done (from the pc beyond the OpStore).  Propagate info to
-   successors of [pc]: if successor is a jump target do (3).
+     (1) Context must be initialized at pc=0: arguments of method using
+     pp_var info at pc=0 and other local variables at UnDef value.
+     Context is initialized with debug info of local_variable_table on
+     the fly for pcs not initialized by propagation before access to
+     their context.  + Little hack: we initialize variables that never
+     have a name in method at NoName.
 
-   (3) Check that our propagated debug info at a pc (for each variable
-   on which we have a debug info) is consistent with debug info of pc
-   successors that are jump_target pcs and propagate information
-   regarding the special case. 
+     (2) Retrieve and propagate debug info of a variable when a OpStore
+     is done (from the pc beyond the OpStore).  Propagate info to
+     successors of [pc]: if successor is a jump target do (3).
 
-   (4) Check at each use of a variable (OpLoad, OpIInc) that our
-   propagated info on this variable is the same that the one in the
-   local_variable_table (using pp_var =
-   JCode.get_local_variable_info).
+     (3) Check that our propagated debug info at a pc (for each variable
+     on which we have a debug info) is consistent with debug info of pc
+     successors that are jump_target pcs and propagate information
+     regarding the special case. 
 
-   => If verified: we can use debug info on variables in
-   transformation
+     (4) Check at each use of a variable (OpLoad, OpIInc) that our
+     propagated info on this variable is the same that the one in the
+     local_variable_table (using pp_var =
+     JCode.get_local_variable_info).
 
-*)
+     => If verified: we can use debug info on variables in
+     transformation. If not it could be a false positive case (forward
+     jump not always handled, ...).
 
-type var_name_deb = UnDef | NoName | Name of string
+  *)
 
-let pp_var2vardeb f = 
-  fun x i -> 
-    match f x i with 
-	None -> NoName 
-      | Some s -> Name s
+  type var_name_deb = UnDef | NoName | Name of string
 
-(*[fast_ch_debug_info] checks debug information given by the bytecode
-  method during the code transformation (flow insensitive
-  iteration). It's a fast verification and it could fails in
-  particular cases: - jump forward in the code ...*)
-let fast_ch_debug_info debugi jump_target pp_var darray code = 
-  let succs = succs code in
-  let new_as_succ = 
-    let noname_var_list = 
-      (* Little hack: if a variable has never name in debug table we
-	 could consider that it's always a NoName info.  We must use
-	 this information in first pc of method to propagate it in our
-	 debug info table and when we use the class debug info
-	 table.  *)
-      let noname_array = 
-	(Array.init (code.c_max_locals) (fun vnum -> (vnum,true))) 
+  let pp_var2vardeb f = 
+    fun x i -> 
+      match f x i with 
+	  None -> NoName 
+	| Some s -> Name s
+
+  (*[run] checks debug information given by the bytecode
+    method during the code transformation (flow insensitive
+    iteration). It's a fast verification and it could fails in
+    particular cases: - jump forward in the code ...*)
+  let run debugi jump_target pp_var darray code = 
+    let succs = succs code in
+    let new_as_succ = 
+      let noname_var_list = 
+	(* Little hack: if a variable has never name in debug table we
+	   could consider that it's always a NoName info.  We must use
+	   this information in first pc of method to propagate it in our
+	   debug info table and when we use the class debug info
+	   table.  *)
+	let noname_array = 
+	  (Array.init (code.c_max_locals) (fun vnum -> (vnum,true))) 
+	in
+	  List.iter
+	    (fun (_start,_len,_name,_,i) -> 
+	       noname_array.(i) <- (i,false)
+	    )
+	    debugi;
+	  Array.fold_right
+	    (fun (vnum,always_noname) noname_list -> 
+	       if always_noname
+	       then 
+		 (* End of initialization of darray *)
+		 (darray.(0) <- Ptmap.add vnum NoName darray.(0);
+		  vnum::noname_list)
+	       else noname_list)
+	    noname_array
+	    []
       in
-	List.iter
-	  (fun (_start,_len,_name,_,i) -> 
-	     noname_array.(i) <- (i,false)
-	  )
-	  debugi;
-	Array.fold_right
-	  (fun (vnum,always_noname) noname_list -> 
-	     if always_noname
-	     then 
-	       (* End of initialization of darray *)
-	       (darray.(0) <- Ptmap.add vnum NoName darray.(0);
-		vnum::noname_list)
-	     else noname_list)
-	  noname_array
-	  []
+	(fun as_succ pc -> 
+	   (* Initialize a pc with debug
+	      info of local_variable_table *)
+	   let init_by_default pc =
+	     List.iter
+	       (fun noname_var -> 
+		  darray.(pc) <- Ptmap.add noname_var NoName darray.(pc))
+	       noname_var_list;
+	     List.iter
+	       (fun (start,len,name,_,i) -> 
+		  if pc>=start && pc < start + len
+		  then 
+		    darray.(pc) <- Ptmap.add i (Name name) darray.(pc))
+	       debugi
+	   in
+	     if Ptset.mem pc as_succ 
+	     then as_succ 
+	     else
+	       begin
+		 init_by_default pc;
+		 Ptset.add pc as_succ
+	       end)
     in
+    let iter_on_lvars = (Array.make (code.c_max_locals) 0) in
       (fun as_succ pc -> 
-	 (* Initialize a pc with debug
-	    info of local_variable_table *)
-	 let init_by_default pc =
-	   List.iter
-	     (fun noname_var -> 
-		darray.(pc) <- Ptmap.add noname_var NoName darray.(pc))
-	     noname_var_list;
-	   List.iter
-	     (fun (start,len,name,_,i) -> 
-		if pc>=start && pc < start + len
-		then 
-		  darray.(pc) <- Ptmap.add i (Name name) darray.(pc))
-	     debugi
-	 in
-	   if Ptset.mem pc as_succ 
-	   then as_succ 
-	   else
-	     begin
-	       init_by_default pc;
-	       Ptset.add pc as_succ
-	     end)
-  in
-  let iter_on_lvars = (Array.make (code.c_max_locals) 0) in
-    (fun as_succ pc -> 
-       let op = code.c_code.(pc) in
-       let succs = succs pc in
-	 (* If current [pc] was not the successor of a precedent
-	    program point, then initialize its context with
-	    local_variable_table information*)
-       let as_succ = new_as_succ as_succ pc in
-	 (* see (3) *)
-       let check_all as_succ dom_bj darray jump_pc =
-	 (* If [jump_pc] was not the successor of a
-	    precedent program point, then initialize its context with
-	    local_variable_table information *)
-	 let as_succ = new_as_succ as_succ jump_pc in
-	   Array.iteri
-	     (fun i _ -> 
-		match
-		  (Ptmap.mem i dom_bj,
-		   Ptmap.mem i darray.(jump_pc))
-		with
-		    (* We only have info of local_variable_table in
-		       both pcs for the variable i (that is to say no
-		       information in this case)*)
-		    (false,false) -> ()
+	 let op = code.c_code.(pc) in
+	 let succs = succs pc in
+	   (* If current [pc] was not the successor of a precedent
+	      program point, then initialize its context with
+	      local_variable_table information*)
+	 let as_succ = new_as_succ as_succ pc in
+	   (* see (3) *)
+	 let check_all as_succ dom_bj darray jump_pc =
+	   (* If [jump_pc] was not the successor of a
+	      precedent program point, then initialize its context with
+	      local_variable_table information *)
+	   let as_succ = new_as_succ as_succ jump_pc in
+	     Array.iteri
+	       (fun i _ -> 
+		  match
+		    (Ptmap.mem i dom_bj,
+		     Ptmap.mem i darray.(jump_pc))
+		  with
+		      (* We only have info of local_variable_table in
+			 both pcs for the variable i (that is to say no
+			 information in this case)*)
+		      (false,false) -> ()
 
-		  (* There is a name information on variable on each pc :
-		     
-		     - Check if it is the same info: 
-		     
-		     ** if it is ok info is consistent, no change
-		     
-		     ** if not: check if we already propagate info from
-		     the [jump_pc] point (pc > jump_pc):
+		    (* There is a name information on variable on each pc :
+		       
+		       - Check if it is the same info: 
+		       
+		       ** if it is ok info is consistent, no change
+		       
+		       ** if not: check if we already propagate info from
+		       the [jump_pc] point (pc > jump_pc):
 
-		     +++ if it is the case: check if value is UnDef, if
-		     yes the variable could not have been accessed without a
-		     definition (OpStore) so it's ok, if no raise an
-		     Exception because variable may have been accessed
-		     with an uncorrect name
+		       +++ if it is the case: check if value is UnDef, if
+		       yes the variable could not have been accessed without a
+		       definition (OpStore) so it's ok, if no raise an
+		       Exception because variable may have been accessed
+		       with an uncorrect name
 
-		     +++ if it is not the case (pc < jump_pc): put the
-		     value of variable at jump_pc to UnDef, it forbids to
-		     use the variable without a definition after jump_pc.
+		       +++ if it is not the case (pc < jump_pc): put the
+		       value of variable at jump_pc to UnDef, it forbids to
+		       use the variable without a definition after jump_pc.
 
-		  *)
-		  | (true,true) -> 
-		      let bj, aj = Ptmap.find i dom_bj, Ptmap.find i darray.(jump_pc) in
-			if not (bj = aj) 
+		    *)
+		    | (true,true) -> 
+			let bj, aj = Ptmap.find i dom_bj, Ptmap.find i darray.(jump_pc) in
+			  if not (bj = aj) 
+			  then 
+			    if jump_pc > pc
+			    then
+			      darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
+			    else
+			      if aj = UnDef 
+			      then () 
+			      else
+				raise (InconsistentDebugInfo (pc,jump_pc,i))
+
+		    (* There is information on variable at [pc] but no
+		       information at [jump_pc]:
+		       
+		       - Check if we already propagate info from the [jump_pc]
+		       point (case: jump_pc < pc):
+
+		       ** If it is the case: ok variable must not have been
+		       accessed without a definition or a merge with a NoName
+		       value
+
+		       ** If not (case: jump_pc > pc): IF variable at [pc] has a
+		       NoName value THEN it's compatible with no information =>
+		       put variable at NoName in [jump_pc] ELSE it's not
+		       compatible with no information => put variable at UnDef
+		       in [jump_pc].
+
+		    *)
+		    | (true,false) -> 
+			if jump_pc > pc 
 			then 
+			  if (Ptmap.find i dom_bj = NoName) 
+			  then darray.(jump_pc) <- Ptmap.add i NoName darray.(jump_pc)
+			  else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
+			else () 
+
+		    (* There is no information on variable at [pc] but
+		       information at [jump_pc]:
+
+		       - Check if we already propagate info from the [jump_pc]
+		       point (case: jump_pc < pc):
+
+		       ** If it is the case: 
+
+		       IF variable at [jump_pc] has value UnDef THEN the
+		       variable could not have been accessed without a
+		       definition => continue propagation ELSE raise an
+		       Exception because variable may have been accessed
+		       with an uncorrect name
+
+		       ** If not (case : jump_pc > pc): IF variable at
+		       [jump_pc] has a NoName value THEN it's compatible
+		       with no information => continue propagation (but
+		       do not allow to access to variable because a
+		       store with no name has not been done before) ELSE
+		       it's not compatible with no information => put
+		       variable at UnDef in [jump_pc].  *)
+		    | (false,true) -> 
+			let aj = Ptmap.find i darray.(jump_pc) in
 			  if jump_pc > pc
-			  then
-			    darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
-			  else
-			    if aj = UnDef 
+			  then 
+			    if (aj = NoName)
+			    then ()
+			    else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
+			  else 
+			    if (aj = UnDef)
 			    then () 
 			    else
-			      raise (InconsistentDebugInfo (pc,jump_pc,i))
+			      raise (InconsistentDebugInfo (pc,jump_pc,i)))
+	       iter_on_lvars;
+	     as_succ
+	 in
+	   
+	 let apply_instr_context darray cur_context = 
+	   try
+	     (List.fold_left 
+		(fun as_succ i -> 
+		   let j_targ = jump_target.(i) in
+		     if j_targ
+		       (* case (3)*)
+		     then check_all as_succ cur_context darray i
+		       (* case (2) *)
+		     else 
+		       (darray.(i) <- cur_context; 
+			(* Add successor [i] as a program point
+			   initialized *)
+			Ptset.add i as_succ)
+		) 
+		as_succ
+		succs,true)
+	   with InconsistentDebugInfo _ -> (as_succ,false)
+	 in
+	   match op with 
+	       OpStore (_,n) -> 
+		 apply_instr_context darray (Ptmap.add n (pp_var pc n) darray.(pc))
+	     | OpLoad (_,n)
+	     | OpIInc (n,_) -> 
+		 let ok = 
+		   (* case (4) *)
+		   try 
+		     Ptmap.find n darray.(pc) = (pp_var pc n)
+		   with Not_found -> false
+		 in
+		   if not ok 
+		   then (as_succ,false)
+		   else apply_instr_context darray darray.(pc)
 
-		  (* There is information on variable at [pc] but no
-		     information at [jump_pc]:
-		     
-		     - Check if we already propagate info from the [jump_pc]
-		     point (case: jump_pc < pc):
+	     | _ -> apply_instr_context darray darray.(pc))
 
-		     ** If it is the case: ok variable must not have been
-		     accessed without a definition or a merge with a NoName
-		     value
-
-		     ** If not (case: jump_pc > pc): IF variable at [pc] has a
-		     NoName value THEN it's compatible with no information =>
-		     put variable at NoName in [jump_pc] ELSE it's not
-		     compatible with no information => put variable at UnDef
-		     in [jump_pc].
-
-		  *)
-		  | (true,false) -> 
-		      if jump_pc > pc 
-		      then 
-			if (Ptmap.find i dom_bj = NoName) 
-			then darray.(jump_pc) <- Ptmap.add i NoName darray.(jump_pc)
-			else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
-		      else () 
-
-		  (* There is no information on variable at [pc] but
-		     information at [jump_pc]:
-
-		     - Check if we already propagate info from the [jump_pc]
-		     point (case: jump_pc < pc):
-
-		     ** If it is the case: 
-
-		     IF variable at [jump_pc] has value UnDef THEN the
-		     variable could not have been accessed without a
-		     definition => continue propagation ELSE raise an
-		     Exception because variable may have been accessed
-		     with an uncorrect name
-
-		     ** If not (case : jump_pc > pc): IF variable at
-		     [jump_pc] has a NoName value THEN it's compatible
-		     with no information => continue propagation (but
-		     do not allow to access to variable because a
-		     store with no name has not been done before) ELSE
-		     it's not compatible with no information => put
-		     variable at UnDef in [jump_pc].  *)
-		  | (false,true) -> 
-		      let aj = Ptmap.find i darray.(jump_pc) in
-			if jump_pc > pc
-			then 
-			  if (aj = NoName)
-			  then ()
-			  else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
-			else 
-			  if (aj = UnDef)
-			  then () 
-			  else
-			    raise (InconsistentDebugInfo (pc,jump_pc,i)))
-	     iter_on_lvars;
-	   as_succ
-       in
-	 
-       let apply_instr_context darray cur_context = 
-	 try
-	   (List.fold_left 
-	      (fun as_succ i -> 
-		 let j_targ = jump_target.(i) in
-		   if j_targ
-		     (* case (3)*)
-		   then check_all as_succ cur_context darray i
-		     (* case (2) *)
-		   else 
-		     (darray.(i) <- cur_context; 
-		      (* Add successor [i] as a program point
-			 initialized *)
-		      Ptset.add i as_succ)
-	      ) 
-	      as_succ
-	      succs,true)
-	 with InconsistentDebugInfo _ -> (as_succ,false)
-       in
-	 match op with 
-	     OpStore (_,n) -> 
-	       apply_instr_context darray (Ptmap.add n (pp_var pc n) darray.(pc))
-	   | OpLoad (_,n)
-	   | OpIInc (n,_) -> 
-	       let ok = 
-		 (* case (4) *)
-		 try 
-		   Ptmap.find n darray.(pc) = (pp_var pc n)
-		 with Not_found -> false
-	       in
-		 if not ok 
-		 then (as_succ,false)
-		 else apply_instr_context darray darray.(pc)
-
-	   | _ -> apply_instr_context darray darray.(pc))
-
+end
 
 (* This module allows to check debug information on variables on IR
    code transformed.  This verification must be done only if the fast
-   verification, done by function [fast_ch_debug_info], failed during
+   verification, done by function [FastCheckInfoDebug.run], failed during
    transformation (could be a false positive).*)
 module CheckInfoDebug = struct
 
   module Lat = struct
     (* canonic lattice on (bytecode variable (int) -> Name
        information) *)
-    type t = var_name_deb Ptmap.t
+    type t = FastCheckInfoDebug.var_name_deb Ptmap.t
 
     let bot = Ptmap.empty
 
     let join = Ptmap.merge 
       (fun ninfo1 ninfo2 -> 
 	 if not (ninfo1 = ninfo2) 
-	 then UnDef
+	 then FastCheckInfoDebug.UnDef
 	 else ninfo1)
 
     let get m x = 
@@ -1895,7 +1900,7 @@ module CheckInfoDebug = struct
 	Ptmap.fold
 	  (fun i s b -> 
 	     let s2 = (get m2 i) in 
-	       b && ((s = s2) or s2 = UnDef)
+	       b && ((s = s2) or s2 = FastCheckInfoDebug.UnDef)
 	  )
 	  m1 true
       with Not_found -> false
@@ -1903,9 +1908,9 @@ module CheckInfoDebug = struct
     let to_string ab =
       let dom_to_string v =
 	match v with
-	    Name s -> "Name("^s^")"
-	  | NoName -> "NoName"
-	  | UnDef -> "UnDef"
+	    FastCheckInfoDebug.Name s -> "Name("^s^")"
+	  | FastCheckInfoDebug.NoName -> "NoName"
+	  | FastCheckInfoDebug.UnDef -> "UnDef"
       in
 	Ptmap.fold (fun i vdom -> Printf.sprintf "%d:%s %s"
 		      i
@@ -1927,9 +1932,9 @@ module CheckInfoDebug = struct
 	(match bc_num x with
 	     Some xnum -> 
 	       (match var_name_debug x with
-		    None -> Ptmap.add xnum NoName
+		    None -> Ptmap.add xnum FastCheckInfoDebug.NoName
 		  | Some name -> 
-		      Ptmap.add xnum (Name name))
+		      Ptmap.add xnum (FastCheckInfoDebug.Name name))
 	   | None -> assert false)
 
   (* [gen_instrs i instr] computes a list of transfert function
@@ -1978,8 +1983,8 @@ module CheckInfoDebug = struct
 	 match bc_num x with
 	     Some i -> 
 	       (match var_name_debug x with
-		    None -> Ptmap.add i NoName
-		  | Some s -> Ptmap.add i (Name s))
+		    None -> Ptmap.add i FastCheckInfoDebug.NoName
+		  | Some s -> Ptmap.add i (FastCheckInfoDebug.Name s))
 	   | None -> assert false)
       params
       Ptmap.empty
@@ -2058,12 +2063,12 @@ module CheckInfoDebug = struct
 		    in
 		    let var_name = 
 		      match var_name_debug var with
-			  None -> NoName
-			| Some s -> Name s in
+			  None -> FastCheckInfoDebug.NoName
+			| Some s -> FastCheckInfoDebug.Name s in
 		      if not (Lat.get resi bcvar = var_name)
 		      then
 			(raise (InconsistentDebugInfo (i,i,bcvar)))
-		  with Not_found -> assert false
+		  with Not_found -> ()
 	       )
 	       (get_accessed_vars ins)
 	)
@@ -2094,7 +2099,7 @@ module CheckInfoDebug = struct
 
   let to_string = Lat.to_string
     
-end
+end (*End of CheckInfoDebug module*)
 
 let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_type cm code =
   let rec loop (ch_debug,info_ok) as_ts_jump ins ts_in as_in pc fresh_counter =
@@ -2174,14 +2179,14 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_
 	with End_of_method ->  (ins,ninfo_ok)
   in
     (* Initialize context for checking debug information on
-       variables (see fast_ch_debug_info function)*)
+       variables (see FastCheckInfoDebug.run function)*)
   let ch_debug_init = 
     if no_debug then None
     else
       match code.c_local_variable_table with
 	  None -> None
 	| Some debugi -> 
-	    let pp_var = pp_var2vardeb pp_var in
+	    let pp_var = FastCheckInfoDebug.pp_var2vardeb pp_var in
 	    let darray = 
 	      Array.make (Array.length code.c_code) Ptmap.empty 
 	    in
@@ -2189,7 +2194,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_
 		 (they are considered as assigned at first pc...) and
 		 other local variables with UnDef value *)
 	      (* Caution: since a little hack is done, darray is also
-		 initialized with NoName in 'fast_ch_debug_info' function for
+		 initialized with NoName in 'FastCheckInfoDebug.run' function for
 		 variables that never have name in the whole method code*)
 	    let args_numb = 
 	      (List.fold_left 
@@ -2207,11 +2212,11 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_
 		    then
 		      darray.(0) <- Ptmap.add i (pp_var 0 i) darray.(0)
 		    else
-		      darray.(0) <- Ptmap.add i UnDef darray.(0))
+		      darray.(0) <- Ptmap.add i FastCheckInfoDebug.UnDef darray.(0))
 		 (Array.make 
 		    (code.c_max_locals)
 		    ()));
-	      let ch_fun = fast_ch_debug_info debugi jump_target pp_var darray code in
+	      let ch_fun = FastCheckInfoDebug.run debugi jump_target pp_var darray code in
 		Some (ch_fun,Ptset.singleton 0)
   in
     loop (ch_debug_init,true) MapPc.empty [] [] [] 0 (ref 0)
@@ -2362,7 +2367,8 @@ let find_preds_instrs code handlers =
       handlers;
     dead_instr
 
-(* remove instructions of code without predecessors and modify jump, handlers and correspondance tables in consequence. *)
+(* remove instructions of code without predecessors and modify jump,
+   handlers and correspondance tables in consequence. *)
 let rec remove_dead_instrs code ir2bc bc2ir handlers = 
   let predsi = find_preds_instrs code handlers in
   let succ_of_dead = ref Ptset.empty in
