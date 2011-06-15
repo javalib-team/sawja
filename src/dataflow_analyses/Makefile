@@ -25,6 +25,8 @@ run.bc: all
 dvad-plugin: dvad_plugin.cmx
 	$(OCAMLOPT) -linkpkg -o $@ $^
 
+debugi: debugi_an.cmx
+	$(OCAMLOPT) -linkpkg -o $@ $^
 clean:
 	rm -f *.o *.a dvad_plugin.cm[iox] $(SRC:=.cm[iox]) *~ *.annot test/*~ test/*.class run dvad-plugin
 

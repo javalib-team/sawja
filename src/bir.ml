@@ -1802,13 +1802,11 @@ let fast_ch_debug_info debugi jump_target pp_var darray code =
 
 		     ** If it is the case: 
 
-		     IF variable at [jump_pc] has value UnDef (or
-		     NoName) THEN the variable could not have been
-		     accessed without a definition (or with a NoName
-		     information that is compatible) => continue
-		     propagation ELSE raise an Exception because
-		     variable may have been accessed with an uncorrect
-		     name
+		     IF variable at [jump_pc] has value UnDef THEN the
+		     variable could not have been accessed without a
+		     definition => continue propagation ELSE raise an
+		     Exception because variable may have been accessed
+		     with an uncorrect name
 
 		     ** If not (case : jump_pc > pc): IF variable at
 		     [jump_pc] has a NoName value THEN it's compatible
@@ -1825,7 +1823,7 @@ let fast_ch_debug_info debugi jump_target pp_var darray code =
 			  then ()
 			  else darray.(jump_pc) <- Ptmap.add i UnDef darray.(jump_pc)
 			else 
-			  if (aj = UnDef or aj = NoName)
+			  if (aj = UnDef)
 			  then () 
 			  else
 			    raise (InconsistentDebugInfo (pc,jump_pc,i)))
@@ -1834,21 +1832,23 @@ let fast_ch_debug_info debugi jump_target pp_var darray code =
        in
 	 
        let apply_instr_context darray cur_context = 
-	 List.fold_left 
-	   (fun as_succ i -> 
-	      let j_targ = jump_target.(i) in
-		if j_targ
-		  (* case (3)*)
-		then check_all as_succ cur_context darray i
-		  (* case (2) *)
-		else 
-		  (darray.(i) <- cur_context; 
-		   (* Add successor [i] as a program point
-		      initialized *)
-		   Ptset.add i as_succ)
-	   ) 
-	   as_succ
-	   succs
+	 try
+	   (List.fold_left 
+	      (fun as_succ i -> 
+		 let j_targ = jump_target.(i) in
+		   if j_targ
+		     (* case (3)*)
+		   then check_all as_succ cur_context darray i
+		     (* case (2) *)
+		   else 
+		     (darray.(i) <- cur_context; 
+		      (* Add successor [i] as a program point
+			 initialized *)
+		      Ptset.add i as_succ)
+	      ) 
+	      as_succ
+	      succs,true)
+	 with InconsistentDebugInfo _ -> (as_succ,false)
        in
 	 match op with 
 	     OpStore (_,n) -> 
@@ -1861,19 +1861,251 @@ let fast_ch_debug_info debugi jump_target pp_var darray code =
 		   Ptmap.find n darray.(pc) = (pp_var pc n)
 		 with Not_found -> false
 	       in
-		 if not ok then raise (InconsistentDebugInfo (pc,pc,n));
-		 apply_instr_context darray darray.(pc)
+		 if not ok 
+		 then (as_succ,false)
+		 else apply_instr_context darray darray.(pc)
 
 	   | _ -> apply_instr_context darray darray.(pc))
 
 
-let bc2ir ?(no_debug=false) dico mode ch_link ssa pp_var jump_target load_type arrayload_type cm code =
-  let rec loop ch_debug as_ts_jump ins ts_in as_in pc fresh_counter =
-    let ch_debug = 
+(* This module allows to check debug information on variables on IR
+   code transformed.  This verification must be done only if the fast
+   verification, done by function [fast_ch_debug_info], failed during
+   transformation (could be a false positive).*)
+module CheckInfoDebug = struct
+
+  module Lat = struct
+    (* canonic lattice on (bytecode variable (int) -> Name
+       information) *)
+    type t = var_name_deb Ptmap.t
+
+    let bot = Ptmap.empty
+
+    let join = Ptmap.merge 
+      (fun ninfo1 ninfo2 -> 
+	 if not (ninfo1 = ninfo2) 
+	 then UnDef
+	 else ninfo1)
+
+    let get m x = 
+      Ptmap.find x m
+
+    let order m1 m2 =
+      try
+	Ptmap.fold
+	  (fun i s b -> 
+	     let s2 = (get m2 i) in 
+	       b && ((s = s2) or s2 = UnDef)
+	  )
+	  m1 true
+      with Not_found -> false
+
+    let to_string ab =
+      let dom_to_string v =
+	match v with
+	    Name s -> "Name("^s^")"
+	  | NoName -> "NoName"
+	  | UnDef -> "UnDef"
+      in
+	Ptmap.fold (fun i vdom -> Printf.sprintf "%d:%s %s"
+		      i
+		      (dom_to_string vdom)) ab ""
+  end
+    
+  type pc = int
+  type transfer = 
+    | NoP
+    | KillGen of var * int
+
+  let transfer_to_string = function 
+    | NoP -> "NoP"
+    | KillGen (x,i) -> Printf.sprintf "KillGen(%s,%d)" (var_name_g x) i
+	
+  let eval_transfer = function
+    | NoP -> (fun ab -> ab)
+    | KillGen (x,_i) -> 
+	(match bc_num x with
+	     Some xnum -> 
+	       (match var_name_debug x with
+		    None -> Ptmap.add xnum NoName
+		  | Some name -> 
+		      Ptmap.add xnum (Name name))
+	   | None -> assert false)
+
+  (* [gen_instrs i instr] computes a list of transfert function
+     [(f,j);...] with [j] the successor of instruction [i] for the
+     transfert function [f]. *)
+  let gen_instrs i = function
+    | Ifd (_, j) -> [(NoP,j);(NoP,i+1)]
+    | Goto j -> [NoP,j]
+    | Throw _
+    | Return _  -> []
+    | AffectVar (x,_) 
+    | NewArray (x,_,_)
+    | New (x,_,_,_) 
+    | InvokeStatic (Some x,_,_,_) 
+    | InvokeVirtual (Some x,_,_,_,_) 
+    | InvokeNonVirtual (Some x,_,_,_,_) -> 
+	if var_orig x
+	then
+	  [KillGen (x,i),i+1]
+	else [NoP,i+1]
+    | MonitorEnter _
+    | MonitorExit _ 
+    | AffectStaticField _
+    | AffectField _
+    | AffectArray _
+    | InvokeStatic _
+    | InvokeVirtual _ 
+    | InvokeNonVirtual _ 
+    | MayInit _ 
+    | Check _
+    | Nop -> [NoP,i+1]
+
+  (* generate a list of transfer functions *)
+  let gen_symbolic (m:t) : (pc * transfer * pc) list = 
+    JUtil.foldi 
+      (fun i ins l ->
+	 List.rev_append
+	   (List.map (fun (c,j) -> (i,c,j)) (gen_instrs i ins))
+	   l) 
+      (List.map (fun (i,e) -> (i,NoP,e.e_handler)) (exception_edges m))
+      m.code
+
+  let init params =
+    List.fold_right
+      (fun (_,x) -> 
+	 match bc_num x with
+	     Some i -> 
+	       (match var_name_debug x with
+		    None -> Ptmap.add i NoName
+		  | Some s -> Ptmap.add i (Name s))
+	   | None -> assert false)
+      params
+      Ptmap.empty
+
+  (* original vars that appear in an expression*)
+  let rec vars = function
+    | Const _ 
+    | StaticField _ -> VarSet.empty
+    | Binop (_,e1,e2) -> VarSet.union (vars e1) (vars e2)
+    | Field (e,_,_)
+    | Unop (_,e) -> vars e
+    | Var (_,x) ->
+	if var_orig x 
+	then
+	  VarSet.singleton x
+	else
+	  VarSet.empty
+	    
+  (* [check_info_on_vars_access code res] checks, given the analysis
+     result [res], that the variables accessed in [code] are accessed
+     with the same name they were affected before. If it is not the
+     case it raises an InconsistentDebugInfo exception.*)
+  let check_info_on_vars_access code res = 
+    let get_accessed_vars = 
+      let vars_in_check = 
+	function
+	  | CheckNullPointer e
+	  | CheckNegativeArraySize e
+	  | CheckCast (e,_)
+	  | CheckArithmetic e -> vars e
+	  | CheckArrayBound (e1,e2)
+	  | CheckArrayStore (e1,e2) -> VarSet.union (vars e1) (vars e2)
+	  | CheckLink _ -> VarSet.empty
+      in
+	function
+	  | Nop _
+	  | MayInit _ 
+	  | Goto _ -> VarSet.empty
+	  | Throw e
+	  | AffectVar (_,e) 
+	  | MonitorEnter e
+	  | MonitorExit e
+	  | AffectStaticField (_,_,e) -> vars e
+	  | AffectField (e1,_,_,e2)
+	  | Ifd ((_,e1,e2),_) -> VarSet.union (vars e1) (vars e2)
+	  | AffectArray (e1,e2,e3) -> 
+	      VarSet.union (vars e1) (VarSet.union (vars e2) (vars e3))
+	  | NewArray (_,_,el)
+	  | New (_,_,_,el) 
+	  | InvokeStatic (_,_,_,el) -> 
+	      List.fold_left 
+		(fun set e -> VarSet.union (vars e) set)
+		VarSet.empty
+		el
+	  | InvokeVirtual (_,e,_,_,el) 
+	  | InvokeNonVirtual (_,e,_,_,el) -> 
+	      List.fold_left 
+		(fun set e -> VarSet.union (vars e) set)
+		(vars e)
+		el
+	  | Return e_opt -> 
+	      begin match e_opt with
+		  None -> VarSet.empty
+		| Some e -> vars e
+	      end
+	  | Check check -> vars_in_check check
+    in
+      Array.iteri
+	(fun i ins -> 
+	   let resi = res i in
+	     VarSet.iter
+	       (fun var -> 
+		  try 
+		    let bcvar = match bc_num var with 
+			Some i -> i | None -> assert false
+		    in
+		    let var_name = 
+		      match var_name_debug var with
+			  None -> NoName
+			| Some s -> Name s in
+		      if not (Lat.get resi bcvar = var_name)
+		      then
+			(raise (InconsistentDebugInfo (i,i,bcvar)))
+		  with Not_found -> assert false
+	       )
+	       (get_accessed_vars ins)
+	)
+	code
+
+
+  let run m =
+    let init = init m.params in
+    let res =
+      Iter.run 
+	{
+	  Iter.bot = Lat.bot ;
+	  Iter.join = Lat.join;
+	  Iter.leq = Lat.order;
+	  Iter.eval = eval_transfer;
+	  Iter.normalize = (fun x -> x);
+	  Iter.size = Array.length m.code;
+	  Iter.workset_strategy = Iter.Incr;
+	  Iter.cstrs = gen_symbolic m;
+	  Iter.init_points = [0];
+	  Iter.init_value = (fun _ -> init); 
+	  Iter.verbose = false;
+	  Iter.dom_to_string = Lat.to_string;
+	  Iter.transfer_to_string = transfer_to_string
+	}
+    in
+      check_info_on_vars_access m.code res
+
+  let to_string = Lat.to_string
+    
+end
+
+let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_type cm code =
+  let rec loop (ch_debug,info_ok) as_ts_jump ins ts_in as_in pc fresh_counter =
+    let (nch_debug,ninfo_ok) = 
       match ch_debug with 
-	  None -> None (* it should be in case there is no debug info available *)
+	  None -> (None,info_ok) (* it should be in case there is no debug info available *)
 	| Some (check_fun,as_succ) -> 
-	    Some (check_fun,check_fun as_succ pc)
+	    let (new_as_succ,info_ok) = check_fun as_succ pc in
+	      if info_ok
+	      then (Some (check_fun,new_as_succ),true)
+	      else (None,false)
     in
       (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
@@ -1938,8 +2170,8 @@ let bc2ir ?(no_debug=false) dico mode ch_link ssa pp_var jump_target load_type a
 	  as_ts_jump
 	  jump_succs in
 	try
-	  loop ch_debug as_ts_jump ins ts_out as_out (next code.c_code pc) fresh_counter
-	with End_of_method ->  ins
+	  loop (nch_debug,ninfo_ok) as_ts_jump ins ts_out as_out (next code.c_code pc) fresh_counter
+	with End_of_method ->  (ins,ninfo_ok)
   in
     (* Initialize context for checking debug information on
        variables (see fast_ch_debug_info function)*)
@@ -1982,7 +2214,7 @@ let bc2ir ?(no_debug=false) dico mode ch_link ssa pp_var jump_target load_type a
 	      let ch_fun = fast_ch_debug_info debugi jump_target pp_var darray code in
 		Some (ch_fun,Ptset.singleton 0)
   in
-    loop ch_debug_init MapPc.empty [] [] [] 0 (ref 0)
+    loop (ch_debug_init,true) MapPc.empty [] [] [] 0 (ref 0)
 
 let search_name_localvar no_debug static code i x =
   if x=0 && (not static) then Some "this"
@@ -2229,41 +2461,59 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
-	  let pp_var no_debug = search_name_localvar no_debug cm.cm_static code in
-	  let jump_target = compute_jump_target code in
-	  let (load_type,arrayload_type) = BCV.run bcv cm code in
-	  let pp_var, dico, res = 
-	    try 
+	  (* [make_transformation no_debug] returns the code
+	     transformation and a boolean value indicating if the
+	     debug information on variables could be
+	     trusted. [no_debug] indicates if the debug information
+	     must be used in the transformation (if it exists). A fast
+	     verification is done on debug information when it is use,
+	     if the verification fails the boolean returned is
+	     false.*)
+	  let make_transformation no_debug = 
+	    let pp_var = search_name_localvar no_debug cm.cm_static code in
+	    let jump_target = compute_jump_target code in
+	    let (load_type,arrayload_type) = BCV.run bcv cm code in
+	    let pp_var, dico, (res,debug_ok) = 
 	      let dico = make_dictionary () in
-		( pp_var false,
-		  dico,
-		  bc2ir ~no_debug:false
-		    dico mode ch_link ssa (pp_var false) jump_target 
-		    load_type arrayload_type cm code)
-	    with InconsistentDebugInfo (_pc,_topc,vari)-> 
-	      prerr_endline ("Warning: Debug information of local_variable_table attribute of method "^(JPrint.class_method_signature cm.cm_class_method_signature)^" cannot be used for code transformation because it might be inconsistent on localvar "^string_of_int vari^".\n");
-	      let dico = make_dictionary () in
-		( pp_var true,
-		  dico, 
-		  bc2ir ~no_debug:true
-		    dico mode ch_link ssa (pp_var true) jump_target 
-		    load_type arrayload_type cm code)
+		  ( pp_var,
+		    dico,
+		    bc2ir no_debug dico mode ch_link ssa pp_var jump_target 
+		      load_type arrayload_type cm code)
+	    in
+	      (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
+	    let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
+	    let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
+	      (* let _ = print_unflattened_code ir_code in *)
+	    let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
+	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
+	      remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
+	    in
+	      ({ params = gen_params dico pp_var cm;
+		vars = make_array_var dico;
+		code = nir_code;
+		pc_ir2bc = nir2bc;
+		pc_bc2ir = nbc2ir;
+		exc_tbl = nir_exc_tbl;
+		line_number_table = code.c_line_number_table},
+	       debug_ok)
 	  in
-	    (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
-	  let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
-	  let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
-	    (* let _ = print_unflattened_code ir_code in *)
-	  let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
-	  let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
-	    remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
-	  in
-	    { params = gen_params dico pp_var cm;
-	      vars = make_array_var dico;
-	      code = nir_code;
-	      pc_ir2bc = nir2bc;
-	      pc_bc2ir = nbc2ir;
-	      exc_tbl = nir_exc_tbl;
-	      line_number_table = code.c_line_number_table}
+	  let (ir_code, debug_ok) = make_transformation false in
+	    if debug_ok
+	    then ir_code
+	    else 
+	      begin
+		try
+		  CheckInfoDebug.run ir_code;
+		  ir_code
+		with InconsistentDebugInfo (pc,_topc,vari)-> 
+		  prerr_endline 
+		    ("Warning: Debug information of local_variable_table attribute of method "
+		     ^(JPrint.class_method_signature cm.cm_class_method_signature)
+		     ^" cannot be used for code transformation because it is inconsistent on localvar "
+		     ^string_of_int vari^" at program point "^string_of_int pc^".\n");
+		  fst (make_transformation true)
+	      end  
+		
       | None -> raise Subroutine
 
 let transform ?(bcv=false) ?(ch_link = false) = 
