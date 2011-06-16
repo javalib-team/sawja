@@ -2101,6 +2101,13 @@ module CheckInfoDebug = struct
     
 end (*End of CheckInfoDebug module*)
 
+
+(* [bc2ir] returns (ir_code,info_ok). [info_ok:bool] indicates that debug
+   information on local variables were checked with success with FastCheckDebugInfo.
+   [ir_code:(pc * instr list) list]: is the code transformed, [instr
+   list] is the list of instructions generated at bytecode program
+   point [pc], generation could have used precedent program points of
+   [pc].*)
 let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_type cm code =
   let rec loop (ch_debug,info_ok) as_ts_jump ins ts_in as_in pc fresh_counter =
     let (nch_debug,ninfo_ok) = 
@@ -2266,7 +2273,19 @@ let gen_params dico pp_var cm =
    point value for new instructions by modifying the pp of
    instructions when precedent pp has no instructions. Instructions
    that are jump_targets or handlers bounds keep the same program
-   point. Returns: (new_pc, (old_pc,instr) list)) list *)
+   point. 
+
+   [ir:(pc * instr list) list]: [instr list] is the list of
+   instructions generated at bytecode program point [pc] (see [bc2ir]
+   function).
+
+   Returns: (new_pc, (old_pc,instr) list)) list 
+   
+   *new_pc: corresponds to the first bytecode instr included in IR
+   instr 
+   *old_pc list: contains all bytecode pc included in IR instr at new_pc
+   (new_pc is always included in old_pc list)
+*)
 let compress_ir handlers ir jump_target =
   let h_ends = List.fold_right 
     (fun e s -> Ptset.add e.JCode.e_end (Ptset.add e.JCode.e_start s)) 
@@ -2313,6 +2332,12 @@ let print_unflattened_code_uncompress code =
     code;
   print_newline ()
       
+(* [flatten_code code exc_tbl] given the compressed representation
+   [code] (see [flatten_code] call for description) and the exception
+   table, returns a sequential code (instructions pcs are sequentials:
+   +1 for next instruction), the pc correspondance table (and map)
+   between IR and BC (resp. BC and IR), and the exception table (pcs
+   modified with new pcs ...).*)
 let flatten_code code exc_tbl =
   (* starting from i, and given the code [code], computes a triple *)
   let rec aux i map = function
@@ -2499,25 +2524,14 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	       * -> value_type on ArrayLoad) *)
 	    let (load_type,arrayload_type) = BCV.run bcv cm code in
 	    let dico = make_dictionary () in
-	      (* res: (pc_bc,new_instr list) list 
-		 [pc_bc] is the bytecode program point where the IR instruction was
-		 generated, all pp of bc are present but new_instr list could be empty. *)
 	    let (res,debug_ok) = 
 	      bc2ir no_debug dico mode ch_link ssa pp_var 
 		jump_target load_type arrayload_type cm code
 	    in
 	      (*let _ = print_unflattened_code_uncompress (List.rev res) in*)
-
-	    (*ir_code: (new_pc, (old_pc list,instr) list)) list 
-
-	      old_pc list: contains all bytecode pc included in IR
-	      instr at new_pc (new_pc is always included in old_pc
-	      list because it corresponds to the first bytecode instr
-	      included in IR instr) *)
 	    let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
 	    let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
 	      (* let _ = print_unflattened_code ir_code in*)
-
 	    let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
 	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
 	      remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
