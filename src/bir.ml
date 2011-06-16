@@ -1871,7 +1871,7 @@ module FastCheckInfoDebug = struct
 
 	     | _ -> apply_instr_context darray darray.(pc))
 
-end
+end (*End of FastCheckInfoDebug module*)
 
 (* This module allows to check debug information on variables on IR
    code transformed.  This verification must be done only if the fast
@@ -1915,7 +1915,7 @@ module CheckInfoDebug = struct
 	Ptmap.fold (fun i vdom -> Printf.sprintf "%d:%s %s"
 		      i
 		      (dom_to_string vdom)) ab ""
-  end
+  end 
     
   type pc = int
   type transfer = 
@@ -2262,17 +2262,26 @@ let gen_params dico pp_var cm =
 	 (fun i t -> match convert_field_type t with Op32 -> i+1 | Op64 -> i+2)
 	 (ms_args cm.cm_signature))
 
+(* [compress_ir handlers ir jump_target] try to put minimum program
+   point value for new instructions by modifying the pp of
+   instructions when precedent pp has no instructions. Instructions
+   that are jump_targets or handlers bounds keep the same program
+   point. Returns: (new_pc, (old_pc,instr) list)) list *)
 let compress_ir handlers ir jump_target =
-  let h_ends = List.fold_right (fun e s -> Ptset.add e.JCode.e_end (Ptset.add e.JCode.e_start s)) handlers Ptset.empty in
-  let rec aux0 pc0 = function
-    | [] -> [pc0,[pc0,Nop]]
-    | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[pc0,Nop])::(aux l)
-    | (_,[])::q -> aux0 pc0 q
-    | (pc,instrs)::q -> (pc0,List.map (fun i -> (pc,i)) instrs)::(aux q)
+  let h_ends = List.fold_right 
+    (fun e s -> Ptset.add e.JCode.e_end (Ptset.add e.JCode.e_start s)) 
+    handlers Ptset.empty 
+  in
+    (*pc0 always included in pcl*)
+  let rec aux0 pc0 pcl = function
+    | [] -> [pc0,[pcl,Nop]]
+    | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[pcl,Nop])::(aux l)
+    | (pc1,[])::q -> aux0 pc0 (pc1::pcl) q
+    | (pc,instrs)::q -> (pc0,List.map (fun i -> (pc::pcl,i)) instrs)::(aux q)
   and aux = function
     | [] -> []
-    | (pc,[])::q -> aux0 pc q
-    | (pc,instrs)::q -> (pc,List.map (fun i -> (pc,i)) instrs)::(aux q)
+    | (pc,[])::q -> aux0 pc [pc] q
+    | (pc,instrs)::q -> (pc,List.map (fun i -> ([pc],i)) instrs)::(aux q)
   in aux ir
 
 let make_exception_handler dico e =
@@ -2311,11 +2320,19 @@ let flatten_code code exc_tbl =
     | (pc,instrs)::q ->
 	let (instrs',pc_list,map) = aux (i+List.length instrs) map q in
 	  (List.map snd instrs)@instrs', 
-            (* flatten_code the code but does not modify the instruction in it *)
-	  (List.map fst instrs)@pc_list,
-	    (* the list of initial pcs of instrs *)
-	  Ptmap.add pc i map
-	    (* map from initial pcs to the future pc they are mapped to *)
+        (* flatten_code the code but does not modify the instruction in it *)
+	(List.map (fun _ -> pc) instrs)@pc_list,
+	(* the list of first corresponding bytecode pc for ir instrs *)
+	List.fold_left 
+	  (fun map (pcl,_) -> 
+	     List.fold_left
+	       (fun map pc0 -> Ptmap.add pc0 i map)
+	       map
+	       pcl
+	  ) 
+	  map
+	  instrs
+	  (* map from initial pcs to the future pc they are mapped to *)
   in 
   let (instrs,pc_list,map) = aux 0 Ptmap.empty code in
   let rec find i = (* find the flattened pc associated to i *)
@@ -2478,29 +2495,40 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	  let make_transformation no_debug = 
 	    let pp_var = search_name_localvar no_debug cm.cm_static code in
 	    let jump_target = compute_jump_target code in
+	      (* (pc -> value_type on OpLoad) * (jvm_array_type -> pc
+	       * -> value_type on ArrayLoad) *)
 	    let (load_type,arrayload_type) = BCV.run bcv cm code in
-	    let pp_var, dico, (res,debug_ok) = 
-	      let dico = make_dictionary () in
-		  ( pp_var,
-		    dico,
-		    bc2ir no_debug dico mode ch_link ssa pp_var jump_target 
-		      load_type arrayload_type cm code)
+	    let dico = make_dictionary () in
+	      (* res: (pc_bc,new_instr list) list 
+		 [pc_bc] is the bytecode program point where the IR instruction was
+		 generated, all pp of bc are present but new_instr list could be empty. *)
+	    let (res,debug_ok) = 
+	      bc2ir no_debug dico mode ch_link ssa pp_var 
+		jump_target load_type arrayload_type cm code
 	    in
-	      (* let _ = print_unflattened_code_uncompress (List.rev res) in *)
+	      (*let _ = print_unflattened_code_uncompress (List.rev res) in*)
+
+	    (*ir_code: (new_pc, (old_pc list,instr) list)) list 
+
+	      old_pc list: contains all bytecode pc included in IR
+	      instr at new_pc (new_pc is always included in old_pc
+	      list because it corresponds to the first bytecode instr
+	      included in IR instr) *)
 	    let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
 	    let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
-	      (* let _ = print_unflattened_code ir_code in *)
+	      (* let _ = print_unflattened_code ir_code in*)
+
 	    let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
 	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
 	      remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
 	    in
 	      ({ params = gen_params dico pp_var cm;
-		vars = make_array_var dico;
-		code = nir_code;
-		pc_ir2bc = nir2bc;
-		pc_bc2ir = nbc2ir;
-		exc_tbl = nir_exc_tbl;
-		line_number_table = code.c_line_number_table},
+		 vars = make_array_var dico;
+		 code = nir_code;
+		 pc_ir2bc = nir2bc;
+		 pc_bc2ir = nbc2ir;
+		 exc_tbl = nir_exc_tbl;
+		 line_number_table = code.c_line_number_table},
 	       debug_ok)
 	  in
 	  let (ir_code, debug_ok) = make_transformation false in
