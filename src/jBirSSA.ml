@@ -212,9 +212,6 @@ let transform ?(bcv=false) ?(ch_link=false) cm code =
 module Internal = 
 struct
 
-  (** Common signature for instructions of JBir and JBirSSA representations*)
-  module type InstrSig = JBir.Internal.InstrSig
-
   (** Common signature for code of JBirSSA and A3BirSSA representations*)
   module type CodeSig = 
   sig
@@ -305,6 +302,8 @@ struct
     val get_source_line_number : int -> t -> int option
   end 
 
+  (** Common signature for code and instructions of JBir and JBirSSA representations*)
+  module type CodeInstrSig = JBir.Internal.CodeInstrSig
 
   let vars = vars
   let params = params

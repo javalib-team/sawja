@@ -836,426 +836,219 @@ let print_list_sep sep f l =
 	  
 
   
-module JBirPrinter = Make(
-  struct
-    type instr = JBir.instr
-    type code = JBir.t
+module MakeJBirLikePrintInterface (BirLike: JBir.Internal.CodeInstrSig) = 
+struct
+  type instr = BirLike.instr
+  type code = BirLike.t
 
-    include JBirUtil
-		
-   
-    let inst_html program ioc ms pp op =
-      let cs = Javalib.get_name ioc in
-	match op with
-	  | JBir.AffectStaticField (ccs,fs,e) ->
-	      let p1 = field_elem program cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (JBir.print_expr e)) in
-		[p1;p2]
-	  | JBir.AffectField (e1,ccs,fs,e2) ->
-	      let p1 = field_elem program ~called_cname:(JBir.print_expr e1)
-		cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (JBir.print_expr e2)) in
-		[p1;p2]
-	  | JBir.New (x,ccs,_,le) ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " JBir.print_expr le)) in
-		[p1;p2;p3]
-	  | JBir.NewArray (x,v,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (JBir.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "%s"
-		   (print_list_sep ""
-		      (fun e -> 
-			 Printf.sprintf "[%s]" (JBir.print_expr e)) le)
-		) in
-		[p1;p2;p3]
-	  | JBir.InvokeStatic (None,ccs,cms,le) ->
-	      let p1 = 
-		invoke_elem 
-		  program cs ms pp ccs cms 
-	      in
-	      let p2 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
-		[p1;p2]
-	  | JBir.InvokeStatic (Some x,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s :=" (JBir.var_name_g x)) in
-	      let p2 = 
-		invoke_elem 
-		  program cs ms pp ccs cms 
-	      in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (JBir.print_expr) le)) in
-		[p1;p2;p3]
-	  | JBir.InvokeVirtual (r,e1,k,cms,le) ->
-	      let p2 =
-		(match k with
-		   | JBir.VirtualCall o ->
-		       let ccs = match o with
-			 | TClass ccs -> ccs
-			 | _ -> JBasics.java_lang_object in
-			 invoke_elem ~called_cname:(JBir.print_expr e1) program
-			   cs ms pp ccs cms
-		   | JBir.InterfaceCall ccs ->
-		       invoke_elem ~called_cname:(JBir.print_expr e1) program
+  include IRUtil(BirLike)
+  
+  let inst_html program ioc ms pp op =
+    let cs = Javalib.get_name ioc in
+      match op with
+	| BirLike.AffectStaticField (ccs,fs,e) ->
+	    let p1 = field_elem program cs ccs fs in
+	    let p2 = simple_elem
+	      (Printf.sprintf ":= %s" (BirLike.print_expr e)) in
+	      [p1;p2]
+	| BirLike.AffectField (e1,ccs,fs,e2) ->
+	    let p1 = field_elem program ~called_cname:(BirLike.print_expr e1)
+	      cs ccs fs in
+	    let p2 = simple_elem
+	      (Printf.sprintf ":= %s" (BirLike.print_expr e2)) in
+	      [p1;p2]
+	| BirLike.New (x,ccs,_,le) ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s := new" (BirLike.var_name_g x)) in
+	    let p2 = value_elem program cs v in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " BirLike.print_expr le)) in
+	      [p1;p2;p3]
+	| BirLike.NewArray (x,v,le) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s := new" (BirLike.var_name_g x)) in
+	    let p2 = value_elem program cs v in
+	    let p3 = simple_elem
+	      (Printf.sprintf "%s"
+		 (print_list_sep ""
+		    (fun e -> 
+		       Printf.sprintf "[%s]" (BirLike.print_expr e)) le)
+	      ) in
+	      [p1;p2;p3]
+	| BirLike.InvokeStatic (None,ccs,cms,le) ->
+	    let p1 = 
+	      invoke_elem 
+		program cs ms pp ccs cms 
+	    in
+	    let p2 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (BirLike.print_expr) le)) in
+	      [p1;p2]
+	| BirLike.InvokeStatic (Some x,ccs,cms,le) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s :=" (BirLike.var_name_g x)) in
+	    let p2 = 
+	      invoke_elem 
+		program cs ms pp ccs cms 
+	    in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (BirLike.print_expr) le)) in
+	      [p1;p2;p3]
+	| BirLike.InvokeVirtual (r,e1,k,cms,le) ->
+	    let p2 =
+	      (match k with
+		 | JBir.VirtualCall o ->
+		     let ccs = match o with
+		       | TClass ccs -> ccs
+		       | _ -> JBasics.java_lang_object in
+		       invoke_elem ~called_cname:(BirLike.print_expr e1) program
 			 cs ms pp ccs cms
-		) in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " (JBir.print_expr) le)) in
-		(match r with
-		   | None -> [p2;p3]
-		   | Some x ->
-		       let p1 = simple_elem
-			 (Printf.sprintf "%s :="  (JBir.var_name_g x)) in
-			 [p1;p2;p3]
-		)
-	  | JBir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(match r with
-		   | None -> (JBir.print_expr e1) ^ "."
-		   | Some x -> Printf.sprintf "%s := %s." (JBir.var_name_g x)
-		       (JBir.print_expr e1)
-		) in
-	      let p2 = 
-		invoke_elem 
-		  program cs ms pp ccs cms 
-	      in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " JBir.print_expr le)) in
-		[p1;p2;p3]
-	  | JBir.MayInit ccs ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem "mayinit" in
-	      let p2 = value_elem program cs v in
-		[p1;p2]
-	  | JBir.Check (JBir.CheckCast (e,t)) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "checkcast %s:" (JBir.print_expr e)) in
-	      let p2 = value_elem program cs (TObject t) in
-		[p1;p2]
-	  | _ -> [simple_elem (JBir.print_instr op)]
-  end)
+		 | JBir.InterfaceCall ccs ->
+		     invoke_elem ~called_cname:(BirLike.print_expr e1) program
+		       cs ms pp ccs cms
+	      ) in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " (BirLike.print_expr) le)) in
+	      (match r with
+		 | None -> [p2;p3]
+		 | Some x ->
+		     let p1 = simple_elem
+		       (Printf.sprintf "%s :="  (BirLike.var_name_g x)) in
+		       [p1;p2;p3]
+	      )
+	| BirLike.InvokeNonVirtual (r,e1,ccs,cms,le) ->
+	    let p1 = simple_elem
+	      (match r with
+		 | None -> (BirLike.print_expr e1) ^ "."
+		 | Some x -> Printf.sprintf "%s := %s." (BirLike.var_name_g x)
+		     (BirLike.print_expr e1)
+	      ) in
+	    let p2 = 
+	      invoke_elem 
+		program cs ms pp ccs cms 
+	    in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " BirLike.print_expr le)) in
+	      [p1;p2;p3]
+	| BirLike.MayInit ccs ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_elem "mayinit" in
+	    let p2 = value_elem program cs v in
+	      [p1;p2]
+	| BirLike.Check (BirLike.CheckCast (e,t)) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "checkcast %s:" (BirLike.print_expr e)) in
+	    let p2 = value_elem program cs (TObject t) in
+	      [p1;p2]
+	| _ -> [simple_elem (BirLike.print_instr op)]
+end
+
+module MakeA3BirLikePrintInterface (A3BirLike:A3Bir.Internal.CodeInstrSig) =
+struct
+  type instr = A3BirLike.instr
+  type code = A3BirLike.t
+      
+  include IRUtil(A3BirLike)
   
-  
-module A3BirPrinter = Make(
-  struct
-    type instr = A3Bir.instr
-    type code = A3Bir.t
-	
-    include A3BirUtil
-		
-    let inst_html program ioc ms pp op =
-      let cs = Javalib.get_name ioc in
-	match op with
-	  | A3Bir.AffectStaticField (ccs,fs,e) ->
-	      let p1 = field_elem program cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (A3Bir.print_expr e)) in
-		[p1;p2]
-	  | A3Bir.AffectField (e1,ccs,fs,e2) ->
-	      let p1 = field_elem program ~called_cname:(A3Bir.print_basic_expr e1)
-		cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (A3Bir.print_basic_expr e2)) in
-		[p1;p2]
-	  | A3Bir.New (x,ccs,_,le) ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (A3Bir.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " A3Bir.print_basic_expr le)) in
-		[p1;p2;p3]
-	  | A3Bir.NewArray (x,v,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (A3Bir.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "%s"
-		   (print_list_sep ""
-		      (fun e -> 
-			 Printf.sprintf "[%s]" (A3Bir.print_basic_expr e)) le)
-		) in
-		[p1;p2;p3]
-	  | A3Bir.InvokeStatic (None,ccs,cms,le) ->
-	      let p1 = invoke_elem program cs ms pp ccs cms in
-	      let p2 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
-		[p1;p2]
-	  | A3Bir.InvokeStatic (Some x,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s :=" (A3Bir.var_name_g x)) in
-	      let p2 = invoke_elem program cs ms pp ccs cms in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
-		[p1;p2;p3]
-	  | A3Bir.InvokeVirtual (r,e1,k,cms,le) ->
-	      let p2 =
-		(match k with
-		   | A3Bir.VirtualCall o ->
-		       let ccs = match o with
-			 | TClass ccs -> ccs
-			 | _ -> JBasics.java_lang_object in
-			 invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
-			   cs ms pp ccs cms
-		   | A3Bir.InterfaceCall ccs ->
-		       invoke_elem ~called_cname:(A3Bir.print_basic_expr e1) program
+  let inst_html program ioc ms pp op =
+    let cs = Javalib.get_name ioc in
+      match op with
+	| A3BirLike.AffectStaticField (ccs,fs,e) ->
+	    let p1 = field_elem program cs ccs fs in
+	    let p2 = simple_elem
+	      (Printf.sprintf ":= %s" (A3BirLike.print_expr e)) in
+	      [p1;p2]
+	| A3BirLike.AffectField (e1,ccs,fs,e2) ->
+	    let p1 = field_elem program ~called_cname:(A3BirLike.print_basic_expr e1)
+	      cs ccs fs in
+	    let p2 = simple_elem
+	      (Printf.sprintf ":= %s" (A3BirLike.print_basic_expr e2)) in
+	      [p1;p2]
+	| A3BirLike.New (x,ccs,_,le) ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s := new" (A3BirLike.var_name_g x)) in
+	    let p2 = value_elem program cs v in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " A3BirLike.print_basic_expr le)) in
+	      [p1;p2;p3]
+	| A3BirLike.NewArray (x,v,le) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s := new" (A3BirLike.var_name_g x)) in
+	    let p2 = value_elem program cs v in
+	    let p3 = simple_elem
+	      (Printf.sprintf "%s"
+		 (print_list_sep ""
+		    (fun e -> 
+		       Printf.sprintf "[%s]" (A3BirLike.print_basic_expr e)) le)
+	      ) in
+	      [p1;p2;p3]
+	| A3BirLike.InvokeStatic (None,ccs,cms,le) ->
+	    let p1 = invoke_elem program cs ms pp ccs cms in
+	    let p2 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3BirLike.print_basic_expr) le)) in
+	      [p1;p2]
+	| A3BirLike.InvokeStatic (Some x,ccs,cms,le) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "%s :=" (A3BirLike.var_name_g x)) in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3BirLike.print_basic_expr) le)) in
+	      [p1;p2;p3]
+	| A3BirLike.InvokeVirtual (r,e1,k,cms,le) ->
+	    let p2 =
+	      (match k with
+		 | A3Bir.VirtualCall o ->
+		     let ccs = match o with
+		       | TClass ccs -> ccs
+		       | _ -> JBasics.java_lang_object in
+		       invoke_elem ~called_cname:(A3BirLike.print_basic_expr e1) program
 			 cs ms pp ccs cms
-		) in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " (A3Bir.print_basic_expr) le)) in
-		(match r with
-		   | None -> [p2;p3]
-		   | Some x ->
-		       let p1 = simple_elem
-			 (Printf.sprintf "%s :="  (A3Bir.var_name_g x)) in
-			 [p1;p2;p3]
-		)
-	  | A3Bir.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(match r with
-		   | None -> (A3Bir.print_basic_expr e1) ^ "."
-		   | Some x -> Printf.sprintf "%s := %s." (A3Bir.var_name_g x)
-		       (A3Bir.print_basic_expr e1)
-		) in
-	      let p2 = invoke_elem program cs ms pp ccs cms in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " A3Bir.print_basic_expr le)) in
-		[p1;p2;p3]
-	  | A3Bir.MayInit ccs ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem "mayinit" in
-	      let p2 = value_elem program cs v in
-		[p1;p2]
-	  | A3Bir.Check (A3Bir.CheckCast (e,t)) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "checkcast %s:" (A3Bir.print_basic_expr e)) in
-	      let p2 = value_elem program cs (TObject t) in
-		[p1;p2]
-	  | _ -> [simple_elem (A3Bir.print_instr op)]
-  end)
-  
+		 | A3Bir.InterfaceCall ccs ->
+		     invoke_elem ~called_cname:(A3BirLike.print_basic_expr e1) program
+		       cs ms pp ccs cms
+	      ) in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)"
+		 (print_list_sep ", " (A3BirLike.print_basic_expr) le)) in
+	      (match r with
+		 | None -> [p2;p3]
+		 | Some x ->
+		     let p1 = simple_elem
+		       (Printf.sprintf "%s :="  (A3BirLike.var_name_g x)) in
+		       [p1;p2;p3]
+	      )
+	| A3BirLike.InvokeNonVirtual (r,e1,ccs,cms,le) ->
+	    let p1 = simple_elem
+	      (match r with
+		 | None -> (A3BirLike.print_basic_expr e1) ^ "."
+		 | Some x -> Printf.sprintf "%s := %s." (A3BirLike.var_name_g x)
+		     (A3BirLike.print_basic_expr e1)
+	      ) in
+	    let p2 = invoke_elem program cs ms pp ccs cms in
+	    let p3 = simple_elem
+	      (Printf.sprintf "(%s)" (print_list_sep ", " A3BirLike.print_basic_expr le)) in
+	      [p1;p2;p3]
+	| A3BirLike.MayInit ccs ->
+	    let v = TObject (TClass ccs) in
+	    let p1 = simple_elem "mayinit" in
+	    let p2 = value_elem program cs v in
+	      [p1;p2]
+	| A3BirLike.Check (A3BirLike.CheckCast (e,t)) ->
+	    let p1 = simple_elem
+	      (Printf.sprintf "checkcast %s:" (A3BirLike.print_basic_expr e)) in
+	    let p2 = value_elem program cs (TObject t) in
+	      [p1;p2]
+	| _ -> [simple_elem (A3BirLike.print_instr op)]
+end
 
-module JBirSSAPrinter = Make(
-  struct
-    type instr = JBirSSA.instr
-    type code = JBirSSA.t
-	
-    include JBirSSAUtil
-   
-    let inst_html program ioc ms pp op =
-      let cs = Javalib.get_name ioc in
-	match op with
-	  | JBirSSA.AffectStaticField (ccs,fs,e) ->
-	      let p1 = field_elem program cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (JBirSSA.print_expr e)) in
-		[p1;p2]
-	  | JBirSSA.AffectField (e1,ccs,fs,e2) ->
-	      let p1 = field_elem program ~called_cname:(JBirSSA.print_expr e1)
-		cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (JBirSSA.print_expr e2)) in
-		[p1;p2]
-	  | JBirSSA.New (x,ccs,_,le) ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (JBirSSA.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " JBirSSA.print_expr le)) in
-		[p1;p2;p3]
-	  | JBirSSA.NewArray (x,v,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (JBirSSA.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "%s"
-		   (print_list_sep ""
-		      (fun e -> 
-			 Printf.sprintf "[%s]" (JBirSSA.print_expr e)) le)
-		) in
-		[p1;p2;p3]
-	  | JBirSSA.InvokeStatic (None,ccs,cms,le) ->
-	      let p1 = 
-		invoke_elem 
-		  program cs ms pp ccs cms 
-	      in
-	      let p2 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (JBirSSA.print_expr) le)) in
-		[p1;p2]
-	  | JBirSSA.InvokeStatic (Some x,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s :=" (JBirSSA.var_name_g x)) in
-	      let p2 = 
-		invoke_elem 
-		  program cs ms pp ccs cms 
-	      in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (JBirSSA.print_expr) le)) in
-		[p1;p2;p3]
-	  | JBirSSA.InvokeVirtual (r,e1,k,cms,le) ->
-	      let p2 =
-		(match k with
-		   | JBir.VirtualCall o ->
-		       let ccs = match o with
-			 | TClass ccs -> ccs
-			 | _ -> JBasics.java_lang_object in
-			 invoke_elem ~called_cname:(JBirSSA.print_expr e1) program
-			   cs ms pp ccs cms
-		   | JBir.InterfaceCall ccs ->
-		       invoke_elem ~called_cname:(JBirSSA.print_expr e1) program
-			 cs ms pp ccs cms
-		) in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " (JBirSSA.print_expr) le)) in
-		(match r with
-		   | None -> [p2;p3]
-		   | Some x ->
-		       let p1 = simple_elem
-			 (Printf.sprintf "%s :="  (JBirSSA.var_name_g x)) in
-			 [p1;p2;p3]
-		)
-	  | JBirSSA.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(match r with
-		   | None -> (JBirSSA.print_expr e1) ^ "."
-		   | Some x -> Printf.sprintf "%s := %s." (JBirSSA.var_name_g x)
-		       (JBirSSA.print_expr e1)
-		) in
-	      let p2 = 
-		invoke_elem 
-		  program cs ms pp ccs cms 
-	      in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " JBirSSA.print_expr le)) in
-		[p1;p2;p3]
-	  | JBirSSA.MayInit ccs ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem "mayinit" in
-	      let p2 = value_elem program cs v in
-		[p1;p2]
-	  | JBirSSA.Check (JBirSSA.CheckCast (e,t)) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "checkcast %s:" (JBirSSA.print_expr e)) in
-	      let p2 = value_elem program cs (TObject t) in
-		[p1;p2]
-	  | _ -> [simple_elem (JBirSSA.print_instr op)]
-  end)
-  
+module JBirPrinter = Make(MakeJBirLikePrintInterface(JBir))
 
-module A3BirSSAPrinter = Make(
-  struct
-    type instr = A3BirSSA.instr
-    type code = A3BirSSA.t
+module A3BirPrinter = Make(MakeA3BirLikePrintInterface(A3Bir)) 
 
-    include A3BirSSAUtil
-	
-    let inst_html program ioc ms pp op =
-      let cs = Javalib.get_name ioc in
-	match op with
-	  | A3BirSSA.AffectStaticField (ccs,fs,e) ->
-	      let p1 = field_elem program cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (A3BirSSA.print_expr e)) in
-		[p1;p2]
-	  | A3BirSSA.AffectField (e1,ccs,fs,e2) ->
-	      let p1 = field_elem program ~called_cname:(A3BirSSA.print_basic_expr e1)
-		cs ccs fs in
-	      let p2 = simple_elem
-		(Printf.sprintf ":= %s" (A3BirSSA.print_basic_expr e2)) in
-		[p1;p2]
-	  | A3BirSSA.New (x,ccs,_,le) ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (A3BirSSA.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " A3BirSSA.print_basic_expr le)) in
-		[p1;p2;p3]
-	  | A3BirSSA.NewArray (x,v,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s := new" (A3BirSSA.var_name_g x)) in
-	      let p2 = value_elem program cs v in
-	      let p3 = simple_elem
-		(Printf.sprintf "%s"
-		   (print_list_sep ""
-		      (fun e -> 
-			 Printf.sprintf "[%s]" (A3BirSSA.print_basic_expr e)) le)
-		) in
-		[p1;p2;p3]
-	  | A3BirSSA.InvokeStatic (None,ccs,cms,le) ->
-	      let p1 = invoke_elem program cs ms pp ccs cms in
-	      let p2 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (A3BirSSA.print_basic_expr) le)) in
-		[p1;p2]
-	  | A3BirSSA.InvokeStatic (Some x,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "%s :=" (A3BirSSA.var_name_g x)) in
-	      let p2 = invoke_elem program cs ms pp ccs cms in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " (A3BirSSA.print_basic_expr) le)) in
-		[p1;p2;p3]
-	  | A3BirSSA.InvokeVirtual (r,e1,k,cms,le) ->
-	      let p2 =
-		(match k with
-		   | A3Bir.VirtualCall o ->
-		       let ccs = match o with
-			 | TClass ccs -> ccs
-			 | _ -> JBasics.java_lang_object in
-			 invoke_elem ~called_cname:(A3BirSSA.print_basic_expr e1) program
-			   cs ms pp ccs cms
-		   | A3Bir.InterfaceCall ccs ->
-		       invoke_elem ~called_cname:(A3BirSSA.print_basic_expr e1) program
-			 cs ms pp ccs cms
-		) in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)"
-		   (print_list_sep ", " (A3BirSSA.print_basic_expr) le)) in
-		(match r with
-		   | None -> [p2;p3]
-		   | Some x ->
-		       let p1 = simple_elem
-			 (Printf.sprintf "%s :="  (A3BirSSA.var_name_g x)) in
-			 [p1;p2;p3]
-		)
-	  | A3BirSSA.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	      let p1 = simple_elem
-		(match r with
-		   | None -> (A3BirSSA.print_basic_expr e1) ^ "."
-		   | Some x -> Printf.sprintf "%s := %s." (A3BirSSA.var_name_g x)
-		       (A3BirSSA.print_basic_expr e1)
-		) in
-	      let p2 = invoke_elem program cs ms pp ccs cms in
-	      let p3 = simple_elem
-		(Printf.sprintf "(%s)" (print_list_sep ", " A3BirSSA.print_basic_expr le)) in
-		[p1;p2;p3]
-	  | A3BirSSA.MayInit ccs ->
-	      let v = TObject (TClass ccs) in
-	      let p1 = simple_elem "mayinit" in
-	      let p2 = value_elem program cs v in
-		[p1;p2]
-	  | A3BirSSA.Check (A3BirSSA.CheckCast (e,t)) ->
-	      let p1 = simple_elem
-		(Printf.sprintf "checkcast %s:" (A3BirSSA.print_basic_expr e)) in
-	      let p2 = value_elem program cs (TObject t) in
-		[p1;p2]
-	  | _ -> [simple_elem (A3BirSSA.print_instr op)]
-  end)
-  
+module JBirSSAPrinter = Make(MakeJBirLikePrintInterface(JBirSSA))
 
+module A3BirSSAPrinter = Make(MakeA3BirLikePrintInterface(A3BirSSA)) 

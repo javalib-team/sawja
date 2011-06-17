@@ -170,14 +170,13 @@ module JCodeUtil =
       		  )
   end
 
-
-module JBirUtil = 
+module IRUtil (Code : Cmn.CodeSig) = 
 struct
   
   let iter_code f lazy_code =
     try
-      let code = Lazy.force lazy_code in
-	Array.iteri (fun i ins -> f i [ins]) code.JBir.code
+      let instrs = Code.Internal.code (Lazy.force lazy_code) in
+	Array.iteri (fun i ins -> f i [ins]) instrs
     with _ -> 
       print_endline "Lazy.force fail";
       ()
@@ -194,96 +193,8 @@ struct
 		  (ExtList.List.mapi
 		     (fun i _ ->
 			let n = if is_static then i else i + 1 in
-			let var = snd (List.nth code.JBir.params n) in
-			  JBir.var_name_g var
-		     ) (ms_args ms)
-		  )
-	    with _ -> None
-end
-  
-module A3BirUtil = 
-struct
-  let iter_code f lazy_code =
-    try
-      let code = Lazy.force lazy_code in
-	Array.iteri (fun i ins -> f i [ins]) code.A3Bir.code
-    with
-	_ -> ()
-	  
-  let method_param_names ioc ms =
-    let m = Javalib.get_method ioc ms in
-      match m with
-	| AbstractMethod _
-	| ConcreteMethod {cm_implementation = Native} -> None
-	| ConcreteMethod ({cm_implementation = Java code} as cm) ->
-	    try
-	      let code = Lazy.force code in
-	      let is_static = cm.cm_static in
-		Some
-		  (ExtList.List.mapi
-		     (fun i _ ->
-			let n = if is_static then i else i + 1 in
-			let var = snd (List.nth code.A3Bir.params n) in
-			  A3Bir.var_name_g var
-		     ) (ms_args ms)
-		  )
-	    with _ -> None
-end
-
-module JBirSSAUtil = 
-struct
-  let iter_code f lazy_code =
-    try
-      let code = Lazy.force lazy_code in
-	Array.iteri (fun i ins -> f i [ins]) code.JBirSSA.code
-    with _ -> 
-      print_endline "Lazy.force fail";
-      ()
-
-  let method_param_names ioc ms =
-    let m = Javalib.get_method ioc ms in
-      match m with
-	| AbstractMethod _
-	| ConcreteMethod {cm_implementation = Native} -> None
-	| ConcreteMethod ({cm_implementation = Java code} as cm) ->
-	    try
-	      let code = Lazy.force code in
-	      let is_static = cm.cm_static in
-		Some
-		  (ExtList.List.mapi
-		     (fun i _ ->
-			let n = if is_static then i else i + 1 in
-			let var = snd (List.nth code.JBirSSA.params n) in
-			  JBirSSA.var_name_g var
-		     ) (ms_args ms)
-		  )
-	    with _ -> None	      
-end
-
-module A3BirSSAUtil = 
-struct
-  let iter_code f lazy_code =
-    try
-      let code = Lazy.force lazy_code in
-	Array.iteri (fun i ins -> f i [ins]) code.A3BirSSA.code
-    with
-	_ -> ()
-	  
-  let method_param_names ioc ms =
-    let m = Javalib.get_method ioc ms in
-      match m with
-	| AbstractMethod _
-	| ConcreteMethod {cm_implementation = Native} -> None
-	| ConcreteMethod ({cm_implementation = Java code} as cm) ->
-	    try
-	      let code = Lazy.force code in
-	      let is_static = cm.cm_static in
-		Some
-		  (ExtList.List.mapi
-		     (fun i _ ->
-			let n = if is_static then i else i + 1 in
-			let var = snd (List.nth code.A3BirSSA.params n) in
-			  A3BirSSA.var_name_g var
+			let var = snd (List.nth (Code.Internal.params code) n) in
+			  Code.var_name_g var
 		     ) (ms_args ms)
 		  )
 	    with _ -> None

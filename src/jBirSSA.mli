@@ -352,9 +352,6 @@ val transform :
 module Internal :
 sig
 
-  (** Common signature for instructions of JBir and JBirSSA representations*)
-  module type InstrSig = JBir.Internal.InstrSig
-
   (** Common signature for code of JBirSSA and A3BirSSA representations*)
   module type CodeSig = 
   sig
@@ -446,6 +443,10 @@ sig
 
 
   end 
+
+
+  (** Common signature for code and instructions of JBir and JBirSSA representations*)
+  module type CodeInstrSig = JBir.Internal.CodeInstrSig
 
     
   (** Common accessors to the type t for all representations, it allows

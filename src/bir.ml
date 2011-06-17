@@ -2020,7 +2020,7 @@ module CheckInfoDebug = struct
 	  | CheckLink _ -> VarSet.empty
       in
 	function
-	  | Nop _
+	  | Nop 
 	  | MayInit _ 
 	  | Goto _ -> VarSet.empty
 	  | Throw e
@@ -2729,8 +2729,44 @@ struct
 
   module InstrRep (Var:Cmn.VarSig) = InstrRep(Var)
 
-  (* instruction representation common for all code representations based on JBir (JBirSSA) *)
-  module type InstrSig = 
+  module type CodeSig  =
+  sig
+
+    include Cmn.VarSig
+
+    type instr
+
+    type exception_handler = {
+      e_start : int;
+      e_end : int;
+      e_handler : int;
+      e_catch_type : class_name option;
+      e_catch_var : var
+    }
+
+    type t = {
+      vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
+      params : (JBasics.value_type * var) list;
+      code : instr array;
+      exc_tbl : exception_handler list;
+      line_number_table : (int * int) list option;
+      pc_bc2ir : int Ptmap.t;
+      pc_ir2bc : int array
+    }
+
+    val print_handler : exception_handler -> string
+
+    val jump_target : t -> bool array
+      
+    val get_source_line_number : int -> t -> int option
+
+    val exception_edges : t -> (int * exception_handler) list
+
+    val print : t -> string list
+
+  end
+
+  module type CodeInstrSig = 
   sig
 
     include Cmn.VarSig
@@ -2781,36 +2817,15 @@ struct
 
     val print_instr : ?show_type:bool -> instr -> string
 
-  end
-
-
-  module type CodeSig  =
-  sig
-
-    type var
-
-    module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-    module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
-
-    type instr
-
     type exception_handler = {
       e_start : int;
       e_end : int;
       e_handler : int;
-      e_catch_type : class_name option;
+      e_catch_type : JBasics.class_name option;
       e_catch_var : var
     }
 
-    type t = {
-      vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
-      params : (JBasics.value_type * var) list;
-      code : instr array;
-      exc_tbl : exception_handler list;
-      line_number_table : (int * int) list option;
-      pc_bc2ir : int Ptmap.t;
-      pc_ir2bc : int array
-    }
+    type t
 
     val print_handler : exception_handler -> string
 
@@ -2820,7 +2835,17 @@ struct
 
     val exception_edges : t -> (int * exception_handler) list
 
-    val print : t -> string list
+    module Internal :
+    sig
+      val vars : t -> var array
+      val params : t -> (JBasics.value_type * var) list
+      val code : t -> instr array
+      val exc_tbl : t -> exception_handler list
+      val line_number_table : t -> (int * int) list option
+      val pc_bc2ir : t -> int Ptmap.t
+      val pc_ir2bc : t -> int array
+      val print_simple : t -> string list
+    end
 
   end
 

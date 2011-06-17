@@ -836,79 +836,6 @@ module JCodePrinter = Make(
 			 
   end)
 
-(* Common functions for JBir-like instruction representation (JBir and JBirSSA)*)
-module MakeBirInstrsFunctions (S : JBir.Internal.InstrSig) =
-struct
-
-  open JBir
-  open AdaptedASTGrammar
-
-
-  let find_ast_node_of_expr =
-    function 
-      | S.Const _ -> None
-      | S.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
-      | S.Binop (_,_,_) -> None
-      | S.Unop (JBir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
-      | S.Unop (JBir.Cast ot,_) -> Some (Expression(Cast ot))
-      | S.Unop (_,_) -> None
-      | S.Var (vt,var) -> 
-	  Some (Name (SimpleName (S.var_name_g var,Some vt)))
-      | S.Field (_,_,fs) 
-      | S.StaticField (_,fs) -> 
-	  Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
-
-  let find_ast_node =
-    function
-      | S.Goto _ 
-      | S.MayInit _ 
-      | S.Nop -> None
-      | S.AffectField (_,_,fs,_)
-      | S.AffectStaticField (_,fs,_) -> 
-	  Some ( Expression
-		   (Assignment 
-		      (SimpleName (fs_name fs,Some (fs_type fs)))))
-      | S.Ifd ((_cmp,_e1,_e2), _pc) -> 
-	  Some (Statement 
-		  If)
-      | S.Return _ -> 
-	  Some (Statement Return)
-      | S.Throw _ -> 
-	  Some (Statement Throw)
-      | S.AffectVar (v,e) -> 
-	  Some (Expression
-		  (Assignment 
-		     (SimpleName (S.var_name_g v,Some (S.type_of_expr e)))))
-      | S.MonitorEnter _e -> 
-	  Some (Statement
-		  (Synchronized true))
-      | S.MonitorExit _e -> 
-	  Some (Statement
-		  (Synchronized false))
-      | S.NewArray (_v,vt,_le) -> 
-	  Some (Expression
-		  (ArrayCreation vt))
-      | S.New (_v,cn,_vtl,_le) -> 
-	  Some (Expression
-		  (ClassInstanceCreation cn))
-      | S.AffectArray (_e1,_e2,e3) -> 
-	  Some (Expression (ArrayStore (Some (S.type_of_expr e3))))		  
-      | S.InvokeVirtual (_,_e,vk,ms,_le) ->
-	  begin
-	    match vk with
-		VirtualCall ot -> 
-		  Some (Expression
-			  (MethodInvocationVirtual (ot,ms)))
-	      | InterfaceCall cn -> 
-		  Some (Expression
-			  (MethodInvocationNonVirtual (cn,ms)))
-	  end
-      | S.InvokeStatic (_,cn,ms,_le) 
-      | S.InvokeNonVirtual (_,_,cn,ms,_le) -> 
-	  Some (Expression
-		  (MethodInvocationNonVirtual (cn,ms)))
-      | S.Check _ -> None
-end
 
 (* Common functions for all code representations*)
 module MakeCodeExcFunctions (S : Cmn.CodeSig) =
@@ -986,31 +913,107 @@ struct
 
 end
 
-module JBirPrinter = Make(
-  struct
-    open JBir
+(* Common functions for JBir-like representation (JBir and JBirSSA)*)
+module MakeBirLikeFunctions (S : JBir.Internal.CodeInstrSig) =
+struct
 
-    type code = JBir.t
-    type instr = JBir.instr
-    type expr = JBir.expr
+  include IRUtil(S)
 
-    include JBirUtil
+  type code = S.t
+  type instr = S.instr
+  type expr = S.expr
 
-    include MakeBirInstrsFunctions(JBir)
+  include MakeCodeExcFunctions(S)
 
-    include MakeCodeExcFunctions(JBir)
 
-    let inst_disp = 
-      inst_disp' print_instr
-	
-    let to_plugin_warning jm pp_warn_map = 
-      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
+  open JBir
+  open AdaptedASTGrammar
 
-  end)
+  let find_ast_node_of_expr =
+    function 
+      | S.Const _ -> None
+      | S.Binop (ArrayLoad vt,_,_) -> Some (Expression (ArrayAccess (Some vt)))
+      | S.Binop (_,_,_) -> None
+      | S.Unop (JBir.InstanceOf ot,_) -> Some (Expression(InstanceOf ot))
+      | S.Unop (JBir.Cast ot,_) -> Some (Expression(Cast ot))
+      | S.Unop (_,_) -> None
+      | S.Var (vt,var) -> 
+	  Some (Name (SimpleName (S.var_name_g var,Some vt)))
+      | S.Field (_,_,fs) 
+      | S.StaticField (_,fs) -> 
+	  Some (Name (SimpleName (fs_name fs,Some (fs_type fs))))
+
+  let find_ast_node =
+    function
+      | S.Goto _ 
+      | S.MayInit _ 
+      | S.Nop -> None
+      | S.AffectField (_,_,fs,_)
+      | S.AffectStaticField (_,fs,_) -> 
+	  Some ( Expression
+		   (Assignment 
+		      (SimpleName (fs_name fs,Some (fs_type fs)))))
+      | S.Ifd ((_cmp,_e1,_e2), _pc) -> 
+	  Some (Statement 
+		  If)
+      | S.Return _ -> 
+	  Some (Statement Return)
+      | S.Throw _ -> 
+	  Some (Statement Throw)
+      | S.AffectVar (v,e) -> 
+	  Some (Expression
+		  (Assignment 
+		     (SimpleName (S.var_name_g v,Some (S.type_of_expr e)))))
+      | S.MonitorEnter _e -> 
+	  Some (Statement
+		  (Synchronized true))
+      | S.MonitorExit _e -> 
+	  Some (Statement
+		  (Synchronized false))
+      | S.NewArray (_v,vt,_le) -> 
+	  Some (Expression
+		  (ArrayCreation vt))
+      | S.New (_v,cn,_vtl,_le) -> 
+	  Some (Expression
+		  (ClassInstanceCreation cn))
+      | S.AffectArray (_e1,_e2,e3) -> 
+	  Some (Expression (ArrayStore (Some (S.type_of_expr e3))))		  
+      | S.InvokeVirtual (_,_e,vk,ms,_le) ->
+	  begin
+	    match vk with
+		VirtualCall ot -> 
+		  Some (Expression
+			  (MethodInvocationVirtual (ot,ms)))
+	      | InterfaceCall cn -> 
+		  Some (Expression
+			  (MethodInvocationNonVirtual (cn,ms)))
+	  end
+      | S.InvokeStatic (_,cn,ms,_le) 
+      | S.InvokeNonVirtual (_,_,cn,ms,_le) -> 
+	  Some (Expression
+		  (MethodInvocationNonVirtual (cn,ms)))
+      | S.Check _ -> None
+
+  let inst_disp = 
+    inst_disp' S.print_instr
+      
+  let to_plugin_warning jm pp_warn_map = 
+    to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
+
+
+end
 
 (* Common functions for A3Bir-like instruction representation (A3Bir and A3BirSSA)*)
-module MakeA3BirInstrsFunctions (S : A3Bir.Internal.InstrSig) =
+module MakeA3BirLikeFunctions (S : A3Bir.Internal.CodeInstrSig) =
 struct
+
+  include IRUtil(S)
+
+  type code = S.t
+  type instr = S.instr
+  type expr = S.expr
+
+  include MakeCodeExcFunctions(S)
 
   open A3Bir
   open AdaptedASTGrammar
@@ -1079,73 +1082,19 @@ struct
 	  Some (Expression
 		  (MethodInvocationNonVirtual (cn,ms)))
       | S.Check _ -> None
+
+  let to_plugin_warning jm pp_warn_map = 
+    to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
+
+  let inst_disp = inst_disp' S.print_instr 
+
 end
 
-module A3BirPrinter = Make(
-  struct
 
-    open A3Bir
+module JBirPrinter = Make(MakeBirLikeFunctions(JBir))
 
-    type code = A3Bir.t
-    type instr = A3Bir.instr
-    type expr = A3Bir.expr
+module A3BirPrinter = Make(MakeA3BirLikeFunctions(A3Bir))
 
-    include A3BirUtil
+module JBirSSAPrinter = Make(MakeBirLikeFunctions(JBirSSA))
 
-    include MakeA3BirInstrsFunctions(A3Bir)
-      
-    include MakeCodeExcFunctions(A3Bir)
-
-    let to_plugin_warning jm pp_warn_map = 
-      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
-
-    let inst_disp = inst_disp' print_instr 
-
-  end)
-
-
-module JBirSSAPrinter = Make(
-  struct
-
-    open JBirSSA
-
-    type code = JBirSSA.t
-    type instr = JBirSSA.instr
-    type expr = JBirSSA.expr
-
-    include JBirSSAUtil
-      
-    include MakeBirInstrsFunctions(JBirSSA)
-
-    include MakeCodeExcFunctions(JBirSSA)
-
-    let inst_disp = 
-      inst_disp' print_instr
-	
-    let to_plugin_warning jm pp_warn_map = 
-      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
-
-  end)
-
-module A3BirSSAPrinter = Make(
-  struct
-    
-    open A3BirSSA
-        
-    type code = A3BirSSA.t
-    type instr = A3BirSSA.instr
-    type expr = A3BirSSA.expr
-
-    include A3BirSSAUtil
-
-    include MakeA3BirInstrsFunctions(A3BirSSA)
-
-    include MakeCodeExcFunctions(A3BirSSA)
-
-    let inst_disp = 
-      inst_disp' print_instr
-	
-    let to_plugin_warning jm pp_warn_map = 
-      to_plugin_warning' jm pp_warn_map find_ast_node find_ast_node_of_expr
-
-  end)
+module A3BirSSAPrinter = Make(MakeA3BirLikeFunctions(A3BirSSA))

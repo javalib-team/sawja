@@ -469,11 +469,13 @@ module Internal : sig
       
   end
 
-  (** Common signature for instructions of A3Bir and A3BirSSA representations*)  
-  module type InstrSig = 
+  (** Common signature for code of JBir and A3Bir representations*)
+  module type CodeSig  = JBir.Internal.CodeSig
+
+  (** Common signature for code and instructions of A3Bir and A3BirSSA*)
+  module type CodeInstrSig = 
   sig
     open JBasics
-
     include Cmn.VarSig
 
     type basic_expr = 
@@ -486,7 +488,7 @@ module Internal : sig
       | Binop of binop * basic_expr * basic_expr
       | Field of basic_expr * class_name * field_signature
       | StaticField of class_name * field_signature
-
+	  
     type check = 
       | CheckNullPointer of basic_expr
       | CheckArrayBound of basic_expr * basic_expr
@@ -529,16 +531,42 @@ module Internal : sig
       
     val print_instr : ?show_type:bool -> instr -> string
 
-  end
+    type exception_handler = {
+      e_start : int;
+      e_end : int;
+      e_handler : int;
+      e_catch_type : JBasics.class_name option;
+      e_catch_var : var
+    }
 
-  (** Common signature for code of JBir and A3Bir representations*)
-  module type CodeSig  = JBir.Internal.CodeSig
+    type t
+
+    val print_handler : exception_handler -> string
+
+    val jump_target : t -> bool array
+      
+    val get_source_line_number : int -> t -> int option
+
+    val exception_edges : t -> (int * exception_handler) list
+
+    module Internal :
+    sig
+      val vars : t -> var array
+      val params : t -> (JBasics.value_type * var) list
+      val code : t -> instr array
+      val exc_tbl : t -> exception_handler list
+      val line_number_table : t -> (int * int) list option
+      val pc_bc2ir : t -> int Ptmap.t
+      val pc_ir2bc : t -> int array
+      val print_simple : t -> string list
+    end
+
+  end
 
 
   (** Common accessors to the type t for all representations, it allows
       to use {!Cmn.CodeSig} that is the lowest common interface for the code
       of all IRs: *)
-
 
   val vars : t -> var array
   val params : t -> (JBasics.value_type * var) list

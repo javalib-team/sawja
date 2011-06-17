@@ -336,7 +336,9 @@ struct
 
   module InstrRep (Var:Cmn.VarSig) = InstrRep(Var)
 
-  module type InstrSig = 
+  module type CodeSig  = JBir.Internal.CodeSig
+
+  module type CodeInstrSig = 
   sig
     
     include Cmn.VarSig
@@ -394,9 +396,37 @@ struct
       
     val print_instr : ?show_type:bool -> instr -> string
 
-  end
+    type exception_handler = {
+      e_start : int;
+      e_end : int;
+      e_handler : int;
+      e_catch_type : JBasics.class_name option;
+      e_catch_var : var
+    }
 
-  module type CodeSig  = JBir.Internal.CodeSig
+    type t
+
+    val print_handler : exception_handler -> string
+
+    val jump_target : t -> bool array
+      
+    val get_source_line_number : int -> t -> int option
+
+    val exception_edges : t -> (int * exception_handler) list
+
+    module Internal :
+    sig
+      val vars : t -> var array
+      val params : t -> (JBasics.value_type * var) list
+      val code : t -> instr array
+      val exc_tbl : t -> exception_handler list
+      val line_number_table : t -> (int * int) list option
+      val pc_bc2ir : t -> int Ptmap.t
+      val pc_ir2bc : t -> int array
+      val print_simple : t -> string list
+    end
+
+  end
 
   let vars = vars
   let params = params

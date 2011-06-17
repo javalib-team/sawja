@@ -235,16 +235,23 @@ module PP : sig
   val hash : 'a t -> int
 end
 
-(** Common signature (corresponding to {!PP}) included in PP_* modules *)
+(** Common signature of PP_* modules *)
 module type GenericPPSig = sig
-  type code
+  type code 
+  type instr'
+  type exception_handler
   type t = code PP.t
   exception NoCode of (class_name * method_signature)
+
+(** {2 Data access} *)
+
   val get_class : t -> code node
   val get_meth : t -> code concrete_method
   val get_pc : t -> int
+  val get_opcode : t -> instr'
 
   val get_pp : code node -> code concrete_method -> int -> t
+
 
   (** [get_first_pp p cn ms] gets a pointer to the first instruction
       of the method [ms] of the class [cn].
@@ -255,8 +262,6 @@ module type GenericPPSig = sig
       @raise NoCode if the method [ms] has no associated code.*)
   val get_first_pp : code program -> class_name -> method_signature -> t
   val get_first_pp_wp : code node -> method_signature -> t
-  val goto_absolute : t -> int -> t
-  val goto_relative : t -> int -> t
 
   val to_string : t -> string
   val pprint : Format.formatter -> t -> unit
@@ -264,27 +269,24 @@ module type GenericPPSig = sig
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val hash : t -> int
-end
 
-(** Manipulation of {!Javalib_pack.JCode.jcode} program pointers *)
-module PP_BC : sig
-  (** [with type code =] {!Javalib_pack.JCode.jcode}*)
-  include GenericPPSig with type code = JCode.jcode 
+(** {2 Navigation} *)
 
-  val get_opcode : JCode.jcode PP.t -> JCode.jopcode
+  val goto_absolute : t -> int -> t
+  val goto_relative : t -> int -> t
 
   (** returns the next instruction if there is one.  If there is
       not, the behavior is unspecified (specially if compiled with
       -unsafe...) *)
-  val next_instruction : JCode.jcode PP.t -> JCode.jcode PP.t
+  val next_instruction : t -> t
 
   (** returns the normal intra-procedural successors of an
       instruction*)
-  val normal_successors : JCode.jcode PP.t -> JCode.jcode PP.t list
+  val normal_successors : t -> t list
 
   (** returns the handlers that could catch an exception thrown from
       the current instruction*)
-  val handlers : JCode.jcode program -> JCode.jcode PP.t -> JCode.exception_handler list
+  val handlers : code program -> t -> exception_handler list
 
   (** [exceptional_successors p pp] returns the list of program points
       that may be executed after [pp] if an exception (or error) occurs
@@ -295,15 +297,15 @@ module PP_BC : sig
   (* TODO: implement a checker which checks if that the method declares
      all the exception it may throw (except subtypes of Error and
      RuntimeException). *)
-  val exceptional_successors : JCode.jcode program -> JCode.jcode PP.t -> JCode.jcode PP.t list
+  val exceptional_successors : code program -> t -> t list
     
   (** [static_lookup program pp] returns the highest methods in the
       hierarchy that may be called from program point [pp]. All
       methods that may be called at execution time are known to
       implement or extend one of the class that this function
       returns. *)
-  val static_lookup : JCode.jcode program -> JCode.jcode PP.t
-    -> (JCode.jcode node list * method_signature) option
+  val static_lookup : code program -> t
+    -> (code node list * method_signature) option
 
   (** [get_successors program cl meth] returns the possible methods
       that may be invoked from the current program point (it uses
@@ -312,218 +314,36 @@ module PP_BC : sig
       of a clinit methods includes the clinit methods that are
       beneath). *)
   val get_successors :
-    JCode.jcode program ->
-    JCode.jcode node -> JCode.jcode concrete_method -> ClassMethodSet.t
+    code program ->
+    code node -> code concrete_method -> ClassMethodSet.t
+
 end
+
+(** Manipulation of {!Javalib_pack.JCode.jcode} program pointers *)
+module PP_BC : GenericPPSig with type code = JCode.jcode 
+			    and type instr' = JCode.jopcode
+			    and type exception_handler = JCode.exception_handler
+
 
 (** Manipulation of {!JBir.t} program pointers *)
-module PP_Bir : sig
-  (** [with type code =] {!JBir.t}*)
-  include GenericPPSig with type code = JBir.t 
-
-  val get_opcode : JBir.t PP.t -> JBir.instr
-
-  (** returns the next instruction if there is one.  If there is not,
-      the behavior is unspecified (specially if compiled with
-      -unsafe...) *)
-  val next_instruction : JBir.t PP.t -> JBir.t PP.t
-
-  (** returns the normal intra-procedural successors of an
-      instruction*)
-  val normal_successors : JBir.t PP.t -> JBir.t PP.t list
-
-  (** returns the handlers that could catch an exception thrown from
-      the current instruction*)
-  val handlers : JBir.t program -> JBir.t PP.t -> JBir.exception_handler list
-
-  (** [exceptional_successors p pp] returns the list of program points
-      that may be executed after [pp] if an exception (or error) occurs
-      during the execution of [pp].  Note that its uses the [throws]
-      annotation of the method, which is checked by the compiler but not
-      by the bytecode verifier: for security analyses, the [throws]
-      annotation should be checked by the analyses. *)
-  (* TODO: implement a checker which checks if that the method declares
-     all the exception it may throw (except subtypes of Error and
-     RuntimeException). *)
-  val exceptional_successors : JBir.t program -> JBir.t PP.t -> JBir.t PP.t list
-
-  (** [static_lookup program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-      returns. *)
-  val static_lookup : JBir.t program -> JBir.t PP.t
-    -> (JBir.t node list * method_signature) option
-
-  (** [get_successors program cl meth] returns the possible methods
-      that may be invoked from the current program point (it uses
-      [static_lookup'] function).  For the static initialization,
-      only the topmost class initializer is returned (and the successors
-      of a clinit methods includes the clinit methods that are
-      beneath). *)
-  val get_successors :
-    JBir.t program ->
-    JBir.t node -> JBir.t concrete_method -> ClassMethodSet.t
-end
+module PP_Bir : GenericPPSig with type code = JBir.t 
+			    and type instr' = JBir.instr
+			    and type exception_handler = JBir.exception_handler
 
 (** Manipulation of {!A3Bir.t} program pointers *)
-module PP_A3Bir : sig
-  (** [with type code =] {!A3Bir.t}*)
-  include GenericPPSig with type code = A3Bir.t 
-
-  val get_opcode : A3Bir.t PP.t -> A3Bir.instr
-
-  (** returns the next instruction if there is one.  If there is not, the
-      behavior is unspecified (specially if compiled with -unsafe...) *)
-  val next_instruction : A3Bir.t PP.t -> A3Bir.t PP.t
-
-  (** returns the normal intra-procedural successors of an
-      instruction*)
-  val normal_successors : A3Bir.t PP.t -> A3Bir.t PP.t list
-
-  (** returns the handlers that could catch an exception thrown from
-      the current instruction*)
-  val handlers : A3Bir.t program -> A3Bir.t PP.t -> A3Bir.exception_handler list
-
-  (** [exceptional_successors p pp] returns the list of program points
-      that may be executed after [pp] if an exception (or error) occurs
-      during the execution of [pp].  Note that its uses the [throws]
-      annotation of the method, which is checked by the compiler but not
-      by the bytecode verifier: for security analyses, the [throws]
-      annotation should be checked by the analyses. *)
-  (* TODO: implement a checker which checks if that the method declares
-     all the exception it may throw (except subtypes of Error and
-     RuntimeException). *)
-  val exceptional_successors : A3Bir.t program -> A3Bir.t PP.t -> A3Bir.t PP.t list
-
-    
-  (** [static_lookup program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-      returns. *)
-  val static_lookup : A3Bir.t program -> A3Bir.t PP.t
-    -> (A3Bir.t node list * method_signature) option
-    
-
-  (** [get_successors program cl meth] returns the possible methods
-      that may be invoked from the current program point (it uses
-      [static_lookup'] function).  For the static initialization,
-      only the topmost class initializer is returned (and the successors
-      of a clinit methods includes the clinit methods that are
-      beneath). *)
-  val get_successors :
-    A3Bir.t program ->
-    A3Bir.t node -> A3Bir.t concrete_method -> ClassMethodSet.t  
-
-end
+module PP_A3Bir : GenericPPSig with type code = A3Bir.t 
+			    and type instr' = A3Bir.instr
+			    and type exception_handler = A3Bir.exception_handler
 
 (** Manipulation of {!JBirSSA.t} program pointers *)
-module PP_BirSSA : sig
-  (** [with type code =] {!JBirSSA.t}*)
-  include GenericPPSig with type code = JBirSSA.t 
-
-  (** [get_opcode pp] returns the couple [(phi_node list,
-      instr)] corresponding to the program point [pp], phi nodes
-      assignements must be executed before instruction*)
-  val get_opcode : JBirSSA.t PP.t -> (JBirSSA.phi_node list * JBirSSA.instr)
-
-  (** returns the next instruction if there is one.  If there is not,
-      the behavior is unspecified (specially if compiled with
-      -unsafe...) *)
-  val next_instruction : JBirSSA.t PP.t -> JBirSSA.t PP.t
-
-  (** returns the normal intra-procedural successors of an
-      instruction*)
-  val normal_successors : JBirSSA.t PP.t -> JBirSSA.t PP.t list
-
-  (** returns the handlers that could catch an exception thrown from
-      the current instruction*)
-  val handlers : JBirSSA.t program -> JBirSSA.t PP.t -> JBirSSA.exception_handler list
-
-  (** [exceptional_successors p pp] returns the list of program points
-      that may be executed after [pp] if an exception (or error) occurs
-      during the execution of [pp].  Note that its uses the [throws]
-      annotation of the method, which is checked by the compiler but not
-      by the bytecode verifier: for security analyses, the [throws]
-      annotation should be checked by the analyses. *)
-  (* TODO: implement a checker which checks if that the method declares
-     all the exception it may throw (except subtypes of Error and
-     RuntimeException). *)
-  val exceptional_successors : JBirSSA.t program -> JBirSSA.t PP.t -> JBirSSA.t PP.t list
-
-  (** [static_lookup program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-      returns. *)
-  val static_lookup : JBirSSA.t program -> JBirSSA.t PP.t
-    -> (JBirSSA.t node list * method_signature) option
-
-  (** [get_successors program cl meth] returns the possible methods
-      that may be invoked from the current program point (it uses
-      [static_lookup'] function).  For the static initialization,
-      only the topmost class initializer is returned (and the successors
-      of a clinit methods includes the clinit methods that are
-      beneath). *)
-  val get_successors :
-    JBirSSA.t program ->
-    JBirSSA.t node -> JBirSSA.t concrete_method -> ClassMethodSet.t
-end
+module PP_BirSSA : GenericPPSig with type code = JBirSSA.t 
+		       and type instr' = JBirSSA.phi_node list * JBirSSA.instr
+		       and type exception_handler = JBirSSA.exception_handler
 
 (** Manipulation of {!JBirSSA.t} program pointers *)
-module PP_A3BirSSA : sig
-  (** [with type code =] {!A3BirSSA.t}*)
-  include GenericPPSig with type code = A3BirSSA.t 
-
-  (** [get_opcode pp] returns the couple [(phi_node list,
-      instr)] corresponding to the program point [pp], phi nodes
-      assignements must be executed before instruction*)
-  val get_opcode : A3BirSSA.t PP.t -> (A3BirSSA.phi_node list * A3BirSSA.instr)
-
-  (** returns the next instruction if there is one.  If there is not,
-      the behavior is unspecified (specially if compiled with
-      -unsafe...) *)
-  val next_instruction : A3BirSSA.t PP.t -> A3BirSSA.t PP.t
-
-  (** returns the normal intra-procedural successors of an
-      instruction*)
-  val normal_successors : A3BirSSA.t PP.t -> A3BirSSA.t PP.t list
-
-  (** returns the handlers that could catch an exception thrown from
-      the current instruction*)
-  val handlers : A3BirSSA.t program -> A3BirSSA.t PP.t -> A3BirSSA.exception_handler list
-
-  (** [exceptional_successors p pp] returns the list of program points
-      that may be executed after [pp] if an exception (or error) occurs
-      during the execution of [pp].  Note that its uses the [throws]
-      annotation of the method, which is checked by the compiler but not
-      by the bytecode verifier: for security analyses, the [throws]
-      annotation should be checked by the analyses. *)
-  (* TODO: implement a checker which checks if that the method declares
-     all the exception it may throw (except subtypes of Error and
-     RuntimeException). *)
-  val exceptional_successors : A3BirSSA.t program -> A3BirSSA.t PP.t -> A3BirSSA.t PP.t list
-
-  (** [static_lookup program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-      returns. *)
-  val static_lookup : A3BirSSA.t program -> A3BirSSA.t PP.t
-    -> (A3BirSSA.t node list * method_signature) option
-
-  (** [get_successors program cl meth] returns the possible methods
-      that may be invoked from the current program point (it uses
-      [static_lookup'] function).  For the static initialization,
-      only the topmost class initializer is returned (and the successors
-      of a clinit methods includes the clinit methods that are
-      beneath). *)
-  val get_successors :
-    A3BirSSA.t program ->
-    A3BirSSA.t node -> A3BirSSA.t concrete_method -> ClassMethodSet.t
-end
-
+module PP_A3BirSSA : GenericPPSig with type code = A3BirSSA.t 
+			    and type instr' = A3BirSSA.phi_node list * A3BirSSA.instr
+			    and type exception_handler = A3BirSSA.exception_handler
 
 (** {3 Invoke lookup algorithms}*)
 

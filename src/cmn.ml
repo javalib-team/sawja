@@ -31,6 +31,10 @@ sig
   val var_name: var -> string
   val var_name_g: var -> string
   val bc_num: var -> int option
+
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
 end
 
 (* Variables *)
@@ -312,10 +316,7 @@ end
 module type CodeSig  =
 sig
 
-  type var
-
-  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
-  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+  include VarSig
 
   type instr
 

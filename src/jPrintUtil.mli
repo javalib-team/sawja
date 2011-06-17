@@ -43,7 +43,6 @@ val print_xml_tree_ext :
 
 val print_xml_tree : ?spc:int -> xml_tree -> out_channel -> unit
 
-
 module JCodeUtil :
   sig
     val iter_code :
@@ -54,37 +53,13 @@ module JCodeUtil :
       Javalib_pack.JBasics.method_signature -> string list option
   end
 
-module JBirUtil :
-  sig
-    val iter_code : (int -> JBir.instr list -> unit) -> JBir.t Lazy.t -> unit
-    val method_param_names :
-      JBir.t Javalib_pack.Javalib.interface_or_class ->
-      Javalib_pack.JBasics.method_signature -> string list option
-  end
 
-module A3BirUtil :
-  sig
-    val iter_code :
-      (int -> A3Bir.instr list -> unit) -> A3Bir.t Lazy.t -> unit
-    val method_param_names :
-      A3Bir.t Javalib_pack.Javalib.interface_or_class ->
-      Javalib_pack.JBasics.method_signature -> string list option
-  end
-
-module JBirSSAUtil :
-  sig
-    val iter_code :
-      (int -> JBirSSA.instr list -> unit) -> JBirSSA.t Lazy.t -> unit
-    val method_param_names :
-      JBirSSA.t Javalib_pack.Javalib.interface_or_class ->
-      Javalib_pack.JBasics.method_signature -> string list option
-  end
-
-module A3BirSSAUtil :
-  sig
-    val iter_code :
-      (int -> A3BirSSA.instr list -> unit) -> A3BirSSA.t Lazy.t -> unit
-    val method_param_names :
-      A3BirSSA.t Javalib_pack.Javalib.interface_or_class ->
-      Javalib_pack.JBasics.method_signature -> string list option
-  end
+(**/**)
+module IRUtil (Code:Cmn.CodeSig) : 
+sig
+  val iter_code : (int -> Code.instr list -> unit) -> Code.t Lazy.t -> unit
+  val method_param_names :
+    Code.t Javalib_pack.Javalib.interface_or_class ->
+    Javalib_pack.JBasics.method_signature -> string list option
+end
+(**/**)

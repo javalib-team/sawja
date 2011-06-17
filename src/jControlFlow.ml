@@ -177,15 +177,23 @@ module PP = struct
 
 end
 
+(** Common signature of PP_* modules *)
 module type GenericPPSig = sig
   type code 
+  type instr'
+  type exception_handler
   type t = code PP.t
   exception NoCode of (class_name * method_signature)
+
+(** {2 Data access} *)
+
   val get_class : t -> code node
   val get_meth : t -> code concrete_method
   val get_pc : t -> int
+  val get_opcode : t -> instr'
 
   val get_pp : code node -> code concrete_method -> int -> t
+
 
   (** [get_first_pp p cn ms] gets a pointer to the first instruction
       of the method [ms] of the class [cn].
@@ -196,8 +204,6 @@ module type GenericPPSig = sig
       @raise NoCode if the method [ms] has no associated code.*)
   val get_first_pp : code program -> class_name -> method_signature -> t
   val get_first_pp_wp : code node -> method_signature -> t
-  val goto_absolute : t -> int -> t
-  val goto_relative : t -> int -> t
 
   val to_string : t -> string
   val pprint : Format.formatter -> t -> unit
@@ -205,6 +211,54 @@ module type GenericPPSig = sig
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val hash : t -> int
+
+(** {2 Navigation} *)
+
+  val goto_absolute : t -> int -> t
+  val goto_relative : t -> int -> t
+
+  (** returns the next instruction if there is one.  If there is
+      not, the behavior is unspecified (specially if compiled with
+      -unsafe...) *)
+  val next_instruction : t -> t
+
+  (** returns the normal intra-procedural successors of an
+      instruction*)
+  val normal_successors : t -> t list
+
+  (** returns the handlers that could catch an exception thrown from
+      the current instruction*)
+  val handlers : code program -> t -> exception_handler list
+
+  (** [exceptional_successors p pp] returns the list of program points
+      that may be executed after [pp] if an exception (or error) occurs
+      during the execution of [pp].  Note that its uses the [throws]
+      annotation of the method, which is checked by the compiler but not
+      by the bytecode verifier: for security analyses, the [throws]
+      annotation should be checked by the analyses. *)
+  (* TODO: implement a checker which checks if that the method declares
+     all the exception it may throw (except subtypes of Error and
+     RuntimeException). *)
+  val exceptional_successors : code program -> t -> t list
+    
+  (** [static_lookup program pp] returns the highest methods in the
+      hierarchy that may be called from program point [pp]. All
+      methods that may be called at execution time are known to
+      implement or extend one of the class that this function
+      returns. *)
+  val static_lookup : code program -> t
+    -> (code node list * method_signature) option
+
+  (** [get_successors program cl meth] returns the possible methods
+      that may be invoked from the current program point (it uses
+      [static_lookup'] function).  For the static initialization,
+      only the topmost class initializer is returned (and the successors
+      of a clinit methods includes the clinit methods that are
+      beneath). *)
+  val get_successors :
+    code program ->
+    code node -> code concrete_method -> ClassMethodSet.t
+
 end
 
 module GenericPP (S : sig type t end) = struct
@@ -662,7 +716,10 @@ let static_lookup' program pp =
 
 module PP_BC = struct 
   include GenericPP (struct type t = JCode.jcode end)
-    
+
+  type instr' = JCode.jopcode
+  type exception_handler =  JCode.exception_handler
+
   let get_code pp : jopcodes =
     match pp.meth.cm_implementation with
       | Java c -> (Lazy.force c).c_code
@@ -863,28 +920,40 @@ module PP_BC = struct
 
 end
 
-module PP_Bir = struct 
-  include GenericPP (struct type t = JBir.t end)
-    
-  let get_code (pp:JBir.t PP.t) : JBir.instr array =
+
+
+module PP_IRCodeLike (Code : Cmn.CodeSig) = struct
+
+  include GenericPP (struct type t = Code.t end)
+  type instr = Code.instr
+  type exception_handler = Code.exception_handler
+
+  let get_code pp = 
     match pp.meth.cm_implementation with
-      | Java c -> (Lazy.force c).JBir.code
+      | Java c -> Code.Internal.code (Lazy.force c)
       | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
-  let get_opcode (pp:JBir.t PP.t) : JBir.instr = 
+  let get_opcode (pp:Code.t PP.t) : Code.instr = 
     (get_code pp).(pp.pc)
       
+  
   let next_instruction pp =
-    goto_relative pp 1
+    goto_relative pp 1    
+
+end
+
+module PP_BirLike (IRBir : JBir.Internal.CodeInstrSig) = struct 
+      
+  include PP_IRCodeLike(IRBir)
 
   let normal_successors pp =
     match get_opcode pp with
-	   | JBir.Goto l -> 
+	   | IRBir.Goto l -> 
 	       [goto_absolute pp l]
-	   | JBir.Ifd (_,l) -> 
+	   | IRBir.Ifd (_,l) -> 
 	       [next_instruction pp; goto_absolute pp l]
-	   | JBir.Throw _ 
-	   | JBir.Return _ -> []
+	   | IRBir.Throw _ 
+	   | IRBir.Return _ -> []
 	   | _ -> [next_instruction pp]
 
   let handlers program pp =
@@ -895,7 +964,7 @@ module PP_Bir = struct
       match pp.meth.cm_implementation with
 	| Java code ->
 	    let is_prunable exn pp =
-	      match exn.JBir.e_catch_type with
+	      match exn.IRBir.e_catch_type with
 		| None -> false
 		| Some exn_name ->
 		    (* an exception handler can be pruned for an instruction if:
@@ -929,9 +998,9 @@ module PP_Bir = struct
 			    then false
 			    else
                               match get_opcode pp with
-				| JBir.InvokeStatic _
-				| JBir.InvokeVirtual _ 
-				| JBir.InvokeNonVirtual _ ->
+				| IRBir.InvokeStatic _
+				| IRBir.InvokeVirtual _ 
+				| IRBir.InvokeNonVirtual _ ->
                                     throws_instance_of program pp exn_class
 				| _ -> true
                     with Not_found -> false
@@ -940,29 +1009,29 @@ module PP_Bir = struct
 			 been loaded.*)
 	    in
 	      List.filter
-		(fun e -> e.JBir.e_start <= pp.pc 
-		   && pp.pc < e.JBir.e_end 
+		(fun e -> e.IRBir.e_start <= pp.pc 
+		   && pp.pc < e.IRBir.e_end 
 		   && not (is_prunable e pp))
-		(Lazy.force code).JBir.exc_tbl
+		(IRBir.Internal.exc_tbl (Lazy.force code))
 	| Native ->
 	    raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
   let exceptional_successors program pp =
     List.map 
-      (fun e -> goto_absolute pp e.JBir.e_handler) (handlers program pp)
+      (fun e -> goto_absolute pp e.IRBir.e_handler) (handlers program pp)
       
   let static_lookup program pp =
     match get_opcode pp with
-      | JBir.InvokeVirtual (_,_,kind, ms,_) ->
+      | IRBir.InvokeVirtual (_,_,kind, ms,_) ->
 	  (match kind with
 	       JBir.VirtualCall obj -> 
 		 Some (static_lookup_virtual program obj ms,ms)
 	     | JBir.InterfaceCall cs -> 
 		 Some (static_lookup_interface program cs ms,ms)
 	  )
-      | JBir.InvokeStatic (_, cs, ms,_) ->
+      | IRBir.InvokeStatic (_, cs, ms,_) ->
           Some ([static_lookup_static program cs ms],ms)
-      | JBir.InvokeNonVirtual (_, _, cs, ms, _) ->
+      | IRBir.InvokeNonVirtual (_, _, cs, ms, _) ->
           Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
       | _ -> None
 
@@ -991,7 +1060,7 @@ module PP_Bir = struct
               | Java c ->
 		  Array.iteri
 		    (fun pc opcode -> match opcode with
-                       | JBir.MayInit cn' ->
+                       | IRBir.MayInit cn' ->
 			   let c'= (get_node program cn') in
 			     begin
                                match (get_class_to_initialize node c') with
@@ -999,10 +1068,10 @@ module PP_Bir = struct
 				 | Some c ->
 				     successors := ClassMethodSet.add c !successors
 			     end
-                       | JBir.InvokeVirtual _
-		       | JBir.InvokeNonVirtual _ -> 
+                       | IRBir.InvokeVirtual _
+		       | IRBir.InvokeNonVirtual _ -> 
 			   add_invoke pc
-		       | JBir.InvokeStatic (_,cn',_,_) -> 
+		       | IRBir.InvokeStatic (_,cn',_,_) -> 
 			   (match get_node program cn' with
 			     | Class _ -> ()
 			     | Interface _ -> 
@@ -1010,34 +1079,31 @@ module PP_Bir = struct
 			   add_invoke pc
 		       | _ -> ()
 		    )
-		    (Lazy.force c).JBir.code);
+		    (IRBir.Internal.code (Lazy.force c)));
 	   !successors
       )
 
 end
 
-module PP_A3Bir = struct 
-  include GenericPP (struct type t = A3Bir.t end)
-    
-  let get_code (pp:A3Bir.t PP.t) : A3Bir.instr array =
-    match pp.meth.cm_implementation with
-      | Java c -> (Lazy.force c).A3Bir.code
-      | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
-  let get_opcode (pp:A3Bir.t PP.t) : A3Bir.instr = 
-    (get_code pp).(pp.pc)
-      
-  let next_instruction pp =
-    goto_relative pp 1
+module PP_Bir = struct
+  include PP_BirLike(JBir)
+  type instr' = instr
+end
+
+
+module PP_A3BirLike (IRA3Bir : A3Bir.Internal.CodeInstrSig) = struct 
+
+  include PP_IRCodeLike (IRA3Bir)
 
   let normal_successors pp =
     match get_opcode pp with
-	   | A3Bir.Goto l -> 
+	   | IRA3Bir.Goto l -> 
 	       [goto_absolute pp l]
-	   | A3Bir.Ifd (_,l) -> 
+	   | IRA3Bir.Ifd (_,l) -> 
 	       [next_instruction pp; goto_absolute pp l]
-	   | A3Bir.Throw _ 
-	   | A3Bir.Return _ -> []
+	   | IRA3Bir.Throw _ 
+	   | IRA3Bir.Return _ -> []
 	   | _ -> [next_instruction pp]
 
   let handlers program pp =
@@ -1048,7 +1114,7 @@ module PP_A3Bir = struct
       match pp.meth.cm_implementation with
 	| Java code ->
 	    let is_prunable exn pp =
-	      match exn.A3Bir.e_catch_type with
+	      match exn.IRA3Bir.e_catch_type with
 		| None -> false
 		| Some exn_name ->
 		    (* an exception handler can be pruned for an
@@ -1083,9 +1149,9 @@ module PP_A3Bir = struct
 			    then false
 			    else
                               match get_opcode pp with
-				| A3Bir.InvokeStatic _
-				| A3Bir.InvokeVirtual _ 
-				| A3Bir.InvokeNonVirtual _ ->
+				| IRA3Bir.InvokeStatic _
+				| IRA3Bir.InvokeVirtual _ 
+				| IRA3Bir.InvokeNonVirtual _ ->
                                     throws_instance_of program pp exn_class
 				| _ -> true
                     with Not_found -> false
@@ -1094,29 +1160,29 @@ module PP_A3Bir = struct
 			 been loaded.*)
 	    in
 	      List.filter
-		(fun e -> e.A3Bir.e_start <= pp.pc 
-		   && pp.pc < e.A3Bir.e_end 
+		(fun e -> e.IRA3Bir.e_start <= pp.pc 
+		   && pp.pc < e.IRA3Bir.e_end 
 		   && not (is_prunable e pp))
-		(Lazy.force code).A3Bir.exc_tbl
+		(IRA3Bir.Internal.exc_tbl (Lazy.force code))
 	| Native ->
 	    raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
   let exceptional_successors program pp =
     List.map 
-      (fun e -> goto_absolute pp e.A3Bir.e_handler) (handlers program pp)
+      (fun e -> goto_absolute pp e.IRA3Bir.e_handler) (handlers program pp)
       
   let static_lookup program pp =
     match get_opcode pp with
-      | A3Bir.InvokeVirtual (_,_,kind, ms,_) ->
+      | IRA3Bir.InvokeVirtual (_,_,kind, ms,_) ->
 	  (match kind with
 	       A3Bir.VirtualCall obj -> 
 		 Some (static_lookup_virtual program obj ms,ms)
 	     | A3Bir.InterfaceCall cs -> 
 		 Some (static_lookup_interface program cs ms,ms)
 	  )
-      | A3Bir.InvokeStatic (_, cs, ms,_) ->
+      | IRA3Bir.InvokeStatic (_, cs, ms,_) ->
           Some ([static_lookup_static program cs ms],ms)
-      | A3Bir.InvokeNonVirtual (_, _, cs, ms, _) ->
+      | IRA3Bir.InvokeNonVirtual (_, _, cs, ms, _) ->
           Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
       | _ -> None
 
@@ -1146,7 +1212,7 @@ module PP_A3Bir = struct
               | Java c ->
 		  Array.iteri
 		    (fun pc opcode -> match opcode with
-		       | A3Bir.MayInit cn' -> 
+		       | IRA3Bir.MayInit cn' -> 
 			   let c'= (get_node program cn') in
 			     begin
                                match (get_class_to_initialize node c') with
@@ -1154,10 +1220,10 @@ module PP_A3Bir = struct
 				 | Some c ->
 				     successors := ClassMethodSet.add c !successors
 			     end
-                       | A3Bir.InvokeVirtual _
-		       | A3Bir.InvokeNonVirtual _ -> 
+                       | IRA3Bir.InvokeVirtual _
+		       | IRA3Bir.InvokeNonVirtual _ -> 
 			   add_invoke pc
-		       | A3Bir.InvokeStatic (_,cn',_,_) -> 
+		       | IRA3Bir.InvokeStatic (_,cn',_,_) -> 
 			   (match get_node program cn' with
 			     | Class _ -> ()
 			     | Interface _ -> 
@@ -1165,170 +1231,40 @@ module PP_A3Bir = struct
 			   add_invoke pc
                        | _ -> ()
 		    )
-		    (Lazy.force c).A3Bir.code);
+		    (IRA3Bir.Internal.code (Lazy.force c)));
 	   !successors
       )
 
 
 end
 
+module PP_A3Bir = struct 
+  include PP_A3BirLike (A3Bir)
+  type instr' = instr
+end
 
-module PP_BirSSA = struct 
-  include GenericPP (struct type t = JBirSSA.t end)
-  
-  let get_code (pp:JBirSSA.t PP.t) : JBirSSA.t =
-    match pp.meth.cm_implementation with
-      | Java c -> (Lazy.force c)
-      | Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
+module PP_BirSSA = 
+  struct 
+    include PP_BirLike (JBirSSA)
+   
+    type instr' = JBirSSA.phi_node list * instr
+      
+    let get_code (pp:JBirSSA.t PP.t) : JBirSSA.t =
+      match pp.meth.cm_implementation with
+	| Java c -> (Lazy.force c)
+	| Native -> raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
 
-  let get_opcode (pp:JBirSSA.t PP.t) 
+    let get_opcode pp 
       : (JBirSSA.phi_node list * JBirSSA.instr) = 
     let code = (get_code pp) in
       (code.JBirSSA.phi_nodes.(pp.pc),code.JBirSSA.code.(pp.pc))
-      
-  let next_instruction pp =
-    goto_relative pp 1
+  end
 
-  let normal_successors pp =
-    match snd (get_opcode pp) with
-      | JBirSSA.Goto l -> 
-	  [goto_absolute pp l]
-      | JBirSSA.Ifd (_,l) -> 
-	  [next_instruction pp; goto_absolute pp l]
-      | JBirSSA.Throw _ 
-      | JBirSSA.Return _ -> []
-      | _ -> [next_instruction pp]
-	  
-  let handlers program pp =
-    let ioc2c = function
-      | Class c -> c
-      | Interface _ -> raise IncompatibleClassChangeError
-    in
-      match pp.meth.cm_implementation with
-	| Java code ->
-	    let is_prunable exn pp =
-	      match exn.JBirSSA.e_catch_type with
-		| None -> false
-		| Some exn_name ->
-		    (* an exception handler can be pruned for an instruction if:
-		       - the exception handler is a subtype of Exception and
-		       - the exception handler is not a subtype nor a super-type of RuntimeException and
-		       - the instruction is not a method call or if
-                       the instruction is a method call which is not declared to throw
-		       an exception of a subtype of the handler
-		    *)
-		    try
-		      let exn_class =
-			ioc2c (JProgram.get_node program exn_name)
-		      and javalangexception =
-			let cs = make_cn "java.lang.Exception"
-			in
-			  ioc2c (JProgram.get_node program cs)
-		      in
-			if not (JProgram.extends_class 
-				  exn_class javalangexception)
-			then false
-			else
-			  let javalangruntimeexception =
-                            let cs = make_cn "java.lang.RuntimeException"
-			    in
-                              ioc2c (JProgram.get_node program cs)
-			  in
-			    if JProgram.extends_class 
-			      exn_class javalangruntimeexception
-			      || JProgram.extends_class 
-			      javalangruntimeexception exn_class
-			    then false
-			    else
-                              match snd (get_opcode pp) with
-				| JBirSSA.InvokeStatic _
-				| JBirSSA.InvokeVirtual _ 
-				| JBirSSA.InvokeNonVirtual _ ->
-                                    throws_instance_of program pp exn_class
-				| _ -> true
-                    with Not_found -> false
-                      (* false is safe, but it would be stange to end up
-			 here as it would mean that some classes have not
-			 been loaded.*)
-	    in
-	      List.filter
-		(fun e -> e.JBirSSA.e_start <= pp.pc 
-		   && pp.pc < e.JBirSSA.e_end 
-		   && not (is_prunable e pp))
-		(Lazy.force code).JBirSSA.exc_tbl
-	| Native ->
-	    raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
+module PP_A3BirSSA = 
+struct 
+  include PP_A3BirLike(A3BirSSA)
 
-  let exceptional_successors program pp =
-    List.map 
-      (fun e -> goto_absolute pp e.JBirSSA.e_handler) (handlers program pp)
-      
-  let static_lookup program pp =
-    match snd (get_opcode pp) with
-      | JBirSSA.InvokeVirtual (_,_,kind, ms,_) ->
-	  (match kind with
-	       JBir.VirtualCall obj -> 
-		 Some (static_lookup_virtual program obj ms,ms)
-	     | JBir.InterfaceCall cs -> 
-		 Some (static_lookup_interface program cs ms,ms)
-	  )
-      | JBirSSA.InvokeStatic (_, cs, ms,_) ->
-          Some ([static_lookup_static program cs ms],ms)
-      | JBirSSA.InvokeNonVirtual (_, _, cs, ms, _) ->
-          Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
-      | _ -> None
-
-  let get_successors = 
-    get_successors 
-      (fun program node m succ -> 
-	 let ppinit = get_pp node m 0 
-	 and successors = ref succ in
-	 let add_invoke pc =
-	   let targets =
-	     let pp = goto_absolute ppinit pc
-	     in static_lookup' program pp
-	   in
-	     successors :=
-               List.fold_left
-		 (fun successors pp ->
-		    let cms =
-                      (get_meth pp).cm_class_method_signature
-		    in
-                      ClassMethodSet.add cms successors)
-		 !successors
-		 targets
-	 in
-	   (match m.cm_implementation with
-              | Native -> ()
-              | Java c ->
-		  Array.iteri
-		    (fun pc opcode -> match opcode with
-                       | JBirSSA.MayInit cn' ->
-			   let c'= (get_node program cn') in
-			     begin
-                               match (get_class_to_initialize node c') with
-				 | None -> ()
-				 | Some c ->
-				     successors := ClassMethodSet.add c !successors
-			     end
-                       | JBirSSA.InvokeVirtual _
-		       | JBirSSA.InvokeNonVirtual _ -> 
-			   add_invoke pc
-		       | JBirSSA.InvokeStatic (_,cn',_,_) -> 
-			   (match get_node program cn' with
-			     | Class _ -> ()
-			     | Interface _ -> 
-				 raise IncompatibleClassChangeError);
-			   add_invoke pc
-		       | _ -> ()
-		    )
-		    (Lazy.force c).JBirSSA.code);
-	   !successors
-      )
-
-end
-module PP_A3BirSSA = struct 
-  include GenericPP (struct type t = A3BirSSA.t end)
+  type instr' = A3BirSSA.phi_node list * A3BirSSA.instr
   
   let get_code (pp:A3BirSSA.t PP.t) : A3BirSSA.t =
     match pp.meth.cm_implementation with
@@ -1339,145 +1275,4 @@ module PP_A3BirSSA = struct
       : (A3BirSSA.phi_node list * A3BirSSA.instr) = 
     let code = (get_code pp) in
       (code.A3BirSSA.phi_nodes.(pp.pc),code.A3BirSSA.code.(pp.pc))
-      
-  let next_instruction pp =
-    goto_relative pp 1
-
-  let normal_successors pp =
-    match snd (get_opcode pp) with
-      | A3BirSSA.Goto l -> 
-	  [goto_absolute pp l]
-      | A3BirSSA.Ifd (_,l) -> 
-	  [next_instruction pp; goto_absolute pp l]
-      | A3BirSSA.Throw _ 
-      | A3BirSSA.Return _ -> []
-      | _ -> [next_instruction pp]
-	  
-  let handlers program pp =
-    let ioc2c = function
-      | Class c -> c
-      | Interface _ -> raise IncompatibleClassChangeError
-    in
-      match pp.meth.cm_implementation with
-	| Java code ->
-	    let is_prunable exn pp =
-	      match exn.A3BirSSA.e_catch_type with
-		| None -> false
-		| Some exn_name ->
-		    (* an exception handler can be pruned for an instruction if:
-		       - the exception handler is a subtype of Exception and
-		       - the exception handler is not a subtype nor a super-type of RuntimeException and
-		       - the instruction is not a method call or if
-                       the instruction is a method call which is not declared to throw
-		       an exception of a subtype of the handler
-		    *)
-		    try
-		      let exn_class =
-			ioc2c (JProgram.get_node program exn_name)
-		      and javalangexception =
-			let cs = make_cn "java.lang.Exception"
-			in
-			  ioc2c (JProgram.get_node program cs)
-		      in
-			if not (JProgram.extends_class 
-				  exn_class javalangexception)
-			then false
-			else
-			  let javalangruntimeexception =
-                            let cs = make_cn "java.lang.RuntimeException"
-			    in
-                              ioc2c (JProgram.get_node program cs)
-			  in
-			    if JProgram.extends_class 
-			      exn_class javalangruntimeexception
-			      || JProgram.extends_class 
-			      javalangruntimeexception exn_class
-			    then false
-			    else
-                              match snd (get_opcode pp) with
-				| A3BirSSA.InvokeStatic _
-				| A3BirSSA.InvokeVirtual _ 
-				| A3BirSSA.InvokeNonVirtual _ ->
-                                    throws_instance_of program pp exn_class
-				| _ -> true
-                    with Not_found -> false
-                      (* false is safe, but it would be stange to end up
-			 here as it would mean that some classes have not
-			 been loaded.*)
-	    in
-	      List.filter
-		(fun e -> e.A3BirSSA.e_start <= pp.pc 
-		   && pp.pc < e.A3BirSSA.e_end 
-		   && not (is_prunable e pp))
-		(Lazy.force code).A3BirSSA.exc_tbl
-	| Native ->
-	    raise (NoCode (get_name pp.cl,pp.meth.cm_signature))
-
-  let exceptional_successors program pp =
-    List.map 
-      (fun e -> goto_absolute pp e.A3BirSSA.e_handler) (handlers program pp)
-      
-  let static_lookup program pp =
-    match snd (get_opcode pp) with
-      | A3BirSSA.InvokeVirtual (_,_,kind, ms,_) ->
-	  (match kind with
-	       A3Bir.VirtualCall obj -> 
-		 Some (static_lookup_virtual program obj ms,ms)
-	     | A3Bir.InterfaceCall cs -> 
-		 Some (static_lookup_interface program cs ms,ms)
-	  )
-      | A3BirSSA.InvokeStatic (_, cs, ms,_) ->
-          Some ([static_lookup_static program cs ms],ms)
-      | A3BirSSA.InvokeNonVirtual (_, _, cs, ms, _) ->
-          Some ([Class (static_lookup_special program pp.cl cs ms)],ms)
-      | _ -> None
-
-  let get_successors = 
-    get_successors 
-      (fun program node m succ -> 
-	 let ppinit = get_pp node m 0 
-	 and successors = ref succ in
-	 let add_invoke pc =
-	   let targets =
-	     let pp = goto_absolute ppinit pc
-	     in static_lookup' program pp
-	   in
-	     successors :=
-               List.fold_left
-		 (fun successors pp ->
-		    let cms =
-                      (get_meth pp).cm_class_method_signature
-		    in
-                      ClassMethodSet.add cms successors)
-		 !successors
-		 targets
-	 in
-	   (match m.cm_implementation with
-              | Native -> ()
-              | Java c ->
-		  Array.iteri
-		    (fun pc opcode -> match opcode with
-                       | A3BirSSA.MayInit cn' ->
-			   let c'= (get_node program cn') in
-			     begin
-                               match (get_class_to_initialize node c') with
-				 | None -> ()
-				 | Some c ->
-				     successors := ClassMethodSet.add c !successors
-			     end
-                       | A3BirSSA.InvokeVirtual _
-		       | A3BirSSA.InvokeNonVirtual _ -> 
-			   add_invoke pc
-		       | A3BirSSA.InvokeStatic (_,cn',_,_) -> 
-			   (match get_node program cn' with
-			     | Class _ -> ()
-			     | Interface _ -> 
-				 raise IncompatibleClassChangeError);
-			   add_invoke pc
-		       | _ -> ()
-		    )
-		    (Lazy.force c).A3BirSSA.code);
-	   !successors
-      )
-
 end
