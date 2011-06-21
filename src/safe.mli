@@ -17,10 +17,48 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Defines a fixpoint solver, specialized for Java bytecode programs.  It is
-    left undocumented but XTA can be seen as an example of use.  [Safe] defines
-    a structure of variables and the constraints between those variables.  It
-    also defines domains. *)
+(** Defines a fixpoint solver, specialized for Sawja representation of
+    Java bytecode programs. [Safe] defines a structure of variables
+    and the constraints between those variables.  It also defines
+    domains for different levels of the program: global, classes,
+    fields, methods and program points. {!ReachableMethods} is a very
+    simple example of use and {!XTA} is a richer example of use.*)
+
+(** In order to use this solver: 
+
+    - Instantiate a variable module using the functor {!Safe.Var.Make}
+    with the necessary {!Safe.Var.CONTEXT}. You could use
+    {!Var.EmptyContext} if no context is needed.
+    
+    - Define a domain module (regarding {!Safe.Domain.S} interface)
+    for each level of the program (global, class, field, method,
+    program point). You could use {!Domain.Empty} module for
+    unnecessary levels in your analysis and some classic domain
+    representations are supplied in {!Safe.Domain} module.
+
+    - Instantiate a state module using the functor {!Safe.State.Make}
+    with the precedently defined modules.
+
+    - Instantiate a constraints module using the functor
+    {!Safe.Constraints.Make} with the state module.
+
+    - Instantiate a solver module using the functor
+    {!Safe.Solver.Make} with the constraints module.
+
+    Once the precedents modules created:
+    
+    - Create an intial state {!Safe.State.S.t} using {!Safe.State.S.bot}
+    and modifying it.
+
+    - Compute the constraint list {!Safe.Constraints.S.cst} [list].
+    
+    - Create the variable list {!Safe.Var.S.t} [list] of entry points
+    variables.
+
+    - And then use {!Safe.Solver.Make.solve_constraints} function to obtain
+    the fixpoint.
+
+*)
 
 open Javalib_pack
 

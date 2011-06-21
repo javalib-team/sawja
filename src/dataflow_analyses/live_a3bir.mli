@@ -18,14 +18,14 @@
  *)
 
 (** {{:http://en.wikipedia.org/wiki/Live_variable_analysis}Live
-    variable analysis} for {!JBir} representation*)
+    variable analysis} for {!A3Bir} representation*)
 
 (** {2 Domain of the live variable analysis} *)
 
 (** A set of live variables*)
 module Env :
   sig
-    type elt = JBir.var
+    type elt = A3Bir.var
     type t
     val mem : elt -> t -> bool
     val iter : (elt -> unit) -> t -> unit
@@ -62,6 +62,6 @@ val to_string : Env.t -> string
 
 (** [run code] returns a function [f pc] that returns the set of live
 variables before execution of the program point [pc]*)
-val run : JBir.t -> int -> Env.t
+val run : A3Bir.t -> int -> Env.t
 
 

@@ -204,8 +204,8 @@ val implements_interface_or_subinterface_transitively : 'a class_node ->
 
 (** {3 Access to instructions and navigation}*)
 
-(** Manipulation of generic program pointers (should not be used when
-    a specific code representation (JCode, JBir, etc.) is manipulated, use PP_* instead).*)
+(** Manipulation of generic program pointers (should not be used, use
+    PP_* of your code representation instead).*)
 module PP : sig
   type 'a t
   exception NoCode of (class_name * method_signature)
@@ -237,13 +237,20 @@ end
 
 (** Common signature of PP_* modules *)
 module type GenericPPSig = sig
+  
+  (** This module allows to navigate in code control flow using a
+      generic interface (independant of code representation
+      structure). Navigation is intra-procedural in this module*)
+
+  (** {2 Types}*)
+  
   type code 
   type instr'
   type exception_handler
   type t = code PP.t
   exception NoCode of (class_name * method_signature)
 
-(** {2 Data access} *)
+  (** {2 Data access} *)
 
   val get_class : t -> code node
   val get_meth : t -> code concrete_method
@@ -270,7 +277,7 @@ module type GenericPPSig = sig
   val compare : t -> t -> int
   val hash : t -> int
 
-(** {2 Navigation} *)
+  (** {2 Intra-procedural navigation} *)
 
   val goto_absolute : t -> int -> t
   val goto_relative : t -> int -> t
@@ -281,24 +288,46 @@ module type GenericPPSig = sig
   val next_instruction : t -> t
 
   (** returns the normal intra-procedural successors of an
-      instruction*)
+      instruction. Instructions of type "Return" or "Throw" returns an
+      empty list.*)
   val normal_successors : t -> t list
 
   (** returns the handlers that could catch an exception thrown from
-      the current instruction*)
+      the current instruction. The following approximation is used for
+      all instructions, an exception handler is not accessible for an
+      instruction if: 
+      - the exception handler is a subtype of Exception and
+      - the exception handler is not a subtype nor a
+      super-type of RuntimeException and 
+      - the instruction is not a
+      method call or if the instruction is a method call which is not
+      declared to throw an exception of a subtype of the handler
+
+      In all other cases an exception handler is considered as
+      accessible. 
+      
+      Important: The case of "Throw" instructions is no handled in a
+      different way than other instructions for now. That is to say
+      that if a handler exists for a "Throw" instruction that could
+      throw an exception that is a subtype of Exception it is not
+      returned.*)
   val handlers : code program -> t -> exception_handler list
 
-  (** [exceptional_successors p pp] returns the list of program points
-      that may be executed after [pp] if an exception (or error) occurs
-      during the execution of [pp].  Note that its uses the [throws]
-      annotation of the method, which is checked by the compiler but not
-      by the bytecode verifier: for security analyses, the [throws]
-      annotation should be checked by the analyses. *)
+  (** [exceptional_successors p pp] returns the list of
+      intra-procedural program points that may be executed after [pp]
+      if an exception (or error) occurs during the execution of [pp].
+      Note that its uses the [throws] annotation of the methods, which
+      is checked by the compiler but not by the bytecode verifier: for
+      security analyses, the [throws] annotation should be checked by
+      the analyses. The {!handlers} function is used to determine the
+      possible exceptional successors (see "Important" point).*)
   (* TODO: implement a checker which checks if that the method declares
      all the exception it may throw (except subtypes of Error and
      RuntimeException). *)
   val exceptional_successors : code program -> t -> t list
     
+  (** {2 Extra-procedural navigation} *)
+
   (** [static_lookup program pp] returns the highest methods in the
       hierarchy that may be called from program point [pp]. All
       methods that may be called at execution time are known to
@@ -306,10 +335,11 @@ module type GenericPPSig = sig
       returns. *)
   val static_lookup : code program -> t
     -> (code node list * method_signature) option
+    
 
   (** [get_successors program cl meth] returns the possible methods
       that may be invoked from the current program point (it uses
-      [static_lookup'] function).  For the static initialization,
+      {!static_lookup'} function).  For the static initialization,
       only the topmost class initializer is returned (and the successors
       of a clinit methods includes the clinit methods that are
       beneath). *)
@@ -320,7 +350,7 @@ module type GenericPPSig = sig
 end
 
 (** Manipulation of {!Javalib_pack.JCode.jcode} program pointers *)
-module PP_BC : GenericPPSig with type code = JCode.jcode 
+module PP_BC : (**Blabla*) GenericPPSig with type code = JCode.jcode 
 			    and type instr' = JCode.jopcode
 			    and type exception_handler = JCode.exception_handler
 
@@ -381,11 +411,12 @@ val invoke_static_lookup : 'a class_node -> method_signature ->
   'a class_node * 'a concrete_method
 
 (** [static_lookup' program pp] returns a list of methods that may be
-    called from program point [pp]. The computation is based on RTA or
-    CHA, depending on the function used to build the program (it uses
-    the field [program.static_lookup_method]). Caution: If the program
-    code representation has been changed,
-    [program.static_lookup_method] must have been updated at the same
-    time (see {!JProgram.map_program} function).*)
+      called from program point [pp] (provided by one of the PP_*
+      modules). The computation is based on RTA or CHA, depending on
+      the function used to build the program (it uses the field
+      [program.static_lookup_method]). Caution: If the program code
+      representation has been changed, [program.static_lookup_method]
+      must have been updated at the same time (see
+      {!JProgram.map_program} function).*)
 val static_lookup' : 'a program -> 'a PP.t -> 'a PP.t list
 

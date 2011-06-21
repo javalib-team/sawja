@@ -19,7 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Utility module for printing XML documents and common printing functions for code representations.*)
+(** Utility module for printing XML documents.*)
 
 val replace_forb_xml_ch : ?repl_amp:bool -> string -> string
 
@@ -43,6 +43,7 @@ val print_xml_tree_ext :
 
 val print_xml_tree : ?spc:int -> xml_tree -> out_channel -> unit
 
+(**/**)
 module JCodeUtil :
   sig
     val iter_code :
@@ -53,8 +54,6 @@ module JCodeUtil :
       Javalib_pack.JBasics.method_signature -> string list option
   end
 
-
-(**/**)
 module IRUtil (Code:Cmn.CodeSig) : 
 sig
   val iter_code : (int -> Code.instr list -> unit) -> Code.t Lazy.t -> unit
