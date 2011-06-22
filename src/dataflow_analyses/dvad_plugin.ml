@@ -1,14 +1,24 @@
 open Javalib_pack
 open Sawja_pack
 
-
+(* Colors for HTML code*)
 let colors = ["red";"green";"blue";"orange";"grey"
 	     ;"darkred";"darkgreen";"darkblue";"goldenrod"
 	     ;"black";"indigo";"sienna";"seagreen";"crimson"]
 let modulo = List.length colors
 
 
+(** Fill debug information, depending if dead affectations are
+    detected*)
 let fill_debug_infos dead_found cn ms code live plugin_infos =
+  (* Do not add additional warning on method signature for real use*)
+  (*let _warns = 
+    if dead_found
+    then
+    plugin_infos.JPrintPlugin.p_warnings <- 
+    JPrintPlugin.add_meth_iow 
+    (JPrintPlugin.MethodSignature "The method contains dead affectation(s).")
+    cn ms plugin_infos.JPrintPlugin.p_warnings*)
   let _infos = 
     if dead_found
     then
@@ -18,6 +28,7 @@ let fill_debug_infos dead_found cn ms code live plugin_infos =
 	Array.iteri
 	  (fun i _ -> 
 	     let info_live = 
+	       (* Use HTML for a better display in Eclipse*)
 	       let html_rep live = 
 		 let cpt = ref 0 in
 		   snd 
@@ -42,61 +53,15 @@ let fill_debug_infos dead_found cn ms code live plugin_infos =
 	  code.JBir.code;
 	plugin_infos.JPrintPlugin.p_infos <- 
 	  JPrintPlugin.add_meth_iow 
-	  (JPrintPlugin.MethodSignature "Dead variable affectation(s) found") 
+	  (JPrintPlugin.MethodSignature "<div>Dead variable affectation(s) found</div>") 
 	  cn ms plugin_infos.JPrintPlugin.p_infos ;
       end
     else
       plugin_infos.JPrintPlugin.p_infos <- 
 	JPrintPlugin.add_meth_iow 
-	(JPrintPlugin.MethodSignature "No dead variable affectation found") 
+	(JPrintPlugin.MethodSignature "<div>No dead variable affectation found</div>") 
 	cn ms plugin_infos.JPrintPlugin.p_infos;
   in ()
-
-
-
-(** Fill debug information, depending if dead affectations are
-    detected*)
-(*
-
-let fill_debug_infos dead_found cn ms code live plugin_infos =
-  let _warns = 
-    if dead_found
-    then
-      plugin_infos.JPrintPlugin.p_warnings <- 
-	JPrintPlugin.add_meth_iow 
-	(JPrintPlugin.MethodSignature "The method contains dead affectation(s).")
-	cn ms plugin_infos.JPrintPlugin.p_warnings
-  and _infos = 
-    if dead_found
-    then
-      begin
-	(* We give information of the variables liveness for this
-	   method*)
-      Array.iteri
-	(fun i _ -> 
-	   let info_live = 
-	     Printf.sprintf "LIVE[%s] = %s\n"
-	       (string_of_int i)
-	       (Live_bir.to_string (live i)) 
-	   in
-	     plugin_infos.JPrintPlugin.p_infos <- 
-	       JPrintPlugin.add_pp_iow info_live cn ms i plugin_infos.JPrintPlugin.p_infos
-	)
-	code.JBir.code;
-	plugin_infos.JPrintPlugin.p_infos <- 
-	  JPrintPlugin.add_meth_iow 
-	  (JPrintPlugin.MethodSignature "Dead variable affectation(s) found") 
-	  cn ms plugin_infos.JPrintPlugin.p_infos ;
-      end
-    else
-      plugin_infos.JPrintPlugin.p_infos <- 
-	JPrintPlugin.add_meth_iow 
-	  (JPrintPlugin.MethodSignature "No dead variable affectation found") 
-	  cn ms plugin_infos.JPrintPlugin.p_infos;
-  in ()*)
-     
-
-
 
 (**[method_dead_affect cn ms code live plug_info ] modifies the data
    structure [plug_info] containing information for the Eclipse
@@ -181,7 +146,7 @@ let main cp output cn_string =
   let bir_ioc = Javalib.map_interface_or_class_context JBir.transform ioc in
   let plugin_infos = run_dead_affect bir_ioc in
     (* Print infos on the current class for the Eclipse plugin*)
-    JPrintPlugin.JBirPrinter.print_class plugin_infos bir_ioc output
+    JPrintPlugin.JBirPrinter.print_class ~html_info:true plugin_infos bir_ioc output
 
 
 

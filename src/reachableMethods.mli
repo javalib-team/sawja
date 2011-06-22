@@ -18,10 +18,10 @@
  *)
 
 (** ReachabeMethods allows to compute the methods of a program that
-    are reachable from a set of entry points.  This can be used in
-    order to update the field [parsed_method] of {!JProgram.program}.
-    The implementation is not very efficient, but it is simple and
-    rely on the {!Safe} framework. *)
+    are reachable from a set of entry points (use {!Safe} solver).
+    This can be used in order to update the field [parsed_method] of
+    {!JProgram.program}.  The implementation is not very efficient,
+    but it is simple and rely on the {!Safe} framework. *)
 
 open Javalib_pack
 

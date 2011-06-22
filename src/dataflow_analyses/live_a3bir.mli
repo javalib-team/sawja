@@ -18,7 +18,7 @@
  *)
 
 (** {{:http://en.wikipedia.org/wiki/Live_variable_analysis}Live
-    variable analysis} for {!A3Bir} representation*)
+    variable analysis} for {!A3Bir} representation (use {!Iter} solver).*)
 
 (** {2 Domain of the live variable analysis} *)
 

@@ -18,7 +18,7 @@
  *)
 
 (** {{:http://en.wikipedia.org/wiki/Available_expression}Available
-    expressions analysis} for {!JBir} representation*)
+    expressions analysis} for {!JBir} representation  (use {!Iter} solver).*)
 
 (** {2 Domain of the available expressions analysis} *)
 

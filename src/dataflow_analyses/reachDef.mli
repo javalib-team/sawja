@@ -18,7 +18,7 @@
  *)
 
 (** {{:http://en.wikipedia.org/wiki/Use-define_chain}Reachable
-definitions analysis} for {!JBir} representation*)
+definitions analysis} for {!JBir} representation (use {!Iter} solver).*)
 
 (** {2 Domain of the reachable definitions analysis} *)
 
