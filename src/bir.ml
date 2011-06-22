@@ -2296,7 +2296,7 @@ let compress_ir handlers ir jump_target =
     | [] -> [pc0,[pcl,Nop]]
     | (pc,_)::_ as l when jump_target.(pc) || Ptset.mem pc h_ends -> (pc0,[pcl,Nop])::(aux l)
     | (pc1,[])::q -> aux0 pc0 (pc1::pcl) q
-    | (pc,instrs)::q -> (pc0,List.map (fun i -> (pc::pcl,i)) instrs)::(aux q)
+    | (pc,instrs)::q -> (pc,List.map (fun i -> (pc::pcl,i)) instrs)::(aux q)
   and aux = function
     | [] -> []
     | (pc,[])::q -> aux0 pc [pc] q
