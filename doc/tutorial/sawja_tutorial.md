@@ -687,6 +687,10 @@ let fill_debug_infos dead_found cn ms code live plugin_infos =
   in ()
 ~~~~~
 
+Note: The tutorial implementation supplied with *Sawja* sources show how
+to insert HTML code to display the information on the variable
+liveness.
+
 Now we have filled the file **dvad.ml** from bottom to up, we could
 create our executable with the following compilation line:
 
@@ -697,3 +701,6 @@ ocamlfind ocamlopt -package sawja -linkpkg -o dvad dvad.ml
 Then we could copy our executable **dvad** in the folder of
 executables as described on the [Sawja Eclipse Plugin
 page](http://javalib.gforge.inria.fr/eclipse.html).
+
+The source file of the tutorial **dvad-plugin.ml** is supplied with
+*Sawja* (version > 1.2) sources in *src/dataflow_analyses*.

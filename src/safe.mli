@@ -17,12 +17,13 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Defines a fixpoint solver, specialized for Sawja representation of
-    Java bytecode programs. [Safe] defines a structure of variables
-    and the constraints between those variables.  It also defines
-    domains for different levels of the program: global, classes,
-    fields, methods and program points. {!ReachableMethods} is a very
-    simple example of use and {!XTA} is a richer example of use.*)
+(** Defines a fixpoint solver managing domains for differents levels
+    of the code representation (global, class, field, method, program
+    point). [Safe] defines a structure of variables and the
+    constraints between those variables.  It also defines domains for
+    different levels of the program: global, classes, fields, methods
+    and program points. {!ReachableMethods} is a very simple example
+    of use and {!XTA} is a richer example of use.*)
 
 (** In order to use this solver: 
 

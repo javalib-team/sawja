@@ -10,18 +10,18 @@
 {b {L Intermediate Representations}}
 {!modules: JBir A3Bir JBirSSA A3BirSSA}
 
-{b {L Printing programs}}
-{!modules: JPrintHtml}
-
-{b {L Create an analysis for the Sawja Eclipse plugin}}
-{!modules: ArgPlugin JPrintPlugin}
-
 {b {L Tools for static analysis}}
 {L Fixpoint solvers}
 {!modules: Iter Safe}
 
 {L Examples of static analyzes}
-{!modules: Live_bir ReachDef AvailableExpr}
+{!modules: Live_bir ReachDef AvailableExpr ReachableMethods}
+
+{b {L Printing programs}}
+{!modules: JPrintHtml}
+
+{b {L Create an analysis for the Sawja Eclipse plugin}}
+{!modules: ArgPlugin JPrintPlugin}
 
 {b {L Indexes}}
 

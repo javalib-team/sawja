@@ -300,7 +300,9 @@ val print_basic_expr : ?show_type:bool -> basic_expr -> string
 (** [print_expr e] returns a string representation for expression [e]. *)
 val print_expr : ?show_type:bool -> expr -> string
 
-(** [print_instr ins] returns a string representation for instruction [ins]. *)
+(** [print_instr ins] returns a string representation for instruction
+    [ins]. CAUTION: It does not print phi_nodes linked to the
+    instruction.*)
 val print_instr : ?show_type:bool -> instr -> string
 
 (** [print_phi_node ~phi_simpl phi] returns a string representation

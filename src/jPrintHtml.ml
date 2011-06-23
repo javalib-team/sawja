@@ -1049,6 +1049,44 @@ module JBirPrinter = Make(MakeJBirLikePrintInterface(JBir))
 
 module A3BirPrinter = Make(MakeA3BirLikePrintInterface(A3Bir)) 
 
-module JBirSSAPrinter = Make(MakeJBirLikePrintInterface(JBirSSA))
+module MakeSSA(SSA:JBirSSA.Internal.CodeSig)
+  (PI:PrintInterface with type instr=SSA.instr and type code = SSA.t) =
+struct
+  include PI
+  let inst_html' = inst_html 
+    
+  let phi_nodes ioc ms =
+    match Javalib.get_method ioc ms with
+	ConcreteMethod cm -> 
+	  (match cm.cm_implementation with
+	       Java laz -> 
+		 let code = Lazy.force laz in
+		   fun pp -> code.SSA.phi_nodes.(pp), code.SSA.preds.(pp)
+		   | Native -> fun _ -> [], Array.make 0 0)
+      | AbstractMethod _ -> fun _ -> [], Array.make 0 0
+	  
+  let inst_html program ioc ms pp op = 
+    let res = inst_html' program ioc ms pp op in
+    let (phi_nodes,preds) = phi_nodes ioc ms pp in
+      if phi_nodes = [] then res
+      else
+	(simple_elem 
+	   (Printf.sprintf
+	      "(preds(%d) := (%s)): "
+	      pp
+	      (JUtil.print_list_sep_map 
+		 ", " string_of_int (Array.to_list preds))))
+	::(List.fold_right
+	     (fun  phi_n elts -> 
+		let el = 
+		  simple_elem (("  "^SSA.print_phi_node ~phi_simpl:false phi_n)^";") 
+		in
+		  el::elts
+	     )
+	     phi_nodes
+	     res)
+end
 
-module A3BirSSAPrinter = Make(MakeA3BirLikePrintInterface(A3BirSSA)) 
+module JBirSSAPrinter = Make(MakeSSA(JBirSSA)(MakeJBirLikePrintInterface(JBirSSA)))
+
+module A3BirSSAPrinter = Make(MakeSSA(A3BirSSA)(MakeA3BirLikePrintInterface(A3BirSSA)))

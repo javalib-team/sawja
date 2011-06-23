@@ -1,3 +1,55 @@
+From 1.2 to 1.3
+---------------
+New features:
+* An Eclipse plugin for Sawja analyzes is now available (update site:
+  http://javalib.gforge.inria.fr/plugin): it allows to add an analysis
+  in Eclipse environment just by adding an analysis executable. The
+  modules ArgPlugin and JPrintPlugin were added and allow to do a
+  compatible executable for the plugin (see Sawja tutorials on
+  website).
+
+Minor changes:
+* JProgram: 
+  - add several iterators for methods and fields
+* JPrintHtml:
+  - allow to print a class (without complete program)
+  - add printers for SSA forms of intermediate representations
+* IR: 
+  - add get_source_line_number function
+* Documentation:
+  - Add fixpoint solvers and examples on main page of API
+* BDD library (Buddy) makefile now statically links it
+* Compilation of documentation (make doc) does not need lynx anymore
+
+Bug fixes:
+
+* Some program points were missing for the correspondance map from
+  intermediate representations to JCode representation
+
+* Function var_name_debug was missing in SSA forms of intermediate
+  representations
+* The analysis on debug information for local variables, launched
+  during transformation to intermediate representations, does not
+  return false positive anymore on consistent information.
+* The Java string constants were not escaped before manipulation. We
+  now have an abstract datatype JBasics.jstr, and the corresponding
+  setter and getter functions.
+* Fix Sawja makefile for GNUMake <= 3.80: a blank character was
+  considered as an element of the list of modules
+* Fix some checks in configure script
+* Fix some broken links in documentation
+
+Known bugs: 
+* Program discovery does not take reflection in account
+* Native methods are only handle by RTA and may only be under 
+  approximate with our stub generator, or under or over approximate by
+  hand
+* Inlining of subroutines does not allow to keep correspondance
+  between program points and line numbers
+* JControlFlow.PP_* modules are not taking in account exceptions that
+  could be thrown by a "Throw" instruction in "handlers" and
+  "exceptional_successors" functions
+
 From 1.1.1 to 1.2
 -----------------
 
