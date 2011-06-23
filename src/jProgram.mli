@@ -132,6 +132,12 @@ val main_signature : method_signature
     @raise Not_found if [c] does not contain a method with signature [ms].
 *)
 val get_method : 'a node -> method_signature -> 'a jmethod
+
+(** [get_concrete_method c ms] returns the method with signature [ms]
+    in class [c], if any.  @raise Not_found if [c] does not contain a
+    method with signature [ms] or if the method is not concrete.
+*)
+val get_concrete_method : 'a node -> method_signature -> 'a concrete_method
 val get_methods : 'a node -> 'a jmethod MethodMap.t
 val get_concrete_methods : 'a node -> 'a concrete_method MethodMap.t
 val defines_method : 'a node -> method_signature -> bool

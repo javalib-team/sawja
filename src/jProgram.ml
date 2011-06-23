@@ -168,6 +168,9 @@ let super_class c : 'a class_node option = super c
 let get_method ioc ms =
   Javalib.get_method (to_ioc ioc) ms
 
+let get_concrete_method ioc ms =
+  Javalib.get_concrete_method (to_ioc ioc) ms
+
 let get_methods ioc = Javalib.get_methods (to_ioc ioc)
 
 let get_concrete_methods ioc = Javalib.get_concrete_methods (to_ioc ioc)
