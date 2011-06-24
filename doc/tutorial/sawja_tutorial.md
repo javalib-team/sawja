@@ -465,49 +465,44 @@ Create an analysis for the Sawja Eclipse Plugin
 -----------------------------------------------
 
 In this section we will use the [live variable
-analysis](http://en.wikipedia.org/wiki/Live_variable_analysis),
-included in Sawja as an dataflow analysis example, to create an
-analysis that detects variable assignments never used and we will add
-it in the *Sawja Eclipse Plugin*.
+analysis](http://en.wikipedia.org/wiki/Live_variable_analysis), included in
+Sawja as an dataflow analysis example, to create an algorithm that detects
+unused variable assignment, and turn it into a component of the *Sawja Eclipse
+Plugin*.
 
-The principle is simple, we use the result of the *live variable
-analysis* for the JBir code representation (Live_bir module in Sawja)
-that returns the live variables before the execution of an instruction.
-For each instruction **JBir.AffectVar (var,expr)** we check that on
-the next instruction the variable **var** is alive, if not it is a
-dead affectation. 
+The idea is to use the result of the *live variable analysis* associated with
+the JBir code representation (Live\_bir module in Sawja) that returns the live
+variables before the execution of an instruction.  For each instruction
+**JBir.AffectVar (var,expr)** we check that on the next instruction the
+variable **var** is alive: if not, it is a dead affectation. 
 
-We should notice the programmer in case of dead variable affectation
-because it could be the sign of a bug. As a consequence we want to put
-warnings on the dead affectation instruction and the method containing
-the instruction. We also want to give information on the *live
-variable analysis* result in this case to could see which variables
-are alive for each instruction.
+We should notify the programmer in case of a dead variable affectation, as it
+could be a sign of a bug. As a consequence we want to put warnings on the dead
+affectation instruction and on the method containing it. We also want to give
+more verbose information on the result of the analysis, in this case to
+indicate, for each instruction, which variables are live.
 
-In precedent tutorials we used the *OCaml* toplevel but for this one
-we want to generate an executable, as a consequence we will use the
-native ocaml compiler and construct the file **dvad.ml** step by step
-(from bottom to up).
+In precedent tutorials we used the *OCaml* toplevel but for this one we want to
+generate an executable: as a consequence we will use the native ocaml compiler
+and construct the file **dvad.ml** step by step (bottom up).
 
-Head of **dvad.ml** file should load the *Javalib* and *Sawja*
-libraries packages:
+The head of the **dvad.ml** file should load the *Javalib* and *Sawja*
+library packages:
 
 ~~~~~
 open Javalib_pack
 open Sawja_pack
 ~~~~~
 
-First we parse the arguments of our executable using the module
-*ArgPlugin* which is a wrapper to the standard *Arg* module, it will
-allow to directly add our executable in the Eclipse plugin just by
-adding it in a folder. Moreover we will parse a list of class names
-because it will avoid the plugin user to indicate explicitly which
-class to analyze and instead analyze automatically all the classes of
-his project at each compilation (see documentation of *ArgPlugin*).
+We first parse the arguments of our executable using the module *ArgPlugin*
+which is a wrapper to the standard *Arg* module. It will allow us to directly
+add our executable in the Eclipse plugin, just by dropping it in a folder.  In
+order to automatically analyze all the classes in a project (see documentation
+of *ArgPlugin*), our code will parse a list of class names.
 
 ~~~~~
-(** [_plugin_exec] parses arguments of executable and executes the
-    analysis for each class file given by the arguments*)
+(** [_plugin_exec] parses arguments and executes the analysis for each given
+    class file*)
 let _plugin_exec =
  
     (* Arguments values*)
@@ -519,7 +514,7 @@ let _plugin_exec =
   let exec_args = 
     [ ("--files", "Class files",
        ArgPlugin.ClassFiles (fun sl -> targets := sl),
-       "The class files to pass to the dead affectation checker.");
+       "The class files to pass to the live affectation checker.");
       ("--classpath", "Class path",
        ArgPlugin.ClassPath (fun s -> classpath := s),
        "Locations where class files are looked for.");
@@ -527,7 +522,7 @@ let _plugin_exec =
   in
   let usage_msg = "Usage: " ^Sys.argv.(0)^ " [options]" in
 
-    (* Adding analysis description and output, and launch parsing of arguments *)
+    (* Add analysis description and output, and launch parsing of arguments *)
     ArgPlugin.parse
       ("DVAD","Dead Variables Affected Detection: detects variables affected but never read.")
       exec_args
@@ -536,7 +531,7 @@ let _plugin_exec =
     try
       let cp = Javalib.class_path !classpath in
 
-   	(* Launch analysis for each class *)
+   	(* Launch the analysis on each given class *)
 	List.iter
 	  (fun cn_string -> 
 	     main cp !path_output cn_string (*==> Next function to write *)
@@ -548,13 +543,12 @@ let _plugin_exec =
       raise e
 ~~~~~
 
-Then we write the main function that will run the analysis on a class
-and finally print the data structure of warnings and information for
-the Eclipse plugin.
+We then write the main function: its job is to run the analysis on a class and
+provide the data structure of warnings and information to the Eclipse plugin.
 
 ~~~~~
 (** [main cp output cn_string] loads the class [cn_string], converts it
-   in JBir representation, runs the analysis and print the information
+   in JBir representation, runs the analysis and prints the information
    for the plugin. [cp] is a class_path, [output] a folder path for
    generation of plugin information and [cn_string] the fully
    qualified name of a Java class file.*)
@@ -562,16 +556,15 @@ let main cp output cn_string =
   let cn = JBasics.make_cn cn_string in
   let ioc = Javalib.get_class cp cn in
   let bir_ioc = Javalib.map_interface_or_class_context JBir.transform ioc in
-  let plugin_infos = run_dead_affect bir_ioc (*==> Next function to write *)
+  let plugin_infos = run_dead_affect bir_ioc (*==> We need to write this function next*)
   in 
 
     (* Print infos on the current class for the Eclipse plugin*)
     JPrintPlugin.JBirPrinter.print_class plugin_infos bir_ioc output
 ~~~~~
 
-We will now create the empty data structure containing the information
-for the Eclipse plugin and launch the analysis for each method of a
-class.
+We create the empty data structure containing the information for the Eclipse
+plugin and launch the analysis for each method of a class.
 
 ~~~~~
 (**[run_dead_affect ioc] returns the data structure containing
@@ -589,14 +582,14 @@ let run_dead_affect ioc =
 	       (* Launch the live variable analysis *)
 	       let live = Live_bir.run code in
 	       let (cn,ms) = JBasics.cms_split cm.Javalib.cm_class_method_signature in
-		 method_dead_affect cn ms code live plugin_infos (*==> Next function to write *)
+		 method_dead_affect cn ms code live plugin_infos (*==> We need to write this function next*)
       )
       ioc;
     plugin_infos
 ~~~~~
 
-Finally we could write concrete part of the analysis that checks the
-code of a method and fill the data structure for the plugin.
+Finally we write the part of the analysis that checks a method and fills the
+*plug\_info* data structure with warnings and information for the plugin.
 
 ~~~~~
 (**[method_dead_affect cn ms code live plug_info] modifies the data
@@ -606,10 +599,9 @@ code of a method and fill the data structure for the plugin.
    on the code.*)
 let method_dead_affect cn ms code live plugin_infos =
 
-  (*Corner cases: "false" positive on AffectVar instruction*)
+  (*Corner cases: false positive on AffectVar instruction*)
   let not_corner_case i op = 
-
-    (* AffectVar instruction corresponding to a catch(Exception e) statement*)
+    (* Check all AffectVar instructions corresponding to a catch(Exception e) statement*)
       List.for_all
 	(fun exc_h -> not(i = exc_h.JBir.e_handler))
 	code.JBir.exc_tbl
@@ -640,15 +632,15 @@ let method_dead_affect cn ms code live plugin_infos =
 	    | _ -> ()))
       code.JBir.code;
 
-    (* Fill information for plugin depending on the method analysis result*)
+    (* Fill information for plugin depending on the method analysis result *)
     fill_debug_infos !dead_var_exists cn ms code live plugin_infos (*==> Last function to write *)
 ~~~~~
 
-We just have to add a warning and to fill information from the analysis on a method that contains at least one dead affectation.
+We just have to add a warning and to provide any relevant information from the
+analysis on a method that contains at least one dead affectation.
 
 ~~~~~
-(** Fill debug information, depending if dead
-    affectations are detected*)
+(** Fill debug information when dead affectations are detected*)
 let fill_debug_infos dead_found cn ms code live plugin_infos =
   let _warns = 
     if dead_found
@@ -687,20 +679,19 @@ let fill_debug_infos dead_found cn ms code live plugin_infos =
   in ()
 ~~~~~
 
-Note: The tutorial implementation supplied with *Sawja* sources show how
-to insert HTML code to display the information on the variable
-liveness.
-
-Now we have filled the file **dvad.ml** from bottom to up, we could
-create our executable with the following compilation line:
+Now we have created the file **dvad.ml**: we can create our executable with the
+following command:
 
 ~~~~~
 ocamlfind ocamlopt -package sawja -linkpkg -o dvad dvad.ml
 ~~~~~
 
-Then we could copy our executable **dvad** in the folder of
-executables as described on the [Sawja Eclipse Plugin
+Finally we can copy our executable **dvad** in the folder of executables as
+described on the [Sawja Eclipse Plugin
 page](http://javalib.gforge.inria.fr/eclipse.html).
 
-The source file of the tutorial **dvad-plugin.ml** is supplied with
-*Sawja* (version > 1.2) sources in *src/dataflow_analyses*.
+The implementation of this tutorial is supplied with the *Sawja* library
+(version > 1.2) as the file **dvad-plugin.ml** in *src/dataflow_analyses*. It
+also demonstrates how to insert HTML code to display the information on the
+variable liveness.
+
