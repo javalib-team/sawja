@@ -470,17 +470,17 @@ Sawja as an dataflow analysis example, to create an algorithm that detects
 unused variable assignment, and turn it into a component of the *Sawja Eclipse
 Plugin*.
 
-The idea is to use the result of the *live variable analysis* associated with
-the JBir code representation (Live\_bir module in Sawja) that returns the live
-variables before the execution of an instruction.  For each instruction
-**JBir.AffectVar (var,expr)** we check that on the next instruction the
-variable **var** is alive: if not, it is a dead affectation. 
+We use the result of the *live variable analysis* associated with the JBir code
+representation (Live\_bir module in Sawja) that returns the live variables
+before the execution of an instruction.  For each instruction **JBir.AffectVar
+(var,expr)** we check that on the next instruction the variable **var** is
+alive: if not, it is a dead affectation. 
 
-We should notify the programmer in case of a dead variable affectation, as it
-could be a sign of a bug. As a consequence we want to put warnings on the dead
-affectation instruction and on the method containing it. We also want to give
-more verbose information on the result of the analysis, in this case to
-indicate, for each instruction, which variables are live.
+The analysis should notify the programmer in case of a dead variable
+affectation, as it could be a sign of a bug. As a consequence we want to put
+warnings on the dead affectation instruction and on the method containing it.
+We also want to give more verbose information on the result of the analysis, in
+this case to indicate, for each instruction, which variables are live.
 
 In precedent tutorials we used the *OCaml* toplevel but for this one we want to
 generate an executable: as a consequence we will use the native ocaml compiler
