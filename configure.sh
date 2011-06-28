@@ -276,7 +276,7 @@ fi
 # Check Recode
 #
 RECODEBIN=`which recode`
-if [ $? != 0 ]; then
+if [ $? = 0 ]; then
   msg "inf" "Recode found at $RECODEBIN"
   RECODE="-pp \"$RECODEBIN UTF-8..Latin-1 <\""
 else

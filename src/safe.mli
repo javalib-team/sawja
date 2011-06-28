@@ -23,7 +23,7 @@
     constraints between those variables.  It also defines domains for
     different levels of the program: global, classes, fields, methods
     and program points. {!ReachableMethods} is a very simple example
-    of use and {!XTA} is a richer example of use.*)
+    and {!XTA} is a richer example.*)
 
 (** In order to use this solver: 
 
