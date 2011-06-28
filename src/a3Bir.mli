@@ -255,9 +255,15 @@ type t = {
       [(i,j)] meaning the bytecode code line [i] corresponds to the line [j] at the java
       source level. *)
   pc_bc2ir : int Ptmap.t;
-  (** map from bytecode code line to ir code line *)
+  (** map from bytecode code line to ir code line. It raises Not_found
+      if pc is not an original bytecode pc or if the corresponding
+      bytecode instruction has no predecessors and has been removed
+      because it is unreachable.*)
   pc_ir2bc : int array; 
-  (** map from ir code line to bytecode code line *)
+  (** map from ir code line to bytecode code line: the last bytecode
+      instruction corresponding to the given ir instruction is
+      returned (i.e. the last bytecode instruction used for the ir
+      instruction generation).*)
 }
 
 (** [jump_target m] indicates whether program points are join points or not in [m]. *)

@@ -22,10 +22,8 @@ Minor changes:
 * Compilation of documentation (make doc) does not need lynx anymore
 
 Bug fixes:
-
 * Some program points were missing for the correspondance map from
   intermediate representations to JCode representation
-
 * Function var_name_debug was missing in SSA forms of intermediate
   representations
 * The analysis on debug information for local variables, launched

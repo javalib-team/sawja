@@ -26,12 +26,16 @@ open JProgram
 
 
 (** This module allows to generate information data for the Sawja
-    Eclipse Plugin. It allows to add warning on source code in the JDT
+    Eclipse Plugin. It is possible to add warnings on source code in the JDT
     (Java Development Toolkit) of Eclipse and to attach information on
     the analysis state to the source code in order to help Java
     programmer or for debugging purpose on analysis.
 
     How to generate these information:
+
+    - Use the printer for the code representation used by your
+    analysis to retrieve an empty {!plugin_info} data structure
+    ({!NewCodePrinter.PluginPrinter.empty_infos}).
 
     - Fill the {!plugin_info} data structure with the necessary
     warnings and information (utility functions are given for that)

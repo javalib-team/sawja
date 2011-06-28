@@ -28,32 +28,39 @@
 (** The concrete type describing the behavior associated with a keyword*)
 type spec = 
   | ClassPath of (string -> unit)
-      (** [ClassPath f] with f the function to retrieve the classpath
+      (** [ClassPath f] with [f] the function to retrieve the classpath
 	  argument. In Eclipse, by default, ClassPath will be automatically put to the
 	  complete class path of the Java project.*)
   | Path of (string -> unit)
-      (** [Path f] with f the function to retrieve the path
+      (** [Path f] with [f] the function to retrieve the path
 	  argument. Path should represents a path to a folder or file.*)
   | ClassFiles of (string list -> unit)
-      (** [ClassFiles f] with f the function to retrieve the class
+      (** [ClassFiles f] with [f] the function to retrieve the class
 	  name list argument. In Eclipse, by default, ClassFiles will
 	  automatically contain all the classes files of the Java project.*)
   | ClassFile of (string -> unit)
-      (** [ClassFile f] with f the function to retrieve the class name
+      (** [ClassFile f] with [f] the function to retrieve the class name
 	  argument. In Eclipse this argument must be given by user in
 	  properties of analysis for each Java project.*)
+  | Choice of ((string list) * (string -> unit) * string)
+      (** [Choice (list, f, default)] provides an exclusive choice on
+	  a list of symbols, [list] is the list of symbol, [f] the
+	  function to retrieve the choosen symbol and [def] the
+	  default choice. The character ';' is forbidden for the
+	  symbols. raise Invalid_argument, on {!parse} execution, if [def] is not a symbol
+	  of [list].  *)
   | String of ((string -> unit) * string option)
-      (** [String (f, default)] with f function to retrieve string
-	  argument and default the optional default string value
+      (** [String (f, default)] with [f] function to retrieve string
+	  argument and [default] the optional default string value
 	  (default value is only used in Eclipse, for executable it's
 	  only a description)*)
   | Boolean of ((bool -> unit) * bool option)
-      (** [Boolean (f, default)] with f function to retrieve boolean
-	  argument and default the optional default boolean value
+      (** [Boolean (f, default)] with [f] function to retrieve boolean
+	  argument and [default] the optional default boolean value
 	  (default value is only used in Eclipse, for executable it's
 	  only a description)*)
   | NotPlugin of Arg.spec
-      (** [NotPlugin spec] with spec an Arg.spec will add an argument
+      (** [NotPlugin spec] with [spec] an Arg.spec will add an argument
 	  that will not appear in the Sawja Eclipse Plugin.*)
 
 (** key is the option keyword, it must start with a '-' character*)

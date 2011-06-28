@@ -31,17 +31,20 @@ let path_tag = "path"
 let class_tag = "class"
 let classes_tag = "classes"
 let string_tag = "string"
+let choice_tag = "choice"
 let bool_tag = "bool"
 
 let name_att = "name"
 let sdesc_att = "short_desc"
 let def_attr = "default"
+let choices_attr = "choices"
 
 type spec = 
   | ClassPath of (string -> unit)
   | Path of (string -> unit)
   | ClassFiles of (string list -> unit)
   | ClassFile of (string -> unit)
+  | Choice of ((string list) * (string -> unit) * string)
   | String of ((string -> unit) * string option)
   | Boolean of ((bool -> unit) * bool option)
   | NotPlugin of Arg.spec
@@ -69,6 +72,7 @@ let transform2arg = function
   | Path f
   | ClassFile f -> Arg.String f
   | ClassFiles f -> Arg.String (fun s -> f (ExtString.String.nsplit s ":"))
+  | Choice (list, f, _def) -> Arg.Symbol (list,f)
   | String (f, _def) -> Arg.String f
   | Boolean (f, _def) -> Arg.Bool f
   | NotPlugin spec -> spec
@@ -82,6 +86,20 @@ let gen_xml_desc (name, desc) arg_list plug_out_name =
       | Path _ -> (path_tag, [])
       | ClassFile _ -> (class_tag, [])
       | ClassFiles _ -> (classes_tag, [])
+      | Choice (list,_,def) -> 
+	  (*ensures def is an element of the list*)
+	  let ok = List.exists (fun s -> s = def) list in
+	    if not ok 
+	    then invalid_arg 
+	      ("In ArgPlugin.Choice default value '"^def^"' is not included in "^
+		 (List.fold_left (fun acc s -> acc^s^";") "[" list)^"]");
+	    let choices,def = 
+	      let replace = 
+		(ExtString.String.replace_chars (function ';' -> ":" | c -> String.make 1 c))
+	      in
+		JUtil.print_list_sep ";" (List.map replace list), replace def
+	    in
+	      (choice_tag, [(choices_attr,choices);(def_attr,def)])
       | String (_,Some def) -> (string_tag, [(def_attr,def)])
       | String (_,None) -> (string_tag, [])
       | Boolean (_,Some def) -> (bool_tag,[(def_attr,string_of_bool def)])
