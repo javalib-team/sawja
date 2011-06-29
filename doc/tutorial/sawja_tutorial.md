@@ -466,7 +466,7 @@ Create an analysis for the Sawja Eclipse Plugin
 
 In this section we will use the [live variable
 analysis](http://en.wikipedia.org/wiki/Live_variable_analysis), included in
-Sawja as an dataflow analysis example, to create an algorithm that detects
+Sawja as a dataflow analysis example, to create an algorithm that detects
 unused variable assignment, and turn it into a component of the *Sawja Eclipse
 Plugin*.
 

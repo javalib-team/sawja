@@ -306,7 +306,7 @@ module type GenericPPSig = sig
       In all other cases an exception handler is considered as
       accessible. 
       
-      Important: The case of "Throw" instructions is no handled in a
+      Important: The case of "Throw" instructions is not handled in a
       different way than other instructions for now. That is to say
       that if a handler exists for a "Throw" instruction that could
       throw an exception that is a subtype of Exception it is not

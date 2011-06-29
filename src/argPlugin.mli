@@ -17,13 +17,12 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** ArgPlugin is a wrapper to module Arg that normalize arguments for
+(** ArgPlugin is a wrapper to the module Arg that normalizes arguments for
     the Sawja Eclipse Plugin.*)
 
-(** ArgPlugin is a wrapper to module Arg that normalize arguments for
-    the Sawja Eclipse Plugin. The final executable must use
-    ArgPlugin to could be "installed" and executed by the Sawja
-    Eclipse Plugin.*)
+(** ArgPlugin is a wrapper to the module Arg that normalizes arguments for
+    the Sawja Eclipse Plugin. The final executable must use ArgPlugin
+    to be "installed" and executed by the Sawja Eclipse Plugin.*)
 
 (** The concrete type describing the behavior associated with a keyword*)
 type spec = 
