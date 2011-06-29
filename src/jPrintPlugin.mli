@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Generation of warnings and information for the Sawja Eclipse Plugin *)
+(** Primitives for generating warnings and information for the Sawja Eclipse Plugin *)
 
 open Javalib_pack
 open JBasics
@@ -25,35 +25,34 @@ open Javalib
 open JProgram
 
 
-(** This module allows to generate information data for the Sawja
-    Eclipse Plugin. It is possible to add warnings on source code in the JDT
-    (Java Development Toolkit) of Eclipse and to attach information on
-    the analysis state to the source code in order to help Java
-    programmer or for debugging purpose on analysis.
+(** This module contains primitives that facilitate the creation of informative
+  data for the Sawja Eclipse Plugin. It is possible to add warnings on source
+  code in the JDT (Java Development Toolkit) of Eclipse and to attach
+  information on the state of an analysis to the source code, either to provide
+  guidance to the Java programmer, or for analysis debugging purpose.
 
-    How to generate these information:
+  To generate this data:
 
-    - Use the printer for the code representation used by your
-    analysis to retrieve an empty {!plugin_info} data structure
-    ({!NewCodePrinter.PluginPrinter.empty_infos}).
+  - Use the printer for the code representation used by your analysis to
+  retrieve an empty {!plugin_info} data structure
+  ({!NewCodePrinter.PluginPrinter.empty_infos}).
 
-    - Fill the {!plugin_info} data structure with the necessary
-    warnings and information (utility functions are given for that)
+  - Fill the {!plugin_info} data structure with the necessary warnings and
+  information (utility functions are provided for this purpose)
     
-    - Use the printer for the code representation used by your
-    analysis and print the data structure
-    ({!NewCodePrinter.PluginPrinter.print_class} or
-    {!NewCodePrinter.PluginPrinter.print_program}) in the output path
-    given by {!ArgPlugin.plugin_output}
+  - Use the printer for the code representation used by your analysis and print
+  the final data structure ({!NewCodePrinter.PluginPrinter.print_class} or
+  {!NewCodePrinter.PluginPrinter.print_program}) in the output path given by
+  {!ArgPlugin.plugin_output}
 
-    N.B.: Information contained by [p_infos] in {!plugin_info} could
-    be given with HTML code, it must be specified to the print
-    function with the [html_info] optional parameter. Conversely,
-    warnings contained by [p_warnings] must only be plain text.
+  N.B.: Information contained by [p_infos] in {!plugin_info} can be given as
+  structured (HTML) code, in which case it must be specified to the print
+  function with the [html_info] optional parameter. Conversely, warnings
+  contained by [p_warnings] can only be plain text.
 *)
 
 
-(** {2 Data structure for analysis information.} *)
+(** {2 Data structures for analysis information.} *)
 
 (** Information on a method signature*)
 type method_info = 
@@ -63,14 +62,14 @@ type method_info =
   | This of string
 
 
-(** Warning on a program point. The type variable 'a could be used if
-    location of warning is more precise than a program point
-    instruction (e.g.: {!JBir.expr} for {!JBir} representation), see
-    specific code representation printer for exact type.*)
+(** Warning on a program point. The type variable 'a can be used if the warning
+  location needs to be more precise than an instruction program point (e.g.:
+  {!JBir.expr} for {!JBir} representation), see the specific code representation
+  printer for the exact type.*)
 type 'a warning_pp = string * 'a option
 
-(** This type represents warnings and information that will
-    be displayed in the Java source code. *)
+(** This type represents warnings and information that will be displayed in the
+  Java source code. *)
 type 'a plugin_info = 
     {
       mutable p_infos : 
@@ -79,9 +78,8 @@ type 'a plugin_info =
 	 * (method_info list * string list Ptmap.t)
 	 MethodMap.t) 
 	ClassMap.t;
-      (** infos that could be displayed for a class (one entry
-	  in ClassMap.t): (class_infos * field_infos FieldMap.t *
-	  (method_infos * pc_infos) MethodMap.t*)
+      (** class-related information (one entry in ClassMap.t): (class_infos *
+        field_infos FieldMap.t * (method_infos * pc_infos) MethodMap.t*)
 
       mutable p_warnings : 
 	(string list 
@@ -89,36 +87,34 @@ type 'a plugin_info =
 	 * (method_info list * 'a warning_pp list Ptmap.t)
 	 MethodMap.t) 
 	ClassMap.t;
-      (** warnings to display for a class (one entry in ClassMap.t):
-	  (class_infos * field_infos FieldMap.t * (method_infos *
-	  pc_infos) MethodMap.t*)
+      (** class-related warnings (one entry in ClassMap.t): (class_infos *
+        field_infos FieldMap.t * (method_infos * pc_infos) MethodMap.t*)
     }
 
 (**{3 Utility functions to fill the {!plugin_info} data structure}*)
 
-(** [iow] (info or warning) is a type compatible with [p_infos] or
-    [p_warnings] fields of {!plugin_info}*)
+(** [iow] (info or warning) is a type compatible with [p_infos] or [p_warnings]
+  fields of {!plugin_info}*)
 type ('c,'f,'m,'p) iow = ('c list 
 			  * 'f list FieldMap.t 
 			  * ('m list * 'p list Ptmap.t) MethodMap.t)
 
-(** [add_class_iow iow cn cmap] add the info or warning [iow] for the
-    class [cn] to [cmap].*)
+(** [add_class_iow iow cn cmap] adds the info or warning [iow] for the class
+  [cn] to [cmap].*)
 val add_class_iow : 'c -> class_name -> ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-(** [add_field_iow iow cn fs cmap] add the info or warning [iow] for the
-    field [fs] of the class [cn] to [cmap].*)
+(** [add_field_iow iow cn fs cmap] adds the info or warning [iow] for the field
+  [fs] of the class [cn] to [cmap].*)
 val add_field_iow : 'f -> class_name -> field_signature -> 
   ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-(** [add_meth_iow iow cn ms cmap] add the info or warning [iow] for the
-    method [ms] of the class [cn] to [cmap].*)
+(** [add_meth_iow iow cn ms cmap] adds the info or warning [iow] for the method
+  [ms] of the class [cn] to [cmap].*)
 val add_meth_iow : 'm -> class_name -> method_signature -> 
   ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 
-(** [add_pp_iow iow cn ms pc cmap] add the info or warning [iow] for
-    the program point [pc] in the method [ms] of the class [cn] to
-    [cmap].*)
+(** [add_pp_iow iow cn ms pc cmap] adds the info or warning [iow] for the program
+  point [pc] in the method [ms] of the class [cn] to [cmap].*)
 val add_pp_iow : 'p -> class_name -> method_signature -> int -> 
   ('c,'f,'m,'p) iow ClassMap.t -> ('c,'f,'m,'p) iow ClassMap.t
 

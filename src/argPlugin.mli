@@ -17,50 +17,50 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** ArgPlugin is a wrapper to the module Arg that normalizes arguments for
+(** ArgPlugin is a wrapper for the module Arg that normalizes arguments for
     the Sawja Eclipse Plugin.*)
 
-(** ArgPlugin is a wrapper to the module Arg that normalizes arguments for
-    the Sawja Eclipse Plugin. The final executable must use ArgPlugin
-    to be "installed" and executed by the Sawja Eclipse Plugin.*)
+(** ArgPlugin is a wrapper for the module Arg that normalizes arguments for
+    the Sawja Eclipse Plugin. The final executable must use
+    ArgPlugin in order to be "installed" and executed by the Sawja
+    Eclipse Plugin.*)
 
 (** The concrete type describing the behavior associated with a keyword*)
 type spec = 
   | ClassPath of (string -> unit)
-      (** [ClassPath f] with [f] the function to retrieve the classpath
-	  argument. In Eclipse, by default, ClassPath will be automatically put to the
-	  complete class path of the Java project.*)
+      (** [ClassPath f] with [f] the function used to retrieve the classpath
+        argument. In Eclipse, by default, this argument will be automatically
+        set to the complete class path of the Java project.*)
   | Path of (string -> unit)
-      (** [Path f] with [f] the function to retrieve the path
-	  argument. Path should represents a path to a folder or file.*)
+      (** [Path f] with [f] the function used to retrieve the path argument. The
+        argument to [f] should represent a path to a folder or file.*)
   | ClassFiles of (string list -> unit)
-      (** [ClassFiles f] with [f] the function to retrieve the class
-	  name list argument. In Eclipse, by default, ClassFiles will
-	  automatically contain all the classes files of the Java project.*)
+      (** [ClassFiles f] with [f] the function to used retrieve the class name
+        list argument. In Eclipse, by default, this argument will automatically
+        contain all the class files of the Java project.*)
   | ClassFile of (string -> unit)
-      (** [ClassFile f] with [f] the function to retrieve the class name
-	  argument. In Eclipse this argument must be given by user in
-	  properties of analysis for each Java project.*)
+      (** [ClassFile f] with [f] the function used to retrieve the class name
+        argument. In Eclipse this argument must be given by the user as a
+        property of the analysis for each Java project.*)
   | Choice of ((string list) * (string -> unit) * string)
-      (** [Choice (list, f, default)] provides an exclusive choice on
-	  a list of symbols, [list] is the list of symbol, [f] the
-	  function to retrieve the choosen symbol and [def] the
-	  default choice. The character ';' is forbidden for the
-	  symbols. raise Invalid_argument, on {!parse} execution, if [def] is not a symbol
-	  of [list].  *)
+      (** [Choice (list, f, default)] provides an exclusive choice on a list of
+        symbols: [list] is the list of symbols, [f] the function used to
+        retrieve the chosen symbol, and [def] the default choice. The character
+        ';' is forbidden in the symbols. Raises Invalid_argument on execution of
+        {!parse} if [def] is not a symbol of [list].  *)
   | String of ((string -> unit) * string option)
-      (** [String (f, default)] with [f] function to retrieve string
-	  argument and [default] the optional default string value
-	  (default value is only used in Eclipse, for executable it's
-	  only a description)*)
+      (** [String (f, default)] with [f] the function used to retrieve a string
+        argument, and [default] the optional default string value (default
+        values are only used in Eclipse: for executables this parameter is
+        considered as a description)*)
   | Boolean of ((bool -> unit) * bool option)
-      (** [Boolean (f, default)] with [f] function to retrieve boolean
-	  argument and [default] the optional default boolean value
-	  (default value is only used in Eclipse, for executable it's
-	  only a description)*)
+      (** [Boolean (f, default)] with [f] the function used to retrieve a
+        boolean argument and [default] the optional default boolean value
+        (default values are only used in Eclipse: for executables this parameter
+        is considered as a description)*)
   | NotPlugin of Arg.spec
-      (** [NotPlugin spec] with [spec] an Arg.spec will add an argument
-	  that will not appear in the Sawja Eclipse Plugin.*)
+      (** [NotPlugin spec] with [spec] an Arg.spec adds an argument unrelated to
+        the Sawja Eclipse Plugin.*)
 
 (** key is the option keyword, it must start with a '-' character*)
 type key = string 
@@ -76,27 +76,26 @@ type usage_msg = string
 (** Description of the analysis (name, short description)*)
 type analysis = string * string
 
-(** Output path of the data generated for the plugin by
-    {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_class} or
-    {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_program}*)
+(** Output path of the data generated for the Java side of the plugin by
+  {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_class} or
+  {!JPrintPlugin.NewCodePrinter.PluginPrinter.print_program}*)
 type plugin_output = 
     PluginOutput of (string * (string -> unit))
       (** [PluginOutput (key, f)] with key the argument name for this
-	  argument and f the function to retrieve the string
+	  argument and f the function used to retrieve the string
 	  description of the output path*)
 
-(** [parse analysis args_list plugin_output usage_msg] is an adapted
-    version of Arg.parse, it adds a an argument "--argumentsXMLDesc"
-    that describe arguments in a XML format. 
-
-    It parses the command line. [analysis] is the analysis
-    description. [args_list] is a list of triples (key, spec,
-    doc). [plugin_output] is the folder in which information data for
-    the plugin must be generated with {!JPrintPlugin} module.
-*)
+(** 
+  [parse analysis args_list plugin_output usage_msg] is an adapted version of
+  Arg.parse; it automatically generates a an additional parameter
+  "--argumentsXMLDesc" that describes the program's arguments in a XML format. 
+  [analysis] is the analysis description. [args_list] is a list of triples (key,
+  spec, doc). [plugin_output] is the folder in which information data for the
+  plugin can be found (cf. the {!JPrintPlugin} module).
+  *)
 val parse : analysis -> (key * name * spec * doc) list -> plugin_output -> usage_msg -> unit
 
-(** [transform2arg spec] transforms an {!spec} to the Arg version.*)
+(** [transform2arg spec] transforms an {!spec} into the corresponding Arg datatype.*)
 val transform2arg : spec -> Arg.spec
 
 

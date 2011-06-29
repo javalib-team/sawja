@@ -25,10 +25,10 @@ open JBasics
 open Javalib
 open JProgram
 
-(** This module allows to generate a web site from high level programs.
-    This web site can be used for any kind of visualisation or
-    debbuging purposes. Annotations can be attached to the program and
-    will be displayed properly (according to a given css). *)
+(** A set of primitives to generate a website from high level programs.  This
+  website can be used for any kind of visualisation or debbuging purposes.
+  Annotations can be attached to the program and will be displayed properly
+  (according to a given css). *)
   
 (** {2 Program information.} *)
   

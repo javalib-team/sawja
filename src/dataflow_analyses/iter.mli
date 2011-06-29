@@ -19,8 +19,8 @@
 
 (** Defines a simple fixpoint solver for constraints between integer
     values (suitable for constraints between program
-    points). {!Live_bir}, {!ReachDef} and {!AvailableExpr} analyzes
-    are examples of use for this solver.*)
+    points). The {!Live_bir}, {!ReachDef} and {!AvailableExpr} analyzes are
+  examples of use of this solver.*)
 
 
 type workset_strategy =
