@@ -70,13 +70,13 @@ let fill_debug_infos dead_found cn ms code live plugin_infos =
    on the code.*)
 let method_dead_affect cn ms code live plugin_infos =
   (*Corner cases: "false" positive on AffectVar instruction*)
-  let not_corner_case i op = 
+  let not_corner_case i _op = 
     (* AffectVar instruction corresponds to a catch(Exception e) statement*)
-    let not_catch_var = 
+    let not_catch_var i = 
       List.for_all
 	(fun exc_h -> not(i = exc_h.JBir.e_handler))
 	code.JBir.exc_tbl
-    in not_catch_var
+    in not_catch_var i
   in
   let dead_var_exists = ref false in
     Array.iteri 

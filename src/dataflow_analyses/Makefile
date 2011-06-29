@@ -1,6 +1,6 @@
 INCLUDE=-package sawja
-OCAMLOPT=ocamlfind ocamlopt $(INCLUDE) 
-OCAMLC=ocamlfind ocamlc $(INCLUDE) 
+OCAMLOPT=ocamlfind ocamlopt $(INCLUDE) -w Aer
+OCAMLC=ocamlfind ocamlc $(INCLUDE) -w Aer
 OCAMLDEP=ocamlfind ocamldep
 SRC_FOR_LIB=
 SRC_FOR_MAIN= main
