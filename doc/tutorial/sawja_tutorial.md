@@ -600,7 +600,7 @@ Finally we write the part of the analysis that checks a method and fills the
 let method_dead_affect cn ms code live plugin_infos =
 
   (*Corner cases: false positive on AffectVar instruction*)
-  let not_corner_case i op = 
+  let not_corner_case i = 
     (* Check all AffectVar instructions corresponding to a catch(Exception e) statement*)
       List.for_all
 	(fun exc_h -> not(i = exc_h.JBir.e_handler))
@@ -610,7 +610,7 @@ let method_dead_affect cn ms code live plugin_infos =
     Array.iteri 
       (fun i op -> 
 	 (match op with 
-	    | JBir.AffectVar (var,expr) when not_corner_case i op -> 
+	    | JBir.AffectVar (var,_) when not_corner_case i -> 
 
 		(* Is the variable dead at next instruction ?*)
 		let live_res = live (i+1) in
