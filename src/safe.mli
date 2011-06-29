@@ -17,13 +17,12 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-(** Defines a fixpoint solver managing domains for differents levels
-    of the code representation (global, class, field, method, program
-    point). [Safe] defines a structure of variables and the
-    constraints between those variables.  It also defines domains for
-    different levels of the program: global, classes, fields, methods
-    and program points. {!ReachableMethods} is a very simple example
-    and {!XTA} is a richer example.*)
+(** Defines a fixpoint solver managing domains for differents levels of the code
+  representation (global, class, field, method, program point). [Safe] defines a
+  structure of variables and the constraints between those variables.  It also
+  defines domains for different levels of the program: global, classes, fields,
+  methods and program points. {!ReachableMethods} is a very simple use case of
+  this solver, and {!XTA} is a richer example.*)
 
 (** In order to use this solver: 
 
@@ -34,11 +33,11 @@
     - Define a domain module (regarding {!Safe.Domain.S} interface)
     for each level of the program (global, class, field, method,
     program point). You could use {!Domain.Empty} module for
-    unnecessary levels in your analysis and some classic domain
+    unnecessary levels in your analysis. Some classic domain
     representations are supplied in {!Safe.Domain} module.
 
-    - Instantiate a state module using the functor {!Safe.State.Make}
-    with the precedently defined modules.
+    - Instantiate a state module using the functor {!Safe.State.Make} with the
+    previously defined modules.
 
     - Instantiate a constraints module using the functor
     {!Safe.Constraints.Make} with the state module.
@@ -46,9 +45,9 @@
     - Instantiate a solver module using the functor
     {!Safe.Solver.Make} with the constraints module.
 
-    Once the precedents modules created:
+    Once the aforementioned modules have been created:
     
-    - Create an intial state {!Safe.State.S.t} using {!Safe.State.S.bot}
+    - Create an initial state {!Safe.State.S.t} using {!Safe.State.S.bot}
     and modifying it.
 
     - Compute the constraint list {!Safe.Constraints.S.cst} [list].
@@ -56,7 +55,7 @@
     - Create the variable list {!Safe.Var.S.t} [list] of entry points
     variables.
 
-    - And then use {!Safe.Solver.Make.solve_constraints} function to obtain
+    - And then use the {!Safe.Solver.Make.solve_constraints} function to obtain
     the fixpoint.
 
 *)
@@ -65,7 +64,7 @@ open Javalib_pack
 
 module Domain : sig
 
-  (** This may be used to combine analysis. *)
+  (** This may be used to combine analyzes. *)
   module type TRADUCTOR_ANALYSIS =
   sig
     type localID
@@ -94,14 +93,14 @@ module Domain : sig
 
   module type S = sig
 
-    (** Type of combined sub-analysis domains (eg. D1.t * D2.t). *)
+    (** Type of combined sub-analyzes domains (eg. D1.t * D2.t). *)
     type t
 
-    (** Type of combined sub-analyses IDs (Left of D1.analysisID | Right of
+    (** Type of combined sub-analyzes IDs (Left of D1.analysisID | Right of
         D2.analysisID)*)
     type analysisID
 
-    (** Type of sub-analysis domains (eg. Left of D1.analysisDomain | Right of
+    (** Type of sub-analyzes domains (eg. Left of D1.analysisDomain | Right of
         D2.analysisDomain) *)
     type analysisDomain
 
@@ -111,7 +110,7 @@ module Domain : sig
     val isBot : analysisDomain -> bool
 
     (** [join modifies v1 v2] returns the union of [v1] and [v2] and sets
-        [modifies] to true iff the result is different from [v1]. *)
+        [modifies] to true if the result is different from [v1]. *)
     val join : ?modifies:bool ref -> t -> t -> t
     val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
     val equal : t -> t -> bool
@@ -121,7 +120,7 @@ module Domain : sig
 
   module Empty : S
     
-  (** Builds a domain for local variables given the domain of the variables.  *)
+  (** Builds a domain for local variables given the domain of the variables. *)
   module Local : functor (Var:S) -> sig
     type t
     type analysisID = Var.analysisID
@@ -139,9 +138,9 @@ module Domain : sig
     val pprint : Format.formatter -> t -> unit
     val get_var : int -> analysisDomain -> Var.t
     val set_var : int -> Var.t -> analysisDomain -> analysisDomain
-      (** [set_var x v d] set the value [v] to the variable [x] in local
-          function [d].  If a previous binding was already in place, then it is
-          simply discarded *)
+      (** [set_var x v d] sets the value [v] to the variable [x] in the local
+        function [d].  If a previous binding was already in place, then it is
+        simply discarded *)
   end
 
   module Stack : functor (Var:S) -> sig
@@ -163,7 +162,7 @@ module Domain : sig
     val pop_n : int -> t -> t
     val pop : t -> t
     val first : t -> Var.t
-      (** raise [Invalid_argument] if the stack is empty. raise Failure if the
+      (** raise [Invalid_argument] if the stack is empty. Raise Failure if the
           stack is Top. *)
     val dup : t -> t
     val dupX1 : t -> t
@@ -204,11 +203,10 @@ module Var : sig
   module type CONTEXT =
   sig
 
-  (** The Context could be
-      - Context sensibility (duplicate program point)
-      - Analysis identification (several pp because several analyses)
-      - Flow information (Intermediate state, return, parameters,
-         exception returned, etc. ) *)
+  (* The Context can be
+      - Context sensitivity (duplicate program points)
+      - Analysis identification (several program points because there are several analyses)
+      - Information flow (intermediate state, return, parameters, returned exceptions, etc. ) *)
     type context
 
     val compare : context -> context -> int
@@ -273,7 +271,7 @@ module State : sig
 
   module type S = sig
 
-    (** One domain for each type of variable. *)
+    (** One domain for each kind of variable. *)
     module Var : Var.S
     module Global : Domain.S
     module IOC : Domain.S
@@ -306,10 +304,10 @@ module State : sig
 
     type t
  
-    (** [bot (g,c,f,m,p)] generate an bottom element where [g], [c], [f], [m]
+    (** [bot (g,c,f,m,p)] generates an bottom element where [g], [c], [f], [m]
         and [p] are approximations of the number of global, class, field, method
         and program point variables, respectively. Note that any positive value
-        is correct, it just affect the performances. *)
+        is correct, but poorly chosen ones may affect performance. *)
     val bot : (int*int*int*int*int) -> t
     val pprint : Format.formatter -> t -> unit
     val get_pinfo :
@@ -319,11 +317,11 @@ module State : sig
     val join_ad :
       ?do_join:bool -> ?modifies:bool ref -> abData -> analysisDomain -> abData
       
-    (** [join] must only be used for initialization of State and
-	must not be during constraints resolution.*)
+    (** [join] must only be used for initialization of State and not during
+      constraint resolution.*)
     val join : ?do_join:bool -> ?modifies:bool ref -> t -> Var.t -> analysisDomain -> unit
       
-    (** {2 Access to data content}*)
+    (** {2 Accessing data content}*)
 
 
 
@@ -340,11 +338,11 @@ module State : sig
     val get_ab_IOC : abData -> IOC.t
     val get_ab_pp : abData -> PP.t
   
-    (** {2 Modify final result}*)
+    (** {2 Modifying final results}*)
       
-    (** {b Warning: State MUST not be modified manually during
-	constraints resolution. Following functions MUST only be used
-	on the final result of State}! *)
+    (** {b Warning: State MUST not be modified manually during constraint
+      resolution. The following functions MUST only be used on the final result
+      of State}! *)
 
 
     val iter_global : t -> (t -> Var.var_global -> abData -> unit) 
@@ -389,10 +387,10 @@ module Constraints : sig
     val get_target : cst -> variable
     val pprint : Format.formatter -> cst -> unit
 
-    (** [apply_cst ?modifies abst cst] apply the constraint [cst] on the current
+    (** [apply_cst ?modifies abst cst] applies the constraint [cst] on the current
         [abst].  The result of the constraint (given by [cst.transferFun]) is
-        joined to the current value stored in [abst].  [modifies] is set to true
-        if the application of constraint modified the state [abst].*)
+        joined to the current value stored in [abst]. [modifies] is set to true
+        if the application of a constraint modified the state [abst].*)
     val apply_cst : ?do_join:bool -> ?modifies:bool ref -> State.t -> cst -> unit
   end
 
@@ -406,11 +404,11 @@ module Solver : sig
     (** [debug_level] defines the debugging level (verbosity) of the solver *)
     val debug_level : int ref
 
-    (** [solve_constraints ~optimize_join prog csts state init] compute the
-        fixpoint of the constraints [csts], starting from the initial state
-        [state] by applying the constraints that depends on nothing or on
-        initial variables [init].  If [optimize_join] is true, then it try do
-        avoid joining useless values, but this cost some computations. *)
+    (** [solve_constraints ~optimize_join prog csts state init] computes the
+      fixpoint of the constraints [csts], starting from the initial state
+      [state] by applying the constraints that depends on nothing or on initial
+      variables [init].  If [optimize_join] is true, then it tries to avoid
+      joining useless values, at the cost of some additional computations. *)
     val solve_constraints :
       ?optimize_join:bool ->
       'a ->
