@@ -147,7 +147,7 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(HIDE_MOD_IN_DOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
-	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
+	echo "</body></html>" >> $(DOCDIR)/index.html # workaround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
 doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
@@ -161,7 +161,7 @@ doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(HIDE_MOD_IN_DOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
-	echo "</body></html>" >> $(DOCDIR)/index.html # workarround for a bug in ocamldoc
+	echo "</body></html>" >> $(DOCDIR)/index.html # workaround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 	sed -i 's/(\*\*\*\/\*\*\*)/(\*\*\/\*\*)/g' *.mli
 
