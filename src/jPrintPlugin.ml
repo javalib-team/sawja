@@ -638,7 +638,9 @@ struct
       let cs = get_name ioc in
       let package_and_source = 
 	match get_sourcefile ioc with 
-	    None -> assert false
+	    None -> 
+	      (* Try with class name as a source name.*)
+	      "info"::(cn_package cs @ [(cn_simple_name cs)^".java"])
 	  | Some filename ->  "info"::(cn_package cs @ [filename])
       and cname = cn_simple_name cs in
       let doc = gen_class_info_doc html info_p ioc in
