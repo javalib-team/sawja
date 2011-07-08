@@ -1168,15 +1168,7 @@ and type_of_array_content t e =
  *)
 let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type arrayload_type tos s next_store = function
   | OpNop -> s, []
-  | OpConst c -> 
-      begin
-	match c with
-	  | `Class _ | `String _ -> 
-	      let x = make_tempvar dico ssa fresh_counter s next_store in
-		E (Var (TObject (TClass java_lang_object),x))::s,
-	      [AffectVar(x,Const c)]
-	  | _ -> E (Const c)::s, []
-      end
+  | OpConst c -> E (Const c)::s, []
   | OpLoad (_,n) ->
       E (Var (load_type i,make_var dico (OriginalVar (n,pp_var i n))))::s, []
   | OpArrayLoad t ->

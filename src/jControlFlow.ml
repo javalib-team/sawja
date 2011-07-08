@@ -145,7 +145,7 @@ module PP = struct
 
   let goto_relative pp jmp : 'a t ={pp with pc=pp.pc+jmp;}
 
-  let throws_instance_of program pp exn_class=
+  let not_throws_instance_of program pp exn_class=
     let cl =
       (* static_lookup program pp  (* safe, but using RTA is more precise *) *)
       let cs = get_name (get_class pp)
@@ -811,7 +811,7 @@ module PP_BC = struct
 			    else
                               match get_opcode pp with
 				| OpInvoke _ ->
-				    throws_instance_of program pp exn_class
+				    not_throws_instance_of program pp exn_class
 				| _ -> true
                     with Not_found -> false
                       (* false is safe, but it would be stange to end up
@@ -1001,7 +1001,7 @@ module PP_BirLike (IRBir : JBir.Internal.CodeInstrSig) = struct
 				| IRBir.InvokeStatic _
 				| IRBir.InvokeVirtual _ 
 				| IRBir.InvokeNonVirtual _ ->
-                                    throws_instance_of program pp exn_class
+                                    not_throws_instance_of program pp exn_class
 				| _ -> true
                     with Not_found -> false
                       (* false is safe, but it would be stange to end up
@@ -1152,7 +1152,7 @@ module PP_A3BirLike (IRA3Bir : A3Bir.Internal.CodeInstrSig) = struct
 				| IRA3Bir.InvokeStatic _
 				| IRA3Bir.InvokeVirtual _ 
 				| IRA3Bir.InvokeNonVirtual _ ->
-                                    throws_instance_of program pp exn_class
+                                    not_throws_instance_of program pp exn_class
 				| _ -> true
                     with Not_found -> false
                       (* false is safe, but it would be stange to end up

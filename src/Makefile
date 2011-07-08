@@ -2,6 +2,7 @@
 # Copyright (c)2007 Tiphaine Turpin (Université de Rennes 1)
 # Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
 # Copyright (c)2009 Nicolas Barre (INRIA)
+# Copyright (c)2010, 2011 Vincent Monfort (INRIA)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
