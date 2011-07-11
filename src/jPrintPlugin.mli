@@ -68,8 +68,12 @@ type method_info =
   printer for the exact type.*)
 type 'a warning_pp = string * 'a option
 
-(** This type represents warnings and information that will be displayed in the
-  Java source code. *)
+(** This type represents warnings and information that will be
+    displayed in the Java source code. Information will be displayed
+    on all class files that have a source file attached but warnings
+    can only be displayed on source files of a Java project in the
+    Eclipse environment (e.g. warnings on class files of library
+    cannot be displayed).*)
 type 'a plugin_info = 
     {
       mutable p_infos : 
@@ -79,7 +83,7 @@ type 'a plugin_info =
 	 MethodMap.t) 
 	ClassMap.t;
       (** class-related information (one entry in ClassMap.t): (class_infos *
-        field_infos FieldMap.t * (method_infos * pc_infos) MethodMap.t*)
+          field_infos FieldMap.t * (method_infos * pc_infos) MethodMap.t*)
 
       mutable p_warnings : 
 	(string list 
