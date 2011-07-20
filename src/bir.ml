@@ -1042,71 +1042,13 @@ let temp_in_expr acc expr =
       | Const _
       | StaticField _ -> acc
       | Field (e,_,_) -> aux acc e
-      | Var (_,(_,x)) ->
-	  (match x with
+      | Var (_,(_,x)) -> 
+	  (match x with 
 	       TempVar i -> Ptset.add i acc
 	     | _ -> acc)
       | Unop (_,e) -> aux acc e
       | Binop (_,e1,e2) -> aux (aux acc e1) e2
   in aux acc expr
-
-(* Could have been useful for bugfix on MayInit if fresh var did not
-   have been a problem for generating instructions with fresh var
-   (OpGetStatic, ...)*)
-(*
-  let replace_expr_in_instr repl_fun instrs =
-  let rec repl e =
-  let new_e = repl_fun e in
-  match new_e with
-(* Expressions that could contain expressions *)
-	| Unop (unop, e) -> Unop (unop, repl e)
-	| Binop (binop, e1, e2) -> Binop (binop, repl e1, repl e2)
-	| Field (e, cn, fs) -> Field (repl e, cn, fs) 
-	    (* Others expressions *)
-	| Const _ 
-	| StaticField (_,_)
-	| Var (_,_) -> new_e
-  in
-  let rec aux =
-    function
-      | [] -> []
-      | e::s -> 
-	  let s = aux s in
-	  let e =
-	    match e with
-		(* Instructions that could contain expressions *)
-	      | AffectVar (v,e) -> AffectVar (v,repl e)
-	      | AffectArray (e1, e2, e3) -> AffectArray (repl e1, repl e2, repl e3)
-	      | AffectField (e1, cn, fs, e2) -> AffectField (repl e1, cn, fs, repl e2)
-	      | AffectStaticField (cn, fs, e) -> AffectStaticField (cn, fs, repl e)
-	      | Ifd ((op, e1, e2 ), iv) -> Ifd ((op, repl e1, repl e2 ), iv)
-	      | Throw e -> Throw (repl e)
-	      | Return e_opt as i -> 
-		  begin
-		    match e_opt with
-			None -> i
-		      | Some e -> Return (Some (repl e))
-		  end
-	      | New (v, cn, vtl, e_list) -> New (v, cn, vtl, List.map repl e_list)
-	      | NewArray (v, vt, e_list) -> NewArray (v, vt, List.map repl e_list)
-	      | InvokeStatic (vopt, cn, ms, e_list) -> 
-		  InvokeStatic (vopt, cn, ms, List.map repl e_list)
-	      | InvokeVirtual (v, e1, vck, ms, e_list) -> 
-		  InvokeVirtual (v, repl e1, vck, ms, List.map repl e_list)
-	      | InvokeNonVirtual (vopt, e1, cn, ms, e_list) -> 
-		  InvokeNonVirtual (vopt, repl e1, cn, ms, List.map repl e_list)
-	      | MonitorEnter e -> MonitorEnter (repl e)
-	      | MonitorExit e -> MonitorExit (repl e)
-		  (* Others instructions that could contain expressions *)
-	      | Nop 
-	      | Goto _ 
-	      | MayInit _ 
-	      | Check _ -> e
-	  in 
-	    e::s
-  in
-    aux instrs
-    *)
 
 let temp_in_opexpr acc = function
   | Uninit _ -> acc
@@ -1137,11 +1079,7 @@ let clean dico ssa fresh_counter test s instrs =
 		    let x = make_var dico (TempVar !fresh_counter) in
 		    let _ = incr fresh_counter in
 		    let t = type_of_expr e in
-		    let new_e = Var (t,x) in
-		      (E new_e)::s, (AffectVar (x,e))::
-			(*Cf. replace_expr_in_instr method*)
-			(*(replace_expr_in_instr (fun e -> new_e) instrs)*)
-			instrs
+		      E (Var (t,x))::s, (AffectVar (x,e))::instrs
 		  else
 		    E e::s, instrs
     in
@@ -1157,13 +1095,7 @@ let clean dico ssa fresh_counter test s instrs =
 		  if test e then
 		    let x = make_var dico (TempVar fresh) in
 		    let t = type_of_expr e in
-		    let new_e = Var (t,x) in
-		      ((E new_e)::s, 
-		       (AffectVar (x,e))::
-			 (*Cf. replace_expr_in_instr method*)
-			 (*(replace_expr_in_instr (fun e -> new_e) instrs), *)
-			 instrs,
-		       fresh +1)
+		      E (Var (t,x))::s, (AffectVar (x,e))::instrs, fresh +1
 		  else
 		    E e::s, instrs, fresh
     in
