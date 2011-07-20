@@ -135,8 +135,6 @@ Usage: `basename $0` [-l [PATH|default]] [-d [yes|no|prof]] [-b [yes|no]] [-h]
 Options:
   -l PATH \t Perform a local installation at PATH.
   \t\t This also needs to be the Javalib installation directory
-  -l default \t Perform a local installation in the default directory.
-  \t\t This coincides with the default Javalib installation directory
   -d FLAG \t Use the debug flag when compiling (default: yes).
   -b FLAG \t Compile Sawja to use the Buddy BDD library (default: no).
   -h  \t\t Print this message and exit."
