@@ -1050,6 +1050,64 @@ let temp_in_expr acc expr =
       | Binop (_,e1,e2) -> aux (aux acc e1) e2
   in aux acc expr
 
+(* Could have been useful for bugfix on MayInit if fresh var did not
+   have been a problem for generating instructions with fresh var
+   (OpGetStatic, ...)*)
+(*
+  let replace_expr_in_instr repl_fun instrs =
+  let rec repl e =
+  let new_e = repl_fun e in
+  match new_e with
+(* Expressions that could contain expressions *)
+	| Unop (unop, e) -> Unop (unop, repl e)
+	| Binop (binop, e1, e2) -> Binop (binop, repl e1, repl e2)
+	| Field (e, cn, fs) -> Field (repl e, cn, fs) 
+	    (* Others expressions *)
+	| Const _ 
+	| StaticField (_,_)
+	| Var (_,_) -> new_e
+  in
+  let rec aux =
+    function
+      | [] -> []
+      | e::s -> 
+	  let s = aux s in
+	  let e =
+	    match e with
+		(* Instructions that could contain expressions *)
+	      | AffectVar (v,e) -> AffectVar (v,repl e)
+	      | AffectArray (e1, e2, e3) -> AffectArray (repl e1, repl e2, repl e3)
+	      | AffectField (e1, cn, fs, e2) -> AffectField (repl e1, cn, fs, repl e2)
+	      | AffectStaticField (cn, fs, e) -> AffectStaticField (cn, fs, repl e)
+	      | Ifd ((op, e1, e2 ), iv) -> Ifd ((op, repl e1, repl e2 ), iv)
+	      | Throw e -> Throw (repl e)
+	      | Return e_opt as i -> 
+		  begin
+		    match e_opt with
+			None -> i
+		      | Some e -> Return (Some (repl e))
+		  end
+	      | New (v, cn, vtl, e_list) -> New (v, cn, vtl, List.map repl e_list)
+	      | NewArray (v, vt, e_list) -> NewArray (v, vt, List.map repl e_list)
+	      | InvokeStatic (vopt, cn, ms, e_list) -> 
+		  InvokeStatic (vopt, cn, ms, List.map repl e_list)
+	      | InvokeVirtual (v, e1, vck, ms, e_list) -> 
+		  InvokeVirtual (v, repl e1, vck, ms, List.map repl e_list)
+	      | InvokeNonVirtual (vopt, e1, cn, ms, e_list) -> 
+		  InvokeNonVirtual (vopt, repl e1, cn, ms, List.map repl e_list)
+	      | MonitorEnter e -> MonitorEnter (repl e)
+	      | MonitorExit e -> MonitorExit (repl e)
+		  (* Others instructions that could contain expressions *)
+	      | Nop 
+	      | Goto _ 
+	      | MayInit _ 
+	      | Check _ -> e
+	  in 
+	    e::s
+  in
+    aux instrs
+    *)
+
 let temp_in_opexpr acc = function
   | Uninit _ -> acc
   | E e -> temp_in_expr acc e
@@ -1079,7 +1137,11 @@ let clean dico ssa fresh_counter test s instrs =
 		    let x = make_var dico (TempVar !fresh_counter) in
 		    let _ = incr fresh_counter in
 		    let t = type_of_expr e in
-		      E (Var (t,x))::s, (AffectVar (x,e))::instrs
+		    let new_e = Var (t,x) in
+		      (E new_e)::s, (AffectVar (x,e))::
+			(*Cf. replace_expr_in_instr method*)
+			(*(replace_expr_in_instr (fun e -> new_e) instrs)*)
+			instrs
 		  else
 		    E e::s, instrs
     in
@@ -1095,7 +1157,13 @@ let clean dico ssa fresh_counter test s instrs =
 		  if test e then
 		    let x = make_var dico (TempVar fresh) in
 		    let t = type_of_expr e in
-		      E (Var (t,x))::s, (AffectVar (x,e))::instrs, fresh +1
+		    let new_e = Var (t,x) in
+		      ((E new_e)::s, 
+		       (AffectVar (x,e))::
+			 (*Cf. replace_expr_in_instr method*)
+			 (*(replace_expr_in_instr (fun e -> new_e) instrs), *)
+			 instrs,
+		       fresh +1)
 		  else
 		    E e::s, instrs, fresh
     in
@@ -1374,108 +1442,157 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type arrayloa
 	else
 	  exp,instrs
   | OpGetStatic (c, f) as instr ->
-      let (exp,instrs) = 
-	match mode with 
-	  | Addr3 -> 
-	      let x = make_tempvar dico ssa fresh_counter s next_store in
-		E (Var (fs_type f,x))::s, [MayInit c ; AffectVar(x,StaticField (c,f))]
-	  | _ -> 
-	      E (StaticField (c, f))::s, [MayInit c]
-      in
-	if ch_link then
-	  exp,(Check (CheckLink instr))::instrs
-	else
-	  exp,instrs
+      (match mode with 
+	 | Addr3 -> 
+	     let instrs = 
+	       if ch_link then
+		 [Check (CheckLink instr); MayInit c]
+	       else
+		 [MayInit c]
+	     in
+	     let (s,instrs) =
+	       clean dico ssa fresh_counter 
+		 is_heap_sensible_element_in_expr
+		 s
+		 instrs
+	     in
+	       (* Must be done after clean because temp variables could
+		  have been generated*)
+	     let x = make_tempvar dico ssa fresh_counter s next_store in
+	       E (Var (fs_type f,x))::s, instrs@[AffectVar(x,StaticField (c,f))]
+	 | _ -> 
+	     let instrs = 
+	       if ch_link then
+		 [Check (CheckLink instr); MayInit c]
+	       else
+		 [MayInit c]
+	     in
+	     let (s,instrs) =
+	       clean dico ssa fresh_counter 
+		 is_heap_sensible_element_in_expr
+		 s
+		 instrs
+	     in
+	       E (StaticField (c, f))::s, instrs)
+	
   | OpPutStatic (c, f) as instr ->
-      let (exp,instrs) = 
-	if is_static_in_stack c f (pop s) then begin
-	  let x = make_tempvar dico ssa fresh_counter s None in
-	    replace_static_in_stack c f x (pop s), [MayInit c; AffectVar(x,StaticField(c,f)); AffectStaticField (c,f,topE s)]
-	end else
-	  pop s, [MayInit c;AffectStaticField (c, f,topE s)]
-      in
+      let instrs = 
 	if ch_link then
-	  exp,(Check (CheckLink instr))::instrs
+	  [Check (CheckLink instr); MayInit c]
 	else
-	  exp,instrs
+	  [MayInit c]
+      in
+      let (s,instrs) =
+	clean dico ssa fresh_counter 
+	  is_heap_sensible_element_in_expr
+	  s
+	  instrs
+      in
+	pop s, instrs@[AffectStaticField (c,f,topE s);]
+	  
   | OpInvoke (x, ms) as instr ->
-      begin
-	(match x with
-	   | `Static c ->
-	       (match ms_rtype ms with
-		  | None ->
-		      let params = param (List.length  (ms_args ms)) s in
-		      let instrs = 
-			if ch_link then
-			  [Check (CheckLink instr); MayInit c;InvokeStatic (None,c,ms,params)]
-			else
-			  [MayInit c;InvokeStatic (None,c,ms,params)]
-		      in
-			clean dico ssa fresh_counter 
-			  is_heap_sensible_element_in_expr
-			  (popn (List.length (ms_args ms)) s)
-			  instrs
-		  | Some t ->
-		      let x = make_tempvar dico ssa fresh_counter s next_store in
-		      let instrs = 
-			if ch_link then
-			  [Check (CheckLink instr); MayInit c; InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
-			else
-			  [MayInit c; InvokeStatic (Some x,c,ms,param (List.length (ms_args ms)) s)]
-		      in
-			clean dico ssa fresh_counter is_heap_sensible_element_in_expr
-			  (E (Var (t,x))::(popn (List.length (ms_args ms)) s))
-			  instrs)
-	   | x ->
-	       begin
-		 let popn_s = popn (List.length (ms_args ms)) s in
-		   (match top popn_s  with
-		      | Uninit (c,j) ->
-			  let x = make_tempvar dico ssa fresh_counter s next_store in
-			  let e' = E (Var (TObject (TClass java_lang_object),x)) in
-			    clean dico ssa fresh_counter is_heap_sensible_element_in_expr
-			      (List.map
-				 (function e -> if e = Uninit (c,j) then e' else e)
-				 (pop popn_s))
-			      [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
-		      | E e0  ->
-			  let nb_args = List.length (ms_args ms) in
-			  let s_next = pop popn_s in
-			  let this = topE popn_s in
-			  let ins target =
+	    begin
+	      (match x with
+		 | `Static c ->
+		     (match ms_rtype ms with
+			| None ->
 			    let instrs = 
-			      match x with
-				| `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
-				| `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
-				| `Special c -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
-				| `Static _ -> assert false (* already treated above *)
-			    in
 			      if ch_link then
-				(Check (CheckLink instr))::instrs
+				[Check (CheckLink instr); MayInit c]
 			      else
+				[MayInit c]
+			    in
+			    let s,instrs = 
+			      clean dico ssa fresh_counter 
+				is_heap_sensible_element_in_expr
+				s
 				instrs
-			  in
-			  let checks = 
-			    if ch_link then
-			      [(Check (CheckLink instr)); Check (CheckNullPointer e0)]
-			    else
-			      [Check (CheckNullPointer e0)]
-			  in
-			    (match ms_rtype ms with
-			       | None ->
-				   clean dico ssa fresh_counter is_heap_sensible_element_in_expr s_next (checks@(ins None))
-			       | Some t ->
-				   let y = make_tempvar dico ssa fresh_counter s next_store in
-				     clean dico ssa fresh_counter is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) (checks@(ins (Some y)))
-			    ))
-	       end)
-      end
+			    in
+			      (* Must be done after clean because
+				 params could have been transformed in a
+				 temp variable*)
+			    let params = param (List.length  (ms_args ms)) s in
+			      popn (List.length (ms_args ms)) s,instrs@[InvokeStatic (None,c,ms,params)]
+			| Some t ->
+			    let instrs = 
+			      if ch_link then
+				[Check (CheckLink instr); MayInit c]
+			      else
+				[MayInit c]
+			    in
+			    let s,instrs = 
+			      clean dico ssa fresh_counter is_heap_sensible_element_in_expr
+				s
+				instrs
+			    in
+			      (* Must be done after clean
+				 because temp variables could have been generated*)
+			    let x = make_tempvar dico ssa fresh_counter s next_store in
+			      (* Must be done after clean because
+				 params could have been transformed in a
+				 temp variable*)
+			    let params = param (List.length (ms_args ms)) s in
+			      (E (Var (t,x))::(popn (List.length (ms_args ms)) s),
+			       instrs@[InvokeStatic (Some x,c,ms,params)])
+		     )
+		 | x ->
+		     begin
+		       let popn_s = popn (List.length (ms_args ms)) s in
+			 (match top popn_s  with
+			    | Uninit (c,j) ->
+				let x = make_tempvar dico ssa fresh_counter s next_store in
+				let e' = E (Var (TObject (TClass c),x)) in
+				  (* Ok for fresh variable because
+				     Uninit is always replaced by
+				     Var(_,x)*)
+				  clean dico ssa fresh_counter is_heap_sensible_element_in_expr
+				    (List.map
+				       (function e -> if e = Uninit (c,j) then e' else e)
+				       (pop popn_s))
+				    [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
+			    | E e0  ->
+				let nb_args = List.length (ms_args ms) in
+				let s_next = pop popn_s in
+				let this = topE popn_s in
+				let ins target =
+				  let instrs = 
+				    match x with
+				      | `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
+				      | `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
+				      | `Special c -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
+				      | `Static _ -> assert false (* already treated above *)
+				  in
+				    if ch_link then
+				      (Check (CheckLink instr))::instrs
+				    else
+				      instrs
+				in
+				let checks = 
+				  if ch_link then
+				    [(Check (CheckLink instr)); Check (CheckNullPointer e0)]
+				  else
+				    [Check (CheckNullPointer e0)]
+				in
+				  (match ms_rtype ms with
+				     | None ->
+					 clean dico ssa fresh_counter is_heap_sensible_element_in_expr s_next (checks@(ins None))
+				     | Some t ->
+					 let y = make_tempvar dico ssa fresh_counter s next_store in
+					   clean dico ssa fresh_counter is_heap_sensible_element_in_expr (E (Var (t,y))::s_next) (checks@(ins (Some y)))
+				  ))
+		     end)
+	    end
   | OpNew c as instr-> 
       let instrs = 
 	if ch_link then
 	  [Check (CheckLink instr); MayInit c]
 	else
 	  [MayInit c]
+      in
+      let s,instrs = 
+	clean dico ssa fresh_counter is_heap_sensible_element_in_expr
+	  s
+	  instrs
       in
 	(Uninit (c,i))::s, instrs
   | OpNewArray t as instr->
@@ -2271,12 +2388,15 @@ let gen_params dico pp_var cm =
    instructions generated at bytecode program point [pc] (see [bc2ir]
    function).
 
-   Returns: (new_pc, (old_pc,instr) list)) list 
+   Returns: (bytecode_pc (for ir2bc corresp), (bytecode_pc list (for bc2ir corresp),instr) list)) list 
    
-   *new_pc: corresponds to the first bytecode instr included in IR
-   instr 
-   *old_pc list: contains all bytecode pc included in IR instr at new_pc
-   (new_pc is always included in old_pc list)
+   *bytecode_pc (for ir2bc corresp): corresponds to the last bytecode
+   instruction used for generate the ir instruction
+
+   *bytecode_pc: contains all bytecode pc included in the ir
+   instruction (~all bytecode instructions used for the generation of
+   the IR instruction: using the compression and except corner cases
+   (OpNew instruction, etc.))
 *)
 let compress_ir handlers ir jump_target =
   let h_ends = List.fold_right 
