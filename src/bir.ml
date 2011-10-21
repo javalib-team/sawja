@@ -1473,7 +1473,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type arrayloa
 			 (match top popn_s  with
 			    | Uninit (c,j) ->
 				let x = make_tempvar dico ssa fresh_counter s next_store in
-				let e' = E (Var (TObject (TClass c),x)) in
+				let e' = E (Var (TObject (TClass java_lang_object),x)) in
 				  (* Ok for fresh variable because
 				     Uninit is always replaced by
 				     Var(_,x)*)
