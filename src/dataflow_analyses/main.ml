@@ -44,9 +44,9 @@ let run filename =
 		      Printf.printf "     --> LIVE[%d]: %s\n" i
 			(Live_bir.to_string (live i));
 		      Printf.printf "     --> RD[%d]: %s\n" i
-			(ReachDef.to_string ir_code (rd i));
+			(ReachDef.Lat.to_string ir_code (rd i));
 		      Printf.printf "     --> AE[%d]: %s\n" i
-			(AvailableExpr.to_string (ae i));
+			(AvailableExpr.Lat.to_string (ae i));
 			Printf.printf "%3d: %s\n"
 			  i (JBir.print_instr op))
 		   ir_code.JBir.code;

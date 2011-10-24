@@ -1481,23 +1481,17 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type arrayloa
 				    (List.map
 				       (function e -> if e = Uninit (c,j) then e' else e)
 				       (pop popn_s))
-				    [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
+				    [(Check (CheckLink instr)); New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
 			    | E e0  ->
 				let nb_args = List.length (ms_args ms) in
 				let s_next = pop popn_s in
 				let this = topE popn_s in
 				let ins target =
-				  let instrs = 
 				    match x with
 				      | `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
 				      | `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
 				      | `Special c -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
 				      | `Static _ -> assert false (* already treated above *)
-				  in
-				    if ch_link then
-				      (Check (CheckLink instr))::instrs
-				    else
-				      instrs
 				in
 				let checks = 
 				  if ch_link then

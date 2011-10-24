@@ -112,6 +112,11 @@ module Domain : sig
     (** [join modifies v1 v2] returns the union of [v1] and [v2] and sets
         [modifies] to true if the result is different from [v1]. *)
     val join : ?modifies:bool ref -> t -> t -> t
+      (** [join_ad modifies v1 v2] returns the union of [v1] and [v2]
+          and sets [modifies] to true if the result is different from
+          [v1]. The option [do_join] allows avoiding to compute the
+          join of values when it is known that the target value (the
+          second one) is smaller or equal.*)
     val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> analysisDomain -> t
     val equal : t -> t -> bool
     val get_analysis : analysisID -> t -> analysisDomain

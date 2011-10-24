@@ -274,7 +274,7 @@ module Common = struct
       | `Bool -> "Z"
     in
     let rec ot2ss = function
-      | TClass _ -> "O"
+      | TClass c -> cn_name c
       | TArray t -> "["^ vt2ss t
     and vt2ss = function
       | TBasic t -> bt2ss t

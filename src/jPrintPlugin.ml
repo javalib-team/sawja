@@ -624,10 +624,10 @@ struct
 	      
     let gen_class_info_doc html info ioc =
       let fhtml = if html then 
-	(fun s -> PCData s)
-      else
 	((*TODO: check it is valid html for plugin*)
 	  fun s -> CData s)
+      else
+	(fun s -> PCData s)
       in
       let tree_list = ioc2xml_info fhtml info ioc in
 	match tree_list with

@@ -62,7 +62,7 @@ val resolve_method' : method_signature -> 'a class_node -> 'a class_node
 
 
 
-(** [resolve_interface_method ms c] returns the interface that defines
+(** [resolve_interface_method ms i] returns the interface that defines
     the method [ms], or [java.lang.Object] if no interface defines
     [ms] but [Object] does.  The caller is responsible to check that
     the interface and the method defined in the interface are visible
