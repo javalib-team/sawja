@@ -9,9 +9,10 @@ instance, a program can be loaded using various algorithms like *Class
 Reachability Analysis* (*CRA*), a variant of *Class Hierarchy
 Analysis* algorithm (*CHA*) or *Rapid Type Analysis* (*RTA*). For now,
 *RTA* is the best compromise between loading time and precision of the
-call graph. A version of *XTA* is coming soon. To get more information
-about control flow graph algorithms and their complexity, you can
-consult the paper of Frank Tip and Jens Palsberg [^1].
+call graph. A version of *XTA* is available and provides a way to
+refine the call graph of a program. To get more information about
+control flow graph algorithms and their complexity, you can consult
+the paper of Frank Tip and Jens Palsberg [^1].
 
 In *Sawja*, classes and interfaces are represented by interconnected
 nodes belonging to a common hierarchy. For example, given a class
