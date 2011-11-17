@@ -75,7 +75,7 @@ install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi saw
 	$(INSTALL) sawja $^ bir.cmi sawja.a
 
 remove:
-	ocamlfind remove sawja
+	$(FINDER) remove sawja
 
 ocaml:sawja.cma
 	$(OCAMLMKTOP) $(INCLUDE) -linkpkg -o $@ sawja.cma
