@@ -209,7 +209,7 @@ sig
     -> instr -> elem list
 end
 
-module Make (S : PrintInterface) : HTMLPrinter
+module Make (S : PrintInterface) : HTMLPrinter with type code = S.code
 
 (** {2 Built printers for Sawja program representations.} *)
 
