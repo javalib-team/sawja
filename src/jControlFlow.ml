@@ -785,6 +785,7 @@ module PP_BC = struct
 		    (* an exception handler can be pruned for an instruction if:
 		       - the exception handler is a subtype of Exception and
 		       - the exception handler is not a subtype nor a super-type of RuntimeException and
+		       - the instruction is not a "throw" instruction and
 		       - the instruction is not a method call or if
                        the instruction is a method call which is not declared to throw
 		       an exception of a subtype of the handler
@@ -810,6 +811,7 @@ module PP_BC = struct
 			    then false
 			    else
                               match get_opcode pp with
+				| OpThrow _ -> false
 				| OpInvoke _ ->
 				    not_throws_instance_of program pp exn_class
 				| _ -> true
@@ -970,6 +972,7 @@ module PP_BirLike (IRBir : JBir.Internal.CodeInstrSig) = struct
 		    (* an exception handler can be pruned for an instruction if:
 		       - the exception handler is a subtype of Exception and
 		       - the exception handler is not a subtype nor a super-type of RuntimeException and
+		       - the instruction is not a "throw" instruction and
 		       - the instruction is not a method call or if
                        the instruction is a method call which is not declared to throw
 		       an exception of a subtype of the handler
@@ -998,6 +1001,7 @@ module PP_BirLike (IRBir : JBir.Internal.CodeInstrSig) = struct
 			    then false
 			    else
                               match get_opcode pp with
+				| IRBir.Throw _ -> false
 				| IRBir.InvokeStatic _
 				| IRBir.InvokeVirtual _ 
 				| IRBir.InvokeNonVirtual _ ->
@@ -1117,14 +1121,14 @@ module PP_A3BirLike (IRA3Bir : A3Bir.Internal.CodeInstrSig) = struct
 	      match exn.IRA3Bir.e_catch_type with
 		| None -> false
 		| Some exn_name ->
-		    (* an exception handler can be pruned for an
-		       instruction if: - the exception handler is a
-		       subtype of Exception and - the exception
-		       handler is not a subtype nor a super-type of
-		       RuntimeException and - the instruction is not a
-		       method call or if the instruction is a method
-		       call which is not declared to throw an
-		       exception of a subtype of the handler *)
+    		    (* an exception handler can be pruned for an instruction if:
+		       - the exception handler is a subtype of Exception and
+		       - the exception handler is not a subtype nor a super-type of RuntimeException and
+		       - the instruction is not a "throw" instruction and
+		       - the instruction is not a method call or if
+                       the instruction is a method call which is not declared to throw
+		       an exception of a subtype of the handler
+		    *)
 		    try
 		      let exn_class =
 			ioc2c (JProgram.get_node program exn_name)
@@ -1149,6 +1153,7 @@ module PP_A3BirLike (IRA3Bir : A3Bir.Internal.CodeInstrSig) = struct
 			    then false
 			    else
                               match get_opcode pp with
+				| IRA3Bir.Throw _ -> false
 				| IRA3Bir.InvokeStatic _
 				| IRA3Bir.InvokeVirtual _ 
 				| IRA3Bir.InvokeNonVirtual _ ->

@@ -343,7 +343,7 @@ val transform_from_a3bir : A3Bir.t -> t
     normally performed by the ByteCode Verifier (BCV) is done if and
     only if [bcv] is [true]. Check instructions are generated when a
     linkage operation is done if and only if [ch_link] is
-    true. [transform] can raise several exceptions. See exceptions
+    [true]. [transform] can raise several exceptions. See exceptions
     below for details. *)
 val transform :
   ?bcv:bool -> ?ch_link:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t

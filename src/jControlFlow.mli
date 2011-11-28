@@ -294,23 +294,24 @@ module type GenericPPSig = sig
 
   (** returns the handlers that could catch an exception thrown from
       the current instruction. The following approximation is used for
-      all instructions, an exception handler is not accessible for an
+      all instructions, an exception handler is accessible for an
       instruction if: 
-      - the exception handler is a subtype of Exception and
-      - the exception handler is not a subtype nor a
-      super-type of RuntimeException and 
-      - the instruction is not a
-      method call or if the instruction is a method call which is not
-      declared to throw an exception of a subtype of the handler
+      - the exception handler is not a subtype of Exception OR
 
-      In all other cases an exception handler is considered as
+      - the exception handler is a subtype or a super-type of RuntimeException OR
+      
+      - the instruction is a "throw" instruction OR
+
+      - the instruction is a method call which is declared to throw an
+      exception of a subtype of the handler 
+      ({b Warning: Only the compiler ensures that declared exceptions
+      of a method are correct, the bytecode verifier does not check
+      it, as a consequence it should be checked by the analyses})
+
+      In one of these cases an exception handler is considered as
       accessible. 
       
-      Important: The case of "Throw" instructions is not handled in a
-      different way than other instructions for now. That is to say
-      that if a handler exists for a "Throw" instruction that could
-      throw an exception that is a subtype of Exception it is not
-      returned.*)
+  *)
   val handlers : code program -> t -> exception_handler list
 
   (** [exceptional_successors p pp] returns the list of
@@ -320,7 +321,7 @@ module type GenericPPSig = sig
       is checked by the compiler but not by the bytecode verifier: for
       security analyses, the [throws] annotation should be checked by
       the analyses. The {!handlers} function is used to determine the
-      possible exceptional successors (see "Important" point).*)
+      possible exceptional successors (see the algorithm description).*)
   (* TODO: implement a checker which checks if that the method declares
      all the exception it may throw (except subtypes of Error and
      RuntimeException). *)

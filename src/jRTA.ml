@@ -612,7 +612,16 @@ struct
 	     match c.class_data with
 	       | Interface _ ->
 		   invoke_interface_lookup p cs ms
-	       | Class _ -> add_to_workset p (cs,ms))
+	       | Class _ -> add_to_workset p (cs,ms)
+	   else 
+	     if not (ms_equal ms clinit_signature)
+	     then
+	       invalid_arg 
+		 (Printf.sprintf
+		    "The entrypoint method '%s' does not exist in class '%s'"
+		    (JPrint.method_signature ms)
+		    (JPrint.class_name cs))
+	)
 	entrypoints;
       p
 
