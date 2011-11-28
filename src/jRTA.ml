@@ -618,7 +618,7 @@ struct
 	     then
 	       invalid_arg 
 		 (Printf.sprintf
-		    "The entrypoint method '%s' does not exist in class '%s'"
+		    "The entrypoint method '%s' does not exist in the class '%s'"
 		    (JPrint.method_signature ms)
 		    (JPrint.class_name cs))
 	)
