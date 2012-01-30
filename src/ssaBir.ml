@@ -23,383 +23,7 @@ open Javalib_pack
 open JBasics
 open Javalib
 
-
-
-
-module type IRSig = sig
-  (** Abstract data type for variables *)
-  type var
-
-  (** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
-  val var_equal : var -> var -> bool
-
-  (** [var_orig v] is [true] if and only if the variable [v] was already used at
-      bytecode level. *)
-  val var_orig : var -> bool
-
-  (** Used only for internal transformations. *)
-  val var_ssa : var -> bool
-
-  (** [var_name v] returns a string representation of the variable [v]. *)
-  val var_name : var -> string
-
-  (** [var_name_debug v] returns, if possible, the original variable name of [v], 
-      if the initial class was compiled using debug information. *)
-  val var_name_debug : var -> string option
-
-  (** [var_name_g v] returns a string representation of the variable [v]. 
-      If the initial class was compiled using debug information, original 
-      variable names are build on this information. It is equivalent to
-      [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
-  val var_name_g : var -> string
-
-  (** [bc_num v] returns the local var number if the variable comes from the initial bytecode program. *)
-  val bc_num : var -> int option
-
-  (** [index v] returns the hash value of the given variable. *)
-  val index : var -> int
-
-  type instr
-
-  val print_instr : ?show_type:bool -> instr -> string
-
-  type exception_handler = {
-    e_start : int;
-    e_end : int;
-    e_handler : int;
-    e_catch_type : JBasics.class_name option;
-    e_catch_var : var
-  }
-
-  (** [t] is the parameter type for JBir methods. *)
-  type t = {
-    vars : var array;  
-    (** All variables that appear in the method. [vars.(i)] is the variable of
-	index [i]. *)
-    params : (JBasics.value_type * var) list;
-    (** [params] contains the method parameters (including the receiver this for
-	virtual methods). *)
-    code : instr array;
-    (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
-	are absolute. *)
-    exc_tbl : exception_handler list;
-    (** [exc_tbl] is the exception table of the method code. Jumps are
-	absolute. *)
-    line_number_table : (int * int) list option;
-    (** [line_number_table] contains debug information. It is a list of pairs
-	[(i,j)] where [i] indicates the index into the bytecode array at which the
-	code for a new line [j] in the original source file begins.  *)
-    pc_bc2ir : int Ptmap.t;
-    (** map from bytecode code line to ir code line (very sparse). *)
-    pc_ir2bc : int array; 
-    (** map from ir code line to bytecode code line *)
-  }
-
-  (** [jump_target m] indicates whether program points are join points or not in [m]. *)
-  val jump_target : t -> bool array
-
-  (** [exception_edges m] returns a list of edges [(i,e);...] where
-      [i] is an instruction index in [m] and [e] is a handler whose
-      range contains [i]. *)
-  val exception_edges :  t -> (int * exception_handler) list
-
-end
-
-module Var (IR:IRSig) = 
-struct
-  type ir_var = IR.var
-  type var = int * (IR.var * int)
-
-  let var_equal (i1,_) (i2,_) =
-    i1 == i2
-
-  let var_orig (_,(v,_)) = IR.var_orig v
-
-  let var_name_debug (_,(v,i)) = 
-    match IR.var_name_debug v with
-	None -> None
-      | Some s -> Some (Printf.sprintf "%s_%d" s i)
-
-  let var_name (_,(v,i)) = Printf.sprintf "%s_%d" (IR.var_name v) i
-
-  let var_name_g (_,(v,i)) = Printf.sprintf "%s_%d" (IR.var_name_g v) i
-
-  let bc_num (_,(v,_))  = IR.bc_num v
-
-  let var_origin (_,(v,_)) = v
-
-  let var_ssa_index (_,(_,is)) = is
-
-  let index = fst
-
-  module DicoVarMap = Map.Make(struct type t=(IR.var*int)
-				  let compare (v1,i1) (v2,i2) =
-				    compare 
-				      (IR.index v1,i1) (IR.index v2,i2)
-			   end)
-
-  type dictionary =
-      { mutable var_map : var DicoVarMap.t;
-	mutable var_next : int }
-
-  let make_dictionary () =
-    { var_map = DicoVarMap.empty;
-      var_next = 0}
-
-  let make_var (d:dictionary) : IR.var -> int -> var =
-    fun v i_ssa ->
-      try
-	DicoVarMap.find (v,i_ssa) d.var_map
-      with Not_found -> 
-	let new_v = (d.var_next,(v,i_ssa)) in
-	  d.var_map <- DicoVarMap.add (v,i_ssa) new_v d.var_map;
-	  d.var_next <- 1+ d.var_next;
-	  new_v
-
-  let make_array_var d v_dum =
-    let dum = (-1,(v_dum,-1)) in
-    let t = Array.make d.var_next dum in
-      DicoVarMap.iter (fun _  ((i,_) as v) -> t.(i) <- v) d.var_map;
-      t
-
-  module VarSet = JUtil.GenericSet(struct type t = IR.var * int end)
-  module VarMap = JUtil.GenericMap(struct type t = IR.var * int end)
-
-end
-
-module type VarSig =
-sig
-  type ir_var 
-  type var = int * (ir_var * int)
-  type dictionary 
-  val var_equal : var -> var -> bool
-  val var_orig : var -> bool
-  val var_name_debug: var -> string option
-  val var_name: var -> string
-  val var_name_g: var -> string
-  val bc_num: var -> int option
-  val var_origin : var -> ir_var
-  val var_ssa_index : var -> int
-  val index : var -> int
-  val make_dictionary : unit -> dictionary
-  val make_var : dictionary -> ir_var -> int -> var
-  val make_array_var : dictionary -> ir_var -> var array
-  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = int * (ir_var * int)
-  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = int * (ir_var * int)
-end
-
-module T (Var:VarSig) (Instr:Cmn.InstrSig) =
-struct
-  type var_t = Var.var
-  type instr_t = Instr.instr
-  type var_set = Var.VarSet.t
-  include Cmn.Exception (Var)
-  type phi_node = {
-    def : Var.var;
-    use : Var.var array;
-    use_set : Var.VarSet.t;
-  }
-  type t = {
-    vars : Var.var array;
-    params : (JBasics.value_type * Var.var) list;
-    code : Instr.instr array;
-    preds : (int array) array;
-    phi_nodes : (phi_node list) array;
-    (** Array of phi nodes assignments. Each phi nodes assignments at point [pc] must
-	be executed before the corresponding [code.(pc)] instruction. *)
-    exc_tbl : exception_handler list;
-    line_number_table : (int * int) list option;
-    pc_bc2ir : int Ptmap.t;
-    pc_ir2bc : int array; 
-  }
-
-  let jump_target code =
-    let jump_target = Array.make (Array.length code.code) false in
-      List.iter (fun e -> jump_target.(e.e_handler) <- true) code.exc_tbl;
-      Array.iter
-	(fun instr ->
-	   match Instr.instr_jump_to instr with
-	       Some n -> jump_target.(n) <- true;
-	     | None -> ())
-	code.code;
-      jump_target
-
-  let print_phi_node ?(phi_simpl=true) phi =
-      if phi_simpl
-      then
-	Printf.sprintf "%s := PHI{%s}"
-	  (Var.var_name_g phi.def)
-	  (JUtil.print_list_sep_map 
-	     "," Var.var_name_g (Var.VarSet.elements phi.use_set))
-      else
-	Printf.sprintf "%s := PHI(%s)"
-	  (Var.var_name_g phi.def)
-	  (JUtil.print_list_sep_map 
-	     "," Var.var_name_g (Array.to_list phi.use))
-
-  let print_phi_nodes ?(phi_simpl=true) l =
-    JUtil.print_list_sep_map "; " (print_phi_node ~phi_simpl:phi_simpl) l
-
-  let app_phi_nodes phi_simpl pc preds l acc=
-    if l = [] then acc
-    else 
-      let head = 
-	if phi_simpl
-	then
-	  ""
-	else
-	  Printf.sprintf
-	    "%3s (preds(%d) := (%s))"
-	    ""
-	    pc
-	    (JUtil.print_list_sep_map 
-	       ", " string_of_int (Array.to_list preds))
-      in
-	head
-	::(List.fold_right
-	     (fun phi nacc -> 
-		(Printf.sprintf
-		   "%4s %s;"
-		   ""
-		   (print_phi_node ~phi_simpl:phi_simpl phi))::nacc)
-	     l
-	     acc)
-
-  let rec print_code phi_simpl preds phi_nodes code i acc =
-    if i<0 then acc
-    else 
-      begin
-	let new_acc = 
-	  (app_phi_nodes phi_simpl i preds.(i) phi_nodes.(i)
-	     (Printf.sprintf "%3d: %s" 
-		i 
-		(Instr.print_instr code.(i))::acc))
-	in
-	  print_code phi_simpl preds phi_nodes code (i-1) new_acc
-      end
-	
-
-  let print ?(phi_simpl=true) m =
-    let size = Array.length (m.code) in
-      print_code phi_simpl m.preds m.phi_nodes m.code (size-1) []
-
-  let print_simple = print ~phi_simpl:true
-	
-  let get_source_line_number pc_ir m =
-    match m.line_number_table with
-      | None -> None
-      | Some lnt ->
-          JCode.get_source_line_number' m.pc_ir2bc.(pc_ir) lnt
-
-  let exception_edges m = exception_edges' m.code m.exc_tbl 
-
- 
-  let vars t = t.vars
-  let params t = t.params
-  let code t = t.code
-  let exc_tbl t = t.exc_tbl
-  let line_number_table t = t.line_number_table
-  let pc_bc2ir t = t.pc_bc2ir
-  let pc_ir2bc t = t.pc_ir2bc
-
-end
-
-module type IR2SsaSig = sig
-  type ir_t
-  type ir_var
-  type ir_instr
-  type ir_exc_h
-  type ssa_var
-  type ssa_instr
-  type ssa_exc_h
-  val use_bcvars : ir_instr -> Ptset.t
-  val def_bcvar : ir_instr -> Ptset.t
-  val var_defs : ir_t -> Ptset.t Ptmap.t
-  val map_instr : (ir_var -> ssa_var) -> (ir_var -> ssa_var) -> ir_instr -> ssa_instr
-  val map_exception_handler : (ir_var -> int -> ssa_var) -> ir_exc_h -> ssa_exc_h
-  val preds : ir_t -> int -> int list
-  val succs : ir_t -> int -> int list
-  val live_analysis : ir_t -> int -> ir_var -> bool
-end
-
-
-module type TSsaSig = 
-sig
-  type var_t
-  type var_set
-  type instr_t
-  
-  include Cmn.ExceptionSig with type var_e = var_t
-
-  type phi_node = {
-    def : var_t;
-    (** The variable defined in the phi node*)
-    use : var_t array;
-    (** Array of used variable in the phi node, the index of a used
-	variable in the array corresponds to the index of the program
-	point predecessor in [preds.(phi_node_pc)].*)
-    use_set : var_set;
-    (** Set of used variable in the phi node (no information on
-	predecessor program point for a used variable)*)
-  }
-
-  type t = {
-    vars : var_t array;  
-    (** All variables that appear in the method. [vars.(i)] is the variable of
-	index [i]. *)
-    params : (JBasics.value_type * var_t) list;
-    (** [params] contains the method parameters (including the receiver this for
-	virtual methods). *)
-    code : instr_t array;
-    (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
-	are absolute. *)
-    preds : (int array) array;
-    (** [preds.(pc)] is the array of program points that are predecessors of
-      instruction [pc]. *)
-    phi_nodes : phi_node list array;
-    (** Array of phi nodes assignments. Each phi nodes assignments at
-	point [pc] must be executed before the corresponding [code.(pc)]
-	instruction. *)
-    exc_tbl : exception_handler list;
-    (** [exc_tbl] is the exception table of the method code. Jumps are
-	absolute. *)
-    line_number_table : (int * int) list option;
-    (** [line_number_table] contains debug information. It is a list of pairs
-	[(i,j)] where [i] indicates the index into the bytecode array at which the
-	code for a new line [j] in the original source file begins.  *)
-    pc_bc2ir : int Ptmap.t;
-    (** map from bytecode code line to ir code line (very sparse). *)
-    pc_ir2bc : int array; 
-    (** map from ir code line to bytecode code line *)
-  }  
-
-  val jump_target : t -> bool array
-
-  (** [print_phi_node phi] returns a string representation for phi node [phi]. *)
-  val print_phi_node : ?phi_simpl:bool -> phi_node -> string
-
-  (** [print_phi_nodes phi_list] returns a string representation for phi nodes 
-      [phi_list]. *)
-  val print_phi_nodes : ?phi_simpl:bool -> phi_node list -> string
-
-  (** [print c] returns a list of string representations for instruction of [c]
-      (one string for each program point of the code [c]). *)
-  val print : ?phi_simpl:bool -> t -> string list
-    
-  (** [exception_edges m] returns a list of edges [(i,e);...] where
-      [i] is an instruction index in [m] and [e] is a handler whose
-      range contains [i]. *)
-  val exception_edges :  t -> (int * exception_handler) list
-
-  (** [get_source_line_number pc m] returns the source line number corresponding
-      the program point [pp] of the method code [m].  The line number give a rough
-      idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
-      representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
-  val get_source_line_number : int -> t -> int option
-
-
-end 
-
+include Cmn
 
 let dominator instr_array preds =
     let all = 
@@ -498,32 +122,13 @@ let dominator instr_array preds =
       Printf.fprintf f "}\n";
       close_out f  
 
-module SSA 
-  (IR:IRSig) 
-  (Var:VarSig 
-   with type ir_var = IR.var
-   and type var = int * (IR.var * int))
-  (TSSA:TSsaSig 
-   with type var_t = Var.var
-   and type var_set = Var.VarSet.t)
-  (IR2SSA:IR2SsaSig 
-   with type ir_t = IR.t
-   and type ir_var = IR.var
-   and type ir_instr = IR.instr
-   and type ir_exc_h = IR.exception_handler
-   and type ssa_var = Var.var
-   and type ssa_instr = TSSA.instr_t
-   and type ssa_exc_h = TSSA.exception_handler
-  )
-  = 
-struct 
   (* see:  
      Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.; 
      and Zadeck, F. Kenneth (1991). 
      "Efficiently computing static single assignment form and the 
      control dependence graph". 
      ACM Transactions on Programming Languages and Systems 13 (4): 451–490.*)
-  let place_phi_nodes m n var_defs domf live =
+  let place_phi_nodes vars n var_defs domf live =
     let place = ref Ptmap.empty in
     let place_node n v =
       place := Ptmap.add ~merge:Ptset.union n (Ptset.singleton v) !place in
@@ -546,7 +151,7 @@ struct
 		 (fun y -> 
 		    if has_already.(y+1) < !iter_count then 
 		      begin
-			if live y m.IR.vars.(v) then place_node y v;
+			if live y vars.(v) then place_node y v;
 			has_already.(y+1) <- !iter_count;
  			if work.(y+1) < !iter_count then 
 			  begin
@@ -559,30 +164,30 @@ struct
 	var_defs;
       !place
 
-  let debug_code m phi_nodes children vars search_h succs =
+  let debug_code print_instr params vars code exc_tbl phi_nodes children var_defs search_h succs =
     Printf.printf "params(%s)\n"
       (JUtil.print_list_sep ","
 	 (List.map 
-	    (fun (_,x) -> IR.var_name_g x) m.IR.params));
+	    (fun (_,x) -> var_name_g x) params));
     Array.iteri 
       (fun i op -> 
 	 Printf.printf "[%s]%3d: %s\n"
 	   (JUtil.print_list_sep " "
 	      (List.map 
-		 (fun v -> IR.var_name_g (m.IR.vars.(v))) 
+		 (fun v -> var_name_g (vars.(v))) 
 		 (Ptmap.fold (fun v _ l -> v::l) (phi_nodes i) [])))
-	   i (IR.print_instr op))
-      m.IR.code;
+	   i (print_instr op))
+      code;
     List.iter
-      (fun e -> Printf.printf " [%d, %d] --> %d\n" e.IR.e_start e.IR.e_end e.IR.e_handler)
-      m.IR.exc_tbl;
+      (fun e -> Printf.printf " [%d, %d] --> %d\n" e.e_start e.e_end e.e_handler)
+      exc_tbl;
     Printf.printf "var_def:\n";
     Ptmap.iter
       (fun v defs ->
 	 Printf.printf "   %s: {%s}\n"
-	   (IR.var_name_g (m.IR.vars.(v)))
+	   (var_name_g (vars.(v)))
 	   (JUtil.print_list_sep "," (List.map string_of_int (Ptset.elements defs)))
-      ) vars;
+      ) var_defs;
     Printf.printf "search: %s\n" 
       (JUtil.print_list_sep "::" 
 	 (List.map 
@@ -590,7 +195,7 @@ struct
 	       Printf.sprintf "%d(%s)"
 		 x 
 		 (JUtil.print_list_sep " " (List.map string_of_int (children x)))) search_h));
-    show_digraph m.IR.code succs
+    show_digraph code succs
 
 
   (* Compute the rights indexes for each variable use and def.
@@ -600,10 +205,10 @@ struct
      "Efficiently computing static single assignment form and the 
      control dependence graph". 
      ACM Transactions on Programming Languages and Systems 13 (4): 451–490.*)
-  let rename m vars children preds succs phi_nodes =
-    let c = ref (Ptmap.map (fun _ -> 0) vars) in
-    let s = ref (Ptmap.map (fun _ -> []) vars) in
-    let rename_use = Array.make (Array.length m.IR.code) Ptmap.empty in
+  let rename def_bcvar use_bcvars print_instr params vars code exc_tbl var_defs children preds succs phi_nodes =
+    let c = ref (Ptmap.map (fun _ -> 0) var_defs) in
+    let s = ref (Ptmap.map (fun _ -> []) var_defs) in
+    let rename_use = Array.make (Array.length code) Ptmap.empty in
     let rename_def = ref Ptmap.empty in
     let rename_def_phi = ref Ptmap.empty in
     let phi_nodes = 
@@ -624,14 +229,14 @@ struct
 	(match Ptmap.find x !s  with
 	   | [] -> 
 	       Printf.printf "ERROR top(s(%s)) in %d\n" 
-		 (IR.var_name_g (m.IR.vars.(x))) i;
-	       debug_code m  phi_nodes children vars !search_h succs;
+		 (var_name_g (vars.(x))) i;
+	       debug_code print_instr params vars code exc_tbl phi_nodes children var_defs !search_h succs;
 	       assert false
 	   | i::_ -> i)
       with Not_found -> 
 	Printf.printf "ERROR s(%s) not found at node %d\n" 
-	  (IR.var_name_g (m.IR.vars.(x))) i;
-	debug_code m  phi_nodes children vars !search_h succs;      
+	  (var_name_g (vars.(x))) i;
+	debug_code print_instr params vars code exc_tbl phi_nodes children var_defs !search_h succs;
 	assert false in
     let pop_s x = 
       try
@@ -643,10 +248,10 @@ struct
       search_h := x :: !search_h;
      (* def : set of variables that are defined in x*)
       let def = if x<0 then
-        (* at entry point, the set contains all paremeters *)
-        (List.fold_right (fun (_,x) -> Ptset.add (IR.index x))
-	   m.IR.params Ptset.empty)
-      else IR2SSA.def_bcvar m.IR.code.(x) in
+        (* at entry point, the set contains all parameters *)
+        (List.fold_right (fun (_,x) -> Ptset.add (index x))
+	   params Ptset.empty)
+      else def_bcvar code.(x) in
 	Ptmap.iter
 	  (fun v _ -> 
 	     let xmap = 
@@ -662,10 +267,10 @@ struct
 	       c := Ptmap.add v (i+1) !c)
 	  (phi_nodes x);
 	if x>=0 then begin
-	  let vars = IR2SSA.use_bcvars m.IR.code.(x) in
+	  let var_defs = use_bcvars code.(x) in
 	    rename_use.(x) <-
 	      Ptset.fold 
-	      (fun v -> Ptmap.add v (top_s x v)) vars Ptmap.empty
+	      (fun v -> Ptmap.add v (top_s x v)) var_defs Ptmap.empty
 	end;
 	Ptset.iter
 	  (fun v ->
@@ -864,5 +469,5 @@ struct
 	TSSA.pc_ir2bc = ir_code.IR.pc_ir2bc
       }
 
-end
+
 

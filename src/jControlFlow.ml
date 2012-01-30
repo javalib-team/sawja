@@ -811,7 +811,7 @@ module PP_BC = struct
 			    then false
 			    else
                               match get_opcode pp with
-				| OpThrow _ -> false
+				| OpThrow -> false
 				| OpInvoke _ ->
 				    not_throws_instance_of program pp exn_class
 				| _ -> true
@@ -922,7 +922,13 @@ module PP_BC = struct
 
 end
 
+(*
+(* David: first attempt *)
+module PP_Bir = struct
+  include GenericPP (struct type t = JBir.t end)
+  type instr' = JBir.instr
 
+end
 
 module PP_IRCodeLike (Code : Cmn.CodeSig) = struct
 
@@ -1281,3 +1287,4 @@ struct
     let code = (get_code pp) in
       (code.A3BirSSA.phi_nodes.(pp.pc),code.A3BirSSA.code.(pp.pc))
 end
+*)

@@ -838,6 +838,7 @@ module JCodePrinter = Make(
 			 
   end)
 
+(*
 
 (* Common functions for all code representations*)
 module MakeCodeExcFunctions (S : Cmn.CodeSig) =
@@ -995,6 +996,7 @@ struct
 	  Some (Expression
 		  (MethodInvocationNonVirtual (cn,ms)))
       | S.Check _ -> None
+      | S.Formula _ -> None
 
   let inst_disp = 
     inst_disp' S.print_instr
@@ -1100,3 +1102,4 @@ module A3BirPrinter = Make(MakeA3BirLikeFunctions(A3Bir))
 module JBirSSAPrinter = Make(MakeBirLikeFunctions(JBirSSA))
 
 module A3BirSSAPrinter = Make(MakeA3BirLikeFunctions(A3BirSSA))
+*)

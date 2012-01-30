@@ -48,13 +48,58 @@ module JCodeUtil :
   sig
     val iter_code :
       (int -> Javalib_pack.JCode.jopcode list -> unit) ->
-      Javalib_pack.JCode.jcode Lazy.t -> unit
+      Javalib_pack.JCode.jcode -> unit
     val method_param_names :
       Javalib_pack.JCode.jcode Javalib_pack.Javalib.interface_or_class ->
       Javalib_pack.JBasics.method_signature -> string list option
   end
 
-module IRUtil (Code:Cmn.CodeSig) : 
+module type CodeSig  =
+sig
+
+  type var
+
+  val var_equal: var -> var -> bool
+  val var_name_debug: var -> string option
+  val var_name: var -> string
+  val var_name_g: var -> string
+  val bc_num: var -> int option
+
+  module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+  module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+
+  type instr
+
+  type exception_handler = {
+    e_start : int;
+    e_end : int;
+    e_handler : int;
+    e_catch_type : Javalib_pack.JBasics.class_name option;
+    e_catch_var : var
+  }
+
+  type t
+
+  val print_handler : exception_handler -> string
+
+  val jump_target : t -> bool array
+    
+  val get_source_line_number : int -> t -> int option
+
+  val exception_edges : t -> (int * exception_handler) list
+
+  val vars : t -> var array
+  val params : t -> (Javalib_pack.JBasics.value_type * var) list
+  val code : t -> instr array
+  val exc_tbl : t -> exception_handler list
+  val line_number_table : t -> (int * int) list option
+  val pc_bc2ir : t -> int Ptmap.t
+  val pc_ir2bc : t -> int array
+  val print : t -> string list
+
+end
+
+module IRUtil (Code:CodeSig) : 
 sig
   val iter_code : (int -> Code.instr list -> unit) -> Code.t Lazy.t -> unit
   val method_param_names :
@@ -62,3 +107,4 @@ sig
     Javalib_pack.JBasics.method_signature -> string list option
 end
 (**/**)
+

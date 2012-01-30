@@ -103,7 +103,7 @@ module type IRSig = sig
   val exception_edges :  t -> (int * exception_handler) list
 
 end
-
+(*
 (** Common "variable" type and functions signature for SSA form *)
 module type VarSig =
 sig
@@ -137,8 +137,6 @@ sig
   type var_set
   type instr_t
  
-  include Cmn.ExceptionSig with type var_e = var_t
-  
   type phi_node = {
     def : var_t;
     (** The variable defined in the phi node*)
@@ -322,3 +320,4 @@ module SSA
 sig
   val transform_from_ir : IR.t -> TSSA.t
 end
+*)

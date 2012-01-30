@@ -97,7 +97,7 @@ let gen_xml_desc (name, desc) arg_list plug_out_name =
 	      let replace = 
 		(ExtString.String.replace_chars (function ';' -> ":" | c -> String.make 1 c))
 	      in
-		JUtil.print_list_sep ";" (List.map replace list), replace def
+		JUtil.print_list_sep_id ";" (List.map replace list), replace def
 	    in
 	      (choice_tag, [(choices_attr,choices);(def_attr,def)])
       | String (_,Some def) -> (string_tag, [(def_attr,def)])

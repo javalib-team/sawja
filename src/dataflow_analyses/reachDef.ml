@@ -51,7 +51,7 @@ module Lat = struct
 	| [x] -> Printf.sprintf "{%s}" x
 	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 in
       Ptmap.fold (fun i set -> Printf.sprintf "%s:%s %s"
-		    (JBir.var_name_g (code.JBir.vars.(i)))
+		    (JBir.var_name_g ((JBir.vars code).(i)))
 		    (set_to_string set)) ab ""
 end
   
@@ -91,6 +91,7 @@ let gen_instrs i = function
   | JBir.InvokeNonVirtual _ 
   | JBir.MayInit _ 
   | JBir.Check _
+  | JBir.Formula _
   | JBir.Nop -> [Nop,i+1]
 
 (* generate a list of transfer functions *)
@@ -101,7 +102,7 @@ let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list =
 	   (List.map (fun (c,j) -> (i,c,j)) (gen_instrs i ins))
 	   l) 
       (List.map (fun (i,e) -> (i,Nop,e.JBir.e_handler)) (JBir.exception_edges m))
-      m.JBir.code
+      (JBir.code m)
 
 let unknown = -1 
 
@@ -112,7 +113,7 @@ let init params =
     Ptmap.empty
 
 let run m =
-  let init = init m.JBir.params in
+  let init = init (JBir.params m) in
     Iter.run 
       {
 	Iter.bot = Lat.bot ;
@@ -120,7 +121,7 @@ let run m =
 	Iter.leq = Lat.order;
 	Iter.eval = eval_transfer;
 	Iter.normalize = (fun x -> x);
-	Iter.size = Array.length m.JBir.code;
+	Iter.size = Array.length (JBir.code m);
 	Iter.workset_strategy = Iter.Incr;
 	Iter.cstrs = gen_symbolic m;
 	Iter.init_points = [0];

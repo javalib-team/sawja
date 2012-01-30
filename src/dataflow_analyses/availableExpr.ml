@@ -60,13 +60,13 @@ module Lat = struct
 	   | JBir.AffectVar (x,e) -> 
 	       if is_available_expr e then add (x,e) s else s
 	   | _ -> s)
-      bir.JBir.code empty
+      (JBir.code bir) empty
     
   let print_key (x,e) = 
     Printf.sprintf "(%s,%s)" (JBir.var_name_g x) (JBir.print_expr e)  
 
   let to_string ab = 
-    Printf.sprintf "{%s}" (JUtil.print_list_sep_map "::" print_key (elements ab))
+    Printf.sprintf "{%s}" (JUtil.print_list_sep "::" print_key (elements ab))
 
   let bottom = empty
 
@@ -121,6 +121,7 @@ let rec gen_instrs i = function
   | JBir.InvokeNonVirtual _
   | JBir.MayInit _ 
   | JBir.Check _
+  | JBir.Formula _
   | JBir.Nop -> [Nop,i+1]
 
 (* generate a list of transfer functions *)
@@ -131,7 +132,7 @@ let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list =
 	   (List.map (fun (c,j) -> (i,c,j)) (gen_instrs i ins))
 	   l) 
       (List.map (fun (i,e) -> (i,Nop,e.JBir.e_handler)) (JBir.exception_edges m))
-      m.JBir.code
+      (JBir.code m)
 
 let run m =
   Iter.run 
@@ -141,7 +142,7 @@ let run m =
       Iter.leq = (fun x y -> Lat.subset y x);
       Iter.eval = eval_transfer;
       Iter.normalize = (fun x -> x);
-      Iter.size = Array.length m.JBir.code;
+      Iter.size = Array.length (JBir.code m);
       Iter.workset_strategy = Iter.Incr;
       Iter.cstrs = gen_symbolic m;
       Iter.init_points = [0];

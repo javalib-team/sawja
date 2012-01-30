@@ -62,9 +62,6 @@ module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
 (** This module allows to build maps of elements indexed by [var] values. *)
 module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 
-(** Used only for internal transformations. *)
-val var_ssa : var -> bool
-
 (** {3 Expressions} *)
 
 (** Constants *)
@@ -72,10 +69,10 @@ type const = JCode.jconst
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
-  | L2I  | L2F  | L2D
-  | F2I  | F2L  | F2D
-  | D2I  | D2L  | D2F
-  | I2B  | I2C  | I2S
+	    | L2I  | L2F  | L2D
+	    | F2I  | F2L  | F2D
+	    | D2I  | D2L  | D2F
+	    | I2B  | I2C  | I2S
 
 (** Unary operators *)
 type unop =
@@ -116,12 +113,24 @@ type expr =
   | StaticField of JBasics.class_name * JBasics.field_signature
       (** Reading static fields *)
 
+type formula =
+  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr
+  | And of formula * formula
+  | Or of formula * formula
+
+type command_formula = 
+  | Assume 
+  | Assert
+  | Invariant
+
 (** [type_of_expr e] returns the type of the expression [e]. 
- N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
+    N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
 val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
   
+(** In Java, invokevirtual and invokeinterface are very similar virtual calls. 
+    We factorize them. *)
 type virtual_call_kind =
   | VirtualCall of JBasics.object_type
   | InterfaceCall of JBasics.class_name
@@ -263,6 +272,7 @@ type instr =
 	  Exceptions that could
 	  be thrown by the virtual machine are described in {!check} type
 	  declaration.*)
+  | Formula of command_formula * formula
 
 
 type exception_handler = {
@@ -274,34 +284,40 @@ type exception_handler = {
 }
 
 (** [t] is the parameter type for JBir methods. *)
-type t = {
-  vars : var array;  
-  (** All variables that appear in the method. [vars.(i)] is the variable of
-      index [i]. *)
-  params : (JBasics.value_type * var) list;
-  (** [params] contains the method parameters (including the receiver this for
-      virtual methods). *)
-  code : instr array;
-  (** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
-      are absolute. *)
-  exc_tbl : exception_handler list;
-  (** [exc_tbl] is the exception table of the method code. Jumps are
-      absolute. *)
-  line_number_table : (int * int) list option;
-  (** [line_number_table] contains debug information. It is a list of pairs
-      [(i,j)] where [i] indicates the index into the bytecode array at which the
-      code for a new line [j] in the original source file begins.  *)
-  pc_bc2ir : int Ptmap.t;
-  (** map from bytecode code line to ir code line. It raises Not_found
-      if pc is not an original bytecode pc or if the corresponding
-      bytecode instruction has no predecessors and has been removed
-      because it is unreachable.*)
-  pc_ir2bc : int array; 
-  (** map from ir code line to bytecode code line: the last bytecode
-      instruction corresponding to the given ir instruction is
-      returned (i.e. the last bytecode instruction used for the ir
-      instruction generation).*)
-}
+type t
+
+(** All variables that appear in the method. [vars.(i)] is the variable of
+    index [i]. *)
+val vars : t -> var array
+
+(** [params] contains the method parameters (including the receiver this for
+    virtual methods). *)
+val  params : t -> (JBasics.value_type * var) list
+
+(** Array of instructions the immediate successor of [pc] is [pc+1].  Jumps
+    are absolute. *)
+val code : t -> instr array
+
+(** [exc_tbl] is the exception table of the method code. Jumps are
+    absolute. *)
+val exc_tbl : t -> exception_handler list
+
+(** [line_number_table] contains debug information. It is a list of pairs
+    [(i,j)] where [i] indicates the index into the bytecode array at which the
+    code for a new line [j] in the original source file begins.  *)
+val line_number_table : t -> (int * int) list option
+
+(** map from bytecode code line to ir code line. It raises Not_found
+    if pc is not an original bytecode pc or if the corresponding
+    bytecode instruction has no predecessors and has been removed
+    because it is unreachable.*)
+val pc_bc2ir : t -> int Ptmap.t
+
+(** map from ir code line to bytecode code line: the last bytecode
+    instruction corresponding to the given ir instruction is
+    returned (i.e. the last bytecode instruction used for the ir
+    instruction generation).*)
+val pc_ir2bc : t -> int array 
 
 (** [jump_target m] indicates whether program points are join points or not in [m]. *)
 val jump_target : t -> bool array
@@ -333,6 +349,32 @@ val print_instr : ?show_type:bool -> instr -> string
     (one string for each program point of the code [c]). *)
 val print : t -> string list
 
+(** [print_program ~css ~js ~info program outputdir] generates html
+    files representing the program [p] in the output directory
+    [outputdir], given the annotation information [info]
+    ([void_info] by default), an optional Cascading Style Sheet
+    (CSS) [css] and an optional JavaScript file [js]. If [css] or
+    [js] is not provided, a default CSS or JavaScript file is
+    generated. @raise Sys_error if the output directory [outputdir]
+    does not exist. @raise Invalid_argument if the name
+    corresponding to [outputdir] is a file. *)
+val print_program :
+  ?css:string -> ?js:string -> ?info:JPrintHtml.info -> t JProgram.program -> string -> unit
+
+(** [print_class ~css ~js ~info ioc outputdir] generates html files
+    representing the interface or class [ioc] in the output
+    directory [outputdir], given the annotation information [info]
+    ([void_info] by default), an optional Cascading Style Sheet
+    (CSS) [css] and an optional JavaScript file [js]. If [css] or
+    [js] is not provided, a default CSS or JavaScript file is
+    generated. No links on types and methods are done when
+    [print_class] is used, it should only be used when user does not
+    have the program representation. @raise Sys_error if the output
+    directory [outputdir] does not exist. @raise Invalid_argument if
+    the name corresponding to [outputdir] is a file.*)
+val print_class :
+  ?css:string -> ?js:string -> ?info:JPrintHtml.info -> t Javalib.interface_or_class -> string -> unit
+
 (** {2 Bytecode transformation} *)
 
 (** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]
@@ -344,338 +386,18 @@ val print : t -> string list
     [true]. [transform] can raise several exceptions. See exceptions
     below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+  ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool ->
+  JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 
-(** {3 Exceptions due to the transformation limitations} *)
-
-exception Uninit_is_not_expr
-  (** [Uninit_is_not_expr] is raised in case an uninitialised reference is used
-      as a traditional expression (variable assignment, field reading etc).*)
 exception NonemptyStack_backward_jump
   (** [NonemptyStack_backward_jump] is raised when a backward jump on a
       non-empty stack is encountered. This should not happen if you compiled your
       Java source program with the javac compiler *)
-exception Type_constraint_on_Uninit
-  (** [Type_constraint_on_Uninit] is raised when the requirements about stacks
-      for folding constructors are not satisfied. *)
-exception Content_constraint_on_Uninit
-  (** [Content_constraint_on_Uninit] is raised when the requirements about
-      stacks for folding constructors are not satisfied. *)
+
 exception Subroutine
   (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
 
-(** {3 Exceptions due to a non-Bytecode-verifiable bytecode} *)
-
-exception Bad_stack
-  (** [Bad_stack] is raised in case the stack does not fit the length/content
-      constraint of the bytecode instruction being transformed. *)
-exception Bad_Multiarray_dimension
-  (** [Bad_Multiarray_dimension] is raise when attempting to transforming a
-      multi array of dimension zero. *)
 
 
-(**/**)
-
-(** {2 Only used for internal purpose} *)
-
-module Internal :
-sig
-
-  module InstrRep (Var:Cmn.VarSig) : sig
-
-    (** Side-effect free expressions *)
-    type expr =
-	Const of const (** constants *)
-      | Var of JBasics.value_type * Var.var
-	  (** variables are given a type information *)
-      | Unop of unop * expr
-      | Binop of binop * expr * expr
-	  (** [Binop (ArrayLoad vt, e1, e2)] denotes [e1\[e2\]], whose type is  [vt] *)
-      | Field of expr * JBasics.class_name * JBasics.field_signature
-	  (** Reading fields of arbitrary expressions *)
-      | StaticField of JBasics.class_name * JBasics.field_signature
-	  (** Reading static fields *)
-
-    (** [type_of_expr e] returns the type of the expression [e]. 
-	N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
-    val type_of_expr : expr -> JBasics.value_type
-
-    type check =
-      | CheckNullPointer of expr
-	  (** [CheckNullPointer e] checks that the expression [e] is not a
-              null pointer and raises the Java NullPointerException if
-              this not the case. *)
-      | CheckArrayBound of expr * expr
-	  (** [CheckArrayBound(a,idx)] checks the index [idx] is a valid
-              index for the array denoted by the expression [a] and raises
-              the Java IndexOutOfBoundsException if this is not the
-              case. *)
-      | CheckArrayStore of expr * expr
-	  (** [CheckArrayStore(a,e)] checks [e] can be stored as an
-              element of the array [a] and raises the Java
-              ArrayStoreException if this is not the case. *)
-      | CheckNegativeArraySize of expr
-	  (** [CheckNegativeArray e] checks that [e], denoting an array
-              size, is positive or zero and raises the Java
-              NegativeArraySizeException if this is not the case.*)
-      | CheckCast of expr * JBasics.object_type
-	  (** [CheckCast(e,t)] checks the object denoted by [e] can be
-              casted to the object type [t] and raises the Java
-              ClassCastException if this is not the case. *)
-      | CheckArithmetic of expr
-	  (** [CheckArithmetic e] checks that the divisor [e] is not zero,
-              and raises ArithmeticExcpetion if this is not the case. *)
-      | CheckLink of JCode.jopcode
-	  (** [CheckLink op] checks if linkage mechanism, depending on
-	      [op] instruction, must be started and if so if it
-	      succeeds. 
-	      
-	      Linkage mechanism and errors that could be thrown
-	      are described in chapter 6 of JVM Spec 1.5 for each bytecode
-	      instruction (only a few instructions imply linkage
-	      operations: checkcast, instanceof, anewarray,
-	      multianewarray, new, get_, put_, invoke_). *)
-
-
-    (** JBir instructions are register-based and unstructured. Next to
-	them is the informal semantics (using a traditional instruction
-	notations) they should be given. 
-	
-	Exceptions that could be raised by the virtual
-	machine are described beside each instruction, except for the
-	virtual machine errors, subclasses of
-	[java.lang.VirtualMachineError], that could be raised at any time
-	(cf. JVM Spec 1.5 §6.3 ).
-    *)
-
-    type instr =
-	Nop
-      | AffectVar of Var.var * expr
-	  (** [AffectVar(x,e)] denotes x := e.  *)
-      | AffectArray of expr * expr * expr
-	  (** [AffectArray(a,idx,e)] denotes   a\[idx\] := e. *)
-      | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
-	  (** [AffectField(e,c,fs,e')] denotes e.<c:fs> := e'. *)
-      | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
-	  (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
-      | Goto of int
-	  (** [Goto pc] denotes goto pc. (absolute address) *)
-      | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
-	  (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
-      | Throw of expr (** [Throw e] denotes throw e. 
-
-			  The exception [IllegalMonitorStateException] could be thrown by the virtual machine.*)
-      | Return of expr option
-	  (** [Return opte] denotes 
-	      - return void when [opte] is [None] 
-	      - return opte otherwise. 
-
-	      The exception [IllegalMonitorStateException] could be thrown
-	      by the virtual machine.*)
-      | New of Var.var * JBasics.class_name * JBasics.value_type list * expr list
-	  (** [New(x,c,tl,args)] denotes x:= new c<tl>(args), [tl] gives
-              the type of [args]. *)
-      | NewArray of Var.var * JBasics.value_type * expr list
-	  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where
-              ei are the elements of [el] ; they represent the length of
-              the corresponding dimension. Elements of the array are of
-              type [t]. *)
-      | InvokeStatic of Var.var option * JBasics.class_name *  JBasics.method_signature * expr list
-	  (** [InvokeStatic(x,c,ms,args)] denotes 
-	      - c.m<ms>(args) if [x] is [None] (void returning method) 
-	      - x := c.m<ms>(args)
-	      otherwise. 
-
-	      The exception [UnsatisfiedLinkError] could be
-	      thrown if the method is native and the code cannot be
-	      found.*)
-      | InvokeVirtual of Var.var option * expr * virtual_call_kind * JBasics.method_signature * expr list
-	  (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call 
-
-	      - e.m<ms>(args) if [x] is [None] (void returning method) 
-	      - x:= e.m<ms>(args) otherwise. 
-	      
-	      If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the
-	      same order: [AbstractMethodError, UnsatisfiedLinkError].  
-	      
-	      If [k] is a [InterfaceCall _] then the virtual machine could
-	      throw the following errors in the same order:
-	      [IncompatibleClassChangeError, AbstractMethodError,
-	      IllegalAccessError, AbstractMethodError,
-	      UnsatisfiedLinkError].*)
-      | InvokeNonVirtual of Var.var option * expr * JBasics.class_name * JBasics.method_signature * expr list
-	  (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual
-	      call 
-	      - e.C.m<ms>(args) if [x] is [None] (void returning
-	      method) 
-	      - x := e.C.m<ms>(args) otherwise. 
-	      
-	      The exception [UnsatisfiedLinkError] could be thrown 
-	      if the method is native and the code cannot be found.*)
-      | MonitorEnter of expr (** [MonitorEnter e] locks the object [e]. *)
-      | MonitorExit of expr (** [MonitorExit e] unlocks the object
-				[e]. 
-
-				The exception
-				[IllegalMonitorStateException] could be
-				thrown by the virtual machine.*)
-      | MayInit of JBasics.class_name
-	  (** [MayInit c] initializes the class [c] whenever it is
-	      required. 
-
-	      The exception [ExceptionInInitializerError] could
-	      be thrown by the virtual machine.*)
-      | Check of check
-	  (** [Check c] evaluates the assertion [c]. 
-
-	      Exceptions that could
-	      be thrown by the virtual machine are described in {!check} type
-	      declaration.*)
-
-    val print_instr: ?show_type:bool -> instr -> string
-    val print_expr: ?show_type:bool -> expr -> string
-    val instr_jump_to: instr -> int option
-  end
-
-  (** Common signature for code of JBir and A3Bir representations*)
-  module type CodeSig  =
-  sig
-
-    include Cmn.VarSig
-
-    type instr
-
-    type exception_handler = {
-      e_start : int;
-      e_end : int;
-      e_handler : int;
-      e_catch_type : JBasics.class_name option;
-      e_catch_var : var
-    }
-
-    type t = {
-      vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
-      params : (JBasics.value_type * var) list;
-      code : instr array;
-      exc_tbl : exception_handler list;
-      line_number_table : (int * int) list option;
-      pc_bc2ir : int Ptmap.t;
-      pc_ir2bc : int array
-    }
-
-    val print_handler : exception_handler -> string
-
-    val jump_target : t -> bool array
-      
-    val get_source_line_number : int -> t -> int option
-
-    val exception_edges : t -> (int * exception_handler) list
-
-    val print : t -> string list
-
-  end
-
-  (** Common signature for code and instructions of JBir and
-      JBirSSA*)
-  module type CodeInstrSig = 
-  sig
-
-    include Cmn.VarSig
-
-    type expr =
-      | Const of const
-      | Var of JBasics.value_type * var
-      | Unop of unop * expr
-      | Binop of binop * expr * expr
-      | Field of expr * JBasics.class_name * JBasics.field_signature
-      | StaticField of JBasics.class_name * JBasics.field_signature
-
-    type check =
-      | CheckNullPointer of expr
-      | CheckArrayBound of expr * expr
-      | CheckArrayStore of expr * expr
-      | CheckNegativeArraySize of expr
-      | CheckCast of expr * JBasics.object_type
-      | CheckArithmetic of expr
-      | CheckLink of JCode.jopcode
-
-    type instr =
-      | Nop
-      | AffectVar of var * expr
-      | AffectArray of expr * expr * expr
-      | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
-      | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
-      | Goto of int
-      | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr ) * int
-      | Throw of expr
-      | Return of expr option
-      | New of var * JBasics.class_name * JBasics.value_type list * (expr list)
-      | NewArray of var * JBasics.value_type * (expr list)
-      | InvokeStatic
-	  of var option * JBasics.class_name * JBasics.method_signature * expr list
-      | InvokeVirtual
-	  of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
-      | InvokeNonVirtual
-	  of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
-      | MonitorEnter of expr
-      | MonitorExit of expr
-      | MayInit of JBasics.class_name
-      | Check of check
-
-    val type_of_expr :  expr -> JBasics.value_type
-
-    val print_expr : ?show_type:bool -> expr -> string
-
-    val print_instr : ?show_type:bool -> instr -> string
-
-    type exception_handler = {
-      e_start : int;
-      e_end : int;
-      e_handler : int;
-      e_catch_type : JBasics.class_name option;
-      e_catch_var : var
-    }
-
-    type t
-
-    val print_handler : exception_handler -> string
-
-    val jump_target : t -> bool array
-      
-    val get_source_line_number : int -> t -> int option
-
-    val exception_edges : t -> (int * exception_handler) list
-
-    module Internal :
-    sig
-      val vars : t -> var array
-      val params : t -> (JBasics.value_type * var) list
-      val code : t -> instr array
-      val exc_tbl : t -> exception_handler list
-      val line_number_table : t -> (int * int) list option
-      val pc_bc2ir : t -> int Ptmap.t
-      val pc_ir2bc : t -> int array
-      val print_simple : t -> string list
-    end    
-  end
-
-
-  (** Common accessors to the type t for all representations, it allows
-      to use {!Cmn.CodeSig} that is the lowest common interface for the code
-      of all IRs: *)
-
-
-  val vars : t -> var array
-  val params : t -> (JBasics.value_type * var) list
-  val code : t -> instr array
-  val exc_tbl : t -> exception_handler list
-  val line_number_table : t -> (int * int) list option
-  val pc_bc2ir : t -> int Ptmap.t
-  val pc_ir2bc : t -> int array
-
-  val print_simple : t -> string list
-end
-
-(**/**)

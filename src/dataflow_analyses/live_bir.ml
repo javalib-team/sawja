@@ -73,6 +73,11 @@ let eval_transfer = function
   | GenVars l -> fun ab -> List.fold_right (fun e -> Env.union (Env.vars e)) l ab
   | Kill x -> fun ab -> Env.remove x ab
 
+let rec all_expr_in_formula acc = function
+  | JBir.Atom (_,e1,e2) -> e1::e2::acc
+  | JBir.And (f1,f2) | JBir.Or (f1,f2) -> all_expr_in_formula (all_expr_in_formula acc f1) f2
+let all_expr_in_formula = all_expr_in_formula []
+
 (* [gen_instrs last i] computes a list of transfert function
    [(f,j);...] with [j] the successor of [i] for the transfert
    function [f]. [last] is the end label of the method; *)
@@ -109,17 +114,18 @@ let gen_instrs last i = function
 	| JBir.CheckArithmetic e -> [[GenVars [e]],i+1]
 	| JBir.CheckLink _ -> [[],i+1]
     end
+  | JBir.Formula (_,f) -> [[GenVars (all_expr_in_formula f)],i+1]
 
 (* generate a list of transfer functions *)
 let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list = 
-  let length = Array.length m.JBir.code in
+  let length = Array.length (JBir.code m) in
     JUtil.foldi 
       (fun i ins l ->
 	 List.rev_append
 	   (List.map (fun (c,j) -> (j,c,i)) (gen_instrs length i ins))
 	   l) 
       (List.map (fun (i,e) -> (e.JBir.e_handler,[],i)) (JBir.exception_edges m))
-      m.JBir.code
+      (JBir.code m)
 
 let run m =
   Iter.run 
@@ -129,10 +135,10 @@ let run m =
       Iter.leq = Env.subset;
       Iter.eval = List.fold_right eval_transfer;
       Iter.normalize = (fun x -> x);
-      Iter.size = 1 + Array.length m.JBir.code;
+      Iter.size = 1 + Array.length (JBir.code m);
       Iter.workset_strategy = Iter.Decr;
       Iter.cstrs = gen_symbolic m;
-      Iter.init_points = [Array.length m.JBir.code];
+      Iter.init_points = [Array.length (JBir.code m)];
       Iter.init_value = (fun _ -> Env.empty); (* useless here since we iterate from bottom *)
       Iter.verbose = false;
       Iter.dom_to_string = Env.to_string;

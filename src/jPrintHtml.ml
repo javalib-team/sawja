@@ -462,18 +462,18 @@ end
   
 module type PrintInterface =
 sig
-  type instr
-  type code
-  val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit
-  val method_param_names : code Javalib.interface_or_class -> method_signature
+  type p_instr
+  type p_code
+  val iter_code : (int -> p_instr list -> unit) -> p_code -> unit
+  val method_param_names : p_code Javalib.interface_or_class -> method_signature
     -> string list option
-  val inst_html : code program option -> code Javalib.interface_or_class -> method_signature -> int
-    -> instr -> elem list
+  val inst_html : p_code program option -> p_code Javalib.interface_or_class -> method_signature -> int
+    -> p_instr -> elem list
 end
   
 module Make (S : PrintInterface) =
 struct
-  type code = S.code
+  type code = S.p_code
       
   let revert_callgraph program =
     ClassMethodMap.fold
@@ -484,21 +484,28 @@ struct
 	       let cn = get_name c in
 	       let ms = cm.cm_signature in
 	       let rmmap = ref cmmap in
-		 S.iter_code
-		   (fun pp _ ->
-			try
-			  let cmset =
-			    program.static_lookup_method cn ms pp in
-			    ClassMethodSet.iter
-			      (fun ccms ->
-				 let rcmset =
-				   try ClassMethodMap.find ccms !rmmap
-				   with Not_found -> ClassMethodSet.empty in
-				   rmmap := ClassMethodMap.add ccms
-				     (ClassMethodSet.add (make_cms cn ms) rcmset) !rmmap
-			      ) cmset
-			with Not_found -> ()
-		   ) code;
+		 begin
+		   try
+		     let code = Lazy.force code in
+		       S.iter_code
+			 (fun pp _ ->
+			    try
+			      let cmset =
+				program.static_lookup_method cn ms pp in
+				ClassMethodSet.iter
+				  (fun ccms ->
+				     let rcmset =
+				       try ClassMethodMap.find ccms !rmmap
+				       with Not_found -> ClassMethodSet.empty in
+				       rmmap := ClassMethodMap.add ccms
+					 (ClassMethodSet.add (make_cms cn ms) rcmset) !rmmap
+				  ) cmset
+			    with Not_found -> ()
+			 ) code
+		   with _ -> 
+		     print_endline "Lazy.force fail";
+		     ()
+		 end;
 		 !rmmap
       ) program.parsed_methods ClassMethodMap.empty
       
@@ -616,7 +623,7 @@ struct
 				   info.p_data.p_pp cs ms pp 
 				 in
 				   l := (pp, (insts_html, insts_annots)) :: !l
-			      ) code;
+			      ) (Lazy.force code);
 			    !l
 		   )
 	   in
@@ -761,8 +768,8 @@ end
   
 module JCodePrinter = Make(
   struct
-    type instr = JCode.jopcode
-    type code = JCode.jcode
+    type p_instr = JCode.jopcode
+    type p_code = JCode.jcode
 
     include JCodeUtil
 		  
@@ -829,264 +836,3 @@ module JCodePrinter = Make(
 	  | _ -> [simple_elem inst_params]
   end)
 
-
-let print_list_sep sep f l =
-  let ml = List.map f l in
-    String.concat sep ml
-	  
-
-  
-module MakeJBirLikePrintInterface (BirLike: JBir.Internal.CodeInstrSig) = 
-struct
-  type instr = BirLike.instr
-  type code = BirLike.t
-
-  include IRUtil(BirLike)
-  
-  let inst_html program ioc ms pp op =
-    let cs = Javalib.get_name ioc in
-      match op with
-	| BirLike.AffectStaticField (ccs,fs,e) ->
-	    let p1 = field_elem program cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (BirLike.print_expr e)) in
-	      [p1;p2]
-	| BirLike.AffectField (e1,ccs,fs,e2) ->
-	    let p1 = field_elem program ~called_cname:(BirLike.print_expr e1)
-	      cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (BirLike.print_expr e2)) in
-	      [p1;p2]
-	| BirLike.New (x,ccs,_,le) ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (BirLike.var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (print_list_sep ", " BirLike.print_expr le)) in
-	      [p1;p2;p3]
-	| BirLike.NewArray (x,v,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (BirLike.var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "%s"
-		 (print_list_sep ""
-		    (fun e -> 
-		       Printf.sprintf "[%s]" (BirLike.print_expr e)) le)
-	      ) in
-	      [p1;p2;p3]
-	| BirLike.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = 
-	      invoke_elem 
-		program cs ms pp ccs cms 
-	    in
-	    let p2 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " (BirLike.print_expr) le)) in
-	      [p1;p2]
-	| BirLike.InvokeStatic (Some x,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s :=" (BirLike.var_name_g x)) in
-	    let p2 = 
-	      invoke_elem 
-		program cs ms pp ccs cms 
-	    in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " (BirLike.print_expr) le)) in
-	      [p1;p2;p3]
-	| BirLike.InvokeVirtual (r,e1,k,cms,le) ->
-	    let p2 =
-	      (match k with
-		 | JBir.VirtualCall o ->
-		     let ccs = match o with
-		       | TClass ccs -> ccs
-		       | _ -> JBasics.java_lang_object in
-		       invoke_elem ~called_cname:(BirLike.print_expr e1) program
-			 cs ms pp ccs cms
-		 | JBir.InterfaceCall ccs ->
-		     invoke_elem ~called_cname:(BirLike.print_expr e1) program
-		       cs ms pp ccs cms
-	      ) in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (print_list_sep ", " (BirLike.print_expr) le)) in
-	      (match r with
-		 | None -> [p2;p3]
-		 | Some x ->
-		     let p1 = simple_elem
-		       (Printf.sprintf "%s :="  (BirLike.var_name_g x)) in
-		       [p1;p2;p3]
-	      )
-	| BirLike.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (match r with
-		 | None -> (BirLike.print_expr e1) ^ "."
-		 | Some x -> Printf.sprintf "%s := %s." (BirLike.var_name_g x)
-		     (BirLike.print_expr e1)
-	      ) in
-	    let p2 = 
-	      invoke_elem 
-		program cs ms pp ccs cms 
-	    in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " BirLike.print_expr le)) in
-	      [p1;p2;p3]
-	| BirLike.MayInit ccs ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem "mayinit" in
-	    let p2 = value_elem program cs v in
-	      [p1;p2]
-	| BirLike.Check (BirLike.CheckCast (e,t)) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "checkcast %s:" (BirLike.print_expr e)) in
-	    let p2 = value_elem program cs (TObject t) in
-	      [p1;p2]
-	| _ -> [simple_elem (BirLike.print_instr op)]
-end
-
-module MakeA3BirLikePrintInterface (A3BirLike:A3Bir.Internal.CodeInstrSig) =
-struct
-  type instr = A3BirLike.instr
-  type code = A3BirLike.t
-      
-  include IRUtil(A3BirLike)
-  
-  let inst_html program ioc ms pp op =
-    let cs = Javalib.get_name ioc in
-      match op with
-	| A3BirLike.AffectStaticField (ccs,fs,e) ->
-	    let p1 = field_elem program cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (A3BirLike.print_expr e)) in
-	      [p1;p2]
-	| A3BirLike.AffectField (e1,ccs,fs,e2) ->
-	    let p1 = field_elem program ~called_cname:(A3BirLike.print_basic_expr e1)
-	      cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (A3BirLike.print_basic_expr e2)) in
-	      [p1;p2]
-	| A3BirLike.New (x,ccs,_,le) ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (A3BirLike.var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (print_list_sep ", " A3BirLike.print_basic_expr le)) in
-	      [p1;p2;p3]
-	| A3BirLike.NewArray (x,v,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (A3BirLike.var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "%s"
-		 (print_list_sep ""
-		    (fun e -> 
-		       Printf.sprintf "[%s]" (A3BirLike.print_basic_expr e)) le)
-	      ) in
-	      [p1;p2;p3]
-	| A3BirLike.InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = invoke_elem program cs ms pp ccs cms in
-	    let p2 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3BirLike.print_basic_expr) le)) in
-	      [p1;p2]
-	| A3BirLike.InvokeStatic (Some x,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s :=" (A3BirLike.var_name_g x)) in
-	    let p2 = invoke_elem program cs ms pp ccs cms in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " (A3BirLike.print_basic_expr) le)) in
-	      [p1;p2;p3]
-	| A3BirLike.InvokeVirtual (r,e1,k,cms,le) ->
-	    let p2 =
-	      (match k with
-		 | A3Bir.VirtualCall o ->
-		     let ccs = match o with
-		       | TClass ccs -> ccs
-		       | _ -> JBasics.java_lang_object in
-		       invoke_elem ~called_cname:(A3BirLike.print_basic_expr e1) program
-			 cs ms pp ccs cms
-		 | A3Bir.InterfaceCall ccs ->
-		     invoke_elem ~called_cname:(A3BirLike.print_basic_expr e1) program
-		       cs ms pp ccs cms
-	      ) in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (print_list_sep ", " (A3BirLike.print_basic_expr) le)) in
-	      (match r with
-		 | None -> [p2;p3]
-		 | Some x ->
-		     let p1 = simple_elem
-		       (Printf.sprintf "%s :="  (A3BirLike.var_name_g x)) in
-		       [p1;p2;p3]
-	      )
-	| A3BirLike.InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (match r with
-		 | None -> (A3BirLike.print_basic_expr e1) ^ "."
-		 | Some x -> Printf.sprintf "%s := %s." (A3BirLike.var_name_g x)
-		     (A3BirLike.print_basic_expr e1)
-	      ) in
-	    let p2 = invoke_elem program cs ms pp ccs cms in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (print_list_sep ", " A3BirLike.print_basic_expr le)) in
-	      [p1;p2;p3]
-	| A3BirLike.MayInit ccs ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem "mayinit" in
-	    let p2 = value_elem program cs v in
-	      [p1;p2]
-	| A3BirLike.Check (A3BirLike.CheckCast (e,t)) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "checkcast %s:" (A3BirLike.print_basic_expr e)) in
-	    let p2 = value_elem program cs (TObject t) in
-	      [p1;p2]
-	| _ -> [simple_elem (A3BirLike.print_instr op)]
-end
-
-module JBirPrinter = Make(MakeJBirLikePrintInterface(JBir))
-
-module A3BirPrinter = Make(MakeA3BirLikePrintInterface(A3Bir)) 
-
-module MakeSSA(SSA:JBirSSA.Internal.CodeSig)
-  (PI:PrintInterface with type instr=SSA.instr and type code = SSA.t) =
-struct
-  include PI
-  let inst_html' = inst_html 
-    
-  let phi_nodes ioc ms =
-    match Javalib.get_method ioc ms with
-	ConcreteMethod cm -> 
-	  (match cm.cm_implementation with
-	       Java laz -> 
-		 let code = Lazy.force laz in
-		   fun pp -> code.SSA.phi_nodes.(pp), code.SSA.preds.(pp)
-		   | Native -> fun _ -> [], Array.make 0 0)
-      | AbstractMethod _ -> fun _ -> [], Array.make 0 0
-	  
-  let inst_html program ioc ms pp op = 
-    let res = inst_html' program ioc ms pp op in
-    let (phi_nodes,preds) = phi_nodes ioc ms pp in
-      if phi_nodes = [] then res
-      else
-	(simple_elem 
-	   (Printf.sprintf
-	      "(preds(%d) := (%s)): "
-	      pp
-	      (JUtil.print_list_sep_map 
-		 ", " string_of_int (Array.to_list preds))))
-	::(List.fold_right
-	     (fun  phi_n elts -> 
-		let el = 
-		  simple_elem (("  "^SSA.print_phi_node ~phi_simpl:false phi_n)^";") 
-		in
-		  el::elts
-	     )
-	     phi_nodes
-	     res)
-end
-
-module JBirSSAPrinter = Make(MakeSSA(JBirSSA)(MakeJBirLikePrintInterface(JBirSSA)))
-
-module A3BirSSAPrinter = Make(MakeSSA(A3BirSSA)(MakeA3BirLikePrintInterface(A3BirSSA)))

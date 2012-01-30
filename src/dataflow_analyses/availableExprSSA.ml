@@ -28,7 +28,7 @@ open JBirSSA
 let rec is_available_expr = function
   | Field _ 
   | StaticField _ 
-  | Binop (JBir.ArrayLoad _,_,_) -> false
+  | Binop (ArrayLoad _,_,_) -> false
   | Binop (_,e1,e2) -> is_available_expr e1 && is_available_expr e2
   | Unop (_,e) -> is_available_expr e
   | Const _ 
@@ -38,7 +38,7 @@ let rec is_available_expr = function
 let rec vars = function
   | Field _ 
   | StaticField _ 
-  | Binop (JBir.ArrayLoad _,_,_) -> Ptset.empty
+  | Binop (ArrayLoad _,_,_) -> Ptset.empty
   | Binop (_,e1,e2) -> Ptset.union (vars e1) (vars e2)
   | Unop (_,e) -> vars e
   | Const _ -> Ptset.empty
@@ -61,13 +61,13 @@ module Lat = struct
 	   | AffectVar (_x,e) -> 
 	       if is_available_expr e then add e s else s
 	   | _ -> s)
-      bir.code empty
+      (code bir) empty
     
   let print_key e = 
     Printf.sprintf "(%s)" (print_expr e)  
 
   let to_string ab = 
-    Printf.sprintf "{%s}" (JUtil.print_list_sep_map "::" print_key (elements ab))
+    Printf.sprintf "{%s}" (JUtil.print_list_sep "::" print_key (elements ab))
 
   let bottom = empty
 
@@ -115,7 +115,7 @@ let gen_phi_nodes csts phis =
 	 VarSet.fold
 	   (fun v l -> 
 	      (index v,Nop,i0)::l)
-	   phi.use_set
+	   (VarSet.of_array phi.use)
 	   li))
     csts
     phis
@@ -128,23 +128,23 @@ let gen_symbolic (m:t) : (pc * transfer * pc) list =
       List.fold_left
 	(fun s e -> Ptset.add (index (e.e_catch_var)) s)
 	Ptset.empty
-	m.exc_tbl
+	(exc_tbl m)
     in
       (* link variables never affected in SSA to entrypoint *)
     List.fold_left
       (fun l (_,v) -> 
 	 (0,Nop,index v)::l)
       (List.map (fun i -> (0,Nop,i)) (Ptset.elements index_catch_var))
-      m.params
+      (params m)
   in
     (* reverse list to be in same order than instructions *)
     List.rev
       (JUtil.foldi 
 	 (fun i ins l ->
-	    gen_phi_nodes (gen_instrs l ins) m.phi_nodes.(i)
+	    gen_phi_nodes (gen_instrs l ins) (phi_nodes m).(i)
 	 )
 	 init_csts
-	 m.code)
+	 (code m))
       
 
 let run m =
@@ -156,7 +156,7 @@ let run m =
 	Iter.leq = (fun x y -> Lat.subset y x);
 	Iter.eval = eval_transfer;
 	Iter.normalize = (fun x -> x);
-	Iter.size = Array.length m.vars + 1;
+	Iter.size = Array.length (JBirSSA.vars m) + 1;
 	Iter.workset_strategy = Iter.Incr;
 	Iter.cstrs = gen_symbolic m;
 	Iter.init_points = [0];

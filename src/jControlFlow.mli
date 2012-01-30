@@ -23,7 +23,8 @@
 (* TODO: static_lookup_* function have been removed. this was a bad
    idea.*)
 
-(** Provides some JVM resolution and lookup functions and allows some navigation in the control flow graph of a program for static analysis. *)
+(** Provides some JVM resolution and lookup functions and allows some 
+    navigation in the control flow graph of a program for static analysis. *)
 
 
 open Javalib_pack
@@ -355,7 +356,7 @@ module PP_BC : (**Blabla*) GenericPPSig with type code = JCode.jcode
 			    and type instr' = JCode.jopcode
 			    and type exception_handler = JCode.exception_handler
 
-
+(*
 (** Manipulation of {!JBir.t} program pointers *)
 module PP_Bir : GenericPPSig with type code = JBir.t 
 			    and type instr' = JBir.instr
@@ -375,6 +376,7 @@ module PP_BirSSA : GenericPPSig with type code = JBirSSA.t
 module PP_A3BirSSA : GenericPPSig with type code = A3BirSSA.t 
 			    and type instr' = A3BirSSA.phi_node list * A3BirSSA.instr
 			    and type exception_handler = A3BirSSA.exception_handler
+*)
 
 (** {3 Invoke lookup algorithms}*)
 

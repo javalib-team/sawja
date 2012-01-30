@@ -49,7 +49,7 @@ let run filename =
 			(AvailableExpr.Lat.to_string (ae i));
 			Printf.printf "%3d: %s\n"
 			  i (JBir.print_instr op))
-		   ir_code.JBir.code;
+		   (JBir.code ir_code);
 		 print_newline ())
 	    (map_interface_or_class_context JBir.transform i_or_c)))
     filename;
@@ -71,7 +71,7 @@ let run filename =
 		      Printf.printf "--> AE[%s]: %s\n"
 			(JBirSSA.var_name_g v)
 			(AvailableExprSSA.to_string (ae i));)
-		   ir_code.JBirSSA.vars;
+		   (JBirSSA.vars ir_code);
 		 print_newline ();
 	    )
 	    (map_interface_or_class_context JBirSSA.transform i_or_c)))

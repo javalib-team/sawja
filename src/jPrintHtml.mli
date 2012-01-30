@@ -52,49 +52,7 @@ type info = {
     nor filter anything. *)
 val void_info : info
   
-(*
-(** {2 Printing a JCode.jcode program.} *)
 
-(** [print_program ~css ~js ~info program outputdir] generates html
-    files representing the [JCode.jcode] program [p] in the output
-    directory [outputdir], given the annotation information [info]
-    ([void_info] by default), an optional Cascading Style Sheet (CSS)
-    file [css] and an optional JavaScript file [js]. If [css] or [js]
-    is not provided, a default CSS or JavaScript file is generated.
-    @raise Sys_error if the output directory [outputdir] does not
-    exist. @raise Invalid_argument if the name corresponding to
-    [outputdir] is a file. *)
-val print_program : ?css:string -> ?js:string -> ?info:info
-  -> JCode.jcode program -> string -> unit
-
-(** {2 Printing a JBir.t program.} *)
-
-(** [print_program ~css ~js ~info program outputdir] generates html
-    files representing the {!JBir.t} program [p] in the output
-    directory [outputdir], given the annotation information [info]
-    ([void_info] by default), an optional Cascading Style Sheet (CSS)
-    file [css] and an optional JavaScript file [js]. If [css] or [js]
-    is not provided, a default CSS or JavaScript file is generated.
-    @raise Sys_error if the output directory [outputdir] does not
-    exist. @raise Invalid_argument if the name corresponding to
-    [outputdir] is a file. *)
-val print_jbir_program : ?css:string -> ?js:string -> ?info:info
-  -> JBir.t program -> string -> unit
-
-(** {2 Printing an A3Bir.t program.} *)
-
-(** [print_program ~css ~js ~info program outputdir] generates html
-    files representing the {!A3Bir.t} program [p] in the output
-    directory [outputdir], given the annotation information [info]
-    ([void_info] by default), an optional Cascading Style Sheet (CSS)
-    file [css] and an optional JavaScript file [js]. If [css] or [js]
-    is not provided, a default CSS or JavaScript file is generated.
-    @raise Sys_error if the output directory [outputdir] does not
-    exist. @raise Invalid_argument if the name corresponding to
-    [outputdir] is a file. *)
-val print_a3bir_program : ?css:string -> ?js:string -> ?info:info
-  -> A3Bir.t program -> string -> unit
-*)
 (** {2 Building a Printer for any program representation.} *)
 
 (** Abstract type representing basic elements to build html instructions. *)
@@ -183,21 +141,21 @@ end
 module type PrintInterface =
 sig
   (** Type of the instructions. *)
-  type instr
+  type p_instr
 
   (** Type of the code. *)
-  type code
+  type p_code
 
   (** Function to provide in order to iter on the code structure. The
-      function passed to [iter_code] expects as paramters a program point
+      function passed to [iter_code] expects as parameters a program point
       (in the code representation) and the corresponding list of
       instructions. In {JCode.jcode} representation, this list only
       contains one element. *)
-  val iter_code : (int -> instr list -> unit) -> code Lazy.t -> unit
+  val iter_code : (int -> p_instr list -> unit) -> p_code -> unit
 
   (** Function to provide in order to display the source variable
       names in the method signatures. *)
-  val method_param_names : code Javalib.interface_or_class -> method_signature
+  val method_param_names : p_code Javalib.interface_or_class -> method_signature
     -> string list option
 
   (** Function to provide in order to display instructions. Given
@@ -205,20 +163,13 @@ sig
   current method signature, the instruction you want to display and
   its program point, you must provide a list of [elem] by using the
   functions defined in {!JPrintHtml} module. *)
-  val inst_html : code program option -> code Javalib.interface_or_class -> method_signature -> int
-    -> instr -> elem list
+  val inst_html : p_code program option -> p_code Javalib.interface_or_class -> method_signature -> int
+    -> p_instr -> elem list
 end
 
-module Make (S : PrintInterface) : HTMLPrinter with type code = S.code
+module Make (S : PrintInterface) : HTMLPrinter with type code = S.p_code
 
 (** {2 Built printers for Sawja program representations.} *)
 
 module JCodePrinter : HTMLPrinter with type code = JCode.jcode
 
-module JBirPrinter : HTMLPrinter with type code = JBir.t
-
-module A3BirPrinter : HTMLPrinter with type code = A3Bir.t
-
-module JBirSSAPrinter : HTMLPrinter with type code = JBirSSA.t
-
-module A3BirSSAPrinter : HTMLPrinter with type code = A3BirSSA.t

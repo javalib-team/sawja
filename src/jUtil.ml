@@ -47,15 +47,6 @@ let find_index x l =
 	else aux (i+1) q in
     aux 0 l
 
-let print_list_sep_map sep f l =
-  match l with
-    | [] -> ""
-    | [x] -> Printf.sprintf "%s" (f x)
-    | x::q -> Printf.sprintf "%s%s" (f x) (List.fold_right (fun x s -> sep^(f x)^s) q "")	 
-
-let print_list_sep sep = print_list_sep_map sep (fun x -> x)
-
-
 (* Containers. *)
 
 module GenericSet ( S : sig type t end ) =
@@ -79,6 +70,9 @@ struct
   let exists f m = Ptmap.exists (fun _ e -> f e) m
   let filter f m = Ptmap.filter f m
   let inter m1 m2 = Ptmap.inter m1 m2
+  let of_list l = List.fold_right add l empty
+  let of_array l = Array.fold_right add l empty
+		      
   (* val partition : ('a -> bool) -> 'a t -> 'a t * 'a t *)
   (* val choose_and_remove : *)
 end
@@ -130,3 +124,34 @@ struct
   let to_set m =
     GMap.fold (fun k _ s -> GSet.add k s) m GSet.empty
 end
+
+(* Print utilities ... *)
+
+let rec print_list_sep_rec sep pp = function
+  | [] -> ""
+  | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
+
+let rec print_list_sep_list_rec sep pp = function
+  | [] -> []
+  | x::q -> (sep^(pp x))::(print_list_sep_list_rec sep pp q)
+
+let print_list_sep sep pp = function
+  | [] -> ""
+  | x::q -> (pp x)^(print_list_sep_rec sep pp q)
+
+let print_list_sep_id sep = print_list_sep sep (fun x -> x)
+
+let print_list_sep_list sep pp = function
+  | [] -> []
+  | x::q -> (pp x)::(print_list_sep_list_rec sep pp q)
+
+let print_field ?(long_fields=false) c f =
+  if long_fields then
+    Printf.sprintf "<%s:%s>" (Javalib_pack.JPrint.class_name c) (fs_name f)
+  else (fs_name f)
+
+let bracket b s =
+  if b then s else Printf.sprintf "(%s)" s
+
+
+

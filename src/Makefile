@@ -34,10 +34,11 @@ CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
 MODULES = $(DATAFLOW)iter jUtil wlist \
-	jProgram classDomain jsrInline cmn bir jBir a3Bir \
-	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
-	ssaBir jBirSSA a3BirSSA \
+	jProgram classDomain jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
+	cmn bir birA3 jBir a3Bir \
+	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
+	jBirSSA a3BirSSA  \
 	safe reachableMethods jNativeStubs \
 	jCRA jRTA jRRTA XTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
@@ -45,9 +46,9 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 
 MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jProgram classDomain jNativeStubs jsrInline \
-	cmn jBir a3Bir ssaBir jBirSSA a3BirSSA\
-	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
+	jBir a3Bir jBirSSA a3BirSSA \
+	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	safe reachableMethods \
 	jCRA XTA jRTA jRRTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr

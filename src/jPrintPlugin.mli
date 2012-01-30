@@ -209,7 +209,7 @@ sig
     | PreciseLineWarning of string * AdaptedASTGrammar.node_unit
 	(** same as LineWarning * AST information **)
 
-  (** Module that must be implemented to could create a {!PluginPrinter}
+  (** Module that must be implemented to create a {!PluginPrinter}
       for a new code representation than those included in Sawja.*)
   module type PrintInterface =
   sig
@@ -290,6 +290,7 @@ end
 (** Printer for the {!Javalib_pack.JCode} code representation.*)
 module JCodePrinter : NewCodePrinter.PluginPrinter with type code = JCode.jcode and type expr = unit
 
+(*
 (** Printer for the {!JBir} code representation.*)
 module JBirPrinter : NewCodePrinter.PluginPrinter with type code = JBir.t and type expr = JBir.expr
 
@@ -301,4 +302,4 @@ module JBirSSAPrinter : NewCodePrinter.PluginPrinter with type code = JBirSSA.t 
 
 (** Printer for the {!A3BirSSA} code representation.*)
 module A3BirSSAPrinter : NewCodePrinter.PluginPrinter with type code = A3BirSSA.t and type expr = A3BirSSA.expr
-
+*)

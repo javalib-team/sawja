@@ -23,8 +23,35 @@ open JBasics
 open Javalib
 open JCode
 
-
 include Bir
+
+type t = bir
+
+let vars m = m.bir_vars
+let params m = m.bir_params
+let code m = m.bir_code
+let exc_tbl m = m.bir_exc_tbl
+let line_number_table m = m.bir_line_number_table
+let pc_bc2ir m = m.bir_pc_bc2ir
+let pc_ir2bc m = m.bir_pc_ir2bc 
+
+let get_source_line_number pc_ir m = 
+  bir_get_source_line_number pc_ir m
+
+let exception_edges = bir_exception_edges 
+
+let print = bir_print 
+
+let jump_target = bir_jump_target
+
+let transform ?(bcv=false) ?(ch_link = false) ?(get_formula = false) cm c = 
+  let res = jcode2bir Normal bcv ch_link false cm c in
+    if get_formula then GetFormula.run res else res
+
+let print_class = Printer.print_class
+
+let print_program = Printer.print_program
+
 
 
 
