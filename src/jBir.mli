@@ -21,7 +21,10 @@
 
 open Javalib_pack
 
-(** Stackless, unstructured intermediate representation for Java Bytecode, in which expression trees are reconstructed and method and constructor calls are folded.*)
+(** Stackless, unstructured intermediate representation for Java Bytecode, in
+ * which expression trees are reconstructed and method and constructor calls
+ * are folded. You might find transformation and representation details at
+ * {{:http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}*)
 
 (** {2 Language} *)
 

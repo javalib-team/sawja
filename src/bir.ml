@@ -487,6 +487,8 @@ let next c i =
       !k
   with _ -> raise End_of_method
 
+(*Computes successors of instruction i. They can be several successors in case
+* of conditionnal instruction.*)
 let normal_next code i =
   match code.c_code.(i) with
     | OpIf (_, n)
@@ -513,12 +515,17 @@ let compute_handlers code i =
 let succs code i =
   (normal_next code i)@(compute_handlers code i)
 
+(*[mapi f g lst] maps [lst] to a new list using [f] as transformation function.
+* [f] takes an int and an element of the list. The integer has been previously
+* computed using the g function on the previous element. This integer can be
+* used to count a lenght depending of every element of the list. *)
 let mapi f g =
   let rec aux i = function
       [] -> []
     | x::q -> (f i x)::(aux (g i x) q)
   in  aux 0
 	
+(*ByteCode Verifier*)
 module BCV = struct
 
   type typ =
@@ -924,7 +931,7 @@ module BCV = struct
 		   | `ByteBool -> TBasic `Byte
 		   | `Int2Bool -> TBasic `Int
 		   | `Object -> TObject (TClass java_lang_object)))
-      
+    
   let run bcv ?(verbose=false) cm code =
     if bcv then run verbose cm code
     else (run_dummy code)
@@ -1155,7 +1162,6 @@ let to_addr3_binop dico mode binop ssa fresh_counter s =
 		 E (Binop (binop,topE (pop s), topE s))::(pop2 s), []
 	       end)
 	  
-	  
 let to_addr3_const dico mode ssa fresh_counter c s instrs next_store next_is_junc_point_or_a_goto =
   match mode with
     | Addr3 -> 
@@ -1216,11 +1222,39 @@ and type_of_array_content t e =
 	   | `Double -> TBasic `Double
 	   | `Object -> TObject (TClass java_lang_object))
 
-(* Maps each opcode to a function of a stack that modifies its
- * according to opcode, and returns corresponding instructions if any
- * TODO : comment arguments...
+(* 
+ * Maps each opcode to a (expr list * instr list). An [expr] is a value
+ * (constant or variable) or a basic operation that return a value without side
+ * effect (an addition for exemple). [instr] is an operation which can take
+ * [expr] and which change the state of the system (a variable affectation for
+ * exemple).
+ * 
+ * [dico] : A dictionary to each variable of the program. we can directly add
+ * new variables in it (mutable structure).
+ * [mode] : precises if we are in 3 address or normal mod.
+ * [pp_var i x] : A function which return the name if available (string
+ * option) of the var at index [x] for the program point [i].
+ * [ch_link] : true if linkage operation is done.
+ * [ssa] : gives a SSA representation.
+ * [fresh_counter] : Only used with SSA representation. It is a counter that is
+ * incremented each time we add a TempVar. It allows to use unique variable
+ * name for each affectation.
+ * [i] : Current program point.
+ * [load_type i] : Returns the type of the variable referenced by the OpLoad
+ * instruction at position i.
+ * [arrayload_type jat i] : Returns the type of the variable referenced by an
+ * OpArrayLoad instruction at index pp in the code. [jat] is a jvm_array_type, it
+ * is used only when type checking is not done.
+ * [tos] : Type inference stack.
+ * [s] : Abstract stack of expression.
+ * [next_store] : If next variable is an OpStore, represents the var at this
+ * instruction index. Else equals None.
+ * [next_is_junc_point_or_a_goto] : True if next instruction is a goto or a jump.
+ * 
+ * The function takes a Jcode representing a list of opcode as implicit argument.
  *)
-let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type arrayload_type tos s next_store next_is_junc_point_or_a_goto = function
+let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
+      arrayload_type tos s next_store next_is_junc_point_or_a_goto = function
   | OpNop -> s, []
   | OpConst c -> to_addr3_const dico mode ssa fresh_counter c s [] next_store next_is_junc_point_or_a_goto
   | OpLoad (_,n) ->
@@ -2651,8 +2685,13 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	  let make_transformation no_debug = 
 	    let pp_var = search_name_localvar no_debug cm.cm_static code in
 	    let jump_target = compute_jump_target code in
-	      (* (pc -> value_type on OpLoad) * (jvm_array_type -> pc
-	       * -> value_type on ArrayLoad) *)
+            (* [load_type i] : Returns the type of the variable referenced by
+             * the OpLoad instruction at index i in the code.
+             * [arrayload_type jat pp] : Returns the type of the variable
+             * referenced by an OpArrayLoad instruction at index pp in the
+             * code. jat is a jvm_array_type, it is used only when [bcv] is
+             * false, which means that type checking is not done.
+             * *)
 	    let (load_type,arrayload_type) = BCV.run bcv cm code in
 	    let dico = make_dictionary () in
 	    let (res,debug_ok) = 
