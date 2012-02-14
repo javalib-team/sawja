@@ -374,6 +374,9 @@ and convert_object_type = function
   | TClass _ -> Op32
   | TArray _ -> Op32
 
+
+(* For an opcode and the previous type inference stack, return the updated
+* stack.*)
 let type_next = function
   | OpNop -> (function s -> s)
   | OpConst x -> (function s -> (convert_const x)::s)
@@ -540,6 +543,7 @@ module BCV = struct
     | Object
     | Array of JBasics.value_type
 
+(* The first element is the stack, the second one is the local var map. *)
   type t = typ list * typ Ptmap.t
 
   let conv = function
@@ -1063,6 +1067,7 @@ let replace_static_in_stack c f y stack =
   replace_in_stack (fun _ -> false) (fun c0 f0 -> c=c0 && f=f0) y stack
 
 
+(*Add in acc the Tempvar found in expr.*)
 let temp_in_expr acc expr =
   let rec aux acc expr =
     match expr with
@@ -1081,9 +1086,11 @@ let temp_in_opexpr acc = function
   | Uninit _ -> acc
   | E e -> temp_in_expr acc e
 
+(* Return the set of Tempvar found in the stack. *)
 let temp_in_stack s =
   List.fold_left temp_in_opexpr Ptset.empty s
 
+(*Return an integer indicating the next available Tempvar identifier.*)
 let fresh_in_stack ssa fresh_counter s =
   if ssa then 
     let x = !fresh_counter in
