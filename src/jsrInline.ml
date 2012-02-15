@@ -216,7 +216,9 @@ let next_pc c i =
       !k
   with _ -> i
 
-(** [explore_from code i] returns the couple composed by the set of OpRet pp at exit points and the set of prog points reachable from [i] in code [code].*)
+(** [explore_from code i] returns the couple composed by the set of
+    OpRet pp at exit points and the set of prog points reachable from [i]
+    in code [code].*)
 let explore_from code i =
   match code.c_code.(i) with
     | OpStore (`Object,x) ->
@@ -224,19 +226,19 @@ let explore_from code i =
 	  if Ptset.mem i set then (ex,set) 
 	  else
 	    match code.c_code.(i) with
-	    | OpJsr _ -> raise InlineSubroutineFailed (* no nested subrountines please *) 
-	    | OpRet y -> 
-		begin 
-		  if not (x=y) then raise InlineSubroutineFailed;
-		  (Ptset.add i ex,set)
-		end
-	    | OpStore (_,y)
-	    | OpLoad (_,y) when x=y -> raise InlineSubroutineFailed (* don't touch the ret adress please *)
-	    | _ -> 
-		List.fold_left aux  
-		  (ex,Ptset.add i set)
-		  (next (may_reach_a_ret code) code i)
-		  (* we remove handlers that don't reach OpRet instructions *)
+	      | OpJsr _ -> raise InlineSubroutineFailed (* no nested subrountines please *) 
+	      | OpRet y -> 
+		  begin 
+		    if not (x=y) then raise InlineSubroutineFailed;
+		    (Ptset.add i ex,set)
+		  end
+	      | OpStore (_,y)
+	      | OpLoad (_,y) when x=y -> raise InlineSubroutineFailed (* don't touch the ret adress please *)
+	      | _ -> 
+		  List.fold_left aux  
+		    (ex,Ptset.add i set)
+		    (next (may_reach_a_ret code) code i)
+		    (* we remove handlers that don't reach OpRet instructions *)
 	in
 	  aux (Ptset.empty,Ptset.add i Ptset.empty) (next_pc code.c_code i)
     | _ -> assert false
@@ -298,8 +300,9 @@ let inter (a,b) (c,d) =
 
 
 let inline code instrs subroutines =
-  (* Should not be size+pps_sub.size(+1 for ret ?) instead ?*)
   let new_size =
+    (* Add size of corresponding subroutine for each subroutine start
+       (code of the same subroutine code is added several times)*)
     List.fold_left
       (fun size (_,start) -> 
 	 let (_,_,_,size_subroutine,_,_) = subroutines start in
@@ -312,9 +315,9 @@ let inline code instrs subroutines =
       (* Create copy of subroutine code for each Jsr instr src_pp and
 	 necessary handlers linked to subroutines ...*)
       List.iter
-	(fun (i,start) ->
+	(fun (jsr_pp,jsr_trg_pp) ->
 	   let (code_start,codes,code_exit,
-		size,handlers_mine,handlers_global) = subroutines start in
+		size,handlers_mine,handlers_global) = subroutines jsr_trg_pp in
 	     Ptset.iter (fun i -> new_code.(i) <- OpInvalid) codes;
 	     new_code.(code_exit) <- OpInvalid;
 	     (* copy all suroutine code at the end of new code*)
@@ -324,13 +327,13 @@ let inline code instrs subroutines =
 		    new_code.(!current+i-code_start) <- code.c_code.(i)
 	       ) codes;
 	     (* Replace Jsr instr by Goto copy of jsr code for [i] src_pp*)
-	     new_code.(i) <- 
+	     new_code.(jsr_pp) <- 
 	       OpGoto 
-	       ((next_after_jsr code code_start)+ !current-code_start-i);
+	       ((next_after_jsr code code_start)+ !current-code_start-jsr_pp);
 	     (* Replace Ret instr by Goto [i] src_pp*)
 	     new_code.(!current+code_exit-code_start) <- 
 	       OpGoto 
-	       ((next_after_jsr code i)-(!current+code_exit-code_start));
+	       ((next_after_jsr code jsr_pp)-(!current+code_exit-code_start));
 	     handlers := 
 	       (List.map (fun e -> 
 			    {
@@ -399,7 +402,14 @@ let inline code instrs subroutines =
 	  c_attributes = code.c_attributes
 	}
 
-(** [scan_subroutine code jump_target start] returns (start pp, pp included, pp of Ret instr, length of subroutine, handlers (that catch sub) which code is included in subroutines, ohter handlers (that catch sub)).
+(** [scan_subroutine code jump_target start] returns (start pp, set of
+    pps included, pp of Ret instr, length of subroutine, handlers
+    (that catch sub) ).  [jump_target] is the array that gives
+    jump source pp (goto, handled code, etc.  except jsr) if some
+    exist for the instruction at the index in the array. [start] is
+    the starting pp of a subroutine (jump target of a jsr
+    instruction).
+
     @Raise InlineSubroutineFailed if all pp of sub are not contiguous.*)
 let scan_subroutine code jump_target start =
   (* start must be only reachable from the OpJsr *)
@@ -476,8 +486,15 @@ let inline code =
     if Ptset.is_empty jsr then Some code
     else
       try
-	(* for all jumps (handlers, goto, ... except jsr) Array(trg_pp, Pset(src_pp))*)
+	(* For all source jumps (handlers, goto, ... except jsr): Array[trg_pp] = Pset(src_pp) *)
 	let jump_target = compute_jump_target code in
+	  (* returns the map that associate: start_pp -> (start_pp,
+	     set of pps included, pp of Ret instr, length of subroutine,
+	     handlers (that catch sub) which code is included in subroutine,
+	     other handlers (that catch sub)) *)
+	  (* Invariant: set of pps included are mandatory contiguous,
+	     there is only Ret instruction accessible from the
+	     start_pp *)
 	let subroutines = 
 	  Ptset.fold
 	    (fun i map ->

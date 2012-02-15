@@ -421,16 +421,17 @@ to read the *API* documentation.
              simple_elem " : ";
              value_elem program cs ftype]
         | JCode.OpInvoke ((`Virtual o),cms) ->
-          let ccs = match o with
-            | TClass ccs -> ccs
-            | _ -> JBasics.java_lang_object 
-	  and let inst =
+          let ccs = 
+	      	  match o with
+              	  | TClass ccs -> ccs
+            	  | _ -> JBasics.java_lang_object 
+		  and inst =
               Javalib.JPrint.jopcode ~jvm:true op 
-	  in
-	    [simple_elem inst;
-             invoke_elem program cs ms pp ccs cms;
-             method_args_elem program cs ms]
-        | ... -> ...
+	      in
+	      	 [simple_elem inst;
+		     invoke_elem program cs ms pp ccs cms;
+		     method_args_elem program cs ms]
+      (*| ... -> ...*)
         | _ ->
           let inst =
             Javalib.JPrint.jopcode ~jvm:true op in

@@ -114,9 +114,8 @@ let inst_html program cs ms pp op =
           let ccs = match o with
             | TClass ccs -> ccs
             | _ -> 
-		JBasics.java_lang_object 
-	  in
-	  let inst =
+	      JBasics.java_lang_object 
+	  and inst =
 	    Javalib.JPrint.jopcode ~jvm:true op 
 	  in
             [simple_elem inst;

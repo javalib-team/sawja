@@ -6,4 +6,4 @@ make BUDDYLIB=<path2buddylib> BUDDYH=<path2buddh>
      <path2buddylib> must contain file libbdd.a (/usr/local/lib/ by default)
      <path2buddh> must contain file bdd.h (/usr/local/include/ by default)
 
-make install OR make sudo install
+make install OR sudo make install

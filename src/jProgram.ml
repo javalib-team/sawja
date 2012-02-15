@@ -431,11 +431,20 @@ let build_hierarchy ?(cn_object= JBasics.java_lang_object)
     ) cmap ClassMap.empty
 
 let map_program_classes f classes =
-  let jcmap = ClassMap.map
-    (fun c -> map_interface_or_class_context (f c) (to_ioc c))
-    classes
+  let cn_object = ref JBasics.java_lang_object in
+  let jcmap = 
+    ClassMap.mapi
+      (fun cn node -> 
+	 let _cn_object = 
+	   match super_class node with
+	       None -> cn_object := cn
+	     | Some _ -> ()
+	 in
+	   map_interface_or_class_context (f node) (to_ioc node))
+      classes
   in
-    build_hierarchy jcmap
+  let cn_object = !cn_object in
+    build_hierarchy ~cn_object jcmap
 
 let map_program2 f fpp p =
   let classes = map_program_classes f p.classes in
