@@ -3,6 +3,7 @@
  * Copyright (c)2007, 2008 Tiphaine Turpin (Université de Rennes 1)
  * Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
  * Copyright (c)2009 Nicolas Barre (INRIA)
+ * Copyright (c)2012 Pierre Vittet (INRIA)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -367,8 +368,8 @@ let to_interface_node node =
     | Class _ -> failwith "to_interface_node applied on a class node."
     | Interface i -> i
 
-let add_interface_or_class cmap c nodemap =
-  let cobject = ClassMap.find JBasics.java_lang_object cmap in
+let add_interface_or_class cn_object cmap c nodemap =
+  let cobject = ClassMap.find cn_object cmap in 
   let rec add_interface_or_class c (nodemap : 'a node ClassMap.t) =
     let cn = Javalib.get_name c in
       try
@@ -420,10 +421,13 @@ let add_interface_or_class cmap c nodemap =
 		(ClassMap.add i.i_name node nodemap, node)
   in fst (add_interface_or_class c nodemap)
 
-let build_hierarchy (cmap : 'a interface_or_class ClassMap.t) : 'a node ClassMap.t =
+
+let build_hierarchy ?(cn_object= JBasics.java_lang_object)
+                    (cmap : 'a interface_or_class ClassMap.t) 
+                     : 'a node ClassMap.t =
   ClassMap.fold
     (fun _ c m ->
-       add_interface_or_class cmap c m
+       add_interface_or_class cn_object cmap c m
     ) cmap ClassMap.empty
 
 let map_program_classes f classes =

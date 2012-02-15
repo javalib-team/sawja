@@ -189,8 +189,13 @@ val first_common_super_class : 'a class_node -> 'a class_node -> 'a class_node
 
 (** {2 Building a hierarchy from simple classes.} *)
 
-(** @raise Not_found if a needed super class is not in the given ClassMap. *)
-val build_hierarchy : 'a interface_or_class ClassMap.t -> 'a node ClassMap.t
+(** [build_hierarchy cmap cobject]
+* [cmap] is the map of each interface or class of the program.
+* [cobject] is java.lang.object. It is used as the superClass of every
+* interface. We need it as argument as Java and Javacard have different way
+* to recover it.
+* @raise Not_found if a needed super class is not in the given ClassMap. *)
+val build_hierarchy : ?cn_object:class_name -> 'a interface_or_class ClassMap.t  -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)
 
