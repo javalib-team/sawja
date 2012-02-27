@@ -4,16 +4,16 @@
  * Copyright (c)2010 Vincent Monfort (INRIA)
  *
  * This program is free software: you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public License
+ * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ * General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public
+ * You should have received a copy of the GNU General Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
@@ -143,6 +143,7 @@ let next_after_jsr c i =
 
 (* successors, except handlers *)    
 let normal_next code i = 
+  print_endline ("normal_next of "^string_of_int i);
   match code.c_code.(i) with
   | OpIf (_, n) 
   | OpIfCmp (_, n) -> (next_opcode code.c_code i)@[i+n]
@@ -172,7 +173,7 @@ let next filter_handler code i =
   (add_handlers filter_handler code i)@(normal_next code i)
 
 (* test if a OpRet may be reachable from [i] *)
-let may_reach_a_ret code i =
+let may_reach_a_ret code start_pp =
   let rec aux (set,may) i =
     if Ptset.mem i set then (set,may)
     else
@@ -183,7 +184,7 @@ let may_reach_a_ret code i =
 	      (Ptset.add i set,may)
 	      (next (fun _ -> true) code i)
   in
-    snd (aux (Ptset.empty,false) i)
+    snd (aux (Ptset.empty,false) start_pp)
 
 (* put direct targets in jumps *)
 let change_target i = function
@@ -216,11 +217,11 @@ let next_pc c i =
       !k
   with _ -> i
 
-(** [explore_from code i] returns the couple composed by the set of
-    OpRet pp at exit points and the set of prog points reachable from [i]
-    in code [code].*)
-let explore_from code i =
-  match code.c_code.(i) with
+(** [explore_from code start_pp] returns the couple composed by the set of
+    OpRet pp at exit points and the set of prog points reachable from [start_pp]
+    in code [code] (except Ret instructions).*)
+let explore_from code start_pp =
+  match code.c_code.(start_pp) with
     | OpStore (`Object,x) ->
 	let rec aux (ex,set) i =
 	  if Ptset.mem i set then (ex,set) 
@@ -240,7 +241,7 @@ let explore_from code i =
 		    (next (may_reach_a_ret code) code i)
 		    (* we remove handlers that don't reach OpRet instructions *)
 	in
-	  aux (Ptset.empty,Ptset.add i Ptset.empty) (next_pc code.c_code i)
+	  aux (Ptset.empty,Ptset.add start_pp Ptset.empty) (next_pc code.c_code start_pp)
     | _ -> assert false
 
 (* same as above but only one exit is allowed *)
@@ -323,17 +324,25 @@ let inline code instrs subroutines =
 	     (* copy all suroutine code at the end of new code*)
 	     Ptset.iter
 	       (fun i -> 
+		  (* we dont copy the OpStore linked with the Jsr
+		     instruction (at code_start)*)
 		  if i <> code_start then
 		    new_code.(!current+i-code_start) <- code.c_code.(i)
 	       ) codes;
-	     (* Replace Jsr instr by Goto copy of jsr code for [i] src_pp*)
+	     (* Replace Jsr instr by Goto (to new start of subroutine
+		excluding the OpStore linked with the Jsr
+		instruction)*)
 	     new_code.(jsr_pp) <- 
 	       OpGoto 
-	       ((next_after_jsr code code_start)+ !current-code_start-jsr_pp);
-	     (* Replace Ret instr by Goto [i] src_pp*)
+	       ((next_after_jsr code code_start)+ !current-code_start 
+		  (*to transform it to relative jmp*) - jsr_pp);
+		  (* Replace Ret instr by Goto (to instruction following
+		     the original Jsr)*)
 	     new_code.(!current+code_exit-code_start) <- 
 	       OpGoto 
-	       ((next_after_jsr code jsr_pp)-(!current+code_exit-code_start));
+	       ((next_after_jsr code jsr_pp)
+		  (*to transform it to relative jmp*) 
+		-(!current+code_exit-code_start));
 	     handlers := 
 	       (List.map (fun e -> 
 			    {
@@ -358,7 +367,7 @@ let inline code instrs subroutines =
 	     current  := !current + size
 	) 
 	instrs;
-      
+   
       let next = next_pc new_code in
       let first_valid pp = 
 	(* If pp is out of bounds, it is the last pp of code (exclusive
@@ -489,9 +498,10 @@ let inline code =
 	(* For all source jumps (handlers, goto, ... except jsr): Array[trg_pp] = Pset(src_pp) *)
 	let jump_target = compute_jump_target code in
 	  (* returns the map that associate: start_pp -> (start_pp,
-	     set of pps included, pp of Ret instr, length of subroutine,
-	     handlers (that catch sub) which code is included in subroutine,
-	     other handlers (that catch sub)) *)
+	     set of pps included (except Ret), pp of Ret instr, length
+	     of subroutine, handlers (that catch sub) which code is
+	     included in subroutine, other handlers (that catch
+	     sub)) *)
 	  (* Invariant: set of pps included are mandatory contiguous,
 	     there is only Ret instruction accessible from the
 	     start_pp *)

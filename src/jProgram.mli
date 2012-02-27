@@ -5,16 +5,16 @@
  * Copyright (c)2009 Nicolas Barre (INRIA)
  *
  * This program is free software: you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public License
+ * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
  * the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ * General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public
+ * You should have received a copy of the GNU General Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
@@ -189,12 +189,14 @@ val first_common_super_class : 'a class_node -> 'a class_node -> 'a class_node
 
 (** {2 Building a hierarchy from simple classes.} *)
 
-(** [build_hierarchy cmap cobject]
-* [cmap] is the map of each interface or class of the program.
-* [cobject] is java.lang.object. It is used as the superClass of every
-* interface. We need it as argument as Java and Javacard have different way
-* to recover it.
-* @raise Not_found if a needed super class is not in the given ClassMap. *)
+(** [build_hierarchy ~cn_object cmap] builds the hierarchy of classes
+    given the map of {interface_or_class}. [cn_object] must be the
+    {class_name} of java.lang.Object class (its default value is
+    java.lang.Object {class_name} of Java), for Java program do not
+    modify the default value.
+
+    @raise Not_found if a needed super class is not in the given
+    ClassMap. *)
 val build_hierarchy : ?cn_object:class_name -> 'a interface_or_class ClassMap.t  -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)
