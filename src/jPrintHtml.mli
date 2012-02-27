@@ -32,7 +32,8 @@ open JProgram
   
 (** {2 Program information.} *)
   
-(** This type represents the information that will be printed. *)
+(** This type represents the information that will be printed. String line
+    break are interpreted into html line break. *)
 type info = {
   p_class : class_name -> string list;
   (** Prints class information that is printed inside the class, along with
@@ -59,7 +60,7 @@ val void_info : info
 type elem
 
 (** [simple_elem s] Builds an [elem] from a string [s]. No html effect
-    is provided. *)
+    is provided except that line break are transformed into html line break. *)
 val simple_elem : string -> elem
 
 (** [value_elem ~dim p cn v] builds an [elem] from a program [p],

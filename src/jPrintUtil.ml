@@ -29,6 +29,7 @@ let replace_forb_xml_ch ?(repl_amp=false) s =
 	 | '>' -> "&gt;"
 	 | '"' -> "&quot;"
 	 | '\'' -> "&apos;"
+         | '\n' -> "<br/>"
 	 | c -> String.make 1 c)
       s
 
