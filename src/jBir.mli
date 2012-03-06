@@ -68,7 +68,7 @@ module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 (** {3 Expressions} *)
 
 (** Constants *)
-type const = JCode.jconst
+type const = Bir.const
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D

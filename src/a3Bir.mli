@@ -68,17 +68,7 @@ module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 (** {3 Expressions} *)
 
 (** Constants *)
-type const = [
-| `ANull
-| `Int of int32
-| `Long of int64
-| `Float of float
-| `Double of float
-| `Byte of int
-| `Short of int
-| `String of JBasics.jstr
-| `Class of JBasics.object_type
-]
+type const = Bir.const
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D

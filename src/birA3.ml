@@ -46,8 +46,6 @@ let type_of_expr = function
 	| `ANull
 	| `Class _
 	| `String _ -> TObject (TClass java_lang_object)
-	| `Byte _
-	| `Short _ 
 	| `Int _ -> TBasic `Int
 	| `Double _ -> TBasic `Double
 	| `Float _ -> TBasic `Float

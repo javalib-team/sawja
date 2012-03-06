@@ -27,7 +27,7 @@ open JCode
 include Cmn
 
 type expr =
-  | Const of jconst
+  | Const of const
   | Var of JBasics.value_type * var
   | Unop of unop * expr
   | Binop of binop * expr * expr
@@ -929,10 +929,10 @@ module BCV = struct
 		   | `Long -> TBasic `Long
 		   | `Float -> TBasic `Float
 		   | `Double -> TBasic `Double
+		   | `ByteBool
+		   | `Short
 		   | `Int -> TBasic `Int
-		   | `Short -> TBasic `Short
 		   | `Char ->  TBasic `Char
-		   | `ByteBool -> TBasic `Byte
 		   | `Int2Bool -> TBasic `Int
 		   | `Object -> TObject (TClass java_lang_object)))
     
@@ -1263,7 +1263,8 @@ and type_of_array_content t e =
 let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       arrayload_type tos s next_store next_is_junc_point_or_a_goto = function
   | OpNop -> s, []
-  | OpConst c -> to_addr3_const dico mode ssa fresh_counter c s [] next_store next_is_junc_point_or_a_goto
+  | OpConst c -> to_addr3_const dico mode ssa fresh_counter (jconst2const c) s
+                   [] next_store next_is_junc_point_or_a_goto
   | OpLoad (_,n) ->
       E (Var (load_type i,make_var dico (OriginalVar (n,pp_var i n))))::s, []
   | OpArrayLoad t ->

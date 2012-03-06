@@ -175,7 +175,19 @@ let print_handler exc =
 
 (* Basic types *)
 
-type const = JCode.jconst
+
+(* This is the same type as JCode.jconst except that we now consider byte and
+* short as integer (as they are coded on 32 bits.).*)
+type const = [
+| `ANull
+| `Int of int32
+| `Long of int64
+| `Float of float
+| `Double of float
+| `String of JBasics.jstr
+| `Class of JBasics.object_type
+]
+
 
 type conv = I2L | I2F | I2D   | L2I | L2F | L2D   | F2I | F2L | F2D  | D2I | D2L | D2F  | I2B | I2C | I2S
 
@@ -215,6 +227,18 @@ let basic_to_num = function
   | `Long -> `Long
   | `Double -> `Double
   | `Float -> `Float
+
+
+let jconst2const = function
+  | `ANull -> `ANull
+  | `Long c -> `Long c
+  | `Float c ->  `Float c
+  | `Double c -> `Double c
+  | `Byte c
+  | `Short c  -> `Int (Int32.of_int c)
+  | `Int c -> `Int c
+  | `String c -> `String c
+  | `Class c -> `Class c
 
 
 (* Printing functions *)
