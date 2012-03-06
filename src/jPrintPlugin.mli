@@ -215,23 +215,23 @@ sig
   sig
     
     (** The code representation (equivalent of {!Javalib_pack.JCode.jcode}, {!JBir.t}, etc.*)
-    type code
+    type p_code
 
       (** Type that could be use to provide an information more
 	  precise than an instruction for warnings on program points
 	  (e.g.: [unit] for {!Javalib_pack.JCode}, {!JBir.expr} for {!JBir}, etc.)*)
-    type expr
+    type p_expr
 
     (** [get_source_line_number pc code] returns the source line number corresponding the program point pp of the method code m.*)
-    val get_source_line_number : int -> code -> int option
+    val get_source_line_number : int -> p_code -> int option
 
     (** [inst_disp pc code] returns a string representation of the
 	instruction [pc] in [code].*)
-    val inst_disp : int -> code -> string
+    val inst_disp : int -> p_code -> string
 
     (** Function to provide in order to display the source variable
 	names in the method signatures. *)
-    val method_param_names : code Javalib.interface_or_class -> method_signature
+    val method_param_names : p_code Javalib.interface_or_class -> method_signature
       -> string list option
 
     (** This function should transform a {!precise_warning_pp} from a
@@ -240,8 +240,8 @@ sig
 	existant implementation of to_plugin_warning or simply return
 	the same Ptmap.t (in this case the precision is the Java
 	source line).  *)
-    val to_plugin_warning : code jmethod ->  expr precise_warning_pp list Ptmap.t 
-      -> expr precise_warning_pp list Ptmap.t
+    val to_plugin_warning : p_code jmethod ->  p_expr precise_warning_pp list Ptmap.t 
+      -> p_expr precise_warning_pp list Ptmap.t
 
   end
 
@@ -283,7 +283,9 @@ sig
 
     (** Functor building a printer for the Sawja Eclipse Plugin
     given the {!PrintInterface} for a specific code represenation.*)
-  module Make (S : PrintInterface) : PluginPrinter
+  module Make (S : PrintInterface) : PluginPrinter 
+    with type code = S.p_code
+    and type expr = S.p_expr
 
 end
 

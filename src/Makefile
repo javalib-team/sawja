@@ -24,6 +24,7 @@
 DOCDIR:=../$(DOCDIR)
 DATAFLOW=dataflow_analyses/
 INCLUDE:=$(INCLUDE) -I $(DATAFLOW)
+SED=sed
 
 CSS=\"style.css\"
 
@@ -67,9 +68,9 @@ all: sawja.cma sawja.cmxa $(SHARED)
 
 META: META.source ../Makefile.config
 	if [ "$(BUDDY)" = "yes" ]; then \
-		sed 's/requires = "javalib"/requires = "javalib,buddy"/' $< > $@ ; \
+		$(SED) 's/requires = "javalib"/requires = "javalib,buddy"/' $< > $@ ; \
 	else \
-		sed 's/requires = "javalib"/requires = "javalib,ptrees"/' $< > $@ ; \
+		$(SED) 's/requires = "javalib"/requires = "javalib,ptrees"/' $< > $@ ; \
 	fi
 
 install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
@@ -143,9 +144,9 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
 	cp $(JAVALIB)/jBasics.mli ./javalib_pack.JBasics.mli
 	cp $(JAVALIB)/jCode.mli ./javalib_pack.JCode.mli
-	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
-	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
-	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
+	$(SED) -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
+	$(SED) -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
+	$(SED) -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(HIDE_MOD_IN_DOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES_DOC:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
@@ -153,19 +154,19 @@ doc: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
 
 doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
-	sed -i 's/(\*\*\/\*\*)/(\*\*\*\/\*\*\*)/g' *.mli
+	$(SED) -i 's/(\*\*\/\*\*)/(\*\*\*\/\*\*\*)/g' *.mli
 	cp $(JAVALIB)/javalib.mli ./javalib_pack.Javalib.mli
 	cp $(JAVALIB)/jBasics.mli ./javalib_pack.JBasics.mli
 	cp $(JAVALIB)/jCode.mli ./javalib_pack.JCode.mli
-	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
-	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
-	sed -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
+	$(SED) -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.Javalib.mli
+	$(SED) -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JBasics.mli
+	$(SED) -i '0,/^/s/^/open Javalib_pack\n/' ./javalib_pack.JCode.mli
 	mkdir -p $(DOCDIR)
 	$(OCAMLDOC) $(HIDE_MOD_IN_DOC) $(RECODE) $(INCLUDE) -d $(DOCDIR) -colorize-code -t Sawja	\
 		-html -stars -intro ../intro.ocamldoc $(MODULE_INTERFACES:=.mli) javalib_pack.Javalib.mli javalib_pack.JBasics.mli javalib_pack.JCode.mli
 	echo "</body></html>" >> $(DOCDIR)/index.html # workaround for a bug in ocamldoc
 	rm ./javalib_pack.Javalib.mli ./javalib_pack.JBasics.mli ./javalib_pack.JCode.mli
-	sed -i 's/(\*\*\*\/\*\*\*)/(\*\*\/\*\*)/g' *.mli
+	$(SED) -i 's/(\*\*\*\/\*\*\*)/(\*\*\/\*\*)/g' *.mli
 
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *~ \

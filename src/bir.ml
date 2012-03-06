@@ -3997,3 +3997,193 @@ struct
 end
 
 module Printer = JPrintHtml.Make(PrintIR)
+
+
+(*  JPrintPlugin utilities *)
+open JPrintPlugin.NewCodePrinter
+
+module MakeCodeExcFunctions =
+struct
+
+  open AdaptedASTGrammar
+
+  let to_plugin_warning' get_code get_exc jm pp_warn_map ast_of_i ast_of_e =
+    let handlers_pc_map code = 
+      if (Ptmap.is_empty pp_warn_map)
+      then Ptmap.empty
+      else
+	List.fold_left
+	  (fun map eh -> 
+	     Ptmap.add eh.e_handler eh.e_catch_type map
+	  )
+	  Ptmap.empty
+	  (get_exc code)
+    in
+    let get_precise_warn_generation handlers_pc_map pc op lw msg =
+      let try_catch_or_finally = 
+	try 
+	  Some(
+	    match Ptmap.find pc handlers_pc_map with
+		None -> PreciseLineWarning (msg,Statement Finally)
+	      | Some cn -> PreciseLineWarning (msg, Statement (Catch cn)))
+	with Not_found ->
+	  None
+      in
+	match try_catch_or_finally with
+	    Some pw -> pw
+	  | None -> 
+	      (match ast_of_i op with
+		   Some node -> PreciseLineWarning (msg,node)
+		 | None -> lw)
+    in
+      match jm with
+	  AbstractMethod _ -> pp_warn_map
+	| ConcreteMethod cm -> 
+	    begin
+	      match cm.cm_implementation with
+		  Native -> pp_warn_map
+		| Java laz -> let cod = Lazy.force laz in
+		  let handlers_map = handlers_pc_map cod in
+		    Ptmap.mapi
+		      (fun pc ppwlist -> 
+			 let op = (get_code cod).(pc) in
+			   List.map 
+			     (fun ppw -> 
+				match ppw with
+				    PreciseLineWarning _ -> ppw
+				  | LineWarning (msg,None) as lw -> 
+				      get_precise_warn_generation handlers_map pc op lw msg
+				  | LineWarning (msg,Some expr) as lw -> 
+				      (match ast_of_e expr with
+					   Some node -> PreciseLineWarning (msg,node)
+					 | None -> 
+					     get_precise_warn_generation handlers_map pc op lw msg)
+			     )
+			     ppwlist)
+		      pp_warn_map
+	    end
+
+
+  let inst_disp' printf pp cod = 
+    let printf_esc = 
+      (fun i -> JPrintUtil.replace_forb_xml_ch ~repl_amp:true (printf i))
+    in
+      printf_esc (cod.bir_code).(pp)
+
+  let get_source_line_number pp code =
+    bir_get_source_line_number pp code
+
+
+end
+
+module IRUtil =
+struct
+  
+  let iter_code f lazy_code =
+    try
+      let instrs =  (Lazy.force lazy_code).bir_code in
+	Array.iteri (fun i ins -> f i [ins]) instrs
+    with _ -> 
+      print_endline "Lazy.force fail";
+      ()
+
+end
+
+
+(* Common functions for JBir-like representation (JBir and JBirSSA)*)
+module MakeBirLikeFunctions (* (S : JBir.Internal.CodeInstrSig) = *) =
+struct
+
+  include IRUtil
+
+  include MakeCodeExcFunctions
+
+  type p_code = bir
+  type p_instr = instr
+  type p_expr = expr
+
+  let method_param_names = method_param_names (fun x -> x)
+
+  let find_ast_node_of_expr =
+    function 
+      | Const _ -> None
+      | Binop (ArrayLoad vt,_,_) -> 
+	  Some (AdaptedASTGrammar.Expression (AdaptedASTGrammar.ArrayAccess (Some vt)))
+      | Binop (_,_,_) -> None
+      | Unop (InstanceOf ot,_) -> 
+	  Some (AdaptedASTGrammar.Expression(AdaptedASTGrammar.InstanceOf ot))
+      | Unop (Cast ot,_) -> 
+	  Some (AdaptedASTGrammar.Expression(AdaptedASTGrammar.Cast ot))
+      | Unop (_,_) -> None
+      | Var (vt,var) -> 
+	  Some (AdaptedASTGrammar.Name (AdaptedASTGrammar.SimpleName (var_name_g var,Some vt)))
+      | Field (_,_,fs) 
+      | StaticField (_,fs) -> 
+	  Some (AdaptedASTGrammar.Name
+		  (AdaptedASTGrammar.SimpleName (fs_name fs,Some (fs_type fs))))
+
+  let find_ast_node =
+    function
+      | Goto _ 
+      | MayInit _ 
+      | Nop -> None
+      | AffectField (_,_,fs,_)
+      | AffectStaticField (_,fs,_) -> 
+	  Some ( AdaptedASTGrammar.Expression
+		   (AdaptedASTGrammar.Assignment 
+		      (AdaptedASTGrammar.SimpleName (fs_name fs,Some (fs_type fs)))))
+      | Ifd ((_cmp,_e1,_e2), _pc) -> 
+	  Some (AdaptedASTGrammar.Statement 
+		  AdaptedASTGrammar.If)
+      | Return _ -> 
+	  Some (AdaptedASTGrammar.Statement AdaptedASTGrammar.Return)
+      | Throw _ -> 
+	  Some (AdaptedASTGrammar.Statement AdaptedASTGrammar.Throw)
+      | AffectVar (v,e) -> 
+	  Some (AdaptedASTGrammar.Expression
+		  (AdaptedASTGrammar.Assignment 
+		     (AdaptedASTGrammar.SimpleName (var_name_g v,Some (type_of_expr e)))))
+      | MonitorEnter _e -> 
+	  Some (AdaptedASTGrammar.Statement
+		  (AdaptedASTGrammar.Synchronized true))
+      | MonitorExit _e -> 
+	  Some (AdaptedASTGrammar.Statement
+		  (AdaptedASTGrammar.Synchronized false))
+      | NewArray (_v,vt,_le) -> 
+	  Some (AdaptedASTGrammar.Expression
+		  (AdaptedASTGrammar.ArrayCreation vt))
+      | New (_v,cn,_vtl,_le) -> 
+	  Some (AdaptedASTGrammar.Expression
+		  (AdaptedASTGrammar.ClassInstanceCreation cn))
+      | AffectArray (_e1,_e2,e3) -> 
+	  Some (AdaptedASTGrammar.Expression
+		  (AdaptedASTGrammar.ArrayStore (Some (type_of_expr e3))))		  
+      | InvokeVirtual (_,_e,vk,ms,_le) ->
+	  begin
+	    match vk with
+		VirtualCall ot -> 
+		  Some (AdaptedASTGrammar.Expression
+			  (AdaptedASTGrammar.MethodInvocationVirtual (ot,ms)))
+	      | InterfaceCall cn -> 
+		  Some (AdaptedASTGrammar.Expression
+			  (AdaptedASTGrammar.MethodInvocationNonVirtual (cn,ms)))
+	  end
+      | InvokeStatic (_,cn,ms,_le) 
+      | InvokeNonVirtual (_,_,cn,ms,_le) -> 
+	  Some (AdaptedASTGrammar.Expression
+		  (AdaptedASTGrammar.MethodInvocationNonVirtual (cn,ms)))
+      | Check _ -> None
+      | Formula _ -> None
+
+  let inst_disp = 
+    inst_disp' print_instr
+      
+  let to_plugin_warning jm pp_warn_map = 
+    to_plugin_warning' (fun c -> c.bir_code) (fun c -> c.bir_exc_tbl)
+      jm pp_warn_map find_ast_node find_ast_node_of_expr
+
+
+end
+
+module PluginPrinter = JPrintPlugin.NewCodePrinter.Make(MakeBirLikeFunctions)
+

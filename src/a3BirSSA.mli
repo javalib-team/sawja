@@ -388,6 +388,11 @@ val print_program :
 val print_class :
   ?css:string -> ?js:string -> ?info:JPrintHtml.info -> t Javalib.interface_or_class -> string -> unit
 
+(** Printer for the Sawja Eclipse Plugin (see module JPrintPlugin) *)
+module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter 
+  with type code = t 
+  and type expr = expr
+
 (** {2 Bytecode transformation} *)
 
 (** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]

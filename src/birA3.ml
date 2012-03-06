@@ -354,4 +354,59 @@ let print_class = Printer.print_class
 
 let print_program = Printer.print_program
 
+
+
+open JPrintPlugin.NewCodePrinter
+module MakeBirLikeFunctions =
+struct
+
+  include Bir.IRUtil
+
+  let method_param_names = Bir.method_param_names (fun x -> x.bir)
+
+  include Bir.MakeCodeExcFunctions
+
+  type p_code = t
+  type p_instr = instr
+  type p_expr = expr
+
+  let find_ast_node_of_expr =
+    function 
+      | Const _ -> None
+      | Binop (ArrayLoad vt,_,_) -> 
+	  Some (AdaptedASTGrammar.Expression (AdaptedASTGrammar.ArrayAccess (Some vt)))
+      | Binop (_,_,_) -> None
+      | Unop (InstanceOf ot,_) -> 
+	  Some (AdaptedASTGrammar.Expression(AdaptedASTGrammar.InstanceOf ot))
+      | Unop (Cast ot,_) -> 
+	  Some (AdaptedASTGrammar.Expression(AdaptedASTGrammar.Cast ot))
+      | Unop (_,_) -> None
+      | Var (vt,var) -> 
+	  Some (AdaptedASTGrammar.Name (AdaptedASTGrammar.SimpleName (var_name_g var,Some vt)))
+      | Field (_,_,fs) 
+      | StaticField (_,fs) -> 
+	  Some (AdaptedASTGrammar.Name
+		  (AdaptedASTGrammar.SimpleName (fs_name fs,Some (fs_type fs))))
+
+  let inst_disp' printf pp cod = 
+    let printf_esc = 
+      (fun i -> JPrintUtil.replace_forb_xml_ch ~repl_amp:true (printf i))
+    in
+      printf_esc (cod.code).(pp)
+
+  let get_source_line_number pp code =
+    Bir.bir_get_source_line_number pp code.bir
+
+  let inst_disp = 
+    inst_disp' print_instr
+      
+  let to_plugin_warning jm pp_warn_map = 
+    to_plugin_warning' (fun c -> c.bir.Bir.bir_code)  (fun c -> c.bir.Bir.bir_exc_tbl) 
+      jm pp_warn_map Bir.MakeBirLikeFunctions.find_ast_node find_ast_node_of_expr
+
+
+end
+
+module PluginPrinter = JPrintPlugin.NewCodePrinter.Make(MakeBirLikeFunctions)
+
       

@@ -215,33 +215,3 @@ sig
 
 end
 
-module IRUtil (Code : CodeSig) = 
-struct
-  
-  let iter_code f lazy_code =
-    try
-      let instrs = Code.code (Lazy.force lazy_code) in
-	Array.iteri (fun i ins -> f i [ins]) instrs
-    with _ -> 
-      print_endline "Lazy.force fail";
-      ()
-  let method_param_names ioc ms =
-    let m = Javalib.get_method ioc ms in
-      match m with
-	| AbstractMethod _
-	| ConcreteMethod {cm_implementation = Native} -> None
-	| ConcreteMethod ({cm_implementation = Java code} as cm) ->
-	    try
-	      let code = Lazy.force code in
-	      let is_static = cm.cm_static in
-		Some
-		  (ExtList.List.mapi
-		     (fun i _ ->
-			let n = if is_static then i else i + 1 in
-			let var = snd (List.nth (Code.params code) n) in
-			  Code.var_name_g var
-		     ) (ms_args ms)
-		  )
-	    with _ -> None
-end
-
