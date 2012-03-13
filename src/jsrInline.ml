@@ -143,23 +143,22 @@ let next_after_jsr c i =
 
 (* successors, except handlers *)    
 let normal_next code i = 
-  print_endline ("normal_next of "^string_of_int i);
   match code.c_code.(i) with
-  | OpIf (_, n) 
-  | OpIfCmp (_, n) -> (next_opcode code.c_code i)@[i+n]
-  | OpGoto n -> [i+n]
-  | OpJsr _ 
-  | OpRet _  -> raise InlineSubroutineFailed
-  | OpBreakpoint 
+    | OpIf (_, n) 
+    | OpIfCmp (_, n) -> (next_opcode code.c_code i)@[i+n]
+    | OpGoto n -> [i+n]
+    | OpJsr _ 
+    | OpRet _  -> raise InlineSubroutineFailed
+    | OpBreakpoint 
 
-  | OpInvalid -> assert false
-  | OpTableSwitch (default, _, _, table) ->
-      List.map (( + ) i) (default :: Array.to_list table)
-  | OpLookupSwitch (default, npairs) ->
-      List.map (( + ) i) (default :: List.map snd npairs)
-  | OpReturn _ -> []
-  | OpThrow -> []
-  | _ -> next_opcode code.c_code i
+    | OpInvalid -> assert false
+    | OpTableSwitch (default, _, _, table) ->
+	List.map (( + ) i) (default :: Array.to_list table)
+    | OpLookupSwitch (default, npairs) ->
+	List.map (( + ) i) (default :: List.map snd npairs)
+    | OpReturn _ -> []
+    | OpThrow -> []
+    | _ -> next_opcode code.c_code i
 
 (* all handlers that may catch exception thrown in [i] (filtered by filter) *)
 let add_handlers filter code i =
