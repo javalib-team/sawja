@@ -21,10 +21,11 @@
 
 open Javalib_pack
 
-(** Stackless, unstructured intermediate representation for Java Bytecode, in
- * which expression trees are reconstructed and method and constructor calls
- * are folded. You might find transformation and representation details at
- * {{:http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}*)
+(** Stackless, unstructured intermediate representation for Java
+    Bytecode, in which expression trees are reconstructed and method and
+    constructor calls are folded. You might find transformation and
+    representation details at
+    {{:http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}*)
 
 (** {2 Language} *)
 
@@ -68,7 +69,15 @@ module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
 (** {3 Expressions} *)
 
 (** Constants *)
-type const = Bir.const
+type const = [
+| `ANull
+| `Int of int32
+| `Long of int64
+| `Float of float
+| `Double of float
+| `String of JBasics.jstr
+| `Class of JBasics.object_type
+]
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D

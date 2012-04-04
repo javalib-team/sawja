@@ -29,7 +29,6 @@ let replace_forb_xml_ch ?(repl_amp=false) s =
 	 | '>' -> "&gt;"
 	 | '"' -> "&quot;"
 	 | '\'' -> "&apos;"
-         | '\n' -> "<br/>"
 	 | c -> String.make 1 c)
       s
 
@@ -95,6 +94,17 @@ let create_package_dir outputdir package =
 	    ) (Filename.concat outputdir hd) tl in
 	  create_dir dirname
 	    
+let replace_pcdata_ch s =
+  ExtString.String.replace_chars
+    (function
+       | '<' -> "&lt;"
+       | '>' -> "&gt;"
+       | '"' -> "&quot;"
+       | '\'' -> "&apos;"
+       | '\n' -> "<br/>"
+       | c -> String.make 1 c)
+    s
+
 let print_xml_tree_ext ?(br=true) ?(spc=0) xmltree out =
   let rec print dec xmltree =
     let spc = String.make (dec * spc) ' ' in
@@ -116,7 +126,7 @@ let print_xml_tree_ext ?(br=true) ?(spc=0) xmltree out =
 	    IO.nwrite out spc;
 	    IO.nwrite out tag;
 	| PCData data ->
-	    let data = replace_forb_xml_ch data in
+	    let data = replace_pcdata_ch data in
 	      if br then
 		IO.write out '\n';
 	      IO.nwrite out spc;
