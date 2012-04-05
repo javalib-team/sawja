@@ -430,7 +430,7 @@ let build_hierarchy ?(cn_object= JBasics.java_lang_object)
        add_interface_or_class cn_object cmap c m
     ) cmap ClassMap.empty
 
-let map_program_classes f classes =
+let map_program_classes map_iorc_context f classes =
   let cn_object = ref JBasics.java_lang_object in
   let jcmap = 
     ClassMap.mapi
@@ -440,13 +440,13 @@ let map_program_classes f classes =
 	       None -> cn_object := cn
 	     | Some _ -> ()
 	 in
-	   map_interface_or_class_context (f node) (to_ioc node))
+	   map_iorc_context (f node) (to_ioc node))
       classes
   in
   let cn_object = !cn_object in
     build_hierarchy ~cn_object jcmap
 
-let map_program2 f fpp p =
+let map_program2' map_program_classes f fpp p =
   let classes = map_program_classes f p.classes in
   let slm = 
     match fpp with
@@ -485,6 +485,17 @@ let map_program2 f fpp p =
       static_lookup_method = slm	  
     }
 
+let map_program2 f fpp p = 
+  map_program2' (map_program_classes map_interface_or_class_context) f fpp p
+
 let map_program f =
   map_program2
+    (fun node cm -> f (get_name node) cm.cm_signature)
+
+let map_program_with_native2 f fpp p = 
+  map_program2' 
+    (map_program_classes map_interface_or_class_with_native_context) f fpp p
+
+let map_program_with_native f =
+  map_program_with_native2
     (fun node cm -> f (get_name node) cm.cm_signature)

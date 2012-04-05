@@ -222,6 +222,28 @@ val map_program :
 val map_program2 :
   ('a node -> 'a concrete_method -> 'a -> 'b) -> ('b -> int -> int) option -> 'a program -> 'b program
 
+(** {3 Alternative transforming functions} *)
+
+(** [map_program_with_native f fpp p] is equivalent to {!map_program}
+    but allows to transform not only the code representation but also
+    the implementation type. It provides a way to modify the nature of
+    implementation to [Native] if the code could not be transformed or
+    conversly to provide a generated code for [Native]
+    implementation. *)
+val map_program_with_native :
+  (class_name -> method_signature -> 'a implementation -> 'b implementation) -> 
+  ('b -> int -> int) option -> 'a program -> 'b program
+
+(** [map_program_with_native2 f fpp p] is equivalent to
+    {!map_program2} but allows to transform not only the code
+    representation but also the implementation type. It provides a way
+    to modify the nature of implementation to [Native] if the code
+    could not be transformed or conversly to provide a generated code
+    for [Native] implementation.*)
+val map_program_with_native2 :
+  ('a node -> 'a concrete_method -> 'a implementation -> 'b implementation) -> ('b -> int -> int) option -> 'a program -> 'b program
+
+
 (** {2 Callgraph.} *)
 
 type callgraph = ((class_name * method_signature * int)
