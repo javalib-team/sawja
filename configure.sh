@@ -62,7 +62,7 @@ FLAGS="-w Aer"
 # Do version check for packages 
 VCHECK="true"
 
-JAVALIB_VERSION="2.2.1"
+JAVALIB_VERSION="2.3"
 
 # The camlp4o pretty-printer
 PP=
@@ -151,7 +151,7 @@ Options:
 #
 # The option parsing function. Uses getopts, a bash built-in function.
 #
-while getopts "d:b:l:h" opt
+while getopts "d:b:l:hv" opt
 do
   case $opt in 
     h   ) print_usage
