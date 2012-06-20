@@ -15,7 +15,7 @@
 ###     
 ###     
 ### Copyright (c)2010 Florent Kirchner
-### Copyright (c)2010 Vincent Monfort
+### Copyright (c)2010, 2012 Vincent Monfort
 ###     
 ### This program is free software: you can redistribute it and/or
 ### modify it under the terms of the GNU General Public License
@@ -59,6 +59,10 @@ BUDDY=no
 OPT_FLAGS=
 # The ocamlc flags (depends on DEBUG)
 FLAGS="-w Aer"
+# Do version check for packages 
+VCHECK="true"
+
+JAVALIB_VERSION="2.2.1"
 
 # The camlp4o pretty-printer
 PP=
@@ -98,26 +102,30 @@ function msg()
   fi
 }
 
+#
+# Compare version numbers: return 10 if ==, 11 if v1 > v2 and 9 if v1 < v2
+#
+function do_version_check() {
 
-#
-# The push function takes an atom and a variable that contains a list, and
-# performs the corresponding push.
-#
-# For instance, if LIST=bar\ baz, then after 'push foo LIST', LIST=foo\ bar\ baz.
-#
-function push ()
-{
-  if [ $# -ne 2 ]; then
-    msg "ser" "push" "incorrect number of message arguments"
-  fi
-  atom=$1
-  list=$2
-  if [ -z "${!list}" ]; then
-    eval $list=$atom
-  else
-    eval $list="$atom\ ${!list}"
-  fi
-  return 0
+   [ "$1" == "$2" ] && return 10
+
+   ver1front=`echo $1 | cut -d "." -f -1`
+   ver1back=`echo $1 | cut -d "." -f 2-`
+
+   ver2front=`echo $2 | cut -d "." -f -1`
+   ver2back=`echo $2 | cut -d "." -f 2-`
+
+   if [ "$ver1front" != "$1" ] || [ "$ver2front" != "$2" ]; then
+       [ "$ver1front" -gt "$ver2front" ] && return 11
+       [ "$ver1front" -lt "$ver2front" ] && return 9
+
+       [ "$ver1front" == "$1" ] || [ -z "$ver1back" ] && ver1back=0
+       [ "$ver2front" == "$2" ] || [ -z "$ver2back" ] && ver2back=0
+       do_version_check "$ver1back" "$ver2back"
+       return $?
+   else
+           [ "$1" -gt "$2" ] && return 11 || return 9
+   fi
 }
 
 
@@ -134,6 +142,7 @@ Options:
   \t\t This also needs to be the Javalib installation directory
   -d FLAG \t Use the debug flag when compiling (default: yes).
   -b FLAG \t Compile Sawja to use the Buddy BDD library (default: no).
+  -v  \t\t Deactivate version check for ocaml packages.
   -h  \t\t Print this message and exit."
 }
 #   -s  \t\t Complile a dynamically loadable plugin (cmxs).
@@ -147,6 +156,7 @@ do
   case $opt in 
     h   ) print_usage
           exit 0;;
+    v   ) VCHECK="false";;
     b   ) BUDDY="$OPTARG";;
     d   ) DEBUG=$OPTARG;;
     l   ) case "$OPTARG" in
@@ -257,12 +267,21 @@ Use your system's software packaging tools to install Perl, or download it from:
 http://www.perl.org/get.html"
 fi
 
+
 #
 # Check for Javalib and Buddy.
 #
 JAVALIB=`$FINDER query javalib 2>/dev/null`
 if [ $? = 0 ]; then
-  msg "inf" "Package javalib found at $JAVALIB"
+    aversion=`$FINDER query javalib -format %v`
+    rversion=$JAVALIB_VERSION
+    do_version_check $aversion $rversion
+    if [ $? -eq 9 ] && [ $VCHECK = "true" ];
+    then
+        msg "err" "Package javalib old version found ($JAVALIB) in version $aversion (< $rversion needed), will need to be compiled and installed."
+    else
+        msg "inf" "Package javalib v$aversion found at $JAVALIB"
+    fi
 else
   msg "err" "Package javalib not found: check your installation. In particular, if you performed a non-global installation of Javalib, use the -l flag to specify its location"  
 fi

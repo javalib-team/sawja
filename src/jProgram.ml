@@ -368,8 +368,8 @@ let to_interface_node node =
     | Class _ -> failwith "to_interface_node applied on a class node."
     | Interface i -> i
 
-let add_interface_or_class cn_object cmap c nodemap =
-  let cobject = ClassMap.find cn_object cmap in 
+let add_interface_or_class cmap c nodemap =
+  let cobject = ClassMap.find JBasics.java_lang_object cmap in 
   let rec add_interface_or_class c (nodemap : 'a node ClassMap.t) =
     let cn = Javalib.get_name c in
       try
@@ -422,29 +422,22 @@ let add_interface_or_class cn_object cmap c nodemap =
   in fst (add_interface_or_class c nodemap)
 
 
-let build_hierarchy ?(cn_object= JBasics.java_lang_object)
-                    (cmap : 'a interface_or_class ClassMap.t) 
-                     : 'a node ClassMap.t =
+let build_hierarchy 
+    (cmap : 'a interface_or_class ClassMap.t) 
+    : 'a node ClassMap.t =
   ClassMap.fold
     (fun _ c m ->
-       add_interface_or_class cn_object cmap c m
+       add_interface_or_class cmap c m
     ) cmap ClassMap.empty
 
 let map_program_classes map_iorc_context f classes =
-  let cn_object = ref JBasics.java_lang_object in
   let jcmap = 
-    ClassMap.mapi
-      (fun cn node -> 
-	 let _cn_object = 
-	   match super_class node with
-	       None -> cn_object := cn
-	     | Some _ -> ()
-	 in
-	   map_iorc_context (f node) (to_ioc node))
+    ClassMap.map
+      (fun node -> 
+	 map_iorc_context (f node) (to_ioc node))
       classes
   in
-  let cn_object = !cn_object in
-    build_hierarchy ~cn_object jcmap
+    build_hierarchy jcmap
 
 let map_program2' map_program_classes f fpp p =
   let classes = map_program_classes f p.classes in

@@ -189,15 +189,12 @@ val first_common_super_class : 'a class_node -> 'a class_node -> 'a class_node
 
 (** {2 Building a hierarchy from simple classes.} *)
 
-(** [build_hierarchy ~cn_object cmap] builds the hierarchy of classes
-    given the map of {interface_or_class}. [cn_object] must be the
-    {class_name} of java.lang.Object class (its default value is
-    java.lang.Object {class_name} of Java), for Java program do not
-    modify the default value.
+(** [build_hierarchy cmap] builds the hierarchy of classes
+    given the map of {interface_or_class}. 
 
     @raise Not_found if a needed super class is not in the given
     ClassMap. *)
-val build_hierarchy : ?cn_object:class_name -> 'a interface_or_class ClassMap.t  -> 'a node ClassMap.t
+val build_hierarchy : 'a interface_or_class ClassMap.t  -> 'a node ClassMap.t
 
 (** {2 Transforming code representation in a program.} *)
 
