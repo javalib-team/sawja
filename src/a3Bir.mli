@@ -86,7 +86,12 @@ type unop =
   | Cast of JBasics.object_type
 
 (** Comparison operators *)
-type comp = DG | DL | FG | FL | L
+type comp = 
+    DG (*double comparison, if a value is NaN, push 1 into operand stack. *)
+  | DL (*double comparison, if a value is NaN, push -1 into operand stack. *)
+  | FG (*float comparison, if a value is NaN, push 1 into operand stack.*)
+  | FL (*float comparison, if a value is NaN, push -1 into operand stack.*)
+  | L  (*long comparison. *)
 
 
 (** Binary operators *)
