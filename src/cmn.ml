@@ -211,11 +211,6 @@ type binop =
   | LShl | LShr | LAnd | LOr | LXor | LUshr
   | CMP of comp
 
-type command_formula = 
-  | Assume 
-  | Assert
-  | Invariant
-
 type virtual_call_kind =
   | VirtualCall of object_type
   | InterfaceCall of class_name
@@ -308,10 +303,6 @@ let print_typ t =
     | TObject t -> ot2ss t
   in vt2ss t
 
-let print_command_formula = function
-  | Assume -> "ASSUME"
-  | Assert -> "ASSERT"
-  | Invariant -> "INVARIANT"
 
   type phi_node = {
     def : var;

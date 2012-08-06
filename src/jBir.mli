@@ -130,11 +130,6 @@ type formula =
   | And of formula * formula
   | Or of formula * formula
 
-type command_formula = 
-  | Assume 
-  | Assert
-  | Invariant
-
 (** [type_of_expr e] returns the type of the expression [e]. 
     N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
 val type_of_expr : expr -> JBasics.value_type
@@ -284,7 +279,17 @@ type instr =
 	  Exceptions that could
 	  be thrown by the virtual machine are described in {!check} type
 	  declaration.*)
-  | Formula of command_formula * formula
+  | Formula of string * formula (** string is a method name (in a format such
+                                  as 'main') This method musts be in the class
+                                  containing the assertions (and set using the
+                                  function GetFormula.set_class). It musts only
+                                  take a single boolean argument. 
+                                  The formula is the expression leading to the
+                                  boolean argument. 
+                                  It can be used to checked explicitly a
+                                  condition from the source code in an
+                                  analyzis..
+                                 *)
 
 
 type exception_handler = {
@@ -344,7 +349,33 @@ val exception_edges :  t -> (int * exception_handler) list
     idea and may be wrong.  It uses the field [t.pc_ir2bc] of the code
     representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
 val get_source_line_number : int -> t -> int option
-  
+ 
+(** {2 Formula functions }*)
+module GetFormula : sig
+  (** Abstract type for Formula handler. *)
+  type t
+
+  (** Init an empty formula handler.*)
+  val empty_formula : t
+
+  (** It can serve as an exemple. It creates formula when calling method
+    'assume', 'assert' or 'check' of the 'sawja.Assertions' classes.*)
+  val default_formula : t
+
+  (** Assign a class to a formula handler. Only  1 class can be assigned at a time.
+    The class is given as a string using the classical java format (such as 
+    'sawja.Assertions.'). *)
+  val set_class : t -> string -> t
+
+  (** Add a new method to the formula handler. It musts refer to a method
+    present in the class used by the formula. This method musts take only a
+    single boolean argument. Otherwise, the method will not be considered as
+    part of the formula.*)
+  val add_command: t -> string -> t
+
+end 
+ 
+ 
 (** {2 Printing functions} *)
 
 (** [print_handler exc] returns a string representation for exception handler
@@ -403,7 +434,8 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     [true]. [transform] can raise several exceptions. See exceptions
     below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool ->
+  ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool -> 
+  ?formula_handler:Bir.GetFormula.t option ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)

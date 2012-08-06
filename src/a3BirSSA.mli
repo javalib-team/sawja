@@ -130,11 +130,6 @@ type formula =
   | And of formula * formula
   | Or of formula * formula
 
-type command_formula = 
-  | Assume 
-  | Assert
-  | Invariant
-
 (** {3 Instructions} *)
 
 type virtual_call_kind =
@@ -234,9 +229,19 @@ type instr =
 		       
 		       Exceptions that could be thrown by the virtual
 		       machine are described in {!check} type declaration.*)
-  | Formula of command_formula * formula
+  | Formula of string * formula (** string is a method name (in a format such
+                                  as 'main') This method musts be in the class
+                                  containing the assertions (and set using the
+                                  function GetFormula.set_class). It musts only
+                                  take a single boolean argument. 
+                                  The formula is the expression leading to the
+                                  boolean argument. 
+                                  It can be used to checked explicitly a
+                                  condition from the source code in an
+                                  analyzis..
+                                 *)
 
-(** *)
+
 type exception_handler = {
   e_start : int;
   e_end : int;
@@ -405,7 +410,8 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     below for details. *)
 val transform :
   ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool ->
-  JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+    ?formula_handler:Bir.GetFormula.t option -> 
+    JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 

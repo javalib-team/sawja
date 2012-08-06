@@ -27,10 +27,13 @@ open JCode
 include BirA3
 
 (** Concrete method transformation. *) 
-let transform ?(bcv=false) ?(ch_link=false) ?(get_formula = false) j_m j_code =
+let transform ?(bcv=false) ?(ch_link=false) ?(get_formula = false) ?(formula_handler = None) j_m j_code =
   let res = Bir.jcode2bir Bir.Addr3 bcv ch_link false j_m j_code in
-  let res = if get_formula then Bir.GetFormula.run res else res in
-    bir2a3bir res 
-    
-
+  let res =
+    if get_formula then 
+      (match formula_handler with
+         | None -> Bir.GetFormula.run Bir.GetFormula.default_formula res
+         | Some fhandler -> Bir.GetFormula.run fhandler res)
+    else res
+  in bir2a3bir res
 

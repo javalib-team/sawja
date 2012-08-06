@@ -122,7 +122,7 @@ type instr =
   | MonitorExit of tvar 
   | MayInit of class_name
   | Check of check 
-  | Formula of command_formula * formula
+  | Formula of string * formula
       
 type t = {
   bir : Bir.bir;
@@ -235,7 +235,7 @@ let print_instr ?(show_type=true) = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_tvar ~show_type:show_type e)
 	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
-  | Formula (cmd,f) -> Printf.sprintf "%s(%s)" (print_command_formula cmd) 
+  | Formula (cmd,f) -> Printf.sprintf "%s(%s)" cmd 
       (print_formula ~show_type:show_type f)
 
 let print_expr ?(show_type=true) = print_expr ~show_type:show_type true

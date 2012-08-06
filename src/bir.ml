@@ -74,7 +74,7 @@ type instr =
   | MonitorExit of expr
   | MayInit of JBasics.class_name
   | Check of check
-  | Formula of command_formula * formula
+  | Formula of string * formula
       
 
 let type_of_const i = 
@@ -224,7 +224,7 @@ let print_instr ?(show_type=true) = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr' ~show_type:show_type true e)
 	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
-  | Formula (cmd,f) -> Printf.sprintf "%s(%s)" (print_command_formula cmd) 
+  | Formula (cmd,f) -> Printf.sprintf "FORMULA: %s(%s)" cmd 
       (print_formula ~show_type:show_type f)
 
 let print_expr ?(show_type=true) = print_expr' ~show_type:show_type true
@@ -2752,147 +2752,174 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 
 
 module GetFormula = struct
+  type t = string * string list (* class * list of method *)
+
+  let empty_formula =
+    ("", [])
+
+  let default_formula = 
+    ("sawja.Assertions", ["assert"; "assume"; "check"])
+
+  let set_class t c =
+    match t with 
+      | (_, lstmeth) -> (c, lstmeth)
+
+  let add_command t meth =
+    match t with
+      | (c, lstmeth) -> (c, meth::lstmeth)
+
+  let is_assertion_cn t = 
+    cn_equal (JBasics.make_cn (fst t))
   
-let is_assertion_cn = 
-  cn_equal (JBasics.make_cn "sawja.Assertions")
+  let is_command t ms = 
+    List.fold_left
+      (fun found mname ->
+         match found with
+           | None -> 
+               if ms_equal (JBasics.make_ms mname [TBasic `Bool] None) ms 
+               then Some mname
+               else found
+           | _ -> found
+      )
+      None
+      (snd t)
 
-let is_command ms = 
-  if ms_equal (JBasics.make_ms "assume" [TBasic `Bool] None) ms then Some Assume
-  else if ms_equal (JBasics.make_ms "check" [TBasic `Bool] None) ms then Some Assert
-  else if ms_equal (JBasics.make_ms "invariant" [TBasic `Bool] None) ms then Some Invariant
-  else None
+  
+  let neg_cond (c,e1,e2) =
+    match c with
+      | `Eq -> (`Ne,e1,e2)
+      | `Ne -> (`Eq,e1,e2)
+      | `Lt -> (`Ge,e1,e2)
+      | `Ge -> (`Lt,e1,e2)
+      | `Gt -> (`Le,e1,e2)
+      | `Le -> (`Gt,e1,e2)
+  
+  exception Not_a_decision_tree
+  
+  type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
+      
+  type decision_tree =
+    | LeafTrue
+    | LeafFalse
+    | Node of 
+  	cond (* b *)
+  	* decision_tree (* b true *)
+  	* decision_tree (* b false *)
+  
+  let compute_decision_tree code target_var target_pc i =
+    let rec tree i  = 
+      (* Printf.printf "  tree(%d)...\n" i;*)
+      match code.(i) with
+        | Ifd (c,j) ->
+  	  if j < i then raise Not_a_decision_tree
+  	  else Node (neg_cond c,tree (i+1),tree j)
+        | Goto j -> 
+  	  if j < i then raise Not_a_decision_tree
+  	  else tree j
+        | AffectVar (x,Const (`Int i1))
+  	  when (var_equal x target_var) && 
+  	    ((i+1=target_pc) || code.(i+1) = Goto target_pc) ->
+  	  if i1 = Int32.one then LeafTrue
+  	  else if i1 = Int32.zero then LeafFalse
+  	  else raise Not_a_decision_tree
+        | _ -> raise Not_a_decision_tree in
+      tree i
 
-let neg_cond (c,e1,e2) =
-  match c with
-    | `Eq -> (`Ne,e1,e2)
-    | `Ne -> (`Eq,e1,e2)
-    | `Lt -> (`Ge,e1,e2)
-    | `Ge -> (`Lt,e1,e2)
-    | `Gt -> (`Le,e1,e2)
-    | `Le -> (`Gt,e1,e2)
-
-exception Not_a_decision_tree
-
-type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
-    
-type decision_tree =
-  | LeafTrue
-  | LeafFalse
-  | Node of 
-	cond (* b *)
-	* decision_tree (* b true *)
-	* decision_tree (* b false *)
-
-let compute_decision_tree code target_var target_pc i =
-  let rec tree i  = 
-    (* Printf.printf "  tree(%d)...\n" i;*)
+    (*Replace each instructions preparing the formula by Nop instructions.*)
+  let remove_instr_decision_tree code i last =
+    let rec remove i acc =
+      match code.(i) with
+        | Ifd (_,j) -> 
+  	  remove (i+1) (remove j (Ptset.add i acc))
+        | Goto j -> remove j (Ptset.add i acc)
+        | Check _ -> remove (i+1) (Ptset.add i acc)
+        | AffectVar (_,Const (`Int _)) ->
+  	  Ptset.add i (Ptset.add (i+1) acc)
+        | _ -> assert false in
+    let all = remove i Ptset.empty in
+      (*check that every instructions between i and last will be removed. *)
+    let rec in_all j =
+      (j >= last) || (Ptset.mem j all && in_all (j+1)) in
+      assert (in_all i);
+      Ptset.iter (fun i -> code.(i) <- Nop) all
+  
+    exception Not_a_conjunctive_decision_tree
+  	
+    (* Add condition [c0] to each list of the list. *)
+    let rec cons_and c0 = function
+      | [] -> []
+      | d::g -> (c0::d)::(cons_and c0 g)
+  
+    let guard_of_decision_tree t = 
+      let rec aux = function
+        | LeafFalse -> []
+        | LeafTrue -> [[]]
+        | Node (c,left,right) -> 
+  	  let l = aux left in
+  	  let r = aux right in
+  	    if l = [] then cons_and (neg_cond c) r
+  	    else if r = [] then cons_and c l
+  	    else (cons_and c l)@(cons_and (neg_cond c) r) in
+      let filter_nil l = List.filter (fun d -> d<>[]) l in
+      let rec to_cnj = function
+        | [] -> assert false
+        | [(c,e1,e2)] -> Atom (c,e1,e2)
+        | (c,e1,e2)::q -> And (Atom (c,e1,e2),to_cnj q) in
+      let rec to_dij = function
+        | [] -> raise Not_a_decision_tree
+        | [c] -> to_cnj c
+        | c::q -> Or (to_cnj c, to_dij q) 
+      in
+        to_dij (filter_nil (aux t))
+  
+    let rec fold_boolean_var code x pc from =
+      if from <= pc-1 then
+        try
+  	let tree = compute_decision_tree code x pc from in
+  	let guard = guard_of_decision_tree tree in
+  	  remove_instr_decision_tree code from pc; 
+  	  Some guard
+        with
+  	| Not_a_decision_tree -> 
+  	    fold_boolean_var code x pc (from+1)
+  	| Not_a_conjunctive_decision_tree -> None
+      else None
+        
+    let get_formula code x pc = 
+      fold_boolean_var code x pc 0
+        
+  
+  let extract_fomula_aux t code i =
     match code.(i) with
-      | Ifd (c,j) ->
-	  if j < i then raise Not_a_decision_tree
-	  else Node (neg_cond c,tree (i+1),tree j)
-      | Goto j -> 
-	  if j < i then raise Not_a_decision_tree
-	  else tree j
-      | AffectVar (x,Const (`Int i1))
-	  when (var_equal x target_var) && 
-	    ((i+1=target_pc) || code.(i+1) = Goto target_pc) ->
-	  if i1 = Int32.one then LeafTrue
-	  else if i1 = Int32.zero then LeafFalse
-	  else raise Not_a_decision_tree
-      | _ -> raise Not_a_decision_tree in
-    tree i
-      
-let remove_instr_decision_tree code i last =
-  let rec remove i acc =
-    match code.(i) with
-      | Ifd (_,j) -> 
-	  remove (i+1) (remove j (Ptset.add i acc))
-      | Goto j -> remove j (Ptset.add i acc)
-      | Check _ -> remove (i+1) (Ptset.add i acc)
-      | AffectVar (_,Const (`Int _)) ->
-	  Ptset.add i (Ptset.add (i+1) acc)
-      | _ -> assert false in
-  let all = remove i Ptset.empty in
-  let rec in_all j =
-    (j >= last) || (Ptset.mem j all && in_all (j+1)) in
-    assert (in_all i);
-    Ptset.iter (fun i -> code.(i) <- Nop) all
-
-  exception Not_a_conjunctive_decision_tree
-	
-  let rec cons_and c0 = function
-    | [] -> []
-    | d::g -> (c0::d)::(cons_and c0 g)
-
-  let guard_of_decision_tree t = 
-    let rec aux = function
-      | LeafFalse -> []
-      | LeafTrue -> [[]]
-      | Node (c,left,right) -> 
-	  let l = aux left in
-	  let r = aux right in
-	    if l = [] then cons_and (neg_cond c) r
-	    else if r = [] then cons_and c l
-	    else (cons_and c l)@(cons_and (neg_cond c) r) in
-    let filter_nil l = List.filter (fun d -> d<>[]) l in
-    let rec to_cnj = function
-      | [] -> assert false
-      | [(c,e1,e2)] -> Atom (c,e1,e2)
-      | (c,e1,e2)::q -> And (Atom (c,e1,e2),to_cnj q) in
-    let rec to_dij = function
-      | [] -> raise Not_a_decision_tree
-      | [c] -> to_cnj c
-      | c::q -> Or (to_cnj c, to_dij q) in
-      to_dij (filter_nil (aux t))
-
-  let rec fold_boolean_var code x pc from =
-    if from <= pc-1 then
-      try
-	let tree = compute_decision_tree code x pc from in
-	let guard = guard_of_decision_tree tree in
-	  remove_instr_decision_tree code from pc; 
-	  Some guard
-      with
-	| Not_a_decision_tree -> 
-	    fold_boolean_var code x pc (from+1)
-	| Not_a_conjunctive_decision_tree -> None
-    else None
-      
-  let get_formula code x pc = 
-    fold_boolean_var code x pc 0
-      
-
-let extract_fomula_aux code i =
-  match code.(i) with
-    | InvokeStatic (None,c,ms,[Var (_,x)]) when is_assertion_cn c ->
-	(match is_command ms with
-	   | None -> None
-	   | Some cmd ->
-	       (match get_formula code x (i-1) with
-		  | Some f -> Some (cmd,f)
-		  | None -> None))
-    | _ -> None
-
-let run m =
-  let code_new = Array.copy m.bir_code in
-    for i=0 to (Array.length m.bir_code) -1 do
-      match extract_fomula_aux code_new i with
-	| Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
-	| None -> ()
-    done;
-    {
-      bir_vars = m.bir_vars;
-      bir_params = m.bir_params;
-      bir_code = code_new;
-      bir_exc_tbl = m.bir_exc_tbl;
-      bir_line_number_table = m.bir_line_number_table;
-      bir_pc_bc2ir = m.bir_pc_bc2ir;
-      bir_pc_ir2bc = m.bir_pc_ir2bc;
-      bir_preds = m.bir_preds; (* not computed yet *)
-      bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
-      bir_mem_ssa = m.bir_mem_ssa; (* not computed yet *)
-    }
-
+      | InvokeStatic (None,c,ms,[Var (_,x)]) when is_assertion_cn t c ->
+  	(match is_command t ms with
+  	   | None -> None
+  	   | Some cmd ->
+  	       (match get_formula code x (i-1) with
+  		  | Some f -> Some (cmd,f)
+  		  | None -> None))
+      | _ -> None
+  
+  let run t m =
+    let code_new = Array.copy m.bir_code in
+      for i=0 to (Array.length m.bir_code) -1 do
+        match extract_fomula_aux t code_new i with
+  	| Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
+  	| None -> ()
+      done;
+      {
+        bir_vars = m.bir_vars;
+        bir_params = m.bir_params;
+        bir_code = code_new;
+        bir_exc_tbl = m.bir_exc_tbl;
+        bir_line_number_table = m.bir_line_number_table;
+        bir_pc_bc2ir = m.bir_pc_bc2ir;
+        bir_pc_ir2bc = m.bir_pc_ir2bc;
+        bir_preds = m.bir_preds; (* not computed yet *)
+        bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
+        bir_mem_ssa = m.bir_mem_ssa; (* not computed yet *)
+      }
+  
 end
 
 (* Agregation of boolean tests  *)
