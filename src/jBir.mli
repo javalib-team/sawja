@@ -108,8 +108,7 @@ type binop =
   | Rem of JBasics.jvm_basic_type
   | IShl  | IShr  | IAnd  | IOr  | IXor  | IUshr
   | LShl  | LShr  | LAnd  | LOr  | LXor  | LUshr
-        (* TODO: which one is the number to shift and which one is the
-           offset? *)
+    (** With first argument the number to shift and the second one the offset.*)
   | CMP of comp
 
 (** Side-effect free expressions *)
