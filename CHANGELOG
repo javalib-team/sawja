@@ -7,9 +7,12 @@ New features:
   build this parameters is matched by Sawja and can then be used to make
   assertions in an analyzis.
 
-* Licence change: Sawja is now GPL instead of LGPL.
+Licence change: 
+
+* Sawja is now GPL instead of LGPL.
 
 Minor Changes:
+
 * Remove installation option '-l default'.
 
 * jProgram: Add functions map_program_with_native* which also allows to
@@ -25,18 +28,19 @@ Minor Changes:
     Various improvments and updates.
 
 Bug fixes:
-  * bir: 
-    - Remove short and byte from const type as they are replaced by int at
-    this level.
-    - In case of genertion of a MayInit, some heap elements were not replaced.
 
-  * jRTA: Raise an exception when no entry points are found.
+* bir: 
+  - Remove short and byte from const type as they are replaced by int at
+  this level.
+  - In case of genertion of a MayInit, some heap elements were not replaced.
 
-  * JControlFlow.PP_* modules: throw instructions were badly handled (they
-    were treated the same as others instructions that can throw only native
-    exceptions)
+* jRTA: Raise an exception when no entry points are found.
 
-  * Various fix in Makefile and htmlPrinter.
+* JControlFlow.PP_* modules: throw instructions were badly handled (they
+  were treated the same as others instructions that can throw only native
+  exceptions)
+
+* Various fix in Makefile and htmlPrinter.
 
 From 1.2 to 1.3
 ---------------
