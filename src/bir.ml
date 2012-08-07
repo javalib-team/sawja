@@ -2758,7 +2758,7 @@ module GetFormula = struct
     ("", [])
 
   let default_formula = 
-    ("sawja.Assertions", ["assert"; "assume"; "check"])
+    ("sawja.Assertions", ["assume"; "check"; "invariant"])
 
   let set_class t c =
     match t with 
