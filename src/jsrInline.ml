@@ -393,7 +393,6 @@ let inline code instrs subroutines =
 	       code.c_exc_tbl)
 	    @(List.map
 		(fun e -> 
-		   (* TODO: ask david if he is ok with this fix ! *)
 		   {
 		     e_start = first_valid e.e_start;
 		     e_end = first_valid e.e_end;
