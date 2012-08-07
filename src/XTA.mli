@@ -23,7 +23,7 @@
     Propagation-Based Call Graph Construction Algorithms}.  For an
     overview of class analyses in general (including RTA and XTA), you
     can check at Barbara G. Ryder's lecture on
-    {{:http://www.cs.rutgers.edu/~ryder/516/sp03/lectures/ClassAnal-4-304.pdf}Class
+    {{:http://people.cs.vt.edu/ryder/516/sp03/lectures/ClassAnal-4-304.pdf}Class
     Analyses} *)
 
 open Javalib_pack
