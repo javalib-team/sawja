@@ -352,7 +352,7 @@ module type GenericPPSig = sig
 end
 
 (** Manipulation of {!Javalib_pack.JCode.jcode} program pointers *)
-module PP_BC : (**Blabla*) GenericPPSig with type code = JCode.jcode 
+module PP_BC : GenericPPSig with type code = JCode.jcode 
 			    and type instr' = JCode.jopcode
 			    and type exception_handler = JCode.exception_handler
 
