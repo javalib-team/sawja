@@ -1,3 +1,43 @@
+From 1.3 to 1.4
+---------------
+New features:
+
+* Formula: Allows to give a special meaning to some users defined functions.
+  This function takes as parameter a boolean variable. The expression used to
+  build this parameters is matched by Sawja and can then be used to make
+  assertions in an analyzis.
+
+* Licence change: Sawja is now GPL instead of LGPL.
+
+Minor Changes:
+* Remove installation option '-l default'.
+
+* jProgram: Add functions map_program_with_native* which also allows to
+  transform the implementation type.
+
+* jBir/A3bir/JBirSSA/A3BirSSA: Some cleaning and factorization between the
+  different IR.
+
+* a3Bir: The instruction only have variables as arguments and no more
+  variables or constants (use a type tvar instead of basic_expr).
+
+* Documentation:
+    Various improvments and updates.
+
+Bug fixes:
+  * bir: 
+    - Remove short and byte from const type as they are replaced by int at
+    this level.
+    - In case of genertion of a MayInit, some heap elements were not replaced.
+
+  * jRTA: Raise an exception when no entry points are found.
+
+  * JControlFlow.PP_* modules: throw instructions were badly handled (they
+    were treated the same as others instructions that can throw only native
+    exceptions)
+
+  * Various fix in Makefile and htmlPrinter.
+
 From 1.2 to 1.3
 ---------------
 New features:
