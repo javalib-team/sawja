@@ -17,8 +17,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-
-
 (* 
  * Fold a function f on an accumulator x0 and an array t 
  * f a [| b0 ; b1 ; ... ; bn |] --->  f 0 b0 (f 1 b1 (f ... (f n bn x0) ...) )
@@ -140,10 +138,6 @@ let print_list_sep sep pp = function
   | x::q -> (pp x)^(print_list_sep_rec sep pp q)
 
 let print_list_sep_id sep = print_list_sep sep (fun x -> x)
-
-let print_list_sep_list sep pp = function
-  | [] -> []
-  | x::q -> (pp x)::(print_list_sep_list_rec sep pp q)
 
 let print_field ?(long_fields=false) c f =
   if long_fields then
