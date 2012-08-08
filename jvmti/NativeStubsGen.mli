@@ -19,6 +19,9 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Sawja_pack
+open JNativeStubs
+
 (** [parse_jvmti_callstrace_file callsfile] parses the file [callsfile]
     previously created by the CallsTracer agent and returns its abstract
     representation. *)

@@ -1,11 +1,28 @@
+# This file is part of SAWJA
+# Copyright (c)2007, 2008, 2009 Laurent Hubert (CNRS)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
+
 -include ../Makefile.config
 
-JDK_PATH=/udd/vmonfort/local/jdk1.6.0_16/
+JDK_PATH=$(JAVA_HOME)
 
 INC=$(INCLUDE) -package sawja
 
 LIBS=.libs
-CAMLLIBS=unix.cma zip.cma extLib.cma ptrees.cma javalib.cma sawja.cma
+CAMLLIBS=zip.cma extLib.cma ptrees.cma javalib.cma sawja.cma
 
 INCLUDES=-I ${JDK_PATH}/include -I ${JDK_PATH}/include/linux
 
@@ -25,10 +42,10 @@ $(LIBS)/libCallsTracer.so: CallsTracer.c
 stubs: NativeStubsGen.cmo NativeStubsGen.cmx
 
 NativeStubsGen.cmo: NativeStubsGen.ml NativeStubsGen.mli
-	$(OCAMLC) $(INC) $(PP) -o NativeStubsGen.cmo $(CAMLLIBS) NativeStubsGen.mli NativeStubsGen.ml 
+	$(OCAMLC) $(INC) $(PP) -linkpkg -o NativeStubsGen.cmo $(CAMLLIBS) NativeStubsGen.mli NativeStubsGen.ml 
 
 NativeStubsGen.cmx: NativeStubsGen.ml NativeStubsGen.mli
-	$(OCAMLOPT) $(INC) $(PP) -o NativeStubsGen.cmx $(CAMLLIBS:.cma=.cmxa) NativeStubsGen.mli NativeStubsGen.ml 
+	$(OCAMLOPT) $(INC) $(PP) -linkpkg -o NativeStubsGen.cmx $(CAMLLIBS:.cma=.cmxa) NativeStubsGen.mli NativeStubsGen.ml 
 
 clean:
 	rm -rf $(LIBS) *.la *.cm* *.o

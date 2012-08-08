@@ -19,6 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Sawja_pack
 open Genlex
 open JNativeStubs
 
