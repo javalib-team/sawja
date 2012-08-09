@@ -350,6 +350,7 @@ val exception_edges :  t -> (int * exception_handler) list
 val get_source_line_number : int -> t -> int option
  
 (** {2 Formula functions }*)
+
 module GetFormula : sig
   (** Abstract type for Formula handler. *)
   type fh
@@ -378,6 +379,8 @@ module GetFormula : sig
     part of the formula.*)
   val add_command: fh -> string -> fh
 
+  (**/**)
+  (** For internal use only *)
   (** Run the transformation. *)
   val run: fh -> Bir.bir -> Bir.bir
 

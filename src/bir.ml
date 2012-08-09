@@ -1591,6 +1591,15 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
 		      | Uninit (c,j) ->
 			  let x = make_tempvar dico ssa fresh_counter s next_store in
 			  let e' = E (Var (TObject (TClass java_lang_object),x)) in
+                          let instrs =
+                            let instrs = 
+                              [New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
+                            in 
+                              if ch_link
+                              then
+                                (Check (CheckLink instr))::instrs
+                              else instrs
+                          in
 			    (* Ok for fresh variable because
 			       Uninit is always replaced by
 			       Var(_,x)*)
@@ -1598,7 +1607,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
 			      (List.map
 				 (function e -> if e = Uninit (c,j) then e' else e)
 				 (pop popn_s))
-			      [(Check (CheckLink instr)); New (x,c,ms_args ms,param (List.length (ms_args ms)) s)]
+			      instrs  
 		      | E e0  ->
 			  let nb_args = List.length (ms_args ms) in
 			  let s_next = pop popn_s in
