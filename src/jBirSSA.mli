@@ -356,32 +356,6 @@ val exception_edges :  t -> (int * exception_handler) list
     representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
 val get_source_line_number : int -> t -> int option
 
-(** {2 Formula functions }*)
-module GetFormula : sig
-  (** Abstract type for Formula handler. *)
-  type t
-
-  (** Init an empty formula handler.*)
-  val empty_formula : t
-
-  (** It can serve as an exemple. It creates formula when calling method
-    'assume', 'assert' or 'check' of the 'sawja.Assertions' classes.*)
-  val default_formula : t
-
-  (** Assign a class to a formula handler. Only  1 class can be assigned at a time.
-    The class is given as a string using the classical java format (such as 
-    'sawja.Assertions.'). *)
-  val set_class : t -> string -> t
-
-  (** Add a new method to the formula handler. It musts refer to a method
-    present in the class used by the formula. This method musts take only a
-    single boolean argument. Otherwise, the method will not be considered as
-    part of the formula.*)
-  val add_command: t -> string -> t
-
-end 
- 
-
 (** {2 Printing functions} *)
 
 (** [print_handler exc] returns a string representation for exception handler
@@ -458,8 +432,7 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     [true]. [transform] can raise several exceptions. See exceptions
     below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool ->
-    ?formula_handler:GetFormula.t option ->
+  ?bcv:bool -> ?ch_link:bool -> ?formula:JBir.GetFormula.use_formula ->
     JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)

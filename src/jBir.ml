@@ -44,14 +44,13 @@ let print = bir_print
 
 let jump_target = bir_jump_target
 
-let transform ?(bcv=false) ?(ch_link = false) ?(get_formula = false) ?(formula_handler = None) cm c = 
+let transform ?(bcv=false) ?(ch_link = false) ?(formula=GetFormula.F_No) cm c = 
   let res = jcode2bir Normal bcv ch_link false cm c in
-    if get_formula then 
-      (match formula_handler with
-         | None -> GetFormula.run GetFormula.default_formula res
-         | Some fhandler -> GetFormula.run fhandler res)
-    else res
-
+    match formula with
+      | GetFormula.F_No -> res
+      | GetFormula.F_Default -> GetFormula.run GetFormula.default_formula res
+      | GetFormula.F_Perso fhandler -> GetFormula.run fhandler res
+    
 let print_class = Printer.print_class
 
 let print_program = Printer.print_program

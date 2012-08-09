@@ -409,8 +409,7 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     [true]. [transform] can raise several exceptions. See exceptions
     below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool ->
-    ?formula_handler:Bir.GetFormula.t option -> 
+  ?bcv:bool -> ?ch_link:bool -> ?formula:JBir.GetFormula.use_formula -> 
     JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)

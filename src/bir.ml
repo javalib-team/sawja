@@ -2752,7 +2752,12 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 
 
 module GetFormula = struct
-  type t = string * string list (* class * list of method *)
+  type fh = string * string list (* class * list of method *)
+
+  type use_formula = 
+    | F_No
+    | F_Default
+    | F_Perso of fh
 
   let empty_formula =
     ("", [])
@@ -2760,18 +2765,18 @@ module GetFormula = struct
   let default_formula = 
     ("sawja.Assertions", ["assume"; "check"; "invariant"])
 
-  let set_class t c =
-    match t with 
+  let set_class fh c =
+    match fh with 
       | (_, lstmeth) -> (c, lstmeth)
 
-  let add_command t meth =
-    match t with
+  let add_command fh meth =
+    match fh with
       | (c, lstmeth) -> (c, meth::lstmeth)
 
-  let is_assertion_cn t = 
-    cn_equal (JBasics.make_cn (fst t))
+  let is_assertion_cn fh = 
+    cn_equal (JBasics.make_cn (fst fh))
   
-  let is_command t ms = 
+  let is_command fh ms = 
     List.fold_left
       (fun found mname ->
          match found with
@@ -2782,7 +2787,7 @@ module GetFormula = struct
            | _ -> found
       )
       None
-      (snd t)
+      (snd fh)
 
   
   let neg_cond (c,e1,e2) =
@@ -2889,10 +2894,10 @@ module GetFormula = struct
       fold_boolean_var code x pc 0
         
   
-  let extract_fomula_aux t code i =
+  let extract_fomula_aux fh code i =
     match code.(i) with
-      | InvokeStatic (None,c,ms,[Var (_,x)]) when is_assertion_cn t c ->
-  	(match is_command t ms with
+      | InvokeStatic (None,c,ms,[Var (_,x)]) when is_assertion_cn fh c ->
+  	(match is_command fh ms with
   	   | None -> None
   	   | Some cmd ->
   	       (match get_formula code x (i-1) with
@@ -2900,10 +2905,10 @@ module GetFormula = struct
   		  | None -> None))
       | _ -> None
   
-  let run t m =
+  let run fh m =
     let code_new = Array.copy m.bir_code in
       for i=0 to (Array.length m.bir_code) -1 do
-        match extract_fomula_aux t code_new i with
+        match extract_fomula_aux fh code_new i with
   	| Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
   	| None -> ()
       done;

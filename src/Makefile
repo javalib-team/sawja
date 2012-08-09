@@ -50,12 +50,12 @@ MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	jBir a3Bir jBirSSA a3BirSSA \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
-	safe reachableMethods \
+	safe reachableMethods jUtil \
 	jCRA XTA jRTA jRRTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr
 
 
-MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir jPrintUtil ,$(MODULE_INTERFACES))
+MODULE_INTERFACES_DOC = $(filter-out cmn ssaBir jPrintUtil jUtil ,$(MODULE_INTERFACES))
 HIDE_MOD_IN_DOC = -hide JPrintPlugin.NewCodePrinter
 
 FOR_PACK= -for-pack Sawja_pack

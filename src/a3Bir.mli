@@ -359,9 +359,8 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     linkage operation is done if and only if [ch_link] is
     [true]. [transform] can raise several exceptions.  See
     Exceptions below for details. *)
-val transform : ?bcv:bool -> ?ch_link:bool -> ?get_formula:bool ->
-    ?formula_handler:Bir.GetFormula.t option -> 
-    JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
+val transform : ?bcv:bool -> ?ch_link:bool -> ?formula:JBir.GetFormula.use_formula 
+  -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
 
 (** {2 Exceptions} *)
 
