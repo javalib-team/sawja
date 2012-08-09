@@ -704,20 +704,24 @@ The implementation of this tutorial is supplied with the *Sawja* library
 also demonstrates how to insert HTML code to display the information on the
 variable liveness.
 
-Using *formula* to make assertions
+Using *formulae* to make assertions
 ----------------------------------
 
-*Formula* is a new feature of Sawja 1.4. It allows to add some special
-assertions into a *Bir* representation (JBir, A3Bir, JBirSSA...) using
-dedicated stub methods. To keep full compatibility with the previous versions
-of *Sawja* it is disable by default. You can enable *formula* by setting the
-optionnal **formula** argument. 
+*Formulae* is a new feature of Sawja 1.4. It allows to add some
+special assertions into a *Bir* representation (JBir, A3Bir,
+JBirSSA...) using dedicated Java stub methods. To keep full
+compatibility with the previous versions of *Sawja* it is disabled by
+default. You can enable *formulae* by setting the optionnal
+**formula** argument.
 
 ~~~~~{#for_trans .ocaml}
-(*print the html representation of [cn_string] (a class name) at A3Bir level
-  with default formula enable. cp is the java classpath while outputDir is the 
-  directory in which the html will be generated. *)
+open Javalib_pack
+open Sawja_pack
 
+(* print the html representation of the class [cn_string] at A3Bir
+  level with the default formula enabled. [cp] is the java classpath and
+  [outputDir] is the directory in which the html file will be
+  generated. *)
 let print cp cn_string outputDir =
   let cn = JBasics.make_cn cn_string in
   let ioc = Javalib.get_class cp cn in
@@ -725,37 +729,106 @@ let print cp cn_string outputDir =
                   (A3Bir.transform ~formula:JBir.GetFormula.F_Default) ioc 
   in
     A3Bir.print_class bir_ioc outputDir
+
+(* Example of use in the same folder as the Java class *)
+let main = 
+  let cp = Javalib.class_path "." in
+    print cp "TestFormula" "html_dir"
 ~~~~~
 
 
-Using the **F_Default** value means that we are going to use the default
-*formula handler*. *A formula handler* precises which are the stub methods
-which will be used to generate the *formula*. A call to such method will be
-replaced in the generated *bir* code by the *formula*. Those methods must
-return **void** and take only a single boolean argument, otherwise, it will not
-be considered as a *formula*.
+Using the **GetFormula.F_Default** value means that we are going to use the
+default *formula handler*. *A formula handler* precises which are the
+Java stub methods which will be used to generate the *formula*. A Java
+call to such method will be replaced in the generated *bir* code by
+the *formula*. Those methods must return **void** and take only a
+single boolean argument, otherwise, it will not be considered as a
+*formula*.
 
-The default *formula_handler* offers 3 stubs methods named **'assume'**,
-**'check'**, **'invariant'** and defined in the Class **'sawja.Assertions'**.
-The java source file is present as exemple in **runtime/sawja/Assertions.java**
-(function body is empty as call to the function is not really used).
+The default *formula_handler* offers 3 Java stubs methods named
+**'assume'**, **'check'**, **'invariant'** and defined in the Class
+**'sawja.Assertions'**.  The java source file is present as example in
+**runtime/sawja/Assertions.java** (function body is empty as call to
+the function is not really used).
+
+For example the following java code:
+
+~~~~~{.java}
+public class TestFormula{
+       
+       public static Object mayBeNull;
+
+       public static Object doit(){
+           Object i = mayBeNull;
+           sawja.Assertions.check(i!=null);
+           return i;
+       }
+
+}
+
+~~~~~
+
+will be translate without formulae as:
+
+~~~~~
+public static java.lang.Object doit():
+
+    0: mayinit TestFormula
+    1: i := TestFormula.mayBeNull
+    2: $irvar0 := null
+    3: if (i:java.lang.Object == $irvar0:java.lang.Object) goto 6
+    4: $T0_13 := 1
+    5: goto 7
+    6: $T0_13 := 0
+    7: mayinit sawja.Assertions
+    8: sawja.Assertions.check ($T0_13:I)
+    9: return i:java.lang.Object
+~~~~~
+
+but with default formulae it will become:
+
+~~~~~
+public static java.lang.Object doit():
+
+    0: mayinit TestFormula
+    1: i := TestFormula.mayBeNull
+    2: $irvar0 := null
+    3: nop
+    4: nop
+    5: nop
+    6: nop
+    7: nop
+    8: FORMULA: check(i:java.lang.Object != $irvar0:java.lang.Object)
+    9: return i:java.lang.Object
+~~~~~
+
+You must pay attention to the fact that the formula directly stores
+the boolean expression which was given as argument to the Java
+method. This expression can then be directly manipulated in different
+analyzes to make assumptions. The generated 'nop' instructions are
+replacing the instructions which have been used to create the formula.
+
 
 You can also create your own *formula handler*, using the class and methods you
 want. You just have to do the as follows:
 
 ~~~~~{#mycode .ocaml}
-(*print the html representation of [cn_string] (a class name) at A3Bir level
-  with default formula enable. cp is the java classpath while outputDir is the 
-  directory in which the html will be generated. *)
+open Javalib_pack
+open Sawja_pack
+
+(* print the html representation of the class [cn_string] at A3Bir
+  level with a personnalized formula enabled. [cp] is the java
+  classpath and [outputDir] is the directory in which the html file
+  will be generated. *)
 
 let print cp cn_string outputDir =
   let cn = JBasics.make_cn cn_string in
   let ioc = Javalib.get_class cp cn in
   let fhandler = 
-    let open JBir.GetFormula in
-      add_command 
-      (add_command (set_class empty_formula "MyFormulaClass") "myFormulaFun1")
-      "myFormulaFun2"
+      JBir.GetFormula.add_command 
+       (JBir.GetFormula.add_command 
+        (JBir.GetFormula.set_class empty_formula "MyFormulaClass") 
+        "myFormulaFun1")
   in
   let bir_ioc = Javalib.map_interface_or_class_context 
                   (A3Bir.transform ~formula:(JBir.GetFormula.F_Perso fhandler)) ioc 
@@ -763,62 +836,7 @@ let print cp cn_string outputDir =
     A3Bir.print_class bir_ioc outputDir
 ~~~~~
 
-You can then use the html printer on a java code containing a call to
-**"myFormulaFun1"**, you will see that the call is replaced by a *formula*
-instruction.
+You can then use the html printer on Java code containing a call to
+**"MyFormulaClass.myFormulaFun1"**, you will see that the call is
+replaced by a *formula* instruction.
 
-For exemple the following java code:
-
-~~~~~{.java}
-public static Object doit(){
-        Object i = otherfun();
-        Assertions.check(i!=null);
-        return i;
-}
-~~~~~
-
-will be translate without formula as:
-
-~~~~~
-public static java.lang.Object doit ( ) ;
-
-    mayinit test.TestFormula
-    $irvar0 := test.TestFormula.otherfun ()
-    mayinit java.lang.Integer
-    i := java.lang.Integer.valueOf ($irvar0:I)
-    $irvar0 := null
-    if (i:java.lang.Object == $irvar0:java.lang.Object) goto 8
-    $T0_16 := 1
-    goto 9
-    $T0_16 := 0
-    mayinit sawja.Assertions
-    sawja.Assertions.check ($T0_16:I)
-    return i:java.lang.Object
-~~~~~
-
-but with default formula it will become:
-
-~~~~~
-
-public static java.lang.Object doit ( ) ;
-
-    mayinit test.TestFormula
-    $irvar0 := test.TestFormula.otherfun ()
-    mayinit java.lang.Integer
-    i := java.lang.Integer.valueOf ($irvar0:I)
-    $irvar0 := null
-    nop
-    nop
-    nop
-    nop
-    nop
-    FORMULA: check(i:java.lang.Object != $irvar0:java.lang.Object)
-    return i:java.lang.Object
-~~~~~
-
-What must be understood is that the formula directly stores the boolean
-expression which was given as argument to the function. This expression
-can then be directly manipulated in different analyzis to make
-assumptions which could not have been available otherwise. The generated
-nops are here to clean the instructions which have been used only to
-create the formula.
