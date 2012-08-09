@@ -102,8 +102,8 @@ static void JNICALL callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv* jni_env, 
     fclose(file);
   }
 
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)className);
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)thread_info.name);
+  err = (*jvmti)->Deallocate(jvmti, className);
+  err = (*jvmti)->Deallocate(jvmti, thread_info.name);
 }
 
 static JNICALL callbackMethodEntry(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread, jmethodID method){
@@ -135,10 +135,10 @@ static JNICALL callbackMethodEntry(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread
     fclose(file);
   }
   
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)methodSignature);
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)methodName);
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)declaringClassName);
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)thread_info.name);
+  err = (*jvmti)->Deallocate(jvmti, methodSignature);
+  err = (*jvmti)->Deallocate(jvmti, methodName);
+  err = (*jvmti)->Deallocate(jvmti, declaringClassName);
+  err = (*jvmti)->Deallocate(jvmti, thread_info.name);
 }
 
 static JNICALL callbackMethodExit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread, jmethodID method){
@@ -164,7 +164,7 @@ static JNICALL callbackMethodExit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread 
   /* err = (*jvmti)->Deallocate(jvmti, (unsigned)methodSignature); */
   /* err = (*jvmti)->Deallocate(jvmti, (unsigned)methodName); */
   /* err = (*jvmti)->Deallocate(jvmti, (unsigned)declaringClassName); */
-  err = (*jvmti)->Deallocate(jvmti, (unsigned)thread_info.name);
+  err = (*jvmti)->Deallocate(jvmti, thread_info.name);
 }
 
 JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM *jvm, char *options, void *reserved)
