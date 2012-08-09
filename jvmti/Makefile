@@ -32,7 +32,7 @@ all: NativeStubsGen.cmo NativeStubsGen.cmx
 tracer: $(LIBS)/libCallsTracer.so
 
 $(LIBS)/libCallsTracer.so: CallsTracer.c
-	if [[ ! -d $(LIBS) ]]; then mkdir $(LIBS); fi
+	if [ ! -d $(LIBS) ]; then mkdir $(LIBS); fi
 	libtool --mode=compile gcc -c CallsTracer.c ${INCLUDES} -o ${LIBS}/CallsTracer.lo
 	libtool --mode=link gcc -rpath ${PWD} ${INCLUDES} ${LIBS}/CallsTracer.lo -o libCallsTracer.la
 # sous MacOS, la ligne suivante semble donner des résultats un peu
