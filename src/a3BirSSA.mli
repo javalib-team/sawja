@@ -130,6 +130,8 @@ val type_of_expr : expr -> JBasics.value_type
 (** Represent a boolean expression. *)
 type formula =
   | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar (** Atomic expression. *)
+  | BoolVar of expr (** Single boolean expr (variable or constant), immediatly 
+                                                              true or false. *)
   | And of formula * formula
   | Or of formula * formula
 

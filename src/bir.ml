@@ -36,6 +36,7 @@ type expr =
 
 type formula =
   | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr
+  | BoolVar of expr
   | And of formula * formula
   | Or of formula * formula
 
@@ -170,6 +171,7 @@ let print_cmp ?(show_type=true) (c,e1,e2) =
 
 let rec print_formula ?(show_type=true) = function
   | Atom (cmp,e1,e2) -> print_cmp ~show_type:show_type (cmp,e1,e2)
+  | BoolVar v -> print_expr' ~show_type: show_type false v
   | And (f1,f2) -> Printf.sprintf "(%s) && (%s)" 
       (print_formula ~show_type:show_type f1) (print_formula ~show_type:show_type f2)
   | Or (f1,f2) -> Printf.sprintf "(%s) || (%s)" 
@@ -2190,6 +2192,7 @@ module CheckInfoDebug = struct
 	  | CheckArrayStore (e1,e2) -> VarSet.union (vars e1) (vars e2)
 	  | CheckLink _ -> VarSet.empty in
       let rec vars_in_formula = function
+	| BoolVar x -> vars x
 	| Atom (_,e1,e2) -> VarSet.union (vars e1) (vars e2)
 	| And (f1,f2) | Or (f1,f2) -> VarSet.union (vars_in_formula f1) (vars_in_formula f2)
       in
@@ -2806,6 +2809,7 @@ module GetFormula = struct
       | `Le -> (`Gt,e1,e2)
   
   exception Not_a_decision_tree
+  exception Not_a_boolean_affectation
   
   type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
       
@@ -2854,8 +2858,6 @@ module GetFormula = struct
       assert (in_all i);
       Ptset.iter (fun i -> code.(i) <- Nop) all
   
-    exception Not_a_conjunctive_decision_tree
-  	
     (* Add condition [c0] to each list of the list. *)
     let rec cons_and c0 = function
       | [] -> []
@@ -2883,7 +2885,7 @@ module GetFormula = struct
       in
         to_dij (filter_nil (aux t))
   
-    let rec fold_boolean_var code x pc from =
+    let rec fold_boolean_expr code x pc from =
       if from <= pc-1 then
         try
   	let tree = compute_decision_tree code x pc from in
@@ -2892,12 +2894,38 @@ module GetFormula = struct
   	  Some guard
         with
   	| Not_a_decision_tree -> 
-  	    fold_boolean_var code x pc (from+1)
-  	| Not_a_conjunctive_decision_tree -> None
+  	    fold_boolean_expr code x pc (from+1)
       else None
-        
+
+    (* Match a BoolVar.*)
+  let rec fold_boolean_var code target_var target_pc from =
+    if from <= target_pc-1 then
+      try 
+        match code.(from) with
+          | AffectVar (x,Const (`Int i1))
+              when (var_equal x target_var) && 
+                   ((from+1=target_pc) || code.(from+1) = Goto target_pc) ->
+              let i1 = 
+                if i1 = Int32.one then `Int i1
+                else if i1 = Int32.zero then `Int i1 
+                else raise Not_a_boolean_affectation
+              in
+                Some (BoolVar (Const i1))
+          | InvokeStatic (Some x,_,_,_)
+          | InvokeVirtual (Some x,_,_,_,_)
+          | InvokeNonVirtual (Some x,_,_,_,_) when  
+              (var_equal x target_var) && ((from+1=target_pc) || code.(from+1) = Goto target_pc)
+            -> Some (BoolVar (Var (JBasics.TBasic `Bool,x)))
+          | _ -> raise Not_a_boolean_affectation
+      with Not_a_boolean_affectation ->
+        fold_boolean_var code target_var target_pc (from +1)
+        else None
+
+
     let get_formula code x pc = 
-      fold_boolean_var code x pc 0
+      match fold_boolean_expr code x pc 0 with
+        | (Some res) -> Some res
+        | None -> fold_boolean_var code x pc 0
         
   
   let extract_fomula_aux f_meths code i =
@@ -3007,90 +3035,6 @@ module AgregatBool = struct
 	
   let compute_decision_tree = compute_decision_tree []
 				
-(*
-(* argument must be of the form
-  Or (c1,(Or(c2,....
-  with each c of the form And (C ..,And (C ..., .... *)
-  let rec cons_and c0 = function
-  | Or (d,g) -> Or (And (C c0,d),cons_and c0 g)
-  | x -> And (C c0,x)
-
-(* argument must be of the form
-  And (d1,(And(d2,....
-  with each d of the form Or (C ..,Or (C ..., .... *)
-  let rec app_or l1 l2 =
-  match l1 with
-  | Or (d,g) -> Or (d,app_or g l2)
-  | x -> Or (x,l2)    
-  
-  let guard_of_decision_tree = function
-  | Node (c,left,right) -> begin
-  let rec aux c0 = function
-  | LeafFalse -> None
-  | LeafTrue -> Some (C c0)
-  | Node (c,left,right) -> begin
-  match aux (neg_cond c) right, aux c left with
-  | None, None -> None
-  | Some g_right, None -> Some (cons_and c0 g_right)
-  | None, Some g_left -> Some (cons_and c0 g_left)
-  | Some g_right, Some g_left -> Some (app_or (cons_and c0 g_right) g_left)
-  end in
-  match aux (neg_cond c) right, aux c left with
-  | None, None -> raise Not_a_decision_tree
-  | Some g_right, None -> g_right
-  | None, Some g_left -> g_left
-  | Some g_right, Some g_left -> app_or g_right g_left
-  end
-  | _ -> raise Not_a_decision_tree
-  
-  let rec cons_and c0 = function
-  | [] -> []
-  | d::g -> (c0::d)::(cons_and c0 g)
-  
-  let guard_of_decision_tree t = 
-  let rec aux = function
-  | LeafFalse -> []
-  | LeafTrue -> [[]]
-  | Node (c,left,right) -> 
-  let l = aux left in
-  let r = aux right in
-  if l = [] then cons_and (neg_cond c) r
-  else if r = [] then cons_and c l
-  else (cons_and c l)@(cons_and (neg_cond c) r) in
-  let rec to_conj = function
-  | [] -> raise Not_a_decision_tree
-  | [c] -> C c
-  | c::q -> And (C c,to_conj q) in
-  let rec to_dij = function
-  | [] -> raise Not_a_decision_tree
-  | [conj] -> to_conj conj
-  | conj::q -> Or (to_conj conj, to_dij q) in
-  let l = List.filter (fun d -> d<>[]) (aux t) in
-(*    List.iter
-  (fun conj ->
-  Printf.printf "[ ";
-  List.iter (fun c -> Printf.printf "%s : " (print_cmp pp_var c)) conj;
-  Printf.printf " ]\n"
-  ) l; *)
-  to_dij l
-
-  let rec simplify_bool = function
-  [] -> []
-  | (i,block,handlers)::blocks as l ->
-  try begin
-  let (begin_block,(x,label),tree) = compute_decision_tree l in
-(*	  Printf.printf "Found a decision tree from %d to %d in %s\n%s\n"
-  i label m.cm_signature.ms_name
-  (print_tree pp_var tree); *)
-  match find_block label blocks with
-  | [] -> raise Not_a_decision_tree
-  | (_,block,handlers)::blocks ->
-  let g = guard_of_decision_tree tree in
-  simplify_bool 
-  (replace_var_in_blocks x (Guard g) ((i,begin_block@block,handlers)::blocks))
-  end with Not_a_decision_tree -> (i,block,handlers)::(simplify_bool blocks)
-*)
-
 end
 
 module Live = struct
@@ -3147,6 +3091,7 @@ module Live = struct
 	| Kill x -> fun ab -> Env.remove x ab
 
   let rec all_expr_in_formula acc = function
+    | BoolVar x -> x::acc
     | Atom (_,e1,e2) -> e1::e2::acc
     | And (f1,f2) | Or (f1,f2) -> all_expr_in_formula (all_expr_in_formula acc f1) f2
   let all_expr_in_formula = all_expr_in_formula []
@@ -3407,6 +3352,7 @@ module SSA = struct
       | Binop (_,e1,e2) -> vars (vars acc e1) e2
       | StaticField _ -> (Ptset.add heap_index acc) in
     let rec vars_f acc = function
+      | BoolVar x ->  vars acc x
       | Atom (_,e1,e2) -> vars (vars acc e1) e2
       | And (f1,f2) | Or (f1,f2) -> vars_f (vars_f acc f1) f2 in
       function
@@ -3482,6 +3428,7 @@ module SSA = struct
     let map_formula =
       let f = use in 
       let rec aux = function
+        | BoolVar x -> BoolVar (map_expr f x)
 	| Atom (cmp,e1,e2) -> Atom (cmp,map_expr f e1,map_expr f e2)
 	| And (f1,f2) -> And (aux f1, aux f2) 
 	| Or (f1,f2) -> Or (aux f1, aux f2)
