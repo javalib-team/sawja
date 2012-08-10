@@ -117,7 +117,7 @@ type expr =
   | StaticField of JBasics.class_name * JBasics.field_signature
       (** Reading static fields *)
 
-(** {3 Formulas } *)
+(** {3 Formulae } *)
 
 (** Represent a boolean expression. *)
 type formula =
@@ -125,15 +125,13 @@ type formula =
   | And of formula * formula
   | Or of formula * formula
 
-(** Give a default set a method used to generate formulas. Those methods are all
-    located in the class 'sawja.Assertions' and are the following:
-    - public static void assume (boolean)
-    - public static void check (boolean)
-    - public static void invariant (boolean)
-    *)
+(** Give a default set of methods used to generate formulae. Those
+    methods are all defined in the class 'sawja.Assertions' (provided
+    in runtime/ directory):
+    - public static void assume (boolean) 
+    - public static void check (boolean) 
+    - public static void invariant (boolean) *)
 val default_formula_cmd : JBasics.class_method_signature list
-
-
 
 
 (** [type_of_expr e] returns the type of the expression [e]. 

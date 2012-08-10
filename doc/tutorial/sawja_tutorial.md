@@ -707,8 +707,8 @@ variable liveness.
 Using *formulae* to make assertions
 ----------------------------------
 
-*Formulae* is a new feature of Sawja 1.4. It allows to add some
-special assertions into a *Bir* representation (JBir, A3Bir,
+*Formulae* is a new feature of Sawja 1.4. It provides a way to add
+some special assertions into a *Bir* representation (JBir, A3Bir,
 JBirSSA...) using dedicated Java stub methods. To keep full
 compatibility with the previous versions of *Sawja* it is disabled by
 default. You can enable *formulae* by setting the optionnal
@@ -726,7 +726,7 @@ let print cp cn_string outputDir =
   let cn = JBasics.make_cn cn_string in
   let ioc = Javalib.get_class cp cn in
   let bir_ioc = Javalib.map_interface_or_class_context 
-                  (A3Bir.transform ~formula:JBir.GetFormula.F_Default) ioc 
+                  (A3Bir.transform ~formula:A3Bir.default_formula_cmd) ioc 
   in
     A3Bir.print_class bir_ioc outputDir
 
@@ -737,19 +737,18 @@ let main =
 ~~~~~
 
 
-Using the **GetFormula.F_Default** value means that we are going to use the
-default *formula handler*. *A formula handler* precises which are the
-Java stub methods which will be used to generate the *formula*. A Java
-call to such method will be replaced in the generated *bir* code by
-the *formula*. Those methods must return **void** and take only a
-single boolean argument, otherwise, it will not be considered as a
-*formula*.
+Using the **default_formula** value means that we are going to use the
+default Java stub methods to generate the *formulae*. A Java call to
+such method will be replaced in the generated *A3Bir* code by the
+*formula*. Those static methods must return **void** and take only a single
+boolean argument, otherwise, it will not be considered as a *formula*.
 
-The default *formula_handler* offers 3 Java stubs methods named
-**'assume'**, **'check'**, **'invariant'** and defined in the Class
-**'sawja.Assertions'**.  The java source file is present as example in
-**runtime/sawja/Assertions.java** (function body is empty as call to
-the function is not really used).
+The default value offers 3 Java static methods named **'assume'**,
+**'check'**, **'invariant'** and defined in the Class
+**'sawja.Assertions'**.  The java source file is present in
+**runtime/sawja/Assertions.java** and will be necessary to compile
+your Java class using formulae (methods bodies are empty since those
+methods will not really be called) .
 
 For example the following java code:
 
@@ -809,8 +808,9 @@ analyzes to make assumptions. The generated 'nop' instructions are
 replacing the instructions which have been used to create the formula.
 
 
-You can also create your own *formula handler*, using the class and methods you
-want. You just have to do the as follows:
+You can also create your own *formula handler*, using the class and
+static methods you want (methods must return void and take only a
+single boolean argument). You just have to do the as follows:
 
 ~~~~~{#mycode .ocaml}
 open Javalib_pack
@@ -825,13 +825,14 @@ let print cp cn_string outputDir =
   let cn = JBasics.make_cn cn_string in
   let ioc = Javalib.get_class cp cn in
   let fhandler = 
-      JBir.GetFormula.add_command 
-       (JBir.GetFormula.add_command 
-        (JBir.GetFormula.set_class empty_formula "MyFormulaClass") 
-        "myFormulaFun1")
+   let cn_formula_cl = JBasics.make_cn "MyFormulaClass" in
+   let ms1_formula = JBasics.make_ms "myFormulaFun1" [JBasics.TBasic `Bool] None in
+   let ms2_formula = JBasics.make_ms "myFormulaFun2" [JBasics.TBasic `Bool] None in
+       [JBasics.make_cms cn_formula_cl ms1_formula; 
+        JBasics.make_cms cn_formula_cl ms2_formula ]
   in
   let bir_ioc = Javalib.map_interface_or_class_context 
-                  (A3Bir.transform ~formula:(JBir.GetFormula.F_Perso fhandler)) ioc 
+                  (A3Bir.transform ~formula:fhandler) ioc 
   in
     A3Bir.print_class bir_ioc outputDir
 ~~~~~
