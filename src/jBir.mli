@@ -124,14 +124,28 @@ type expr =
   | StaticField of JBasics.class_name * JBasics.field_signature
       (** Reading static fields *)
 
-type formula =
-  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr
-  | And of formula * formula
-  | Or of formula * formula
-
 (** [type_of_expr e] returns the type of the expression [e]. 
     N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
 val type_of_expr : expr -> JBasics.value_type
+
+(** {3 Formulas} *)
+
+(** Represent a boolean expression. *)
+type formula =
+  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr (** Atomic expression. *)
+  | And of formula * formula 
+  | Or of formula * formula
+
+
+(** Give a default set a method used to generate formulas. Those methods are all
+    located in the class 'sawja.Assertions' and are the following:
+    - public static void assume (boolean)
+    - public static void check (boolean)
+    - public static void invariant (boolean)
+    *)
+val default_formula_cmd : JBasics.class_method_signature list
+
+
 
 (** {3 Instructions} *)
   
@@ -278,17 +292,9 @@ type instr =
 	  Exceptions that could
 	  be thrown by the virtual machine are described in {!check} type
 	  declaration.*)
-  | Formula of string * formula (** string is a method name (in a format such
-                                  as 'main') This method musts be in the class
-                                  containing the assertions (and set using the
-                                  function GetFormula.set_class). It musts only
-                                  take a single boolean argument. 
-                                  The formula is the expression leading to the
-                                  boolean argument. 
-                                  It can be used to checked explicitly a
-                                  condition from the source code in an
-                                  analyzis..
-                                 *)
+  | Formula of JBasics.class_method_signature * formula 
+      (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
+          the formula to be verified. *)
 
 
 type exception_handler = {
@@ -349,44 +355,6 @@ val exception_edges :  t -> (int * exception_handler) list
     representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
 val get_source_line_number : int -> t -> int option
  
-(** {2 Formula functions }*)
-
-module GetFormula : sig
-  (** Abstract type for Formula handler. *)
-  type fh
-
-  (** Type used to declare if we use formula in the current transformation. *)
-  type use_formula = 
-    | F_No (** Formula not used. *)
-    | F_Default (** Default, (see [default_formula]) *)
-    | F_Perso of fh (** Personnalized forumula. *)
-
-  (** Init an empty formula handler.*)
-  val empty_formula : fh
-
-  (** It can serve as an exemple. It creates formula when calling method
-    'assume', 'assert' or 'check' of the 'sawja.Assertions' classes.*)
-  val default_formula : fh
-
-  (** Assign a class to a formula handler. Only  1 class can be assigned at a time.
-    The class is given as a string using the classical java format (such as 
-    'sawja.Assertions.'). *)
-  val set_class : fh -> string -> fh
-
-  (** Add a new method to the formula handler. It musts refer to a method
-    present in the class used by the formula. This method musts take only a
-    single boolean argument. Otherwise, the method will not be considered as
-    part of the formula.*)
-  val add_command: fh -> string -> fh
-
-  (**/**)
-  (** For internal use only *)
-  (** Run the transformation. *)
-  val run: fh -> Bir.bir -> Bir.bir
-
-end 
- 
- 
 (** {2 Printing functions} *)
 
 (** [print_handler exc] returns a string representation for exception handler
@@ -436,16 +404,20 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
 
 (** {2 Bytecode transformation} *)
 
-(** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]
+(** [transform ~bcv ~ch_link ~formula cm jcode] transforms the code [jcode]
     into its JBir representation. The transformation is performed in
-    the context of a given concrete method [cm].  The type checking
-    normally performed by the ByteCode Verifier (BCV) is done if and
-    only if [bcv] is [true]. Check instructions are generated when a
-    linkage operation is done if and only if [ch_link] is
-    [true]. [transform] can raise several exceptions. See exceptions
-    below for details. *)
+    the context of a given concrete method [cm].  
+    - [?bcv]: The type checking normally performed by the ByteCode Verifier
+    (BCV) is done if and only if [bcv] is [true]. 
+    - [?ch_link]: Check instructions are generated when a linkage operation is
+    done if and only if [ch_link] is [true].
+    - [?formula]: A list of method for which calls are replaced by formulas in
+    the JBir representation. Those methods must be static, they must return
+    null and only takes a single boolean variable as argument.
+  
+    [transform] can raise several exceptions. See exceptions below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> ?formula:GetFormula.use_formula ->
+  ?bcv:bool -> ?ch_link:bool -> ?formula: JBasics.class_method_signature list ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)

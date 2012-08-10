@@ -74,7 +74,7 @@ type instr =
   | MonitorExit of expr
   | MayInit of JBasics.class_name
   | Check of check
-  | Formula of string * formula
+  | Formula of class_method_signature * formula
       
 
 let type_of_const i = 
@@ -224,8 +224,10 @@ let print_instr ?(show_type=true) = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_expr' ~show_type:show_type true e)
 	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
-  | Formula (cmd,f) -> Printf.sprintf "FORMULA: %s(%s)" cmd 
-      (print_formula ~show_type:show_type f)
+  | Formula (cmd,f) -> 
+      let (cn, ms) = cms_split cmd in 
+        Printf.sprintf "FORMULA: %s.%s(%s)" (cn_name cn) (ms_name ms)
+          (print_formula ~show_type:show_type f)
 
 let print_expr ?(show_type=true) = print_expr' ~show_type:show_type true
 
@@ -2761,42 +2763,37 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 
 
 module GetFormula = struct
-  type fh = string * string list (* class * list of method *)
+  type fh = class_method_signature list
 
   type use_formula = 
-    | F_No
     | F_Default
     | F_Perso of fh
 
   let empty_formula =
-    ("", [])
+    []
 
   let default_formula = 
-    ("sawja.Assertions", ["assume"; "check"; "invariant"])
+    [make_cms (make_cn "sawja.Assertions") (make_ms "assume" [TBasic `Bool] None); 
+     make_cms (make_cn "sawja.Assertions") (make_ms "check" [TBasic `Bool] None);
+     make_cms (make_cn "sawja.Assertions") (make_ms "invariant" [TBasic `Bool] None); ]
 
-  let set_class fh c =
-    match fh with 
-      | (_, lstmeth) -> (c, lstmeth)
-
-  let add_command fh meth =
-    match fh with
-      | (c, lstmeth) -> (c, meth::lstmeth)
-
+(*
   let is_assertion_cn fh = 
     cn_equal (JBasics.make_cn (fst fh))
+ *)
   
-  let is_command fh ms = 
+  let is_command f_meths cms2find = 
     List.fold_left
-      (fun found mname ->
+      (fun found cmsEl ->
          match found with
            | None -> 
-               if ms_equal (JBasics.make_ms mname [TBasic `Bool] None) ms 
-               then Some mname
+               if cms_equal cmsEl cms2find
+               then Some cmsEl
                else found
            | _ -> found
       )
       None
-      (snd fh)
+      (f_meths)
 
   
   let neg_cond (c,e1,e2) =
@@ -2903,38 +2900,44 @@ module GetFormula = struct
       fold_boolean_var code x pc 0
         
   
-  let extract_fomula_aux fh code i =
+  let extract_fomula_aux f_meths code i =
     match code.(i) with
-      | InvokeStatic (None,c,ms,[Var (_,x)]) when is_assertion_cn fh c ->
-  	(match is_command fh ms with
+      | InvokeStatic (None,c,ms,[Var (_,x)]) ->
+          (match is_command f_meths (make_cms c ms) with
   	   | None -> None
   	   | Some cmd ->
   	       (match get_formula code x (i-1) with
   		  | Some f -> Some (cmd,f)
-  		  | None -> None))
+  		  | None -> None)
+          )
       | _ -> None
   
-  let run fh m =
-    let code_new = Array.copy m.bir_code in
-      for i=0 to (Array.length m.bir_code) -1 do
-        match extract_fomula_aux fh code_new i with
-  	| Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
-  	| None -> ()
-      done;
-      {
-        bir_vars = m.bir_vars;
-        bir_params = m.bir_params;
-        bir_code = code_new;
-        bir_exc_tbl = m.bir_exc_tbl;
-        bir_line_number_table = m.bir_line_number_table;
-        bir_pc_bc2ir = m.bir_pc_bc2ir;
-        bir_pc_ir2bc = m.bir_pc_ir2bc;
-        bir_preds = m.bir_preds; (* not computed yet *)
-        bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
-        bir_mem_ssa = m.bir_mem_ssa; (* not computed yet *)
-      }
+  let run f_meths m =
+    match f_meths with
+      | [] -> m 
+      | _ ->
+          let code_new = Array.copy m.bir_code in
+            for i=0 to (Array.length m.bir_code) -1 do
+              match extract_fomula_aux f_meths code_new i with
+                | Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
+                | None -> ()
+            done;
+            {
+              bir_vars = m.bir_vars;
+              bir_params = m.bir_params;
+              bir_code = code_new;
+              bir_exc_tbl = m.bir_exc_tbl;
+              bir_line_number_table = m.bir_line_number_table;
+              bir_pc_bc2ir = m.bir_pc_bc2ir;
+              bir_pc_ir2bc = m.bir_pc_ir2bc;
+              bir_preds = m.bir_preds; (* not computed yet *)
+              bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
+              bir_mem_ssa = m.bir_mem_ssa; (* not computed yet *)
+            }
   
 end
+
+let default_formula_cmd = GetFormula.default_formula
 
 (* Agregation of boolean tests  *)
 module AgregatBool = struct

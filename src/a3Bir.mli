@@ -125,10 +125,21 @@ val type_of_tvar : tvar -> JBasics.value_type
 (** [type_of_expr e] returns the type of the expression [e]. *)      
 val type_of_expr : expr -> JBasics.value_type
 
+(** {3 Formulas} *)
+
+(** Represent a boolean expression. *)
 type formula =
-  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar
+  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar (** Atomic expression. *)
   | And of formula * formula
   | Or of formula * formula
+
+(** Give a default set a method used to generate formulas. Those methods are all
+    located in the class 'sawja.Assertions' and are the following:
+    - public static void assume (boolean)
+    - public static void check (boolean)
+    - public static void invariant (boolean)
+    *)
+val default_formula_cmd : JBasics.class_method_signature list
 
 (** {3 Instructions} *)
   
@@ -227,17 +238,10 @@ type instr =
 		       
 		       Exceptions that could be thrown by the virtual
 		       machine are described in {!check} type declaration.*)
-  | Formula of string * formula (** string is a method name (in a format such
-                                  as 'main') This method musts be in the class
-                                  containing the assertions (and set using the
-                                  function GetFormula.set_class). It musts only
-                                  take a single boolean argument. 
-                                  The formula is the expression leading to the
-                                  boolean argument. 
-                                  It can be used to checked explicitly a
-                                  condition from the source code in an
-                                  analyzis.
-                                 *)
+  | Formula of JBasics.class_method_signature * formula 
+    (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
+          the formula to be verified. *)
+
 
 type exception_handler = {
   e_start : int;
@@ -351,15 +355,20 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
 
 (** {2 Bytecode transformation} *)
 
-(** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode] into its
-    A3Bir representation.  The transformation is performed in the
-    context of a given concrete method [cm].  The type checking
-    normally performed by the ByteCode Verifier (BCV) is done if and
-    only if [bcv] is [true]. Check instructions are generated when a
-    linkage operation is done if and only if [ch_link] is
-    [true]. [transform] can raise several exceptions.  See
-    Exceptions below for details. *)
-val transform : ?bcv:bool -> ?ch_link:bool -> ?formula:JBir.GetFormula.use_formula 
+
+(** [transform ~bcv ~ch_link ~formula cm jcode] transforms the code [jcode]
+    into its A3bir representation. The transformation is performed in
+    the context of a given concrete method [cm].  
+    - [?bcv]: The type checking normally performed by the ByteCode Verifier
+    (BCV) is done if and only if [bcv] is [true]. 
+    - [?ch_link]: Check instructions are generated when a linkage operation is
+    done if and only if [ch_link] is [true].
+    - [?formula]: A list of method for which calls are replaced by formulas in
+    the A3Bir representation. Those methods must be static, they must return
+    null and only takes a single boolean variable as argument.
+  
+    [transform] can raise several exceptions. See exceptions below for details. *)
+val transform : ?bcv:bool -> ?ch_link:bool -> ?formula:JBasics.class_method_signature list 
   -> JCode.jcode Javalib.concrete_method -> JCode.jcode -> t 
 
 (** {2 Exceptions} *)

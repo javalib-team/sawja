@@ -44,14 +44,9 @@ let exception_edges = bir_exception_edges
 
 let jump_target = bir_jump_target
 
-let transform ?(bcv=false) ?(ch_link = false) ?(formula = JBir.GetFormula.F_No) cm c = 
+let transform ?(bcv=false) ?(ch_link = false) ?(formula = []) cm c = 
   let res = jcode2bir Normal bcv ch_link false cm c in
-  let res = 
-    match formula with
-      | JBir.GetFormula.F_No -> res
-      | JBir.GetFormula.F_Default-> JBir.GetFormula.run JBir.GetFormula.default_formula res 
-      | JBir.GetFormula.F_Perso fhandler -> JBir.GetFormula.run fhandler res
-
+  let res = Bir.GetFormula.run formula res
   in
     SSA.transform_from_ir res
 

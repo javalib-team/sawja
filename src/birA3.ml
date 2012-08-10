@@ -122,7 +122,7 @@ type instr =
   | MonitorExit of tvar 
   | MayInit of class_name
   | Check of check 
-  | Formula of string * formula
+  | Formula of class_method_signature * formula
       
 type t = {
   bir : Bir.bir;
@@ -137,6 +137,8 @@ let exc_tbl m = m.bir.Bir.bir_exc_tbl
 let line_number_table m = m.bir.Bir.bir_line_number_table
 let pc_bc2ir m = m.bir.Bir.bir_pc_bc2ir
 let pc_ir2bc m = m.bir.Bir.bir_pc_ir2bc 
+
+let default_formula_cmd = Bir.default_formula_cmd
 
 let get_source_line_number pc_ir m = 
   Bir.bir_get_source_line_number pc_ir m.bir
@@ -235,8 +237,10 @@ let print_instr ?(show_type=true) = function
 	  | CheckArithmetic e -> Printf.sprintf "notzero %s" (print_tvar ~show_type:show_type e)
 	  | CheckLink op -> Printf.sprintf "checklink (%s)" (JPrint.jopcode op)
       end
-  | Formula (cmd,f) -> Printf.sprintf "%s(%s)" cmd 
-      (print_formula ~show_type:show_type f)
+  | Formula (cmd,f) ->
+      let (cn, ms) = cms_split cmd in 
+        Printf.sprintf "FORMULA: %s.%s(%s)" (cn_name cn) (ms_name ms)
+          (print_formula ~show_type:show_type f)
 
 let print_expr ?(show_type=true) = print_expr ~show_type:show_type true
 
