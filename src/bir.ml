@@ -2900,26 +2900,26 @@ module GetFormula = struct
     (* Match a BoolVar.*)
   let rec fold_boolean_var code target_var target_pc from =
     if from <= target_pc-1 then
-      try 
-        match code.(from) with
-          | AffectVar (x,Const (`Int i1))
-              when (var_equal x target_var) && 
-                   ((from+1=target_pc) || code.(from+1) = Goto target_pc) ->
-              let i1 = 
-                if i1 = Int32.one then `Int i1
-                else if i1 = Int32.zero then `Int i1 
-                else raise Not_a_boolean_affectation
-              in
-                Some (BoolVar (Const i1))
-          | InvokeStatic (Some x,_,_,_)
-          | InvokeVirtual (Some x,_,_,_,_)
-          | InvokeNonVirtual (Some x,_,_,_,_) when  
-              (var_equal x target_var) && ((from+1=target_pc) || code.(from+1) = Goto target_pc)
-            -> Some (BoolVar (Var (JBasics.TBasic `Bool,x)))
-          | _ -> raise Not_a_boolean_affectation
-      with Not_a_boolean_affectation ->
-        fold_boolean_var code target_var target_pc (from +1)
-        else None
+      (try 
+         match code.(from) with
+           | AffectVar (x,Const (`Int i1))
+               when (var_equal x target_var) && 
+                    ((from+1=target_pc) || code.(from+1) = Goto target_pc) ->
+               let i1 = 
+                 if i1 = Int32.one then `Int i1
+                 else if i1 = Int32.zero then `Int i1 
+                 else raise Not_a_boolean_affectation
+               in
+                 Some (BoolVar (Const i1))
+           | InvokeStatic (Some x,_,_,_)
+           | InvokeVirtual (Some x,_,_,_,_)
+           | InvokeNonVirtual (Some x,_,_,_,_) when  
+               (var_equal x target_var) && ((from+1=target_pc) || code.(from+1) = Goto target_pc)
+             -> Some (BoolVar (Var (JBasics.TBasic `Bool,x)))
+           | _ -> raise Not_a_boolean_affectation
+       with Not_a_boolean_affectation ->
+         fold_boolean_var code target_var target_pc (from +1))
+    else None
 
 
     let get_formula code x pc = 
@@ -2938,9 +2938,31 @@ module GetFormula = struct
   		  | Some f -> Some (cmd,f)
   		  | None -> None)
           )
+      | InvokeStatic (None,c,ms,[Const i]) ->
+          (* Handle the case when in bir we can directly get constante as
+             argument and when the method argument is a single value instead of
+             a real boolean expression. *)
+          (match is_command f_meths (make_cms c ms) with
+  	   | None -> None
+  	   | Some cmd -> Some (cmd,BoolVar (Const i))
+          )
       | _ -> None
   
   let run f_meths m =
+    (*Before really running the transformation, we check that each methods
+      given is valid.*)
+    let _chk =
+    List.iter
+      (fun cms -> 
+         let (_cn, ms) = JBasics.cms_split cms in
+         match (ms_rtype ms, ms_args ms) with
+           | (None, [JBasics.TBasic `Bool;]) -> ()
+           | _ -> Printf.eprintf 
+                    "warning: Trying to use an invalid method to build formula: \"%s\" has an invalid signature.\n"
+                    (ms_name ms)
+      )
+      f_meths
+    in
     match f_meths with
       | [] -> m 
       | _ ->
