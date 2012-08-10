@@ -74,6 +74,7 @@ let eval_transfer = function
   | Kill x -> fun ab -> Env.remove x ab
 
 let rec all_expr_in_formula acc = function
+  | JBir.BoolVar e -> e::acc
   | JBir.Atom (_,e1,e2) -> e1::e2::acc
   | JBir.And (f1,f2) | JBir.Or (f1,f2) -> all_expr_in_formula (all_expr_in_formula acc f1) f2
 let all_expr_in_formula = all_expr_in_formula []
