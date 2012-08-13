@@ -49,6 +49,8 @@ Bug fixes:
   were treated the same as others instructions that can throw only native
   exceptions)
 
+* jvmti: CallsTracer now works on 64bits system. Remove compilation warnings.
+
 * Various fixes in Makefile and htmlPrinter.
 
 From 1.2 to 1.3
