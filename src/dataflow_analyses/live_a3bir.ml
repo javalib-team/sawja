@@ -74,7 +74,7 @@ let eval_transfer = function
   | Kill x -> fun ab -> Env.remove x ab
 
 let rec all_expr_in_formula acc = function
-  | A3Bir.BoolVar e -> (Env.tvars_in_expr e)@acc
+  | A3Bir.BoolVar e -> e::acc
   | A3Bir.Atom (_,e1,e2) -> e1::e2::acc
   | A3Bir.And (f1,f2) | A3Bir.Or (f1,f2) -> all_expr_in_formula (all_expr_in_formula acc f1) f2
 let all_expr_in_formula = all_expr_in_formula []

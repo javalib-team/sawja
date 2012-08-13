@@ -97,7 +97,7 @@ type check =
 
 type formula =
   | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar
-  | BoolVar of expr
+  | BoolVar of tvar
   | And of formula * formula
   | Or of formula * formula
 
@@ -187,7 +187,7 @@ let print_cmp ?(show_type=true) (c,e1,e2) =
 
 let rec print_formula ?(show_type=true) = function
   | Atom (cmp,e1,e2) -> print_cmp ~show_type:show_type (cmp,e1,e2)
-  | BoolVar v -> print_expr ~show_type:show_type false v
+  | BoolVar e -> print_tvar ~show_type:show_type e
   | And (f1,f2) -> Printf.sprintf "(%s) && (%s)" 
       (print_formula ~show_type:show_type f1) (print_formula ~show_type:show_type f2)
   | Or (f1,f2) -> Printf.sprintf "(%s) || (%s)" 
@@ -307,7 +307,7 @@ let check2check = function
   | Bir.CheckLink op -> CheckLink op
 
 let rec bir2a3bir_formula = function
-  | Bir.BoolVar x -> BoolVar (bir2a3bir_expr x)
+  | Bir.BoolVar e -> BoolVar (expr2tvar e)
   | Bir.Atom (a,e1,e2) -> Atom (a, expr2tvar e1, expr2tvar e2)
   | Bir.And (f1,f2) -> And (bir2a3bir_formula f1, bir2a3bir_formula f2)
   | Bir.Or (f1,f2) -> Or (bir2a3bir_formula f1, bir2a3bir_formula f2)
