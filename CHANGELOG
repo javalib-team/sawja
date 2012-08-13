@@ -43,6 +43,9 @@ Bug fixes:
     generated when option ~ch_link is activated during
     transformation).
 
+  - CheckLink was generated before a "new" instruction even if ch_link
+    option was not activated
+
 * JRTA: raises an exception when no entry points are found.
 
 * JControlFlow.PP_* modules: throw instructions were badly handled (they
