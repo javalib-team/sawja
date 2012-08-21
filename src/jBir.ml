@@ -44,7 +44,7 @@ let print = bir_print
 
 let jump_target = bir_jump_target
 
-let transform ?(bcv=false) ?(ch_link = false) ?(formula=[]) cm c = 
+let transform ?(bcv=false) ?(ch_link = false) ?(formula=default_formula_cmd) cm c = 
   let res = jcode2bir Normal bcv ch_link false cm c in
       GetFormula.run formula res
     

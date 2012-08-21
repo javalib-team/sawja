@@ -2786,17 +2786,12 @@ module GetFormula = struct
  *)
   
   let is_command f_meths cms2find = 
-    List.fold_left
-      (fun found cmsEl ->
-         match found with
-           | None -> 
-               if cms_equal cmsEl cms2find
-               then Some cmsEl
-               else found
-           | _ -> found
-      )
-      None
-      (f_meths)
+    List.exists
+      (fun cmsEl ->
+         if cms_equal cmsEl cms2find
+         then true
+         else false)
+      f_meths
 
   
   let neg_cond (c,e1,e2) =
@@ -2821,147 +2816,196 @@ module GetFormula = struct
   	* decision_tree (* b true *)
   	* decision_tree (* b false *)
   
-  let compute_decision_tree code target_var target_pc i =
+  let compute_decision_tree cmd code target_var target_pc i =
     let rec tree i  = 
       (* Printf.printf "  tree(%d)...\n" i;*)
       match code.(i) with
         | Ifd (c,j) ->
-  	  if j < i then raise Not_a_decision_tree
-  	  else Node (neg_cond c,tree (i+1),tree j)
+  	    if j < i then raise Not_a_decision_tree
+  	    else Node (neg_cond c,tree (i+1),tree j)
         | Goto j -> 
-  	  if j < i then raise Not_a_decision_tree
-  	  else tree j
+  	    if j < i then raise Not_a_decision_tree
+  	    else tree j
         | AffectVar (x,Const (`Int i1))
-  	  when (var_equal x target_var) && 
-  	    ((i+1=target_pc) || code.(i+1) = Goto target_pc) ->
-  	  if i1 = Int32.one then LeafTrue
-  	  else if i1 = Int32.zero then LeafFalse
-  	  else raise Not_a_decision_tree
-        | _ -> raise Not_a_decision_tree in
+  	    when (var_equal x target_var) && 
+  	      ((i+1=target_pc) || code.(i+1) = Goto target_pc) ->
+  	    if i1 = Int32.one then LeafTrue
+  	    else if i1 = Int32.zero then LeafFalse
+  	    else raise Not_a_decision_tree
+              (* special case when CheckLink instruction were
+                 generated *)
+        | AffectVar (x,Const (`Int i1))
+  	    when 
+              (* when a CheckLink instruction is present, it is the
+                 join instruction which is as consequence at (target_pc -1)
+                 instead of target_pc (corresponding to mayinit) *)
+              (if (var_equal x target_var) && 
+                 ((i+1=target_pc -1 ) || code.(i+1) = Goto (target_pc - 1))
+               then 
+                 (* verify that we are really in case of CheckLink
+                    instruction for method call corresponding to
+                    formula command *)
+                 match code.(target_pc - 1) with 
+                   | Check check 
+                       when
+                         (match check with 
+                            | CheckLink jcode_op when
+                                (match jcode_op with
+                                   | OpInvoke (`Static cn,ms) when
+                                       (let cms = make_cms cn ms in
+                                          cms_equal cms cmd) -> true
+                                   | _ -> false) 
+                                -> true
+                            | _ -> false)
+                         -> true
+                   | _ -> false
+               else false) -> 
+  	    if i1 = Int32.one then LeafTrue
+  	    else if i1 = Int32.zero then LeafFalse
+  	    else raise Not_a_decision_tree
+        | _ -> raise Not_a_decision_tree 
+    in
       tree i
 
-    (*Replace each instructions preparing the formula by Nop instructions.*)
+  (*Replace each instructions preparing the formula by Nop instructions.*)
   let remove_instr_decision_tree code i last =
     let rec remove i acc =
-      match code.(i) with
-        | Ifd (_,j) -> 
-  	  remove (i+1) (remove j (Ptset.add i acc))
-        | Goto j -> remove j (Ptset.add i acc)
-        | Check _ -> remove (i+1) (Ptset.add i acc)
-        | AffectVar (_,Const (`Int _)) ->
-  	  Ptset.add i (Ptset.add (i+1) acc)
-        | _ -> assert false in
+      if i <= last
+      then
+        match code.(i) with
+          | Ifd (_,j) -> 
+  	      remove (i+1) (remove j (Ptset.add i acc))
+          | Goto j -> remove j (Ptset.add i acc)
+          | Check _ -> remove (i+1) (Ptset.add i acc)
+          | MayInit _ -> remove (i+1) (Ptset.add i acc)
+          | AffectVar (_,Const (`Int _)) ->
+  	      remove (i+1) (Ptset.add i acc)
+          | _ -> assert false 
+      else acc
+    in
     let all = remove i Ptset.empty in
       (*check that every instructions between i and last will be removed. *)
     let rec in_all j =
-      (j >= last) || (Ptset.mem j all && in_all (j+1)) in
+      (j > last) || (Ptset.mem j all && in_all (j+1)) in
       assert (in_all i);
       Ptset.iter (fun i -> code.(i) <- Nop) all
-  
-    (* Add condition [c0] to each list of the list. *)
-    let rec cons_and c0 = function
-      | [] -> []
-      | d::g -> (c0::d)::(cons_and c0 g)
-  
-    let guard_of_decision_tree t = 
-      let rec aux = function
-        | LeafFalse -> []
-        | LeafTrue -> [[]]
-        | Node (c,left,right) -> 
+        
+  (* Add condition [c0] to each list of the list. *)
+  let rec cons_and c0 = function
+    | [] -> []
+    | d::g -> (c0::d)::(cons_and c0 g)
+
+  let guard_of_decision_tree t = 
+    let rec aux = function
+      | LeafFalse -> []
+      | LeafTrue -> [[]]
+      | Node (c,left,right) -> 
   	  let l = aux left in
   	  let r = aux right in
   	    if l = [] then cons_and (neg_cond c) r
   	    else if r = [] then cons_and c l
   	    else (cons_and c l)@(cons_and (neg_cond c) r) in
-      let filter_nil l = List.filter (fun d -> d<>[]) l in
-      let rec to_cnj = function
-        | [] -> assert false
-        | [(c,e1,e2)] -> Atom (c,e1,e2)
-        | (c,e1,e2)::q -> And (Atom (c,e1,e2),to_cnj q) in
-      let rec to_dij = function
-        | [] -> raise Not_a_decision_tree
-        | [c] -> to_cnj c
-        | c::q -> Or (to_cnj c, to_dij q) 
-      in
-        to_dij (filter_nil (aux t))
-  
-    let rec fold_boolean_expr code x pc from =
-      if from <= pc-1 then
-        try
-  	let tree = compute_decision_tree code x pc from in
+    let filter_nil l = List.filter (fun d -> d<>[]) l in
+    let rec to_cnj = function
+      | [] -> assert false
+      | [(c,e1,e2)] -> Atom (c,e1,e2)
+      | (c,e1,e2)::q -> And (Atom (c,e1,e2),to_cnj q) in
+    let rec to_dij = function
+      | [] -> raise Not_a_decision_tree
+      | [c] -> to_cnj c
+      | c::q -> Or (to_cnj c, to_dij q) 
+    in
+      to_dij (filter_nil (aux t))
+        
+  let rec fold_boolean_expr cmd code x pc from =
+    if from <= pc-1 then
+      try
+  	let tree = compute_decision_tree cmd code x pc from in
   	let guard = guard_of_decision_tree tree in
   	  remove_instr_decision_tree code from pc; 
   	  Some guard
-        with
+      with
   	| Not_a_decision_tree -> 
-  	    fold_boolean_expr code x pc (from+1)
-      else None
-
-    (* Match a BoolVar.*)
-  let rec fold_boolean_var code target_var target_pc from =
-    if from <= target_pc-1 then
-      (try 
-         match code.(from) with
-           | AffectVar (x,Const (`Int i1))
-               when (var_equal x target_var) && 
-                    ((from+1=target_pc) || code.(from+1) = Goto target_pc) ->
-               let i1 = 
-                 if i1 = Int32.one then `Int i1
-                 else if i1 = Int32.zero then `Int i1 
-                 else raise Not_a_boolean_affectation
-               in
-                 Some (BoolVar (Const i1))
-           | InvokeStatic (Some x,_,_,_)
-           | InvokeVirtual (Some x,_,_,_,_)
-           | InvokeNonVirtual (Some x,_,_,_,_) when  
-               (var_equal x target_var) && ((from+1=target_pc) || code.(from+1) = Goto target_pc)
-             -> Some (BoolVar (Var (JBasics.TBasic `Bool,x)))
-           | _ -> raise Not_a_boolean_affectation
-       with Not_a_boolean_affectation ->
-         fold_boolean_var code target_var target_pc (from +1))
+  	    fold_boolean_expr cmd code x pc (from+1)
     else None
 
+  (* remove only instructions linked to the method call which is used
+     as command for formula (MayInit and possible CheckLink generated
+     before InvokeStatic instruciton of command)*)
+  let remove_instr_boolvar (cmd_cn,cmd_ms) code target_pc =
+    let rec remove pc =
+      if pc >= 0
+      then
+        (match code.(pc) with
+           | MayInit cn when cn_equal cn cmd_cn -> 
+               code.(pc) <- Nop;
+               remove (pc-1)
+           | Check check when
+               (match check with 
+                  | CheckLink jcode_op when
+                      (match jcode_op with
+                         | OpInvoke (`Static cn,ms) when
+                             (cn_equal cn cmd_cn && ms_equal ms cmd_ms) -> true
+                         | _ -> false) 
+                      -> true
+                  | _ -> false)
+               -> (code.(pc) <- Nop;
+                   remove (pc-1))
+           | _ -> ()
+        )
+      else ()
+    in
+      remove target_pc
+      
 
-    let get_formula code x pc = 
-      match fold_boolean_expr code x pc 0 with
-        | (Some res) -> Some res
-        | None -> fold_boolean_var code x pc 0
-        
-  
+  let get_formula cmd code x pc = 
+    match fold_boolean_expr cmd code x pc 0 with
+      | (Some res) -> Some res
+      | None ->
+          (* In all cases we don't fail to construct a formula ... *)
+          let cmd_cn,cmd_ms = cms_split cmd in
+            remove_instr_boolvar (cmd_cn,cmd_ms) code pc;
+            Some (BoolVar (Var (JBasics.TBasic `Bool,x)))
+          
+          
   let extract_fomula_aux f_meths code i =
     match code.(i) with
       | InvokeStatic (None,c,ms,[Var (_,x)]) ->
-          (match is_command f_meths (make_cms c ms) with
-  	   | None -> None
-  	   | Some cmd ->
-  	       (match get_formula code x (i-1) with
-  		  | Some f -> Some (cmd,f)
-  		  | None -> None)
-          )
-      | InvokeStatic (None,c,ms,[Const i]) ->
-          (* Handle the case when in bir we can directly get constante as
+          let cms_cmd = make_cms c ms in
+            if is_command f_meths cms_cmd
+            then
+  	      (match get_formula cms_cmd code x (i-1) with
+  	         | Some f -> Some (cms_cmd,f)
+  	         | None -> assert false
+              )
+            else None
+      | InvokeStatic (None,c,ms,[Const const]) ->
+          (* Handle the case when in bir we can directly get constant as
              argument and when the method argument is a single value instead of
              a real boolean expression. *)
-          (match is_command f_meths (make_cms c ms) with
-  	   | None -> None
-  	   | Some cmd -> Some (cmd,BoolVar (Const i))
-          )
+          let cms_cmd = make_cms c ms in
+            if is_command f_meths cms_cmd
+            then 
+              (remove_instr_boolvar (c,ms) code (i-1);
+               Some (cms_cmd,BoolVar (Const const)))
+            else None
       | _ -> None
   
   let run f_meths m =
     (*Before really running the transformation, we check that each methods
       given is valid.*)
     let _chk =
-    List.iter
-      (fun cms -> 
-         let (_cn, ms) = JBasics.cms_split cms in
-         match (ms_rtype ms, ms_args ms) with
-           | (None, [JBasics.TBasic `Bool;]) -> ()
-           | _ -> Printf.eprintf 
-                    "warning: Trying to use an invalid method to build formula: \"%s\" has an invalid signature.\n"
-                    (ms_name ms)
-      )
-      f_meths
+      List.iter
+        (fun cms -> 
+           let (_cn, ms) = JBasics.cms_split cms in
+             match (ms_rtype ms, ms_args ms) with
+               | (None, [JBasics.TBasic `Bool;]) -> ()
+               | _ -> 
+                   Printf.eprintf 
+                     "warning: Trying to use an invalid method to build formula: \"%s\" has an invalid signature and will not be used as command for formulae.\n"
+                     (ms_name ms)
+        )
+        f_meths
     in
     match f_meths with
       | [] -> m 

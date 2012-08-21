@@ -410,15 +410,19 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
 (** [transform ~bcv ~ch_link ~formula cm jcode] transforms the code [jcode]
     into its A3BirSSA representation. The transformation is performed in
     the context of a given concrete method [cm].  
-    - [?bcv]: The type checking normally performed by the ByteCode Verifier
-    (BCV) is done if and only if [bcv] is [true]. 
-    - [?ch_link]: Check instructions are generated when a linkage operation is
-    done if and only if [ch_link] is [true].
-    - [?formula]: A list of method for which calls are replaced by formulas in
-    the A3BirSSA representation. Those methods must be static, they must return
-    null and only takes a single boolean variable as argument.
 
-  
+    - [?bcv]: The type checking normally performed by the ByteCode
+    Verifier (BCV) is done if and only if [bcv] is [true].
+
+    - [?ch_link]: Check instructions are generated when a linkage
+    operation is done if and only if [ch_link] is [true].
+
+    - [?formula]: A list of method for which calls are replaced by
+    formulae in the JBir representation. Those methods must be static,
+    they must return null and only takes a single boolean variable as
+    argument. {!default_formula_cmd} methods will be used by default.
+
+    
     [transform] can raise several exceptions. See exceptions below for details. *)
 
 val transform :
