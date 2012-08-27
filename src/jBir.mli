@@ -406,9 +406,9 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
 
 (** {2 Bytecode transformation} *)
 
-(** [transform ~bcv ~ch_link ~formula cm jcode] transforms the code [jcode]
-    into its JBir representation. The transformation is performed in
-    the context of a given concrete method [cm].  
+(** [transform ~bcv ~ch_link ~formula ~formula_cmd cm jcode] transforms the 
+    code [jcode]into its JBir representation. The transformation is performed 
+    in the context of a given concrete method [cm].  
 
     - [?bcv]: The type checking normally performed by the ByteCode
     Verifier (BCV) is done if and only if [bcv] is [true].
@@ -416,14 +416,20 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     - [?ch_link]: Check instructions are generated when a linkage
     operation is done if and only if [ch_link] is [true].
 
-    - [?formula]: A list of method for which calls are replaced by
+    - [?formula]: Every static call to a method in the list
+    [formula_cmd] generates a [Formula _] statement. Its 
+    default value is [false].
+
+    - [?formula_cmd]: A list of method for which calls are replaced by
     formulae in the JBir representation. Those methods must be static,
     they must return null and only takes a single boolean variable as
     argument. {!default_formula_cmd} methods will be used by default.
+    The argument is only relevant when argument [formula] equals [true].
     
     [transform] can raise several exceptions. See exceptions below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> ?formula: JBasics.class_method_signature list ->
+  ?bcv:bool -> ?ch_link:bool -> 
+  ?formula:bool -> ?formula_cmd:JBasics.class_method_signature list ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)

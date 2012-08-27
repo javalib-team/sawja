@@ -91,7 +91,7 @@ let type_of_const i =
     | `Long  _ -> TBasic `Long
 
 
-let rec type_of_expr = function
+let type_of_expr = function
   | Var (t,_) -> t
   | Field (_,_,f)
   | StaticField (_,f) -> fs_type f
@@ -955,7 +955,7 @@ exception Bad_Multiarray_dimension
       multi array of dimension zero. *)
 
 (* fetches the element value type *)
-let rec remove_dim t n =
+let remove_dim t n =
   (* only used for multidim arrays, hence not of dimension 0 *)
   if (n <= 0) then raise Bad_Multiarray_dimension ;
   let rec aux t n =
@@ -2547,7 +2547,7 @@ let flatten_code code exc_tbl =
 	    (* map from initial pcs to the future pc they are mapped to *)
   in 
   let (instrs,pc_list,map) = aux 0 Ptmap.empty code in
-  let rec find i = (* find the flattened pc associated to i *)
+  let find i = (* find the flattened pc associated to i *)
     try Ptmap.find i map
     with Not_found -> assert (i=1+(last code)); List.length instrs
   in
@@ -2765,274 +2765,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
       | None -> raise Subroutine
 
 
-module GetFormula = struct
-  type fh = class_method_signature list
-
-  type use_formula = 
-    | F_Default
-    | F_Perso of fh
-
-  let empty_formula =
-    []
-
-  let default_formula = 
-    [make_cms (make_cn "sawja.Assertions") (make_ms "assume" [TBasic `Bool] None); 
-     make_cms (make_cn "sawja.Assertions") (make_ms "check" [TBasic `Bool] None);
-     make_cms (make_cn "sawja.Assertions") (make_ms "invariant" [TBasic `Bool] None); ]
-
-(*
-  let is_assertion_cn fh = 
-    cn_equal (JBasics.make_cn (fst fh))
- *)
-  
-  let is_command f_meths cms2find = 
-    List.exists
-      (fun cmsEl ->
-         if cms_equal cmsEl cms2find
-         then true
-         else false)
-      f_meths
-
-  
-  let neg_cond (c,e1,e2) =
-    match c with
-      | `Eq -> (`Ne,e1,e2)
-      | `Ne -> (`Eq,e1,e2)
-      | `Lt -> (`Ge,e1,e2)
-      | `Ge -> (`Lt,e1,e2)
-      | `Gt -> (`Le,e1,e2)
-      | `Le -> (`Gt,e1,e2)
-  
-  exception Not_a_decision_tree
-  exception Not_a_boolean_affectation
-  
-  type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
-      
-  type decision_tree =
-    | LeafTrue
-    | LeafFalse
-    | Node of 
-  	cond (* b *)
-  	* decision_tree (* b true *)
-  	* decision_tree (* b false *)
-  
-  let compute_decision_tree cmd code target_var target_pc i =
-    let rec tree i  = 
-      (* Printf.printf "  tree(%d)...\n" i;*)
-      match code.(i) with
-        | Ifd (c,j) ->
-  	    if j < i then raise Not_a_decision_tree
-  	    else Node (neg_cond c,tree (i+1),tree j)
-        | Goto j -> 
-  	    if j < i then raise Not_a_decision_tree
-  	    else tree j
-        | AffectVar (x,Const (`Int i1))
-  	    when (var_equal x target_var) && 
-  	      ((i+1=target_pc) || code.(i+1) = Goto target_pc) ->
-  	    if i1 = Int32.one then LeafTrue
-  	    else if i1 = Int32.zero then LeafFalse
-  	    else raise Not_a_decision_tree
-              (* special case when CheckLink instruction were
-                 generated *)
-        | AffectVar (x,Const (`Int i1))
-  	    when 
-              (* when a CheckLink instruction is present, it is the
-                 join instruction which is as consequence at (target_pc -1)
-                 instead of target_pc (corresponding to mayinit) *)
-              (if (var_equal x target_var) && 
-                 ((i+1=target_pc -1 ) || code.(i+1) = Goto (target_pc - 1))
-               then 
-                 (* verify that we are really in case of CheckLink
-                    instruction for method call corresponding to
-                    formula command *)
-                 match code.(target_pc - 1) with 
-                   | Check check 
-                       when
-                         (match check with 
-                            | CheckLink jcode_op when
-                                (match jcode_op with
-                                   | OpInvoke (`Static cn,ms) when
-                                       (let cms = make_cms cn ms in
-                                          cms_equal cms cmd) -> true
-                                   | _ -> false) 
-                                -> true
-                            | _ -> false)
-                         -> true
-                   | _ -> false
-               else false) -> 
-  	    if i1 = Int32.one then LeafTrue
-  	    else if i1 = Int32.zero then LeafFalse
-  	    else raise Not_a_decision_tree
-        | _ -> raise Not_a_decision_tree 
-    in
-      tree i
-
-  (*Replace each instructions preparing the formula by Nop instructions.*)
-  let remove_instr_decision_tree code i last =
-    let rec remove i acc =
-      if i <= last
-      then
-        match code.(i) with
-          | Ifd (_,j) -> 
-  	      remove (i+1) (remove j (Ptset.add i acc))
-          | Goto j -> remove j (Ptset.add i acc)
-          | Check _ -> remove (i+1) (Ptset.add i acc)
-          | MayInit _ -> remove (i+1) (Ptset.add i acc)
-          | AffectVar (_,Const (`Int _)) ->
-  	      remove (i+1) (Ptset.add i acc)
-          | _ -> assert false 
-      else acc
-    in
-    let all = remove i Ptset.empty in
-      (*check that every instructions between i and last will be removed. *)
-    let rec in_all j =
-      (j > last) || (Ptset.mem j all && in_all (j+1)) in
-      assert (in_all i);
-      Ptset.iter (fun i -> code.(i) <- Nop) all
-        
-  (* Add condition [c0] to each list of the list. *)
-  let rec cons_and c0 = function
-    | [] -> []
-    | d::g -> (c0::d)::(cons_and c0 g)
-
-  let guard_of_decision_tree t = 
-    let rec aux = function
-      | LeafFalse -> []
-      | LeafTrue -> [[]]
-      | Node (c,left,right) -> 
-  	  let l = aux left in
-  	  let r = aux right in
-  	    if l = [] then cons_and (neg_cond c) r
-  	    else if r = [] then cons_and c l
-  	    else (cons_and c l)@(cons_and (neg_cond c) r) in
-    let filter_nil l = List.filter (fun d -> d<>[]) l in
-    let rec to_cnj = function
-      | [] -> assert false
-      | [(c,e1,e2)] -> Atom (c,e1,e2)
-      | (c,e1,e2)::q -> And (Atom (c,e1,e2),to_cnj q) in
-    let rec to_dij = function
-      | [] -> raise Not_a_decision_tree
-      | [c] -> to_cnj c
-      | c::q -> Or (to_cnj c, to_dij q) 
-    in
-      to_dij (filter_nil (aux t))
-        
-  let rec fold_boolean_expr cmd code x pc from =
-    if from <= pc-1 then
-      try
-  	let tree = compute_decision_tree cmd code x pc from in
-  	let guard = guard_of_decision_tree tree in
-  	  remove_instr_decision_tree code from pc; 
-  	  Some guard
-      with
-  	| Not_a_decision_tree -> 
-  	    fold_boolean_expr cmd code x pc (from+1)
-    else None
-
-  (* remove only instructions linked to the method call which is used
-     as command for formula (MayInit and possible CheckLink generated
-     before InvokeStatic instruciton of command)*)
-  let remove_instr_boolvar (cmd_cn,cmd_ms) code target_pc =
-    let rec remove pc =
-      if pc >= 0
-      then
-        (match code.(pc) with
-           | MayInit cn when cn_equal cn cmd_cn -> 
-               code.(pc) <- Nop;
-               remove (pc-1)
-           | Check check when
-               (match check with 
-                  | CheckLink jcode_op when
-                      (match jcode_op with
-                         | OpInvoke (`Static cn,ms) when
-                             (cn_equal cn cmd_cn && ms_equal ms cmd_ms) -> true
-                         | _ -> false) 
-                      -> true
-                  | _ -> false)
-               -> (code.(pc) <- Nop;
-                   remove (pc-1))
-           | _ -> ()
-        )
-      else ()
-    in
-      remove target_pc
-      
-
-  let get_formula cmd code x pc = 
-    match fold_boolean_expr cmd code x pc 0 with
-      | (Some res) -> Some res
-      | None ->
-          (* In all cases we don't fail to construct a formula ... *)
-          let cmd_cn,cmd_ms = cms_split cmd in
-            remove_instr_boolvar (cmd_cn,cmd_ms) code pc;
-            Some (BoolVar (Var (JBasics.TBasic `Bool,x)))
-          
-          
-  let extract_fomula_aux f_meths code i =
-    match code.(i) with
-      | InvokeStatic (None,c,ms,[Var (_,x)]) ->
-          let cms_cmd = make_cms c ms in
-            if is_command f_meths cms_cmd
-            then
-  	      (match get_formula cms_cmd code x (i-1) with
-  	         | Some f -> Some (cms_cmd,f)
-  	         | None -> assert false
-              )
-            else None
-      | InvokeStatic (None,c,ms,[Const const]) ->
-          (* Handle the case when in bir we can directly get constant as
-             argument and when the method argument is a single value instead of
-             a real boolean expression. *)
-          let cms_cmd = make_cms c ms in
-            if is_command f_meths cms_cmd
-            then 
-              (remove_instr_boolvar (c,ms) code (i-1);
-               Some (cms_cmd,BoolVar (Const const)))
-            else None
-      | _ -> None
-  
-  let run f_meths m =
-    (*Before really running the transformation, we check that each methods
-      given is valid.*)
-    let _chk =
-      List.iter
-        (fun cms -> 
-           let (_cn, ms) = JBasics.cms_split cms in
-             match (ms_rtype ms, ms_args ms) with
-               | (None, [JBasics.TBasic `Bool;]) -> ()
-               | _ -> 
-                   Printf.eprintf 
-                     "warning: Trying to use an invalid method to build formula: \"%s\" has an invalid signature and will not be used as command for formulae.\n"
-                     (ms_name ms)
-        )
-        f_meths
-    in
-    match f_meths with
-      | [] -> m 
-      | _ ->
-          let code_new = Array.copy m.bir_code in
-            for i=0 to (Array.length m.bir_code) -1 do
-              match extract_fomula_aux f_meths code_new i with
-                | Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
-                | None -> ()
-            done;
-            {
-              bir_vars = m.bir_vars;
-              bir_params = m.bir_params;
-              bir_code = code_new;
-              bir_exc_tbl = m.bir_exc_tbl;
-              bir_line_number_table = m.bir_line_number_table;
-              bir_pc_bc2ir = m.bir_pc_bc2ir;
-              bir_pc_ir2bc = m.bir_pc_ir2bc;
-              bir_preds = m.bir_preds; (* not computed yet *)
-              bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
-              bir_mem_ssa = m.bir_mem_ssa; (* not computed yet *)
-            }
-  
-end
-
-let default_formula_cmd = GetFormula.default_formula
-
+(* David: not used anywhere currently
 (* Agregation of boolean tests  *)
 module AgregatBool = struct
   type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
@@ -3102,6 +2835,7 @@ module AgregatBool = struct
   let compute_decision_tree = compute_decision_tree []
 				
 end
+*)
 
 module Live = struct
 
@@ -3694,6 +3428,11 @@ module SSA = struct
       (fun i -> (rename_use.(i))),
       phi_nodes
 
+  let immediate_dominators (ir_code: bir) : int -> int =
+    let preds = preds ir_code in
+    let dom = dominator ir_code.bir_code preds in
+    let (idom,_children) = idom dom in
+      idom
 
   let run ir_code live =
     (*
@@ -3882,6 +3621,215 @@ module SSA = struct
 
 end
 
+module GetFormula = struct
+  type fh = class_method_signature list
+
+  type use_formula = 
+    | F_Default
+    | F_Perso of fh
+
+  let empty_formula =
+    []
+
+  let default_formula = 
+    [make_cms (make_cn "sawja.Assertions") (make_ms "assume" [TBasic `Bool] None); 
+     make_cms (make_cn "sawja.Assertions") (make_ms "check" [TBasic `Bool] None);
+     make_cms (make_cn "sawja.Assertions") (make_ms "invariant" [TBasic `Bool] None); ]
+
+(*
+  let is_assertion_cn fh = 
+    cn_equal (JBasics.make_cn (fst fh))
+ *)
+  
+  let is_command f_meths c ms = 
+    let cms2find = make_cms c ms in
+      List.exists
+	(fun cmsEl -> cms_equal cmsEl cms2find)
+	f_meths
+
+  let is_command_cn f_meths cn = 
+    List.exists
+      (fun cmsEl -> cn_equal (fst (cms_split cmsEl)) cn)
+      f_meths
+
+  let is_command_checklink f_meths = function
+    | OpInvoke (`Static cn,ms) -> is_command f_meths cn ms
+    | _ -> false
+  
+  let neg_cond (c,e1,e2) =
+    match c with
+      | `Eq -> (`Ne,e1,e2)
+      | `Ne -> (`Eq,e1,e2)
+      | `Lt -> (`Ge,e1,e2)
+      | `Ge -> (`Lt,e1,e2)
+      | `Gt -> (`Le,e1,e2)
+      | `Le -> (`Gt,e1,e2)
+  
+  exception Not_a_decision_tree
+  exception Not_a_boolean_affectation
+  
+  type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
+      
+  type decision_tree =
+    | LeafTrue
+    | LeafFalse
+    | Node of 
+  	cond (* b *)
+  	* decision_tree (* b true *)
+  	* decision_tree (* b false *)
+  
+  let compute_decision_tree code target_var target_pc i =
+    let rec tree i  = 
+      (* Printf.printf "  tree(%d)...\n" i;*)
+      match code.(i) with
+        | Ifd (c,j) ->
+  	    if j < i then raise Not_a_decision_tree
+  	    else Node (neg_cond c,tree (i+1),tree j)
+        | Goto j -> 
+  	    if j < i then raise Not_a_decision_tree
+  	    else tree j
+        | AffectVar (x,Const (`Int i1))
+  	    when (var_equal x target_var) && 
+  	      ((i+1=target_pc) || code.(i+1) = Goto target_pc) ->
+  	    if i1 = Int32.one then LeafTrue
+  	    else if i1 = Int32.zero then LeafFalse
+  	    else raise Not_a_decision_tree
+        | _ -> raise Not_a_decision_tree 
+    in
+      tree i
+
+  let remove_code code i target_pc =
+    let rec aux i  = 
+      match code.(i) with
+        | Ifd (_,j) ->
+  	    assert (j >= i);
+	    code.(i) <- Nop;
+  	    aux (i+1);
+	    aux j
+        | Goto j -> 
+  	    assert (j >= i);
+	    code.(i) <- Nop;
+  	    aux j
+        | AffectVar (_,Const (`Int _)) ->
+	    code.(i) <- Nop;
+	    if (code.(i+1) = Goto target_pc) then
+	      code.(i+1) <- Nop;	
+	    aux (i+1);
+	| Nop -> ()    
+	| _ -> assert false
+    in
+      aux i
+        
+  (* Add condition [c0] to each list of the list. *)
+  let rec cons_and c0 = function
+    | [] -> []
+    | d::g -> (c0::d)::(cons_and c0 g)
+
+  let guard_of_decision_tree t = 
+    let rec aux = function
+      | LeafFalse -> []
+      | LeafTrue -> [[]]
+      | Node (c,left,right) -> 
+  	  let l = aux left in
+  	  let r = aux right in
+  	    if l = [] then cons_and (neg_cond c) r
+  	    else if r = [] then cons_and c l
+  	    else (cons_and c l)@(cons_and (neg_cond c) r) in
+    let filter_nil l = List.filter (fun d -> d<>[]) l in
+    let rec to_cnj = function
+      | [] -> assert false
+      | [(c,e1,e2)] -> Atom (c,e1,e2)
+      | (c,e1,e2)::q -> And (Atom (c,e1,e2),to_cnj q) in
+    let rec to_dij = function
+      | [] -> raise Not_a_decision_tree
+      | [c] -> to_cnj c
+      | c::q -> Or (to_cnj c, to_dij q) 
+    in
+      to_dij (filter_nil (aux t))
+        
+  let build_boolean_expr code x pc from =
+    try
+      let tree = compute_decision_tree code x pc from in
+      let guard = guard_of_decision_tree tree in
+  	remove_code code from pc; 
+  	Some guard
+    with
+      | Not_a_decision_tree -> None
+
+  (* [first_nop code pc] returns the smallest [pc'] such that
+     for all index [i] in [pc' ... pc], [code.(i)=Nop].
+     We assume that [code.(pc)=Nop]. *)
+  let first_nop code pc =
+    let i = ref pc in
+      while code.(!i) = Nop && !i>0 do decr i done;
+	let pc' = !i+1 in
+	  assert (code.(pc')=Nop);
+	  pc'
+      
+  let extract_fomula_aux f_meths idom code i =
+    match code.(i) with
+      | InvokeStatic (None,c,ms,[e]) 
+	  when is_command f_meths c ms ->
+          let cms_cmd = make_cms c ms in
+	    (match e with
+	       | Var (_,x) ->
+		   let idom = Lazy.force idom in
+		   let pc = first_nop code (i-1) in
+  		     (match build_boolean_expr code x pc (idom pc) with
+  			| Some f -> Some (cms_cmd,f)
+  			| None -> Some (cms_cmd,BoolVar e))
+	       | _ -> Some (cms_cmd,BoolVar e))
+      | MayInit cn
+	  when is_command_cn f_meths cn ->
+	  code.(i) <- Nop; 
+	    None
+      | Check (CheckLink jcode_op) 
+	  when is_command_checklink f_meths jcode_op ->
+	  code.(i) <- Nop;
+	    None
+      | _ -> None
+  
+  let run f_meths m =
+    (*Before really running the transformation, we check that each methods
+      given is valid.*)
+    let _chk =
+      List.iter
+        (fun cms -> 
+           let (_cn, ms) = JBasics.cms_split cms in
+             match (ms_rtype ms, ms_args ms) with
+               | (None, [JBasics.TBasic `Bool;]) -> ()
+               | _ -> 
+                   Printf.eprintf 
+                     "warning: Trying to use an invalid method to build formula: \"%s\" has an invalid signature and will not be used as command for formulae.\n"
+                     (ms_name ms)
+        )
+        f_meths
+    in
+    let idom = lazy (SSA.immediate_dominators m) in
+    let code_new = Array.copy m.bir_code in
+      for i=0 to (Array.length m.bir_code) -1 do
+        match extract_fomula_aux f_meths idom code_new i with
+          | Some (cmd,f) -> code_new.(i) <- (Formula (cmd,f))
+          | None -> ()
+      done;
+      {
+        bir_vars = m.bir_vars;
+        bir_params = m.bir_params;
+        bir_code = code_new;
+        bir_exc_tbl = m.bir_exc_tbl;
+        bir_line_number_table = m.bir_line_number_table;
+        bir_pc_bc2ir = m.bir_pc_bc2ir;
+        bir_pc_ir2bc = m.bir_pc_ir2bc;
+        bir_preds = m.bir_preds; (* not computed yet *)
+        bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
+        bir_mem_ssa = m.bir_mem_ssa; (* not computed yet *)
+      }
+	
+end
+
+let default_formula_cmd = GetFormula.default_formula
+
+
   open JPrintHtml
 
   let phi_nodes get ioc ms =
@@ -4043,8 +3991,6 @@ end
 
 module PrintIR =
 struct
-  open JPrintHtml
-
   type p_instr = instr
   type p_code = bir
 

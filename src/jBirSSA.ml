@@ -18,11 +18,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
-open JBasics
-open Javalib
-open JCode
-
 include Bir
 
 type t = bir
@@ -44,10 +39,8 @@ let exception_edges = bir_exception_edges
 
 let jump_target = bir_jump_target
 
-let transform ?(bcv=false) ?(ch_link = false) ?(formula = default_formula_cmd) cm c = 
+let transform ?(bcv=false) ?(ch_link = false) cm c = 
   let res = jcode2bir Normal bcv ch_link false cm c in
-  let res = Bir.GetFormula.run formula res
-  in
     SSA.transform_from_ir res
 
 let print ?(phi_simpl=true) m = 

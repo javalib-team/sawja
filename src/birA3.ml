@@ -285,7 +285,7 @@ let bir2a3bir_binop = function
   | Bir.LUshr -> LUshr
   | Bir.CMP c -> CMP c
 
-let rec bir2a3bir_expr e = match e with 
+let bir2a3bir_expr e = match e with 
   | Bir.Const c -> Const c
   | Bir.Var (t,v) -> Var (t,v)
   | Bir.Unop (unop, expr) -> Unop(unop,expr2tvar expr)
@@ -345,8 +345,6 @@ let bir2a3bir bir =
 
 module PrintIR =
 struct
-  open JPrintHtml
-
   type p_instr = Bir.instr
   type p_code = t
 
