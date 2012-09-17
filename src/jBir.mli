@@ -130,7 +130,11 @@ val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Formulae} *)
 
-(** Represent a boolean expression. *)
+(** Represents a reconstructed boolean expression. In the good cases (the
+  expression can be precisely reconstructed), we obtain conjunctions/disjunctions
+  of Atoms. Sometimes the expression cannot be precisely constructed (for
+  example when the expression contains side effects). In this case, we just get
+  a BoolVar. *)
 type formula =
   | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr (** Atomic expression. *)
   | BoolVar of expr (** Single boolean expr (variable or constant), 
@@ -416,9 +420,9 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     - [?ch_link]: Check instructions are generated when a linkage
     operation is done if and only if [ch_link] is [true].
 
-    - [?formula]: Every static call to a method in the list
-    [formula_cmd] generates a [Formula _] statement. Its 
-    default value is [false].
+  - [?formula]: Enables or disables formulae. Every static call to a method in
+    the list [formula_cmd] generates a [Formula _] statement. Its default value
+    is [false].
 
     - [?formula_cmd]: A list of method for which calls are replaced by
     formulae in the JBir representation. Those methods must be static,
