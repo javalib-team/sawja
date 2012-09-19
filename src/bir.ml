@@ -2586,30 +2586,32 @@ let flatten_code code exc_tbl =
 
 (* find predecessors of instructions ...*)
 let find_preds_instrs code handlers = 
-  let dead_instr = Array.make (Array.length code) Ptset.empty in
-    dead_instr.(0) <- Ptset.add 0 dead_instr.(0);
+  let pred_pcs = Array.make (Array.length code) Ptset.empty in
+    pred_pcs.(0) <- Ptset.add (-1) pred_pcs.(0);
     Array.iteri
       (fun i ins -> 
 	 match ins with
 	   | Ifd (_ , j) -> 
-	       dead_instr.(i+1) <- Ptset.add i dead_instr.(i+1); 
-	       dead_instr.(j) <- Ptset.add i dead_instr.(j);
-	   | Goto j -> dead_instr.(j) <- Ptset.add i dead_instr.(j)
+	       pred_pcs.(i+1) <- Ptset.add i pred_pcs.(i+1); 
+	       pred_pcs.(j) <- Ptset.add i pred_pcs.(j);
+	   | Goto j -> pred_pcs.(j) <- Ptset.add i pred_pcs.(j)
 	   | Throw _
 	   | Return _ -> ()
-	   | _ -> dead_instr.(i+1) <- Ptset.add i dead_instr.(i+1)
+	   | _ -> pred_pcs.(i+1) <- Ptset.add i pred_pcs.(i+1)
       )
       code;
+    (* add predecessors of handlers (pcs at which the exception
+       handler is active) *)
     List.iter 
       (fun e -> 
 	 let in_scope = ref e.e_start in
 	   while !in_scope < e.e_end do
-             dead_instr.(e.e_handler) <- Ptset.add !in_scope dead_instr.(e.e_handler);
+	     pred_pcs.(e.e_handler) <- Ptset.add !in_scope pred_pcs.(e.e_handler);
 	     in_scope := succ !in_scope
 	   done
       ) 
       handlers;
-    dead_instr
+    pred_pcs
 
 (* remove instructions of code without predecessors and modify jump,
    handlers and correspondance tables in consequence. *)
@@ -2617,21 +2619,36 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
   let predsi = find_preds_instrs code handlers in
   let succ_of_dead = ref Ptset.empty in
   let nb_dead = ref 0 in
+    (* returns true if pc has no predecessors (excepting itself) *)
+  let has_no_preds pc = 
+    (* provide a way to manage a strange code in which a handler is
+       covering its own code and that is its own predecessor (=> dead
+       code) *)
+    let is_its_own_pred _ = 
+      let (pred,rest) = Ptset.choose_and_remove predsi.(pc) in
+        pred == pc && Ptset.is_empty rest
+    in
+      (* first instruction has (-1) as predecessor and is not a dead
+         instr *)
+      pc >= 0 &&
+        (Ptset.is_empty predsi.(pc) or is_its_own_pred ())
+  in
     (* calculate program point correspondance between old code and
        code without dead instructions *)
   let new_code_corresp = 
     Array.mapi
-      (fun i dead -> 
-	 if Ptset.is_empty dead 
-	 then 
-	   ( (* this program point will not exist anymore but we keep
-		a correspondance to modify handlers easily (case of
-		removed instruction on one of the handlers range limits) *)
-	     let ni = i - !nb_dead in
+      (fun i _preds -> 
+         (* new code pc after removing precedent dead instrs *)
+         let ni = i - !nb_dead in
+	   if has_no_preds i
+	   then 
+	     ( (* this program point will not exist anymore but we keep
+		  a correspondance to modify handlers easily (case of
+		  removed instruction on one of the handlers range limits) *)
 	       nb_dead := succ !nb_dead;
 	       ni)
-	 else
-	   i - !nb_dead)
+	   else
+	     ni)
       predsi
   in
     if !nb_dead > 0
@@ -2646,13 +2663,20 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
 	let _ =
 	  Array.iteri
 	    (fun i ins -> 
-	       if Ptset.is_empty predsi.(i)
+	       if has_no_preds i
 	       then
 		 nb_dead_current := succ !nb_dead_current
 	       else
-		 ( if Ptset.cardinal predsi.(i) = 1 && Ptset.is_empty predsi.(Ptset.choose predsi.(i))
+		 ((* If current pc has only one predecessor and this
+                     one has no predecessors => it is the successor of
+                     a dead instruction. *)
+                   if Ptset.cardinal predsi.(i) = 1 
+                     && has_no_preds (Ptset.choose predsi.(i))
 		   then succ_of_dead := Ptset.add i !succ_of_dead;
+                   (* generate ir to bytecode correspondance *)
 		   new_ir2bc.(i - !nb_dead_current) <- ir2bc.(i);
+                   (* generate instruction in new code modifying jump
+                      pc if it is a jump instruction *)
 		   new_code.(i - !nb_dead_current) <- 
 		     match ins with
 			 Goto pc -> Goto (new_code_corresp.(pc))
@@ -2661,12 +2685,13 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
 	    )
 	    code;
 	in
+          (* generate bytecode to ir correspondance *)
 	let new_bc2ir = 
 	  let to_remove = ref [] in
 	  let bc2ir = 
 	    Ptmap.mapi 
 	      (fun bc ir -> 
-		 if Ptset.is_empty predsi.(ir)
+		 if has_no_preds ir
 		 then (to_remove := bc::(!to_remove); -1)
 		 else
 		   new_code_corresp.(ir)) 
@@ -2689,6 +2714,9 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
 		 }
 	       in
 		 (* A handler could cover only a dead instruction ...*)
+                 (* and it is not (h.e_end-1) - h.e_start > 0 because
+                    of correspondance calculated in
+                    new_code_corresp! *)
 		 if h.e_end - h.e_start > 0
 		 then
 		   h::new_h
@@ -2709,8 +2737,8 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
 
 let jcode2bir mode bcv ch_link ssa cm jcode =
   (*For every pp, transform unreachable code to OpInvalid instrs, using the
-     information given by the BCV. It also remove unreachable exception
-     handlers.*)
+    information given by the BCV. It also remove unreachable exception
+    handlers.*)
   let rm_dead_instr_from_bcv code is_typed =
     let rec rm_dead_instr_from_bcv' i =
       try 
@@ -2727,10 +2755,10 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
            match code.c_code.(eh.JCode.e_handler) with
              | OpInvalid -> 
                  (*If e_handler is invalid, instructions between e_start and
-                  e_end should be invalid too. *)
+                  e_end must be invalid too. *)
                  let rec check_is_invalid i i_end = 
                    match i with 
-                     | cur_i when cur_i > i_end -> ()
+                     | cur_i when cur_i > i_end -1 -> ()
                      | cur_i when code.c_code.(cur_i) = OpInvalid ->
                          check_is_invalid (cur_i +1) i_end
                      | _ -> assert false
@@ -2739,7 +2767,6 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
         ) 
         code.c_exc_tbl
     in {code with c_exc_tbl = eh_list}
-
   in
   let code = jcode in
     match JsrInline.inline code with
@@ -2778,8 +2805,8 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	    let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
 	      (* let _ = print_unflattened_code ir_code in*)
 	    let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
-	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
-	      remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
+	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 	      
+              remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
 	    in
 	      ({ bir_params = gen_params dico pp_var cm;
 		 bir_vars = make_array_var dico;
