@@ -544,6 +544,7 @@ module BCV = struct
   type typ =
     | Top
     | Bot
+    | Null
     | Top32
     | Top64
     | Int
@@ -573,6 +574,7 @@ module BCV = struct
   let rec print_typ = function
     | Top -> "Top"
     | Bot -> "Bot"
+    | Null -> "Null"
     | Top32 -> "Top32"
     | Top64 -> "Top64"
     | Int -> "I"
@@ -593,12 +595,13 @@ module BCV = struct
   let to_value_type = function
     | Top32
     | Top64
+    | Bot
     | Top -> raise BadLoadType
     | Int -> TBasic `Int
     | Float -> TBasic `Float
     | Double -> TBasic `Double
     | Long -> TBasic `Long
-    | Bot
+    | Null
     | Object -> TObject (TClass java_lang_object)
     | Array v -> TObject (TArray v)
 
@@ -618,6 +621,7 @@ module BCV = struct
 
   exception ArrayContent
   let array_content i = function
+    | Null -> Bot
     | Array v -> conv v
     | x -> Printf.printf "\n\nbad array_content of %s at %d\n\n\n" (print_typ x) i; raise ArrayContent
 
@@ -628,7 +632,8 @@ module BCV = struct
     | `Float -> Float
 
   let size = function
-    | Top -> assert false
+    | Top | Bot -> assert false
+    | Null
     | Int
     | Float
     | Object
@@ -637,7 +642,6 @@ module BCV = struct
     | Double
     | Long
     | Top64 -> Op64
-    | Bot -> assert false
 
   let is32_basic = function
     | `Int
@@ -662,19 +666,18 @@ module BCV = struct
       | _, _ -> false
 
   let (<=) x y =
-    x==y ||
-      x=y ||
-	y=Top ||
-	x=Bot ||
-	(match y with
-	   | Top64 -> x=Double || x=Long || x=Top64
-	   | Object -> (match x with Array _ -> true | _ -> false)
-	   | Top32 -> (match x with
-			   Array _ | Object
-			 | Int | Float | Top32-> true
-			 | _ -> false)
-	   | Array y -> (match x with Array x -> leq_value_type x y | _ -> false)
-	   | _ -> false)
+    match (x,y) with
+      | (Bot, _) -> true
+      | (x,y) when (x == y || x = y || y = Top) -> true
+      | (Null, Object) | (Null, Array _) | (Null, Top) -> true
+      | (Double, Top64) | (Long, Top64) | (Top64, Top64) -> true
+      | (Array _, Object) -> true
+      | (_, Object) -> false
+      | (Array _, Top32) | (Object, Top32) | (Int, Top32) | (Float, Top32) -> true
+      | (_, Top32) -> false
+      | (Array x, Array y) -> leq_value_type x y
+      | (_, Array _) -> false
+      | _ -> false 
 
   (* v1 and v2 not ordered *)
   let rec lub_value_type v1 v2 =
@@ -712,7 +715,7 @@ module BCV = struct
     | OpNop -> (function (s,l) -> (s,l))
     | OpConst x -> (fun (s,l) ->
 		      let c = match x with
-			| `ANull -> Bot
+			| `ANull -> Null
 			| `String _
 			| `Class _ -> Object
 			| `Byte _
@@ -2761,7 +2764,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
              * code. jat is a jvm_array_type, it is used only when [bcv] is
              * false, which means that type checking is not done.
              * *)
-	    let (is_typed, load_type,arrayload_type) = BCV.run ~verbose:true bcv cm code in
+	    let (is_typed, load_type,arrayload_type) = BCV.run bcv cm code in
             (* There might be some code with no BCV related information. This
               code can be considered as inaccessible.*)
             let code = rm_dead_instr_from_bcv code is_typed in 
