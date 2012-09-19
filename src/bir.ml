@@ -513,6 +513,8 @@ let normal_next code i =
     | OpInvalid -> failwith "invalid"
     | _ -> [next code.c_code i]
 
+(*Return a list of every possible exceptionnal jumps for a given program point
+  [i]. *)
 let compute_handlers code i =
   let handlers = code.c_exc_tbl in
   let handlers = List.filter (fun e -> e.JCode.e_start <= i && i < e.JCode.e_end) handlers in
@@ -534,6 +536,10 @@ let mapi f g =
 	
 (*ByteCode Verifier*)
 module BCV = struct
+
+  (* This exception is throwed when trying to get BCV info for an unreachable
+    pp.*)
+  exception UnreachableInstr
 
   type typ =
     | Top
@@ -895,19 +901,24 @@ module BCV = struct
 	 | BadLoadType -> Printf.printf "BAD_LOAD_TYPE !\n"
 	 | ArrayContent -> assert false);
       if verbose then print_result cm types code;
-      (fun i ->
+      (fun i -> (*return true if pp [i] has type info.*)
+         match types.(i) with
+           | Some _ -> true
+           | None -> false
+      ),
+      (fun i -> (*return the type of the value coming from the loaded local var. *)
 	 match code.c_code.(i) with
 	   | OpLoad (_,n) ->
 	       (match types.(i) with
 		  | Some (_, l) -> to_value_type (get l n)
-		  | _ -> assert false)
+		  | _ -> raise UnreachableInstr)
 	   | _ -> assert false),
       (fun _ i -> 
 	 match code.c_code.(i) with
-	   | OpArrayLoad _ ->
+           | OpArrayLoad _ -> (*return the type of the elements of the array. *)
 	       (match types.(i) with
 		  | Some (_::(Array t)::_, _) -> t
-		  | _ -> assert false)
+		  | _ -> raise UnreachableInstr)
 	   | _ -> assert false)
 
 
@@ -919,6 +930,7 @@ module BCV = struct
     | `Object -> TObject (TClass java_lang_object)
 
   let run_dummy code =
+    (fun _ -> true),
     (fun i ->
        match code.c_code.(i) with
 	 | OpLoad (t,_) -> 
@@ -1439,7 +1451,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
 	  | `Eq | `Ge | `Gt | `Le | `Lt | `Ne as c   ->
 	      begin
 		match topE s with
-		  | Binop (CMP _,e1,e2) -> (c,e1,e2) (* David FIXME: is it correct ? *)
+		  | Binop (CMP _,e1,e2) -> (c,e1,e2) 
 		  | e -> (c,e, Const (`Int (Int32.of_int 0)))
 	      end
       in
@@ -2693,6 +2705,39 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
       (code,ir2bc,bc2ir,handlers)      
 
 let jcode2bir mode bcv ch_link ssa cm jcode =
+  (*For every pp, transform unreachable code to OpInvalid instrs, using the
+     information given by the BCV. It also remove unreachable exception
+     handlers.*)
+  let rm_dead_instr_from_bcv code is_typed =
+    let rec rm_dead_instr_from_bcv' i =
+      try 
+        match (is_typed i) with
+          | true -> rm_dead_instr_from_bcv' (next code.c_code i)
+          | false -> code.c_code.(i) <- OpInvalid;
+                     rm_dead_instr_from_bcv' (next code.c_code i)
+      with End_of_method -> code 
+    in
+    let code = rm_dead_instr_from_bcv' 0 in
+    let eh_list = 
+      List.filter 
+        (fun eh -> 
+           match code.c_code.(eh.JCode.e_handler) with
+             | OpInvalid -> 
+                 (*If e_handler is invalid, instructions between e_start and
+                  e_end should be invalid too. *)
+                 let rec check_is_invalid i i_end = 
+                   match i with 
+                     | cur_i when cur_i > i_end -> ()
+                     | cur_i when code.c_code.(cur_i) = OpInvalid ->
+                         check_is_invalid (cur_i +1) i_end
+                     | _ -> assert false
+                 in check_is_invalid eh.JCode.e_start eh.JCode.e_end; false
+             | _ -> true
+        ) 
+        code.c_exc_tbl
+    in {code with c_exc_tbl = eh_list}
+
+  in
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
@@ -2707,14 +2752,19 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	  let make_transformation no_debug = 
 	    let pp_var = search_name_localvar no_debug cm.cm_static code in
 	    let jump_target = compute_jump_target code in
-            (* [load_type i] : Returns the type of the variable referenced by
+            (* [is_typed i] : returns true is the current pp is typed (has been
+             * given a BCV.t type). If false, it means that i is unreachable.
+             * [load_type i] : Returns the type of the variable referenced by
              * the OpLoad instruction at index i in the code.
              * [arrayload_type jat pp] : Returns the type of the variable
              * referenced by an OpArrayLoad instruction at index pp in the
              * code. jat is a jvm_array_type, it is used only when [bcv] is
              * false, which means that type checking is not done.
              * *)
-	    let (load_type,arrayload_type) = BCV.run bcv cm code in
+	    let (is_typed, load_type,arrayload_type) = BCV.run ~verbose:true bcv cm code in
+            (* There might be some code with no BCV related information. This
+              code can be considered as inaccessible.*)
+            let code = rm_dead_instr_from_bcv code is_typed in 
 	    let dico = make_dictionary () in
 	    let (res,debug_ok) = 
 	      bc2ir no_debug dico mode ch_link ssa pp_var 
