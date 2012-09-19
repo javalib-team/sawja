@@ -2604,7 +2604,7 @@ let find_preds_instrs code handlers =
       (fun e -> 
 	 let in_scope = ref e.e_start in
 	   while !in_scope < e.e_end do
-	     dead_instr.(e.e_handler) <- Ptset.add !in_scope dead_instr.(e.e_handler);
+             dead_instr.(e.e_handler) <- Ptset.add !in_scope dead_instr.(e.e_handler);
 	     in_scope := succ !in_scope
 	   done
       ) 
@@ -3182,9 +3182,12 @@ module SSA = struct
     Printf.printf "var_def:\n";
     Ptmap.iter
       (fun v defs ->
-	 Printf.printf "   %s: {%s}\n"
-	   (var_name_g (m.bir_vars.(v)))
-	   (JUtil.print_list_sep_id "," (List.map string_of_int (Ptset.elements defs)))
+         match v with 
+           | v when v = heap_index -> () (*not contained in ir_code.bir_vars *)
+           | _ -> Printf.printf "   %s: {%s}\n"
+                    (var_name_g (m.bir_vars.(v)))
+                    (JUtil.print_list_sep_id "," 
+                       (List.map string_of_int (Ptset.elements defs)))
       ) var_defs;
     Printf.printf "search: %s\n" 
       (JUtil.print_list_sep_id "::" 
@@ -3519,55 +3522,60 @@ module SSA = struct
     let jump_target = bir_jump_target ir_code in
     let var_defs = 
       JUtil.foldi
-	(fun pc _ def_map -> 
-	   let var_list = phi_nodes pc in
-	     List.fold_left
-	       (fun def_m v_i -> 
-		    Ptmap.add ~merge:Ptset.union v_i 
-		      (Ptset.singleton pc) def_m)
-	       def_map
-	       var_list
-	)
-	var_defs
-	ir_code.bir_code
+        (fun pc _ def_map -> 
+           let var_list = phi_nodes pc in
+             List.fold_left
+               (fun def_m v_i -> 
+                  Ptmap.add ~merge:Ptset.union v_i 
+                    (Ptset.singleton pc) def_m)
+               def_map
+               var_list
+        )
+        var_defs
+        ir_code.bir_code
     in
       Ptmap.iter
-	(fun v defs ->
-	   Printf.printf "  %s:" (var_name_g (ir_code.bir_vars.(v)));
-	   Ptset.iter (Printf.printf " %d") defs;
-	   print_newline ()) var_defs;
+        (fun v defs ->
+           match v with 
+             | v when v = heap_index -> () (*not contained in ir_code.bir_vars *)
+             | _ -> Printf.printf "  %s:" (var_name_g (ir_code.bir_vars.(v)));
+                    Ptset.iter (Printf.printf " %d") defs;
+                    print_newline ()) var_defs;
       Array.iteri 
-	(fun i op -> 
-	   Printf.printf "     --> DOM[%d]: %s\n" i
-	     (to_string (dom i));
-	   Printf.printf "     --> IDOM[%d]: %d\n" i
-	     (idom i);
-	   Printf.printf "     --> DOMF[%d]: %s\n" i
-	     (to_string (domf i));
-	   let phis = List.filter (fun v -> v<>heap_index) (phi_nodes i) in
-	   let phis = List.map (fun v -> (ir_code.bir_vars.(v))) phis in
-	   Printf.printf "     --> PHI[%d]: %s\n" i
-	     (vars_to_string phis);
-	   (*(try Printf.printf "Def: %d\n" (rename_def i)
-	     with Not_found -> ());*)
-	   let rename_use = rename_use i in
-	     Printf.printf "Use:";
-	     Ptmap.iter
-	       (fun v i -> Printf.printf " %s_[%d]" 
-		  (var_name_g ir_code.bir_vars.(v)) i)
-	       rename_use;
-	     print_newline ();		 
-	     let phi_nodes = phi_nodes' i in
-	       Ptmap.iter 
-		 (fun v args -> 
-		    if v<>heap_index then
-		      let v = var_name_g ir_code.bir_vars.(v) in
-			Printf.printf "      %s := PHI(%s)\n"
-			  v (JUtil.print_list_sep_id "," (List.map (Printf.sprintf "%s_%d" v) (Array.to_list args))))
-		 phi_nodes;
-	       Printf.printf "%s%3d: %s\n"
-		 (if jump_target.(i) then "x" else " ")
-		 i (print_instr op))
+        (fun i op -> 
+           Printf.printf "     --> DOM[%d]: %s\n" i
+             (to_string (dom i));
+           Printf.printf "     --> IDOM[%d]: %d\n" i
+             (idom i);
+           Printf.printf "     --> DOMF[%d]: %s\n" i
+             (to_string (domf i));
+           let phis = List.filter (fun v -> v<>heap_index) (phi_nodes i) in
+           let phis = List.map (fun v -> (ir_code.bir_vars.(v))) phis in
+             Printf.printf "     --> PHI[%d]: %s\n" i
+               (vars_to_string phis);
+             (*(try Printf.printf "Def: %d\n" (rename_def i)
+              with Not_found -> ());*)
+             let rename_use = rename_use i in
+               Printf.printf "Use:";
+               Ptmap.iter
+                 (fun v i -> 
+                    match v with
+                      | v when v = heap_index -> () (*not contained in ir_code.bir_vars *)
+                      | _ -> Printf.printf " %s_[%d]" 
+                               (var_name_g ir_code.bir_vars.(v)) i)
+                 rename_use;
+               print_newline ();		 
+               let phi_nodes = phi_nodes' i in
+                 Ptmap.iter 
+                   (fun v args -> 
+                      if v<>heap_index then
+                        let v = var_name_g ir_code.bir_vars.(v) in
+                          Printf.printf "      %s := PHI(%s)\n"
+                            v (JUtil.print_list_sep_id "," (List.map (Printf.sprintf "%s_%d" v) (Array.to_list args))))
+                   phi_nodes;
+                 Printf.printf "%s%3d: %s\n"
+                   (if jump_target.(i) then "x" else " ")
+                   i (print_instr op))
 	ir_code.bir_code;
       print_newline ()
 
