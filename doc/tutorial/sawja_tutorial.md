@@ -147,13 +147,14 @@ present.
 This module also contains an internal module **PP** which allows to
 navigate through the control flow graph of a program.
 
-*JBir* and *A3Bir* modules
+*JBir*, JBirSSA, *A3Bir* and *A3BirSSA* modules
 --------------------------
 
 These modules both declare a type **t** defining an intermediate code
 representation. Both representations are stack-less. *A3Bir* looks
 like a three-address code representation whereas expressions in *JBir*
-can have arbitrary depths.
+can have arbitrary depths. *JBirSSA* and *A3BirSSA* are variants which respect 
+the Static Single Assignment (SSA) form.
 
 Each module defines a function **transform** which takes as parameters
 a concrete method and its associated **JCode.code**, and returns
@@ -232,7 +233,7 @@ the **$CLASSPATH** environment variable contains the corresponding
 Cryptographic Extension* **jce.jar**. The following sample of code
 loads *Soot* program, given its main entry point:
 
-~~~~~{#get_dir .ocaml}
+~~~~~{#parse .ocaml}
 open Javalib_pack
 open Javalib
 open JBasics
@@ -312,7 +313,7 @@ the *A3Bir* representation is exactly the same.
 
 ~~~~~{#pbir .ocaml}
 let pbir = JProgram.map_program2
-   (fun _ -> JBir.transform ~bcv:false ~ch_link:false ~formula:JBir.GetFormula.F_No) 
+   (fun _ -> JBir.transform ~bcv:false ~ch_link:false ~formula:false ~formula_cmd:[]) 
    (Some (fun code pp -> (JBir.pc_ir2bc code).(pp)))
    prta
 ~~~~~
@@ -594,7 +595,7 @@ let run_dead_affect ioc =
 Finally we write the part of the analysis that checks a method and fills the
 *plug\_info* data structure with warnings and information for the plugin.
 
-~~~~~{#ecl_run_dead .ocaml}
+~~~~~{#ecl_dead_affect .ocaml}
 (**[method_dead_affect cn ms code live plug_info] modifies the data
   structure [plug_info] containing information for the Eclipse
   plugin. [cn] is a class_name, [ms] a method_signature, [code] the
@@ -708,27 +709,27 @@ Using *formulae* to make assertions
 ----------------------------------
 
 *Formulae* is a new feature of Sawja 1.4. It provides a way to add
-some special assertions into a *Bir* representation (JBir, A3Bir,
-JBirSSA...) using dedicated Java stub methods. To keep full
-compatibility with the previous versions of *Sawja* it is disabled by
-default. You can enable *formulae* by setting the optionnal
-**formula** argument.
+some special assertions into a *Bir* representation (JBir, A3Bir...) using
+dedicated Java stub methods. To keep full compatibility with the previous
+versions of *Sawja* it is disabled by default. You can enable *formulae* by
+setting the optionnal **formula** argument.
 
 ~~~~~{#for_trans .ocaml}
 open Javalib_pack
 open Sawja_pack
 
-(* print the html representation of the class [cn_string] at A3Bir
+(* print the html representation of the class [cn_string] at JBir
   level with the default formula enabled. [cp] is the java classpath and
   [outputDir] is the directory in which the html file will be
   generated. *)
+
 let print cp cn_string outputDir =
   let cn = JBasics.make_cn cn_string in
   let ioc = Javalib.get_class cp cn in
   let bir_ioc = Javalib.map_interface_or_class_context 
-                  (A3Bir.transform ~formula:A3Bir.default_formula_cmd) ioc 
+                  (JBir.transform ~formula:true ) ioc 
   in
-    A3Bir.print_class bir_ioc outputDir
+    JBir.print_class bir_ioc outputDir
 
 (* Example of use in the same folder as the Java class *)
 let main = 
@@ -736,11 +737,11 @@ let main =
     print cp "TestFormula" "html_dir"
 ~~~~~
 
-
-Using the **default_formula** value means that we are going to use the
-default Java stub methods to generate the *formulae*. A Java call to
-such method will be replaced in the generated *A3Bir* code by the
-*formula*. Those static methods must return **void** and take only a single
+If you set the **formula** argument to **true** without specifying the
+**formula_cmd** argument, you will be using the default_formulae. It means that
+the default Java stub methods are going to be used to generate the *formulae*.
+A Java call to such a method will be replaced in the generated *JBir* code by
+the *formula*. Those static methods must return **void** and take only a single
 boolean argument, otherwise, it will not be considered as a *formula*.
 
 The default value offers 3 Java static methods named **'assume'**,
@@ -770,35 +771,34 @@ public class TestFormula{
 will be translate without formulae as:
 
 ~~~~~
-public static java.lang.Object doit():
+ public static java.lang.Object doit ( ) ;
 
-    0: mayinit TestFormula
-    1: i := TestFormula.mayBeNull
-    2: $irvar0 := null
-    3: if (i:java.lang.Object == $irvar0:java.lang.Object) goto 6
-    4: $T0_13 := 1
-    5: goto 7
-    6: $T0_13 := 0
-    7: mayinit sawja.Assertions
-    8: sawja.Assertions.check ($T0_13:I)
-    9: return i:java.lang.Object
+   0: mayinit TestFormula
+   1: $bcvar0 := TestFormula.mayBeNull
+   2: if ($bcvar0:java.lang.Object == null) goto 5
+   3: $T0_13 := 1
+   4: goto 6
+   5: $T0_13 := 0
+   6: mayinit sawja.Assertions
+   7: sawja.Assertions.check ($T0_13:I)
+   8: return $bcvar0:java.lang.Object
+
 ~~~~~
 
 but with default formulae it will become:
 
 ~~~~~
-public static java.lang.Object doit():
+ public static java.lang.Object doit ( ) ;
 
-    0: mayinit TestFormula
-    1: i := TestFormula.mayBeNull
-    2: $irvar0 := null
-    3: nop
-    4: nop
-    5: nop
-    6: nop
-    7: nop
-    8: FORMULA: check(i:java.lang.Object != $irvar0:java.lang.Object)
-    9: return i:java.lang.Object
+   0: mayinit TestFormula
+   1: $bcvar0 := TestFormula.mayBeNull
+   2: nop
+   3: nop
+   4: nop
+   5: nop
+   6: nop
+   7: FORMULA: sawja.Assertions.check($bcvar0:java.lang.Object != null)
+   8: return $bcvar0:java.lang.Object
 ~~~~~
 
 You must pay attention to the fact that the formula directly stores
@@ -807,6 +807,10 @@ method. This expression can then be directly manipulated in different
 analyzes to make assumptions. The generated 'nop' instructions are
 replacing the instructions which have been used to create the formula.
 
+In the current implementation, the expression obtained when working with the
+**A3bir** representation is quite limited (it is often a simple temporary
+variable, containing the result of the expression). It will be completed in a next
+release.
 
 You can also create your own *formula handler*, using the class and
 static methods you want (methods must return void and take only a
@@ -816,7 +820,7 @@ single boolean argument). You just have to do the as follows:
 open Javalib_pack
 open Sawja_pack
 
-(* print the html representation of the class [cn_string] at A3Bir
+(* print the html representation of the class [cn_string] at JBir
   level with a personnalized formula enabled. [cp] is the java
   classpath and [outputDir] is the directory in which the html file
   will be generated. *)
@@ -832,12 +836,12 @@ let print cp cn_string outputDir =
         JBasics.make_cms cn_formula_cl ms2_formula ]
   in
   let bir_ioc = Javalib.map_interface_or_class_context 
-                  (A3Bir.transform ~formula:fhandler) ioc 
+                  (JBir.transform ~formula:true ~formula_cmd:fhandler) ioc 
   in
-    A3Bir.print_class bir_ioc outputDir
+    JBir.print_class bir_ioc outputDir
 ~~~~~
 
-You can then use the html printer on Java code containing a call to
+You can then use the printing functions on Java code containing a call to
 **"MyFormulaClass.myFormulaFun1"**, you will see that the call is
 replaced by a *formula* instruction.
 
