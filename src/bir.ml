@@ -513,8 +513,6 @@ let normal_next code i =
     | OpInvalid -> failwith "invalid"
     | _ -> [next code.c_code i]
 
-(*Return a list of every possible exceptionnal jumps for a given program point
-  [i]. *)
 let compute_handlers code i =
   let handlers = code.c_exc_tbl in
   let handlers = List.filter (fun e -> e.JCode.e_start <= i && i < e.JCode.e_end) handlers in
@@ -537,14 +535,8 @@ let mapi f g =
 (*ByteCode Verifier*)
 module BCV = struct
 
-  (* This exception is throwed when trying to get BCV info for an unreachable
-    pp.*)
-  exception UnreachableInstr
-
   type typ =
     | Top
-    | Bot
-    | Null
     | Top32
     | Top64
     | Int
@@ -553,9 +545,30 @@ module BCV = struct
     | Long
     | Object
     | Array of JBasics.value_type
+    | Null
 
 (* The first element is the stack, the second one is the local var map. *)
   type t = typ list * typ Ptmap.t
+
+  let conv_array_type t = 
+    match t with
+      | `Int  | `Short   | `Char
+      | `Int2Bool | `ByteBool -> Int
+      | `Float -> Float
+      | `Object -> Object
+      | `Long -> Long
+      | `Double -> Double
+
+  let type_of_array_type t = 
+    match t with
+      | `Int  | `Short   | `Char
+      | `Int2Bool | `ByteBool -> TBasic `Int
+      | `Float -> TBasic `Float
+      | `Object -> TObject (TClass java_lang_object)
+      | `Long -> TBasic `Long
+      | `Double -> TBasic `Double
+
+
 
   let conv = function
     | TObject (TArray v) -> Array v
@@ -573,7 +586,6 @@ module BCV = struct
 
   let rec print_typ = function
     | Top -> "Top"
-    | Bot -> "Bot"
     | Null -> "Null"
     | Top32 -> "Top32"
     | Top64 -> "Top64"
@@ -595,7 +607,6 @@ module BCV = struct
   let to_value_type = function
     | Top32
     | Top64
-    | Bot
     | Top -> raise BadLoadType
     | Int -> TBasic `Int
     | Float -> TBasic `Float
@@ -620,9 +631,9 @@ module BCV = struct
     Ptmap.add n t l
 
   exception ArrayContent
-  let array_content i = function
-    | Null -> Bot
+  let array_content i t = function
     | Array v -> conv v
+    | Null -> conv_array_type t
     | x -> Printf.printf "\n\nbad array_content of %s at %d\n\n\n" (print_typ x) i; raise ArrayContent
 
   let basic = function
@@ -632,11 +643,11 @@ module BCV = struct
     | `Float -> Float
 
   let size = function
-    | Top | Bot -> assert false
-    | Null
+    | Top -> assert false
     | Int
     | Float
     | Object
+    | Null
     | Array _
     | Top32 -> Op32
     | Double
@@ -666,18 +677,19 @@ module BCV = struct
       | _, _ -> false
 
   let (<=) x y =
-    match (x,y) with
-      | (Bot, _) -> true
-      | (x,y) when (x == y || x = y || y = Top) -> true
-      | (Null, Object) | (Null, Array _) | (Null, Top) -> true
-      | (Double, Top64) | (Long, Top64) | (Top64, Top64) -> true
-      | (Array _, Object) -> true
-      | (_, Object) -> false
-      | (Array _, Top32) | (Object, Top32) | (Int, Top32) | (Float, Top32) -> true
-      | (_, Top32) -> false
-      | (Array x, Array y) -> leq_value_type x y
-      | (_, Array _) -> false
-      | _ -> false 
+    x==y ||
+      x=y ||
+	y=Top ||
+	x=Null ||
+	(match y with
+	   | Top64 -> x=Double || x=Long || x=Top64
+	   | Object -> (match x with Array _ -> true | _ -> false)
+	   | Top32 -> (match x with
+			   Array _ | Object
+			 | Int | Float | Top32-> true
+			 | _ -> false)
+	   | Array y -> (match x with Array x -> leq_value_type x y | _ -> false)
+	   | _ -> false)
 
   (* v1 and v2 not ordered *)
   let rec lub_value_type v1 v2 =
@@ -726,7 +738,7 @@ module BCV = struct
 			| `Double _ -> Double in
 			(c::s,l))
     | OpLoad (_,n) -> (fun (s,l) -> (get l n)::s,l)
-    | OpArrayLoad _ -> (fun (s,l) -> array_content i (top (pop s))::(pop2 s),l)
+    | OpArrayLoad t -> (fun (s,l) -> array_content i t (top (pop s))::(pop2 s),l)
     | OpStore (_,n) -> (fun (s,l) -> pop s, upd l n (top s))
     | OpArrayStore _ -> (fun (s,l) -> pop3 s, l)
     | OpPop -> (fun (s,l) -> pop s, l)
@@ -909,19 +921,20 @@ module BCV = struct
            | Some _ -> true
            | None -> false
       ),
-      (fun i -> (*return the type of the value coming from the loaded local var. *)
+      (fun i ->
 	 match code.c_code.(i) with
 	   | OpLoad (_,n) ->
 	       (match types.(i) with
 		  | Some (_, l) -> to_value_type (get l n)
-		  | _ -> raise UnreachableInstr)
+		  | _ -> assert false)
 	   | _ -> assert false),
       (fun _ i -> 
 	 match code.c_code.(i) with
-           | OpArrayLoad _ -> (*return the type of the elements of the array. *)
+	   | OpArrayLoad t ->
 	       (match types.(i) with
 		  | Some (_::(Array t)::_, _) -> t
-		  | _ -> raise UnreachableInstr)
+                  | Some (_::Null ::_, _) -> type_of_array_type t 
+		  | _ -> assert false)
 	   | _ -> assert false)
 
 
@@ -2735,39 +2748,39 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
     else
       (code,ir2bc,bc2ir,handlers)      
 
-let jcode2bir mode bcv ch_link ssa cm jcode =
-  (*For every pp, transform unreachable code to OpInvalid instrs, using the
-    information given by the BCV. It also remove unreachable exception
-    handlers.*)
-  let rm_dead_instr_from_bcv code is_typed =
-    let rec rm_dead_instr_from_bcv' i =
-      try 
-        match (is_typed i) with
-          | true -> rm_dead_instr_from_bcv' (next code.c_code i)
-          | false -> code.c_code.(i) <- OpInvalid;
-                     rm_dead_instr_from_bcv' (next code.c_code i)
-      with End_of_method -> code 
-    in
-    let code = rm_dead_instr_from_bcv' 0 in
-    let eh_list = 
-      List.filter 
-        (fun eh -> 
-           match code.c_code.(eh.JCode.e_handler) with
-             | OpInvalid -> 
-                 (*If e_handler is invalid, instructions between e_start and
-                  e_end must be invalid too. *)
-                 let rec check_is_invalid i i_end = 
-                   match i with 
-                     | cur_i when cur_i > i_end -1 -> ()
-                     | cur_i when code.c_code.(cur_i) = OpInvalid ->
-                         check_is_invalid (cur_i +1) i_end
-                     | _ -> assert false
-                 in check_is_invalid eh.JCode.e_start eh.JCode.e_end; false
-             | _ -> true
-        ) 
-        code.c_exc_tbl
-    in {code with c_exc_tbl = eh_list}
+(*For every pp, transform unreachable code to OpInvalid instrs, using the
+  information given by the BCV. It also remove unreachable exception
+  handlers.*)
+let rm_dead_instr_from_bcv code is_typed =
+  let rec rm_dead_instr_from_bcv' i =
+    try 
+      match (is_typed i) with
+        | true -> rm_dead_instr_from_bcv' (next code.c_code i)
+        | false -> code.c_code.(i) <- OpInvalid;
+                   rm_dead_instr_from_bcv' (next code.c_code i)
+    with End_of_method -> code 
   in
+  let code = rm_dead_instr_from_bcv' 0 in
+  let eh_list = 
+    List.filter 
+      (fun eh -> 
+         match code.c_code.(eh.JCode.e_handler) with
+           | OpInvalid -> 
+               (*If e_handler is invalid, instructions between e_start and
+                e_end must be invalid too. *)
+               let rec check_is_invalid i i_end = 
+                 match i with 
+                   | cur_i when cur_i > i_end -1 -> ()
+                   | cur_i when code.c_code.(cur_i) = OpInvalid ->
+                       check_is_invalid (cur_i +1) i_end
+                   | _ -> assert false
+               in check_is_invalid eh.JCode.e_start eh.JCode.e_end; false
+           | _ -> true
+      ) 
+      code.c_exc_tbl
+  in {code with c_exc_tbl = eh_list}
+
+let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
       | Some code ->
@@ -2783,17 +2796,21 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	    let pp_var = search_name_localvar no_debug cm.cm_static code in
 	    let jump_target = compute_jump_target code in
             (* [is_typed i] : returns true is the current pp is typed (has been
-             * given a BCV.t type). If false, it means that i is unreachable.
-             * [load_type i] : Returns the type of the variable referenced by
-             * the OpLoad instruction at index i in the code.
-             * [arrayload_type jat pp] : Returns the type of the variable
-             * referenced by an OpArrayLoad instruction at index pp in the
-             * code. jat is a jvm_array_type, it is used only when [bcv] is
-             * false, which means that type checking is not done.
-             * *)
+               given a BCV.t type). If false, it means that i is unreachable.
+               [load_type i] : Returns the type of the variable referenced by
+               the OpLoad instruction at index i in the code.
+               [arrayload_type jat pp] : Returns the type of the variable
+               referenced by an OpArrayLoad instruction at index pp in the
+               code. jat is a jvm_array_type, it is used only when [bcv] is
+               false, which means that type checking is not done.
+               *)
+              (*TODO: detect dead code before running the BCV (replacing instrs
+                by OpInvalid instrs). It would avoid to use the BCV for finding
+                such information. *)
 	    let (is_typed, load_type,arrayload_type) = BCV.run bcv cm code in
-            (* There might be some code with no BCV related information. This
-              code can be considered as inaccessible.*)
+            (*rm_dead_instr_from_bcv should be run before starting bc2ir, that
+              why we can't wait for remove_dead_instrs which work on bir
+              code.*)
             let code = rm_dead_instr_from_bcv code is_typed in 
 	    let dico = make_dictionary () in
 	    let (res,debug_ok) = 
@@ -2805,8 +2822,8 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	    let ir_exc_tbl = List.map (make_exception_handler dico) code.c_exc_tbl in
 	      (* let _ = print_unflattened_code ir_code in*)
 	    let (ir_code,ir2bc,bc2ir,ir_exc_tbl) =  flatten_code ir_code ir_exc_tbl in
-	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 	      
-              remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
+	    let (nir_code,nir2bc,nbc2ir,nir_exc_tbl) = 
+	      remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
 	    in
 	      ({ bir_params = gen_params dico pp_var cm;
 		 bir_vars = make_array_var dico;
