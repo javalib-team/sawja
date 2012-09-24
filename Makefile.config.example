@@ -1,6 +1,7 @@
 export OCAMLFIND_DESTDIR=$(LOCALDEST)
 export OCAMLPATH=$(LOCALDEST)
 
+RECODE=-charset utf-8
 DOCDIR = doc/api
 
 OCAMLC = $(FINDER) ocamlc $(FLAGS)

@@ -42,8 +42,6 @@ DESTDIR=
 OCAMLPATH=
 # The path to ocamlfind
 FINDER=`which ocamlfind`
-# The path to recode (used to fix accents in the documentation)
-RECODEBIN=`which recode`
 # The perl executable
 PERL=
 # The debug flag
@@ -287,18 +285,6 @@ else
 fi
 
 #
-# Check Recode
-#
-RECODEBIN=`which recode`
-if [ $? = 0 ]; then
-  msg "inf" "Recode found at $RECODEBIN"
-  RECODE="-pp \"$RECODEBIN UTF-8..Latin-1 <\""
-else
-  msg "inf" "Recode not found, proceeding anyway"
-fi
-
-
-#
 # Check camlp4 / camlp4o
 #
 location=$FINDER query camlp4 2>/dev/null
@@ -340,7 +326,7 @@ echo -n "  ."
 # Configuration variables
 echo "" >> $makeconfig
 echo "# Variables detected at configure-time" >> $makeconfig
-for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL RECODE DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
+for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
   echo "$var=${!var}" >> $makeconfig
 done
 echo -n "."
