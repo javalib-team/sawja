@@ -22,7 +22,7 @@
 # Just for test on tutorial code
 -include ../../Makefile.config
 
-all: sawja_tutorial.pdf sawja-tut.html
+all: sawja_tut.pdf sawja-tut.html
 
 release: sawja_tutorial.tex sawja_tutorial.pdf sawja-tut-release.html
 
@@ -39,7 +39,7 @@ sawja-tut-release.html: sawja_tutorial.md header.html
 	--toc -T 'Sawja tutorial' -f \
 		markdown -t html sawja_tutorial.md | tidy -utf8 -q > sawja-tut.html
 
-sawja_tutorial.pdf: sawja_tutorial.md
+sawja_tut.pdf: sawja_tutorial.md
 	pandoc -T 'Sawja tutorial' --toc header.md sawja_tutorial.md -o sawja-tut.pdf
 
 
@@ -50,4 +50,4 @@ test: tutorial.ml
 	rm tutorial.cmi tutorial.cmo tutorial.annot
 
 clean:
-	rm -f sawja_tutorial.tex sawja_tutorial.pdf sawja-tut.html style.css
+	rm -f sawja_tutorial.tex sawja_tut.pdf sawja-tut.html style.css
