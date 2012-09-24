@@ -69,7 +69,7 @@ let fill_debug_infos dead_found cn ms code live plugin_infos =
 	       plugin_infos.JPrintPlugin.p_infos <- 
 		 JPrintPlugin.add_pp_iow info_live cn ms i plugin_infos.JPrintPlugin.p_infos
 	  )
-	  code.JBir.code;
+	  (JBir.code code);
 	plugin_infos.JPrintPlugin.p_infos <- 
 	  JPrintPlugin.add_meth_iow 
 	  (JPrintPlugin.MethodSignature "<div>Dead variable affectation(s) found</div>") 
@@ -94,7 +94,7 @@ let method_dead_affect cn ms code live plugin_infos =
     let not_catch_var i = 
       List.for_all
 	(fun exc_h -> not(i = exc_h.JBir.e_handler))
-	code.JBir.exc_tbl
+	(JBir.exc_tbl code)
     in not_catch_var i
   in
   let dead_var_exists = ref false in
@@ -125,7 +125,7 @@ let method_dead_affect cn ms code live plugin_infos =
 			dead_var_exists := true
 		    end
 	    | _ -> ()))
-      code.JBir.code;
+      (JBir.code code);
     (* Fill information for plugin depending on the method analysis result*)
     fill_debug_infos !dead_var_exists cn ms code live plugin_infos
 	    
@@ -138,7 +138,7 @@ let method_dead_affect cn ms code live plugin_infos =
    to check.*)
 let run_dead_affect ioc =
  
- let plugin_infos = JPrintPlugin.JBirPrinter.empty_infos in
+ let plugin_infos = JBir.PluginPrinter.empty_infos in
     Javalib.cm_iter
       (fun cm ->
 	 match cm.Javalib.cm_implementation with 
@@ -165,7 +165,7 @@ let main cp output cn_string =
   let bir_ioc = Javalib.map_interface_or_class_context JBir.transform ioc in
   let plugin_infos = run_dead_affect bir_ioc in
     (* Print infos on the current class for the Eclipse plugin*)
-    JPrintPlugin.JBirPrinter.print_class ~html_info:true plugin_infos bir_ioc output
+    JBir.PluginPrinter.print_class ~html_info:true plugin_infos bir_ioc output
 
 
 

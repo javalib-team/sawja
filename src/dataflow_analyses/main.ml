@@ -66,7 +66,7 @@ let run filename =
 		 List.iter print_endline (JBirSSA.print ~phi_simpl:false ir_code);
 		 print_newline ();
 		 print_endline "Available expression for each ssa variable:";
-		 Array.iteri 
+		 Ptmap.iter 
 		   (fun i v -> 
 		      Printf.printf "--> AE[%s]: %s\n"
 			(JBirSSA.var_name_g v)
