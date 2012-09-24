@@ -28,7 +28,7 @@ open JCode
 type unindexed_var =
   | OriginalVar of int * string option (* register number, name (debug if available) *)
   | TempVar of int
-  | CatchVar of int
+  | CatchVar of int (* Variable catched by an exception handler. *)
   | BranchVar of int * int
   | BranchVar2 of int * int
   | SSAVar of var * int
@@ -55,6 +55,11 @@ let temp_var (_,x) =
   match x with
     | TempVar _ -> true
     | SSAVar ((_,TempVar _),_) -> true
+    | _ -> false
+
+let ssa_var (_,x) =
+  match x with
+    | SSAVar _ -> true
     | _ -> false
 
 let rec unindexed_var_name v = 
@@ -139,8 +144,11 @@ let make_array_var d =
     t
 
 (* allows to restart a dictionary for ssa *)
-let make_dictionary_from vars =
-  { var_map = DicoVarMap.empty;
+let make_dictionary_from (vars : var array) =
+  { var_map = Array.fold_left
+                (fun dico var -> let u_v = snd var in
+                                       DicoVarMap.add u_v var dico)
+                DicoVarMap.empty vars;
     var_next = Array.length vars}
 
 

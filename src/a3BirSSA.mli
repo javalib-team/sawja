@@ -279,7 +279,13 @@ type t
 
 (** All variables that appear in the method. [vars.(i)] is the variable of
     index [i]. *)
-val vars : t -> var array
+val vars : t -> var Ptmap.t
+
+(** Returns a pair containing the index of the first SSA variable and of the
+  last SSA variable. This is useful as the index does not start at 0, but after
+  the non-ssa variables. As the indexes are contiguous, the number of SSA 
+  variables is 'last index - first index +1'. *)
+val ssa_index : t -> (int * int)
 
 (** [params] contains the method parameters (including the receiver this for
      virtual methods). *)

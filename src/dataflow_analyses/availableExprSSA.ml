@@ -145,18 +145,20 @@ let gen_symbolic (m:t) : (pc * transfer * pc) list =
 	 )
 	 init_csts
 	 (code m))
+
       
 
 let run m =
   let res = 
     Iter.run 
       {
-	Iter.bot = Lat.collect_affect_var m;
-	Iter.join = Lat.inter;
-	Iter.leq = (fun x y -> Lat.subset y x);
-	Iter.eval = eval_transfer;
-	Iter.normalize = (fun x -> x);
-	Iter.size = Array.length (JBirSSA.vars m) + 1;
+        Iter.bot = Lat.collect_affect_var m;
+        Iter.join = Lat.inter;
+        Iter.leq = (fun x y -> Lat.subset y x);
+        Iter.eval = eval_transfer;
+        Iter.normalize = (fun x -> x);
+        Iter.size = (let (_, max_idx) = JBirSSA.ssa_index m in
+          max_idx  +2);
 	Iter.workset_strategy = Iter.Incr;
 	Iter.cstrs = gen_symbolic m;
 	Iter.init_points = [0];

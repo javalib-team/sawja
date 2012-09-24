@@ -22,7 +22,24 @@ include Bir
 
 type t = bir
 
-let vars m = m.bir_vars
+let vars m = JUtil.foldi 
+               (fun idx var map -> 
+                  match ssa_var var with
+                    | true -> Ptmap.add idx var map
+                    | false -> map
+               ) Ptmap.empty m.bir_vars
+
+let ssa_index m = (JUtil.foldi
+                     (fun _ var cpt -> 
+                        match ssa_var var with
+                          | true -> cpt
+                          | false -> cpt+1
+                     )
+                     0
+                     m.bir_vars),
+                  (Array.length m.bir_vars) -1
+
+
 let params m = m.bir_params
 let code m = m.bir_code
 let exc_tbl m = m.bir_exc_tbl

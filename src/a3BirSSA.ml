@@ -20,6 +20,23 @@
 
 include BirA3
 
+let vars m = JUtil.foldi 
+               (fun idx var map -> 
+                  match ssa_var var with
+                    | true -> Ptmap.add idx var map
+                    | false -> map
+               ) Ptmap.empty m.bir.Bir.bir_vars
+
+let ssa_index m = (JUtil.foldi
+                     (fun _ var cpt -> 
+                        match ssa_var var with
+                          | true -> cpt
+                          | false -> cpt+1
+                     )
+                     0
+                     m.bir.Bir.bir_vars),
+                  (Array.length m.bir.Bir.bir_vars) -1
+
 let phi_nodes m = m.bir.Bir.bir_phi_nodes
 let preds m = m.bir.Bir.bir_preds
 let mem_ssa m = m.bir.Bir.bir_mem_ssa

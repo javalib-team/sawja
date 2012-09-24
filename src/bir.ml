@@ -235,7 +235,7 @@ let print_expr ?(show_type=true) = print_expr' ~show_type:show_type true
 
 	
 type bir = {
-  bir_vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. *)
+  bir_vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. Caution, when we are in bir SSA, it contains both the bir variables (with lower index) and birSSA variables. *)
   bir_params : (JBasics.value_type * var) list;
   bir_code : instr array;
   bir_exc_tbl : exception_handler list;
