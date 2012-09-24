@@ -23,9 +23,18 @@
 
 <p>Enter the following directives in your <em>toplevel</em>:</p>
 <pre><code>    #cd "... path of your test.jar archive ...";;
+    #directory "... path of Ptrees sources ...";;
+    #directory "... path of Extlib sources ...";;
+    #directory "... path of Camlzip sources ...";;
     #directory "... path of Javalib sources ...";;
     #directory "... path of Sawja sources ...";;</code></pre>
   
+<p>The different modules of Sawja and Javalib are encapsulated in Sawja_pack
+  and Javalib_pack modules, to direcly use them, you only need to type:</p>
+<pre><code>    open Javalib_pack;;
+    open Sawja_pack;;
+</code></pre>
+
 <pre><code>    let (prta,instantiated_classes) =
       JRTA.parse_program (Sys.getenv "CLASSPATH")
          (JBasics.make_cms (JBasics.make_cn "Test") JProgram.main_signature);;
@@ -37,7 +46,7 @@
   destination directory must exist otherwise an exception will be
   raised.</p>
 
-<pre><code>    let outputdir = "./test"
+<pre><code>    let outputdir = "./test";;
     let () = JPrintHtml.JCodePrinter.print_program prta outputdir;;
 </code></pre>
 
@@ -47,13 +56,13 @@
 
 <h3>Transforming a program</h3>
 
-<p>We transform the previously loaded program.</p>
+<p>We transform the previously loaded program from the JCode representation to
+  the JBir intermediate representation.</p>
 
 <pre><code>    
 let pbir = JProgram.map_program2
-  (fun _ -&gt; JBir.transform ~bcv:false ~ch_link:false 
-    ~formula:JBir.GetFormula.F_No) 
-  (Some (fun code pp &gt; (Ptmap.find pp (JBir.pc_bc2ir code)))) prta
+  (fun _ -&gt; JBir.transform ~bcv:false ~ch_link:false ~formula:false ~formula_cmd:[])
+  (Some (fun code pp -&gt; (Ptmap.find pp (JBir.pc_bc2ir code)))) prta;;
 
 </code></pre>
 
@@ -61,5 +70,5 @@ let pbir = JProgram.map_program2
 <p>To see how <em>JBir</em> representation looks like, we can generate
 the corresponding <strong>.html</strong> files.</p>
 
-<pre><code>    let () = JBir.print_program pbir output;;
+<pre><code>    let () = JBir.print_program pbir outputdir;;
 </code></pre>
