@@ -57,6 +57,9 @@ Bug fixes:
         variable indexes doesn't start at 0).
       - Add a function "ssa_index" returning the index of the first SSA variable
         and of the last SSA variables.
+  
+* availableExpr : a variable was not killed when it was assigned with an
+  expression not usable for available expression (side effect expressions)
 
 * JRTA: raises an exception when no entry points are found.
 
