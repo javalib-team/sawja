@@ -46,6 +46,18 @@ Bug fixes:
   - CheckLink was generated before a "new" instruction even if ch_link
     option was not activated
 
+  - BCV: A java code using a variable considered as "Null" could lead to a crash
+    during the transformation. The "Null" type has been clarified.
+
+  - Dead code elimination: The code of an exception handler only accessible
+    from itself was not considered as dead code and could even lead to a bug.
+
+  - JBirSSA and A3birSSA: 
+      - function "vars" now returns a ptmap instead of an array (because SSA
+        variable indexes doesn't start at 0).
+      - Add a function "ssa_index" returning the index of the first SSA variable
+        and of the last SSA variables.
+
 * JRTA: raises an exception when no entry points are found.
 
 * JControlFlow.PP_* modules: throw instructions were badly handled (they
