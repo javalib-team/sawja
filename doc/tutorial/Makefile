@@ -24,9 +24,9 @@
 
 all: sawja_tut.pdf sawja-tut.html
 
-release: sawja_tutorial.tex sawja_tutorial.pdf sawja-tut-release.html
+release: sawja_tut.pdf sawja-tut-release.html
 
-.DELETE_ON_ERROR:sawja-tut.html sawja_tutorial.tex
+.DELETE_ON_ERROR:sawja-tut.html 
 
 sawja-tut.html: sawja_tutorial.md header.html
 	pandoc -s --base-header-level 2 -c http://javalib.gforge.inria.fr/style.css \
@@ -50,4 +50,4 @@ test: tutorial.ml
 	rm tutorial.cmi tutorial.cmo tutorial.annot
 
 clean:
-	rm -f sawja_tutorial.tex sawja_tut.pdf sawja-tut.html style.css
+	rm -f sawja_tut.pdf sawja-tut.html style.css
