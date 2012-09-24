@@ -208,7 +208,7 @@ module Var : sig
   module type CONTEXT =
   sig
 
-  (* The Context can be
+  (** The Context can be
       - Context sensitivity (duplicate program points)
       - Analysis identification (several program points because there are several analyses)
       - Information flow (intermediate state, return, parameters, returned exceptions, etc. ) *)
