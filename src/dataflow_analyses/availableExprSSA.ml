@@ -90,6 +90,8 @@ let transfer_to_string = function
       Printf.sprintf "%s" (print_expr e)
   | Nop -> "Nop"
 
+(* Note: we do not need to kill available expression since one
+   variable is assigned only one time !*)
 let eval_transfer = function
   | Assign v -> (fun ab -> Lat.gen v ab)
   | Nop -> (fun ab -> ab)

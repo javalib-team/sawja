@@ -104,7 +104,7 @@ let rec gen_instrs i = function
   | JBir.Throw _
   | JBir.Return _  -> []
   | JBir.AffectVar (x,e) -> 
-      let tf = if is_available_expr e then Assign (x,e) else Nop in
+      let tf = if is_available_expr e then Assign (x,e) else Kill x in
 	[tf,i+1]
   | JBir.NewArray (x,_,_)
   | JBir.New (x,_,_,_) 
