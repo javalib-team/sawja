@@ -165,20 +165,18 @@ loaded with *RTA* algorithm for example.
 *JPrintHtml* module
 -------------------
 
-This module provides one function per code representation to dump
-a program into a set of **.html** files (one per class) related
-together by the control flow graph. Each printing function takes as
-parameters the program, the name of the output directory and a type
-**info**. The type **info** is used to insert custom annotations at
-different levels : class, method, field and program point. A value
-**void_info** is also given and can be used by default.
+This module allows, for a given code representation, to dump a program into
+a set of **.html** files (one per class) related together by the control flow
+graph. It provides a functor *Make* that can be instantiated by a module of
+signature *PrintInterface*. This functor generates a module of signature
+*HTMLPrinter* containing a function **print_program**.
 
-In order to print your own code representations, this module also
-provides a functor *Make* that can be instantiated by a module of
-signature *PrintInterface*. This functor generates a module of
-signature *HTMLPrinter* containing a function **print_program**,
-similar to the others printing functions present in *JPrintHtml*. We
-will give an example in the tutorial.
+This module is internally used by the different *Sawja* code representations
+through a **print_program** function to dump a program using their
+representation.
+
+The printer for *JCode*, which is a *Javalib* module is defined in *JPrintHtml*
+using the presented functor. It will be used as example in the tutorial.
 
 Tutorial
 ========
