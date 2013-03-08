@@ -55,8 +55,15 @@ module State = State.Make(Var)(ED)(ED)(ED)(Dom)(ED)
 module Constraints = Constraints.Make(State)
 module Solver = Solver.Make(Constraints)
 
+
+
+
+
+
+
+
 let csts_of_cm program node cm =
-  let successors = JControlFlow.PP_BC.get_successors program node cm in
+  let successors = JCodePP.get_successors program node cm in
   let current_mn = `Method ((),get_name node, cm.cm_signature)
   in
     List.map

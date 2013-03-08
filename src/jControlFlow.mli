@@ -205,8 +205,7 @@ val implements_interface_or_subinterface_transitively : 'a class_node ->
 
 (** {3 Access to instructions and navigation}*)
 
-(** Manipulation of generic program pointers (should not be used, use
-    PP_* of your code representation instead).*)
+(** Manipulation of generic program pointers.*)
 module PP : sig
   type 'a t
   exception NoCode of (class_name * method_signature)
@@ -216,6 +215,13 @@ module PP : sig
 
   val get_pp : 'a node -> 'a concrete_method -> int -> 'a t
 
+  val equal : 'a t -> 'a t -> bool
+  val compare : 'a t -> 'a t -> int
+  val hash : 'a t -> int
+
+  (** get internal representation. *)
+  val get_ir : 'a t -> 'a
+
   (** [get_first_pp p cn ms] gets a pointer to the first instruction
       of the method [ms] of the class [cn].
 
@@ -224,159 +230,35 @@ module PP : sig
 
       @raise NoCode if the method [ms] has no associated code.*)
   val get_first_pp : 'a program -> class_name -> method_signature -> 'a t
+
+  (** [get_first_pp_wp n ms] gets a pointer to the first instruction
+    of the method [ms] of the node [n].
+
+    @raise NoCode if the method [ms] has no associated code.*)
   val get_first_pp_wp : 'a node -> method_signature -> 'a t
+
+  (** [goto_absolute pp i]: return the program pointer at instruction [i] in
+   the method of program pointer [pp].*)
   val goto_absolute : 'a t -> int -> 'a t
+
+  (** [goto_relative pp i]: return the program pointer at instruction [i'+i]
+    (with i' the current program point of pp)in the method of program pointer
+    [pp].*)
   val goto_relative : 'a t -> int -> 'a t
+
+  (** get the instruction at the next program point (do not follow control
+    flow). *)
+  val next_instruction: 'a t ->  'a t
+
+  (**[static_pp_lookup program pp]: Return a list of method entries which can be
+    reached by a call from the current program pointer. It returns fully
+    implemented methods pp only. The computation is based on the RTA or CRA 
+    result (depending on the one used to build the program).*)
+  val static_pp_lookup : 'a program -> 'a t -> 'a t list
 
   val to_string : 'a t -> string
   val pprint : Format.formatter -> 'a t -> unit
-
-  val equal : 'a t -> 'a t -> bool
-  val compare : 'a t -> 'a t -> int
-  val hash : 'a t -> int
 end
-
-(** Common signature of PP_* modules *)
-module type GenericPPSig = sig
-  
-  (** This module allows to navigate in code control flow using a
-      generic interface (independant of code representation
-      structure). Navigation is intra-procedural in this module*)
-
-  (** {2 Types}*)
-  
-  type code 
-  type instr'
-  type exception_handler
-  type t = code PP.t
-  exception NoCode of (class_name * method_signature)
-
-  (** {2 Data access} *)
-
-  val get_class : t -> code node
-  val get_meth : t -> code concrete_method
-  val get_pc : t -> int
-  val get_opcode : t -> instr'
-
-  val get_pp : code node -> code concrete_method -> int -> t
-
-
-  (** [get_first_pp p cn ms] gets a pointer to the first instruction
-      of the method [ms] of the class [cn].
-
-      @raise Not_found if [cn] is not a class of [p], or [ms] is not a
-      method of [cn].
-
-      @raise NoCode if the method [ms] has no associated code.*)
-  val get_first_pp : code program -> class_name -> method_signature -> t
-  val get_first_pp_wp : code node -> method_signature -> t
-
-  val to_string : t -> string
-  val pprint : Format.formatter -> t -> unit
-
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-  val hash : t -> int
-
-  (** {2 Intra-procedural navigation} *)
-
-  val goto_absolute : t -> int -> t
-  val goto_relative : t -> int -> t
-
-  (** returns the next instruction if there is one.  If there is
-      not, the behavior is unspecified (specially if compiled with
-      -unsafe...) *)
-  val next_instruction : t -> t
-
-  (** returns the normal intra-procedural successors of an
-      instruction. Instructions of type "Return" or "Throw" returns an
-      empty list.*)
-  val normal_successors : t -> t list
-
-  (** returns the handlers that could catch an exception thrown from
-      the current instruction. The following approximation is used for
-      all instructions, an exception handler is accessible for an
-      instruction if: 
-      - the exception handler is not a subtype of Exception OR
-
-      - the exception handler is a subtype or a super-type of RuntimeException OR
-      
-      - the instruction is a "throw" instruction OR
-
-      - the instruction is a method call which is declared to throw an
-      exception of a subtype of the handler 
-      ({b Warning: Only the compiler ensures that declared exceptions
-      of a method are correct, the bytecode verifier does not check
-      it, as a consequence it should be checked by the analyses})
-
-      In one of these cases an exception handler is considered as
-      accessible. 
-      
-  *)
-  val handlers : code program -> t -> exception_handler list
-
-  (** [exceptional_successors p pp] returns the list of
-      intra-procedural program points that may be executed after [pp]
-      if an exception (or error) occurs during the execution of [pp].
-      Note that its uses the [throws] annotation of the methods, which
-      is checked by the compiler but not by the bytecode verifier: for
-      security analyses, the [throws] annotation should be checked by
-      the analyses. The {!handlers} function is used to determine the
-      possible exceptional successors (see the algorithm description).*)
-  (* TODO: implement a checker which checks if that the method declares
-     all the exception it may throw (except subtypes of Error and
-     RuntimeException). *)
-  val exceptional_successors : code program -> t -> t list
-    
-  (** {2 Extra-procedural navigation} *)
-
-  (** [static_lookup program pp] returns the highest methods in the
-      hierarchy that may be called from program point [pp]. All
-      methods that may be called at execution time are known to
-      implement or extend one of the class that this function
-      returns. *)
-  val static_lookup : code program -> t
-    -> (code node list * method_signature) option
-    
-
-  (** [get_successors program cl meth] returns the possible methods
-      that may be invoked from the current program point (it uses
-      {!static_lookup'} function).  For the static initialization,
-      only the topmost class initializer is returned (and the successors
-      of a clinit methods includes the clinit methods that are
-      beneath). *)
-  val get_successors :
-    code program ->
-    code node -> code concrete_method -> ClassMethodSet.t
-
-end
-
-(** Manipulation of {!Javalib_pack.JCode.jcode} program pointers *)
-module PP_BC : GenericPPSig with type code = JCode.jcode 
-			    and type instr' = JCode.jopcode
-			    and type exception_handler = JCode.exception_handler
-
-(*
-(** Manipulation of {!JBir.t} program pointers *)
-module PP_Bir : GenericPPSig with type code = JBir.t 
-			    and type instr' = JBir.instr
-			    and type exception_handler = JBir.exception_handler
-
-(** Manipulation of {!A3Bir.t} program pointers *)
-module PP_A3Bir : GenericPPSig with type code = A3Bir.t 
-			    and type instr' = A3Bir.instr
-			    and type exception_handler = A3Bir.exception_handler
-
-(** Manipulation of {!JBirSSA.t} program pointers *)
-module PP_BirSSA : GenericPPSig with type code = JBirSSA.t 
-		       and type instr' = JBirSSA.phi_node list * JBirSSA.instr
-		       and type exception_handler = JBirSSA.exception_handler
-
-(** Manipulation of {!JBirSSA.t} program pointers *)
-module PP_A3BirSSA : GenericPPSig with type code = A3BirSSA.t 
-			    and type instr' = A3BirSSA.phi_node list * A3BirSSA.instr
-			    and type exception_handler = A3BirSSA.exception_handler
-*)
 
 (** {3 Invoke lookup algorithms}*)
 

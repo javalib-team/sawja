@@ -342,7 +342,7 @@ let get_XTA_program
     in
     let cn = get_name node
     and ms = m.cm_signature
-    and successors = JControlFlow.PP_BC.get_successors program node m in
+    and successors = JCodePP.get_successors program node m in
       (* TODO : remove (node,m) from the successors as simple recursions
          (constraints from m to m) are useless *)
     let (instance_fields_read,instance_fields_written,

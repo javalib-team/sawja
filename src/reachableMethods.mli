@@ -31,11 +31,7 @@ open Javalib_pack
     [p.parsed_methods] is a correct over-approximation of reachable
     methods, and the result of this function can be used to refine
     [p.parsed_methods].  The implementation is not very efficient, but
-    it is simple and rely on the {!Safe} framework.  The look-up
-    function used to compute the call graph is the [get_successors]
-    function, in module {!JControlFlow.PP_BC}, which uses
-    [p.static_lookup_method] to resolve method calls and also take in
-    account static initializers.  *)
+    it is simple and rely on the {!Safe} framework. *)
 val compute_reachable_methods :
     JCode.jcode JProgram.program -> 
     JBasics.class_method_signature list -> 

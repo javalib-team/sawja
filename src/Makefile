@@ -37,9 +37,9 @@ endif
 MODULES = $(DATAFLOW)iter jUtil wlist \
 	jProgram classDomain jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
-	cmn bir birA3 jBir a3Bir \
+	jCodePP cmn bir birA3 jBir jBirPP a3Bir a3BirPP \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
-	jBirSSA a3BirSSA  \
+	jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	safe reachableMethods jNativeStubs \
 	jCRA jRTA jRRTA XTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
@@ -48,7 +48,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jProgram classDomain jNativeStubs jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
-	jBir a3Bir jBirSSA a3BirSSA \
+	jCodePP jBir jBirPP a3Bir a3BirPP jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	safe reachableMethods jUtil \
 	jCRA XTA jRTA jRRTA \
