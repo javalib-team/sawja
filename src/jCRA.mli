@@ -22,6 +22,10 @@
 open Javalib_pack
 open JBasics
 
+(** This exception is raised if a needed class is not found in the classpath
+  while parsing the program.*)
+exception Class_not_found of class_name
+
 (** Builds high level representations of Java bytecode programs using basic
     Class Reachability Analysis. *)
 
