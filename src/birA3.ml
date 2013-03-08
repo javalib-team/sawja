@@ -347,10 +347,13 @@ module PrintIR =
 struct
   type p_instr = Bir.instr
   type p_code = t
+  type p_handler = exception_handler
 
   let iter_code f m = Bir.iter_code f m.bir
+  let iter_exc_handler f m = Bir.iter_exc_handler f m.bir
   let method_param_names = Bir.method_param_names (fun x -> x.bir)
   let inst_html = Bir.inst_html (fun x -> x.bir)
+  let exc_handler_html = Bir.exc_handler_html
 end
 
 module Printer = JPrintHtml.Make(PrintIR)

@@ -99,7 +99,10 @@ let gen_css_link href =
     
 let gen_javascript_src src =
   gen_custom_tag "script" [("type","text/javascript"); ("src",src)] []
-    
+
+let gen_html_h3 title = 
+  gen_custom_tag "h3" [] [PCData title]
+
 let gen_annots annots =
   let ullist =
     List.map
@@ -163,17 +166,50 @@ let gen_code insts =
     match ollist with
       | [] -> PCData ""
       | _ -> gen_custom_tag "ol" [("class",code_class)] ollist
-	  
+	
+let gen_exc_handler exc_handler = 
+  let xml_tree = 
+    List.fold_right
+      (fun exc xml ->
+         match exc with
+           | SimpleExpr sexc ->
+               (match sexc with
+                  | [] -> xml
+                  | _ -> (gen_span sexc []) :: xml
+               )
+           | DynamicExpr _ -> assert false (*not implemented for exception*)
+      )
+      exc_handler
+      []
+  in
+  let handlers = 
+    let rec toList tree html =
+      match tree with
+        | [] -> html
+        | hd::tl -> toList tl ((gen_custom_tag "li" [] [hd])::html)
+    in 
+      gen_custom_tag "ol" [] (toList xml_tree [])
+  in 
+    (*add a title*)
+    match xml_tree with
+      | [] -> handlers
+      | _ -> gen_titled_span 
+               [gen_html_h3 "Exceptions handling:";
+                handlers] [] "Exceptions"
+
+
+
 let add_anchor anchor_name anchor_info htmllist =
   if (anchor_name <> "") then
     (gen_anchor anchor_name anchor_info) :: htmllist
   else
     htmllist
       
-let gen_method anchor_name method_signature callers method_annots insts =
+let gen_method anchor_name method_signature callers method_annots insts 
+      exc_handler =
   let meth_sig = gen_div (method_signature @ (gen_annots method_annots)
 			  @ callers) [("class", method_signature_class)] in
-  let meth_body = [meth_sig; gen_code insts] in
+  let meth_body = [meth_sig; gen_code insts;gen_exc_handler exc_handler;] in
     gen_div (add_anchor anchor_name "" meth_body)
       [("class", method_class)]
       
@@ -201,7 +237,7 @@ let get_relative_path frompath topath =
   let nbsep = ref 0 in
     String.iter (fun c -> if c = '/' then nbsep := !nbsep + 1) frompath;
     let s = ref "" in
-      for i = 1 to !nbsep do
+      for _i = 1 to !nbsep do
 	s := !s ^ "../"
       done;
       !s ^ topath
@@ -458,17 +494,22 @@ sig
 
   val print_class :
     ?css:string -> ?js:string -> ?info:info -> code Javalib.interface_or_class -> string -> unit
+
 end
   
 module type PrintInterface =
 sig
   type p_instr
   type p_code
+  type p_handler
   val iter_code : (int -> p_instr list -> unit) -> p_code -> unit
+  val iter_exc_handler : ((p_handler -> unit) -> p_code -> unit)
   val method_param_names : p_code Javalib.interface_or_class -> method_signature
     -> string list option
   val inst_html : p_code program option -> p_code Javalib.interface_or_class -> method_signature -> int
     -> p_instr -> elem list
+  val exc_handler_html : p_code program option -> p_code interface_or_class ->
+    method_signature -> p_handler -> elem
 end
   
 module Make (S : PrintInterface) =
@@ -586,12 +627,12 @@ struct
   let field2html program ioc fs annots =
     gen_field (fs2anchorname (Javalib.get_name ioc) fs) (fieldsignature2html program ioc fs) annots
       
-  let method2html program ioc cs ms info insts =
+  let method2html program ioc cs ms info insts exc_handler =
     let method_annots = info.p_data.p_method cs ms in
     let method_signature = methodsignature2html program ioc cs ms info in
     let callers = methodcallers2html cs ms info in
       gen_method (ms2anchorname cs ms) method_signature callers
-	method_annots insts
+	method_annots insts exc_handler
 	
   let ioc2html program ioc info =
     let cs = Javalib.get_name ioc in
@@ -626,8 +667,27 @@ struct
 			      ) (Lazy.force code);
 			    !l
 		   )
-	   in
-	     (method2html program ioc cs ms info insts) :: methods)
+           in
+           let exc_handler =
+             match m with
+               | AbstractMethod _ -> []
+               | ConcreteMethod cm ->
+                   (match cm.cm_implementation with
+                      | Native -> 
+                          []
+                      | Java impl ->
+                          let l = ref [] in
+                            S.iter_exc_handler
+                              (fun hdlr  ->
+                                 let exc_handler_html=
+                                   S.exc_handler_html program ioc ms hdlr
+                                 in
+				   l := (exc_handler_html) :: !l
+			      ) (Lazy.force impl);
+			    !l
+		   )
+           in
+	     (method2html program ioc cs ms info insts exc_handler) :: methods)
 	(Javalib.get_methods ioc) [] in
     let content = List.rev_append fields methods in
       gen_class (cn2anchorname cs)
@@ -770,9 +830,14 @@ module JCodePrinter = Make(
   struct
     type p_instr = JCode.jopcode
     type p_code = JCode.jcode
+    type p_handler = JCode.exception_handler
 
     include JCodeUtil
-		  
+		
+    let iter_exc_handler f code =
+      List.iter f (code.c_exc_tbl)
+
+
     let inst_html program ioc ms pp op =
       let cs = Javalib.get_name ioc in
       let inst_params = Javalib.JPrint.jopcode ~jvm:true op in
@@ -834,5 +899,19 @@ module JCodePrinter = Make(
 	  		  | Some (name,_) -> name in
 	  	[simple_elem (inst ^ " " ^ locname)]
 	  | _ -> [simple_elem inst_params]
+
+
+    let exc_handler_html _program _ioc _ms handler =
+      simple_elem 
+        (Printf.sprintf 
+           "try start: %d; try end: %d: catch start: %d; catched type: %s."
+           handler.e_start handler.e_end handler.e_handler 
+           (match handler.e_catch_type with
+              | None -> "None (finally block)"
+              | Some t -> (cn_name t)
+           )
+        )
+
+
   end)
 

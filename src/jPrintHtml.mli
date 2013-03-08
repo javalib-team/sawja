@@ -143,7 +143,9 @@ module type PrintInterface =
 sig
   (** Type of the instructions. *)
   type p_instr
-
+  
+  (** Type of exception handlers. *)
+  type p_handler
   (** Type of the code. *)
   type p_code
 
@@ -153,6 +155,9 @@ sig
       instructions. In {JCode.jcode} representation, this list only
       contains one element. *)
   val iter_code : (int -> p_instr list -> unit) -> p_code -> unit
+
+(** Function to provide in order to iter on the exception handlers.  *)
+  val iter_exc_handler : ((p_handler -> unit) -> p_code -> unit)
 
   (** Function to provide in order to display the source variable
       names in the method signatures. *)
@@ -166,6 +171,12 @@ sig
   functions defined in {!JPrintHtml} module. *)
   val inst_html : p_code program option -> p_code Javalib.interface_or_class -> method_signature -> int
     -> p_instr -> elem list
+
+  (** Function to provide in order to display exception handlers. Given the
+    program, a method and an handler, you can provide an html element
+    containing the information you want to display.*)
+  val exc_handler_html : p_code program option -> p_code interface_or_class ->
+    method_signature -> p_handler -> elem
 end
 
 module Make (S : PrintInterface) : HTMLPrinter with type code = S.p_code

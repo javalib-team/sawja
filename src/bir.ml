@@ -3935,173 +3935,192 @@ end
 let default_formula_cmd = GetFormula.default_formula
 
 
-  open JPrintHtml
+open JPrintHtml
 
-  let phi_nodes get ioc ms =
-    match Javalib.get_method ioc ms with
-	ConcreteMethod cm -> 
-	  (match cm.cm_implementation with
-	       Java laz -> 
-		 let code = get (Lazy.force laz) in
-		   if Array.length code.bir_phi_nodes <> 0 then
-		     (fun pp -> code.bir_phi_nodes.(pp), code.bir_preds.(pp))
-		   else (fun _ -> [], Array.make 0 0)
-	     | Native -> fun _ -> [], Array.make 0 0)
-      | AbstractMethod _ -> fun _ -> [], Array.make 0 0
-	  
-  let inst_html program ioc ms pp op =
-    let cs = Javalib.get_name ioc in
-      match op with
-	| AffectStaticField (ccs,fs,e) ->
-	    let p1 = field_elem program cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (print_expr e)) in
-	      [p1;p2]
-	| AffectField (e1,ccs,fs,e2) ->
-	    let p1 = field_elem program ~called_cname:(print_expr e1)
-	      cs ccs fs in
-	    let p2 = simple_elem
-	      (Printf.sprintf ":= %s" (print_expr e2)) in
-	      [p1;p2]
-	| New (x,ccs,_,le) ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (JUtil.print_list_sep ", " print_expr le)) in
-	      [p1;p2;p3]
-	| NewArray (x,v,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s := new" (var_name_g x)) in
-	    let p2 = value_elem program cs v in
-	    let p3 = simple_elem
-	      (Printf.sprintf "%s"
-		 (JUtil.print_list_sep ""
-		    (fun e -> 
-		       Printf.sprintf "[%s]" (print_expr e)) le)
-	      ) in
-	      [p1;p2;p3]
-	| InvokeStatic (None,ccs,cms,le) ->
-	    let p1 = 
-	      invoke_elem 
-		program cs ms pp ccs cms 
-	    in
-	    let p2 = simple_elem
-	      (Printf.sprintf "(%s)" (JUtil.print_list_sep ", " (print_expr) le)) in
-	      [p1;p2]
-	| InvokeStatic (Some x,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "%s :=" (var_name_g x)) in
-	    let p2 = 
-	      invoke_elem 
-		program cs ms pp ccs cms 
-	    in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (JUtil.print_list_sep ", " (print_expr) le)) in
-	      [p1;p2;p3]
-	| InvokeVirtual (r,e1,k,cms,le) ->
-	    let p2 =
-	      (match k with
-		 | VirtualCall o ->
-		     let ccs = match o with
-		       | TClass ccs -> ccs
-		       | _ -> JBasics.java_lang_object in
-		       invoke_elem ~called_cname:(print_expr e1) program
-			 cs ms pp ccs cms
-		 | InterfaceCall ccs ->
-		     invoke_elem ~called_cname:(print_expr e1) program
-		       cs ms pp ccs cms
-	      ) in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)"
-		 (JUtil.print_list_sep ", " (print_expr) le)) in
-	      (match r with
-		 | None -> [p2;p3]
-		 | Some x ->
-		     let p1 = simple_elem
-		       (Printf.sprintf "%s :="  (var_name_g x)) in
-		       [p1;p2;p3]
-	      )
-	| InvokeNonVirtual (r,e1,ccs,cms,le) ->
-	    let p1 = simple_elem
-	      (match r with
-		 | None -> (print_expr e1) ^ "."
-		 | Some x -> Printf.sprintf "%s := %s." (var_name_g x)
-		     (print_expr e1)
-	      ) in
-	    let p2 = 
-	      invoke_elem 
-		program cs ms pp ccs cms 
-	    in
-	    let p3 = simple_elem
-	      (Printf.sprintf "(%s)" (JUtil.print_list_sep ", " print_expr le)) in
-	      [p1;p2;p3]
-	| MayInit ccs ->
-	    let v = TObject (TClass ccs) in
-	    let p1 = simple_elem "mayinit" in
-	    let p2 = value_elem program cs v in
-	      [p1;p2]
-	| Check (CheckCast (e,t)) ->
-	    let p1 = simple_elem
-	      (Printf.sprintf "checkcast %s:" (print_expr e)) in
-	    let p2 = value_elem program cs (TObject t) in
-	      [p1;p2]
-	| _ -> [simple_elem (print_instr op)]
+let phi_nodes get ioc ms =
+  match Javalib.get_method ioc ms with
+      ConcreteMethod cm -> 
+        (match cm.cm_implementation with
+             Java laz -> 
+      	 let code = get (Lazy.force laz) in
+      	   if Array.length code.bir_phi_nodes <> 0 then
+      	     (fun pp -> code.bir_phi_nodes.(pp), code.bir_preds.(pp))
+      	   else (fun _ -> [], Array.make 0 0)
+           | Native -> fun _ -> [], Array.make 0 0)
+    | AbstractMethod _ -> fun _ -> [], Array.make 0 0
+        
+let inst_html program ioc ms pp op =
+  let cs = Javalib.get_name ioc in
+    match op with
+      | AffectStaticField (ccs,fs,e) ->
+          let p1 = field_elem program cs ccs fs in
+          let p2 = simple_elem
+            (Printf.sprintf ":= %s" (print_expr e)) in
+            [p1;p2]
+      | AffectField (e1,ccs,fs,e2) ->
+          let p1 = field_elem program ~called_cname:(print_expr e1)
+            cs ccs fs in
+          let p2 = simple_elem
+            (Printf.sprintf ":= %s" (print_expr e2)) in
+            [p1;p2]
+      | New (x,ccs,_,le) ->
+          let v = TObject (TClass ccs) in
+          let p1 = simple_elem
+            (Printf.sprintf "%s := new" (var_name_g x)) in
+          let p2 = value_elem program cs v in
+          let p3 = simple_elem
+            (Printf.sprintf "(%s)"
+      	 (JUtil.print_list_sep ", " print_expr le)) in
+            [p1;p2;p3]
+      | NewArray (x,v,le) ->
+          let p1 = simple_elem
+            (Printf.sprintf "%s := new" (var_name_g x)) in
+          let p2 = value_elem program cs v in
+          let p3 = simple_elem
+            (Printf.sprintf "%s"
+      	 (JUtil.print_list_sep ""
+      	    (fun e -> 
+      	       Printf.sprintf "[%s]" (print_expr e)) le)
+            ) in
+            [p1;p2;p3]
+      | InvokeStatic (None,ccs,cms,le) ->
+          let p1 = 
+            invoke_elem 
+      	program cs ms pp ccs cms 
+          in
+          let p2 = simple_elem
+            (Printf.sprintf "(%s)" (JUtil.print_list_sep ", " (print_expr) le)) in
+            [p1;p2]
+      | InvokeStatic (Some x,ccs,cms,le) ->
+          let p1 = simple_elem
+            (Printf.sprintf "%s :=" (var_name_g x)) in
+          let p2 = 
+            invoke_elem 
+      	program cs ms pp ccs cms 
+          in
+          let p3 = simple_elem
+            (Printf.sprintf "(%s)" (JUtil.print_list_sep ", " (print_expr) le)) in
+            [p1;p2;p3]
+      | InvokeVirtual (r,e1,k,cms,le) ->
+          let p2 =
+            (match k with
+      	 | VirtualCall o ->
+      	     let ccs = match o with
+      	       | TClass ccs -> ccs
+      	       | _ -> JBasics.java_lang_object in
+      	       invoke_elem ~called_cname:(print_expr e1) program
+      		 cs ms pp ccs cms
+      	 | InterfaceCall ccs ->
+      	     invoke_elem ~called_cname:(print_expr e1) program
+      	       cs ms pp ccs cms
+            ) in
+          let p3 = simple_elem
+            (Printf.sprintf "(%s)"
+      	 (JUtil.print_list_sep ", " (print_expr) le)) in
+            (match r with
+      	 | None -> [p2;p3]
+      	 | Some x ->
+      	     let p1 = simple_elem
+      	       (Printf.sprintf "%s :="  (var_name_g x)) in
+      	       [p1;p2;p3]
+            )
+      | InvokeNonVirtual (r,e1,ccs,cms,le) ->
+          let p1 = simple_elem
+            (match r with
+      	 | None -> (print_expr e1) ^ "."
+      	 | Some x -> Printf.sprintf "%s := %s." (var_name_g x)
+      	     (print_expr e1)
+            ) in
+          let p2 = 
+            invoke_elem 
+      	program cs ms pp ccs cms 
+          in
+          let p3 = simple_elem
+            (Printf.sprintf "(%s)" (JUtil.print_list_sep ", " print_expr le)) in
+            [p1;p2;p3]
+      | MayInit ccs ->
+          let v = TObject (TClass ccs) in
+          let p1 = simple_elem "mayinit" in
+          let p2 = value_elem program cs v in
+            [p1;p2]
+      | Check (CheckCast (e,t)) ->
+          let p1 = simple_elem
+            (Printf.sprintf "checkcast %s:" (print_expr e)) in
+          let p2 = value_elem program cs (TObject t) in
+            [p1;p2]
+      | _ -> [simple_elem (print_instr op)]
 
-  let inst_html get program ioc ms pp op = 
-    let res = inst_html program ioc ms pp op in
-    let (phi_nodes,preds) = phi_nodes get ioc ms pp in
-      if phi_nodes = [] then res
-      else
-	(simple_elem 
-	   (Printf.sprintf
-	      "(preds(%d) := (%s)): "
-	      pp
-	      (JUtil.print_list_sep
-		 ", " string_of_int (Array.to_list preds))))
-	::(List.fold_right
-	     (fun  phi_n elts -> 
-		let el = 
-		  simple_elem (("  "^print_phi_node ~phi_simpl:false phi_n)^";") 
-		in
-		  el::elts
-	     )
-	     phi_nodes
-	     res)
+let inst_html get program ioc ms pp op = 
+  let res = inst_html program ioc ms pp op in
+  let (phi_nodes,preds) = phi_nodes get ioc ms pp in
+    if phi_nodes = [] then res
+    else
+      (simple_elem 
+         (Printf.sprintf
+            "(preds(%d) := (%s)): "
+            pp
+            (JUtil.print_list_sep
+      	 ", " string_of_int (Array.to_list preds))))
+      ::(List.fold_right
+           (fun  phi_n elts -> 
+      	let el = 
+      	  simple_elem (("  "^print_phi_node ~phi_simpl:false phi_n)^";") 
+      	in
+      	  el::elts
+           )
+           phi_nodes
+           res)
 
-  let iter_code f code =
-    let instrs = code.bir_code in
-      Array.iteri (fun i ins -> f i [ins]) instrs
-	
-  let method_param_names get ioc ms =
-    let m = Javalib.get_method ioc ms in
-      match m with
-	| AbstractMethod _
-	| ConcreteMethod {cm_implementation = Native} -> None
-	| ConcreteMethod ({cm_implementation = Java code} as cm) ->
-	    try
-	      let code = Lazy.force code in
-	      let is_static = cm.cm_static in
-		Some
-		  (ExtList.List.mapi
-		     (fun i _ ->
-			let n = if is_static then i else i + 1 in
-			let var = snd (List.nth (get code).bir_params n) in
-			  var_name_g var
-		     ) (ms_args ms)
-		  )
-	    with _ -> None
+let iter_code f code =
+  let instrs = code.bir_code in
+    Array.iteri (fun i ins -> f i [ins]) instrs
+      
+let iter_exc_handler f code =
+  List.iter f code.bir_exc_tbl
+
+let method_param_names get ioc ms =
+  let m = Javalib.get_method ioc ms in
+    match m with
+      | AbstractMethod _
+      | ConcreteMethod {cm_implementation = Native} -> None
+      | ConcreteMethod ({cm_implementation = Java code} as cm) ->
+          try
+            let code = Lazy.force code in
+            let is_static = cm.cm_static in
+      	Some
+      	  (ExtList.List.mapi
+      	     (fun i _ ->
+      		let n = if is_static then i else i + 1 in
+      		let var = snd (List.nth (get code).bir_params n) in
+      		  var_name_g var
+      	     ) (ms_args ms)
+      	  )
+          with _ -> None
+
+let exc_handler_html _program _ioc _ms handler =
+  simple_elem 
+    (Printf.sprintf 
+       "try start: %d; try end: %d: catch start: %d; catched type: %s."
+       handler.e_start handler.e_end handler.e_handler 
+       (match handler.e_catch_type with
+          | None -> "None (finally block)"
+          | Some t -> (cn_name t)
+       )
+    )
+
+
 
 module PrintIR =
 struct
   type p_instr = instr
   type p_code = bir
+  type p_handler = exception_handler
 
   let iter_code = iter_code	
+  let iter_exc_handler = iter_exc_handler
   let method_param_names = method_param_names (fun x -> x)
   let inst_html = inst_html (fun x -> x)
+  let exc_handler_html = exc_handler_html
 end
 
 module Printer = JPrintHtml.Make(PrintIR)
