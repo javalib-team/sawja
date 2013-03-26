@@ -45,6 +45,9 @@ let static_lookup program pp =
         )
     | JBir.InvokeStatic (_, cs, ms,_) ->
         Some ([static_lookup_static program cs ms])
+    | JBir.New(_, cs,argts, _) ->
+          let ms = JBasics.make_ms "<init>" argts None in
+        Some ([Class (static_lookup_special program (get_class pp) cs ms)])
     | JBir.InvokeNonVirtual (_, _, cs, ms, _) ->
         Some ([Class (static_lookup_special program (get_class pp) cs ms)])
     | _ -> None
