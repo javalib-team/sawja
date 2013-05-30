@@ -130,7 +130,7 @@ module Domain : sig
     type t
     type analysisID = Var.analysisID
     type analysisDomain = t
-    val bot : t
+    val bot : t (*No map (Unreachable code)*)
     val init : t
       (** [init] is an initial value for local variables: it is not bottom but
           contains no local variable (it correspond to a reachable point in the
@@ -149,7 +149,11 @@ module Domain : sig
   end
 
   module Stack : functor (Var:S) -> sig
-    type t = Bot | Top | Stack of Var.t list
+
+    type t = 
+      Bot                   (*No Stack (unreacheble code)*)
+    | Top                   (*Unknown stack (has potentially infinite element) *)
+    | Stack of Var.t list   (*Known stack composed of abstract elements*)
     type analysisID = Var.analysisID
     type analysisDomain = t
     val bot : t

@@ -213,7 +213,10 @@ module Local (Var:S) :sig
   val get_var : int -> analysisDomain -> Var.t
   val set_var : int -> Var.t -> analysisDomain -> analysisDomain
 end = struct
-  type t = Bot | Local of Var.t Ptmap.t
+  type t = 
+      Bot                       (*No map (Unreachable code)*)
+    | Local of Var.t Ptmap.t    (*Map of local variable (in reachable code)*)
+
   type analysisID = Var.analysisID
   type analysisDomain = t
   let get_analysis _ v = v
@@ -260,8 +263,7 @@ end = struct
         with Not_found -> Var.bot
 
   let set_var v d = function
-    | Bot -> 
-	Local (Ptmap.add v d Ptmap.empty)
+    | Bot -> Bot
     | Local l -> Local (Ptmap.add v d l)
 
   let pprint fmt =
