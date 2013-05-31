@@ -94,11 +94,11 @@ val resolve_field : field_signature -> 'a node -> 'a node list
 
 (** Exception throwed when field cannot be exactly resolved. In this case a
     list of possible node is given.*)
-exception AmbigousFieldResolution of class_name list
+exception AmbiguousFieldResolution of class_name list
 
 (** [resolve_field_strong fs node] Return the class where the field [fs]
   used by class [node] is defined. If the resolution is ambigous, throw an
-  AmbigousFieldResolution exception. Use resolve_field internally. *)
+  AmbiguousFieldResolution exception. Use resolve_field internally. *)
 val resolve_field_strong : field_signature -> 'a node -> 'a node
 
 (*
