@@ -436,6 +436,13 @@ val transform :
   ?formula:bool -> ?formula_cmd:JBasics.class_method_signature list ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
+(** [resolve_all_fields prog -> prog] : return a new program where every fields
+  has been resolved to the exact class where they have been defined. If there
+  are some ambigous fields (it means that some interfaces fields are present)
+  throw an JControlFlow.AmbigousFieldResolution exception.
+ *)
+val resolve_all_fields : t JProgram.program -> t JProgram.program
+
 (** {2 Exceptions} *)
 
 exception NonemptyStack_backward_jump

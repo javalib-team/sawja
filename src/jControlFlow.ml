@@ -216,6 +216,12 @@ let resolve_field fs c : 'a node list =
     resolve_field' result fs c;
     !result
 
+exception AmbigousFieldResolution of class_name list
+
+let resolve_field_strong fs class_node =
+  match resolve_field fs class_node with
+  | [JProgram.Class c] -> JProgram.Class c
+  | lst -> raise (AmbigousFieldResolution (List.map JProgram.get_name lst))
 
 let rec resolve_method' ms (c:'a class_node) : 'a class_node =
   if defines_method (Class c) ms

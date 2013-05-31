@@ -85,12 +85,21 @@ val resolve_interface_method' :
 (** [resolve_field fsi c] returns the list of classes and interfaces
     that define the field [(c,fsi)], if any.  See the JVM Spec for the
     algorithm.  Several interfaces may define the same field and it is
-    not specify which one to take (there is no order relation on
+    not specified which one to take (there is no order relation on
     direct interfaces), so this function returns a list.
 
     @see <http://java.sun.com/docs/books/jvms/second_edition/html/ConstantPool.doc.html#71685> Field Resolution
 *)
 val resolve_field : field_signature -> 'a node -> 'a node list
+
+(** Exception throwed when field cannot be exactly resolved. In this case a
+    list of possible node is given.*)
+exception AmbigousFieldResolution of class_name list
+
+(** [resolve_field_strong fs node] Return the class where the field [fs]
+  used by class [node] is defined. If the resolution is ambigous, throw an
+  AmbigousFieldResolution exception. Use resolve_field internally. *)
+val resolve_field_strong : field_signature -> 'a node -> 'a node
 
 (*
 (** [lookup_virtual_method ms c] returns the class that defines the

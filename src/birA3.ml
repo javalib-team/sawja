@@ -343,6 +343,63 @@ let bir2a3bir bir =
     List.iter (Printf.printf "  %s\n") (Bir.bir_print bir);
     assert false
 
+
+(*************** FIELD Resolution ********************)
+let a3_code_map (f: instr -> instr) (m: t) : t =
+  { m with code =
+    Array.init (Array.length m.code)
+    (fun i -> f m.code.(i))
+  }
+
+let a3_resolve_field prog cn fs = 
+  let class_node = JProgram.get_node prog cn in
+  let res_node = JControlFlow.resolve_field_strong fs class_node in
+  JProgram.get_name res_node
+
+
+let a3_resolve_field_in_expr prog (e: expr) : expr =
+  match e with
+  | Field (v,cn,fs) -> Field (v, a3_resolve_field prog cn fs, fs)
+  | StaticField (cn,fs) -> StaticField (a3_resolve_field prog cn fs, fs)
+  | Const _
+  | Var _
+  | Unop _
+  | Binop _
+  -> e
+
+let a3_field_resolve_in_code prog (inst:instr) : instr =
+  match inst with
+  | AffectVar(x,e) -> AffectVar(x, a3_resolve_field_in_expr prog e)
+  | AffectField (x,cn,fs,y) -> AffectField(x, a3_resolve_field prog cn fs, fs, y)
+  | AffectStaticField (cn,fs,e) -> AffectStaticField(a3_resolve_field prog cn fs, fs, e)
+  | Nop
+  | AffectArray _
+  | Goto _
+  | Ifd _
+  | Throw _
+  | Return _
+  | New _
+  | NewArray _
+  | InvokeStatic _
+  | InvokeVirtual _
+  | InvokeNonVirtual _
+  | MonitorEnter _
+  | MonitorExit _
+  | MayInit _
+  | Check _
+  | Formula _
+  -> inst
+
+let resolve_all_fields (prog: t JProgram.program) : t JProgram.program =
+  JProgram.map_program
+  (fun _ _ -> a3_code_map (a3_field_resolve_in_code prog))
+  None prog
+
+(*************** FIELD Resolution END ********************)
+
+
+
+
 module PrintIR =
 struct
   type p_instr = Bir.instr

@@ -4108,7 +4108,78 @@ let exc_handler_html _program _ioc _ms handler =
        )
     )
 
+(*************** FIELD Resolution ********************)
+let bir_code_map (f: instr -> instr) (m: bir) : bir =
+  { m with bir_code =
+    Array.init (Array.length m.bir_code)
+    (fun i -> f m.bir_code.(i))
+  }
 
+let bir_resolve_field prog cn fs = 
+  let class_node = JProgram.get_node prog cn in
+  let res_node = JControlFlow.resolve_field_strong fs class_node in
+    JProgram.get_name res_node
+
+
+let bir_resolve_field_in_expr prog (e:expr) : expr =
+  let rec aux e =
+  match e with
+  | Field (x,cls,fs) -> Field (aux x, bir_resolve_field prog cls fs, fs)
+  | StaticField (cls,fs) -> StaticField (bir_resolve_field prog cls fs, fs)
+  | Unop (op, e') -> Unop (op, aux e')
+  | Binop (op, e1, e2) -> Binop (op, aux e1, aux e2)
+  | Const _
+  | Var _ -> e
+  in
+  aux e
+
+let bir_field_resolve_in_code prog (inst:instr) : instr =
+  let resolve = bir_resolve_field_in_expr prog in
+  let resolve_check = function
+  | CheckNullPointer e -> CheckNullPointer (resolve e)
+  | CheckArrayBound (a,idx) -> CheckArrayBound (resolve a, resolve idx)
+  | CheckArrayStore (a,e) -> CheckArrayStore (resolve a, resolve e)
+  | CheckNegativeArraySize e -> CheckNegativeArraySize(resolve e)
+  | CheckCast (e,t) -> CheckCast (resolve e, t)
+  | CheckArithmetic e -> CheckArithmetic (resolve e)
+  | CheckLink op -> CheckLink op
+  in
+  let rec resolve_formula = function
+  | Atom (op,e1,e2) -> Atom (op, resolve e1, resolve e2)
+  | BoolVar e -> BoolVar (resolve e)
+  | And (f,g) -> And (resolve_formula f, resolve_formula g)
+  | Or (f,g) -> Or (resolve_formula f, resolve_formula g)
+  in
+  match inst with
+  | AffectVar (x,e) -> AffectVar (x, resolve e)
+  | AffectArray (a,idx,e) -> AffectArray (resolve a, resolve idx, resolve e)
+  | AffectField (e,c,fs,e') -> AffectField (resolve e, bir_resolve_field prog c fs, fs, resolve e')
+  | AffectStaticField (c,fs,e) -> AffectStaticField (bir_resolve_field prog c fs, fs, resolve e)
+  | Ifd ((op,e1,e2),pc) -> Ifd ((op, resolve e1, resolve e2), pc)
+  | Throw e -> Throw (resolve e)
+  | Return (Some e) -> Return (Some (resolve e))
+  | New (x,c,tl,args) -> New (x, c, tl, List.map resolve args)
+  | NewArray (x,t,el) -> NewArray (x, t, List.map resolve el)
+  | InvokeStatic (x,c,ms,args) -> InvokeStatic (x, c, ms, List.map  resolve args)
+  | InvokeVirtual (x,e,k,ms,args) -> InvokeVirtual (x, resolve e, k, ms, List.map resolve args)
+  | InvokeNonVirtual (x,e,c,ms,args) -> InvokeNonVirtual (x, resolve e, c, ms, List.map resolve args)
+  | MonitorEnter e -> MonitorEnter (resolve e)
+  | MonitorExit e -> MonitorExit (resolve e)
+  | Check e -> Check (resolve_check e)
+  | Formula (cms, f) -> Formula (cms, resolve_formula f)
+  | Nop
+  | Goto _
+  | Return None
+  | MayInit _
+  -> inst
+
+let resolve_all_fields (prog: bir JProgram.program) : bir JProgram.program =
+  JProgram.map_program
+  (fun _ _ -> bir_code_map (bir_field_resolve_in_code prog))
+  None prog
+
+
+(*************** FIELD Resolution ********************)
 
 module PrintIR =
 struct
