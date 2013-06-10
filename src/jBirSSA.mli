@@ -89,7 +89,7 @@ type unop =
   | Cast of JBasics.object_type
 
 (** Comparison operators *)
-type comp = DG | DL | FG | FL | L
+type comp = DG | DL | FG | FL | L (*see javalib/src/jCode.mli: OpCmp for details*)
 
 
 (** Binary operators. *)
