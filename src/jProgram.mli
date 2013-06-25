@@ -246,7 +246,14 @@ val map_program_with_native2 :
 type callgraph = ((class_name * method_signature * int)
 		  * (class_name * method_signature)) list
 
+(** [get_callgraph prog] : Get a callgraph including every call of every method
+  of every class .*)
 val get_callgraph : JCode.jcode program -> callgraph
+
+(** [get_callgraph_from_entries prog entries] Get a callgraph only considering
+* code reachable from the given entrypoints. *)
+val get_callgraph_from_entries : JCode.jcode program ->  class_method_signature list 
+                                  -> callgraph
 
 val store_callgraph : callgraph -> string -> unit
 

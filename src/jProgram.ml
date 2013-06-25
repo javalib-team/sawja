@@ -337,6 +337,54 @@ let get_callgraph p =
       ) p;
     !calls
 
+let get_callgraph_from_entries p entries = 
+  let methodcalls2callsite cs ms calls =
+    let l = ref [] in
+      Ptmap.iter
+	(fun pp cmset ->
+	   ClassMethodSet.iter
+	     (fun ccms ->
+		let (ccs,cms) = cms_split ccms in
+		  l := ((cs,ms,pp),(ccs,cms)) :: !l
+	     ) cmset
+	) calls;
+      !l in
+  let calls = ref [] in
+  let history = ref (List.fold_left 
+                       (fun map el -> ClassMethodSet.add el map) 
+                       (ClassMethodSet.empty) entries) 
+  in
+  let workset = ref entries in
+    while ((List.length !workset) > 0 ) do
+      (
+        let cur_cms = List.hd !workset in
+          workset :=List.tl !workset;
+          let (cur_cn, cur_ms) = cms_split cur_cms in
+          let m = get_method (get_node p cur_cn) cur_ms in
+            match m with
+              | ConcreteMethod cm ->
+                  let mcalls = (get_method_calls p cur_cn cm) in
+                    Ptmap.iter
+                      (fun _pp cmsSet ->
+                         ClassMethodSet.iter 
+                           (fun cms ->
+                              if (ClassMethodSet.mem cms !history)
+                              then ()
+                              else 
+                                (history := ClassMethodSet.add cms !history;
+                                 workset := cms::!workset
+                                )
+                           )
+                           cmsSet
+                      )
+                      mcalls;
+                    calls := ((methodcalls2callsite cur_cn cm.cm_signature mcalls)
+                              @ !calls)
+              | AbstractMethod _ -> ()
+      )
+    done;
+    !calls
+
 let store_callgraph callgraph file =
   let out = IO.output_channel (open_out file) in
     List.iter
