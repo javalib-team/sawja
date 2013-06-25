@@ -1,0 +1,7 @@
+Those files are a parser able to analyze a dump given by the HeapInspector
+program (see branch/HeapInspector). It is used to recover an ocaml
+representation of the heap of a java program.
+
+They are compiled through the usual sawja compilation system.
+
+Exemple or used are available in jRTAWithHeap and a3BirNit analysis.
