@@ -23,7 +23,8 @@
 -include ../Makefile.config
 DOCDIR:=../$(DOCDIR)
 DATAFLOW=dataflow_analyses/
-INCLUDE:=$(INCLUDE) -I $(DATAFLOW)
+HEAP_PARSER=heap_parser/
+INCLUDE:=$(INCLUDE) -I $(DATAFLOW) -I $(HEAP_PARSER)
 SED=sed
 
 CSS=\"style.css\"
@@ -41,7 +42,8 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	safe reachableMethods jNativeStubs \
-	jCRA jRTA jRRTA XTA \
+	$(HEAP_PARSER)/parserType $(HEAP_PARSER)/parse_heap $(HEAP_PARSER)lex_heap  $(HEAP_PARSER)heapParser \
+	jCRA jRTA jRTAWithHeap jRRTA XTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
 	$(DATAFLOW)availableExprSSA
 
@@ -51,7 +53,8 @@ MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jCodePP jBir jBirPP a3Bir a3BirPP jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	safe reachableMethods jUtil \
-	jCRA XTA jRTA jRRTA \
+	$(HEAP_PARSER)/parserType $(HEAP_PARSER)parse_heap $(HEAP_PARSER)heapParser\
+	jCRA XTA jRTA jRTAWithHeap jRRTA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr
 
 
@@ -118,6 +121,12 @@ safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solve
 	  echo " end">> $@;\
 	done
 
+%.ml: %.mll
+	ocamllex $^	
+
+%.ml %.mli: %.mly
+	ocamlyacc $^
+
 .ml.cmo:
 	$(OCAMLC) $(INCLUDE) -c $<
 %.cmx %.o:%.ml
@@ -170,7 +179,10 @@ doc-devel: $(MODULE_INTERFACES_DOC:=.cmi) ../intro.ocamldoc
 
 clean:
 	$(RM) safe.ml classDomain.ml .depend *.cmi *.cmo *.cmx *.annot *.obj *.o *~ \
-	  $(DATAFLOW:=*.cm[iox]) $(DATAFLOW:=*.o) $(DATAFLOW:=*.obj) $(DATAFLOW:=*.annot) $(DATAFLOW)*.~
+	  $(DATAFLOW:=*.cm[iox]) $(DATAFLOW:=*.o) $(DATAFLOW:=*.obj) $(DATAFLOW:=*.annot) $(DATAFLOW)*.~ \
+	  $(HEAP_PARSER:=*.cm[iox]) $(HEAP_PARSER:=*.o) $(HEAP_PARSER:=*.annot) $(HEAP_PARSER)lex_heap.ml \
+	  $(HEAP_PARSER)parse_heap.ml $(HEAP_PARSER)parse_heap.mli
+
 cleanall: clean
 	$(RM) ocaml *.cma *.cmxa *.cmxs *.a *.cmi META $(DATAFLOW)*.cmi
 cleandoc:
