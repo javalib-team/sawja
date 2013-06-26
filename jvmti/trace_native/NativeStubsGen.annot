@@ -1,0 +1,5294 @@
+"NativeStubsGen.ml" 26 904 908 "NativeStubsGen.ml" 26 904 916
+type(
+  string list
+)
+ident(
+  def keywords "NativeStubsGen.ml" 28 931 931 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 26 904 920 "NativeStubsGen.ml" 26 904 923
+type(
+  string
+)
+"NativeStubsGen.ml" 26 904 925 "NativeStubsGen.ml" 26 904 928
+type(
+  string
+)
+type(
+  string list
+)
+"NativeStubsGen.ml" 26 904 920 "NativeStubsGen.ml" 26 904 928
+type(
+  string list
+)
+"NativeStubsGen.ml" 26 904 919 "NativeStubsGen.ml" 26 904 929
+type(
+  string list
+)
+"NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def parse_methodentry_attrs "NativeStubsGen.ml" 28 931 931 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 28 931 963 "NativeStubsGen.ml" 28 931 967
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def expr "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 29 970 978 "NativeStubsGen.ml" 29 970 982
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 28 931 963 "NativeStubsGen.ml" 28 931 967
+)
+"NativeStubsGen.ml" 30 995 1011 "NativeStubsGen.ml" 30 995 1019
+type(
+  string
+)
+"NativeStubsGen.ml" 30 995 1005 "NativeStubsGen.ml" 30 995 1019
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 30 995 1004 "NativeStubsGen.ml" 30 995 1019
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 30 995 1028 "NativeStubsGen.ml" 30 995 1031
+type(
+  string
+)
+"NativeStubsGen.ml" 30 995 1022 "NativeStubsGen.ml" 30 995 1031
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 30 995 1021 "NativeStubsGen.ml" 30 995 1031
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 30 995 1041 "NativeStubsGen.ml" 30 995 1048
+type(
+  string
+)
+ident(
+  def mthread "NativeStubsGen.ml" 30 995 1033 "NativeStubsGen.ml" 30 995 1048
+)
+"NativeStubsGen.ml" 30 995 1034 "NativeStubsGen.ml" 30 995 1048
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 30 995 1033 "NativeStubsGen.ml" 30 995 1048
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 30 995 1050 "NativeStubsGen.ml" 30 995 1051
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 31 1084 1085 "NativeStubsGen.ml" 31 1084 1117
+)
+"NativeStubsGen.ml" 30 995 1054 "NativeStubsGen.ml" 30 995 1077
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodentry_attrs "NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+)
+"NativeStubsGen.ml" 30 995 1050 "NativeStubsGen.ml" 30 995 1077
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 31 1084 1085 "NativeStubsGen.ml" 31 1084 1098
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 31 1084 1099 "NativeStubsGen.ml" 31 1084 1107
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 31 1084 1108 "NativeStubsGen.ml" 31 1084 1115
+type(
+  string
+)
+ident(
+  int_ref mthread "NativeStubsGen.ml" 30 995 1041 "NativeStubsGen.ml" 30 995 1048
+)
+"NativeStubsGen.ml" 31 1084 1116 "NativeStubsGen.ml" 31 1084 1117
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 30 995 1050 "NativeStubsGen.ml" 30 995 1051
+)
+"NativeStubsGen.ml" 31 1084 1085 "NativeStubsGen.ml" 31 1084 1117
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 32 1118 1134 "NativeStubsGen.ml" 32 1118 1140
+type(
+  string
+)
+"NativeStubsGen.ml" 32 1118 1128 "NativeStubsGen.ml" 32 1118 1140
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 32 1118 1127 "NativeStubsGen.ml" 32 1118 1140
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 32 1118 1149 "NativeStubsGen.ml" 32 1118 1152
+type(
+  string
+)
+"NativeStubsGen.ml" 32 1118 1143 "NativeStubsGen.ml" 32 1118 1152
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 32 1118 1142 "NativeStubsGen.ml" 32 1118 1152
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 32 1118 1162 "NativeStubsGen.ml" 32 1118 1167
+type(
+  string
+)
+ident(
+  def mtype "NativeStubsGen.ml" 32 1118 1154 "NativeStubsGen.ml" 32 1118 1167
+)
+"NativeStubsGen.ml" 32 1118 1155 "NativeStubsGen.ml" 32 1118 1167
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 32 1118 1154 "NativeStubsGen.ml" 32 1118 1167
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 32 1118 1169 "NativeStubsGen.ml" 32 1118 1170
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 33 1203 1204 "NativeStubsGen.ml" 33 1203 1232
+)
+"NativeStubsGen.ml" 32 1118 1173 "NativeStubsGen.ml" 32 1118 1196
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodentry_attrs "NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+)
+"NativeStubsGen.ml" 32 1118 1169 "NativeStubsGen.ml" 32 1118 1196
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 33 1203 1204 "NativeStubsGen.ml" 33 1203 1217
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 33 1203 1218 "NativeStubsGen.ml" 33 1203 1224
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 33 1203 1225 "NativeStubsGen.ml" 33 1203 1230
+type(
+  string
+)
+ident(
+  int_ref mtype "NativeStubsGen.ml" 32 1118 1162 "NativeStubsGen.ml" 32 1118 1167
+)
+"NativeStubsGen.ml" 33 1203 1231 "NativeStubsGen.ml" 33 1203 1232
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 32 1118 1169 "NativeStubsGen.ml" 32 1118 1170
+)
+"NativeStubsGen.ml" 33 1203 1204 "NativeStubsGen.ml" 33 1203 1232
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 34 1233 1249 "NativeStubsGen.ml" 34 1233 1256
+type(
+  string
+)
+"NativeStubsGen.ml" 34 1233 1243 "NativeStubsGen.ml" 34 1233 1256
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 34 1233 1242 "NativeStubsGen.ml" 34 1233 1256
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 34 1233 1265 "NativeStubsGen.ml" 34 1233 1268
+type(
+  string
+)
+"NativeStubsGen.ml" 34 1233 1259 "NativeStubsGen.ml" 34 1233 1268
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 34 1233 1258 "NativeStubsGen.ml" 34 1233 1268
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 34 1233 1278 "NativeStubsGen.ml" 34 1233 1283
+type(
+  string
+)
+ident(
+  def cname "NativeStubsGen.ml" 34 1233 1270 "NativeStubsGen.ml" 34 1233 1283
+)
+"NativeStubsGen.ml" 34 1233 1271 "NativeStubsGen.ml" 34 1233 1283
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 34 1233 1270 "NativeStubsGen.ml" 34 1233 1283
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 34 1233 1285 "NativeStubsGen.ml" 34 1233 1286
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 35 1319 1320 "NativeStubsGen.ml" 35 1319 1349
+)
+"NativeStubsGen.ml" 34 1233 1289 "NativeStubsGen.ml" 34 1233 1312
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodentry_attrs "NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+)
+"NativeStubsGen.ml" 34 1233 1285 "NativeStubsGen.ml" 34 1233 1312
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 35 1319 1320 "NativeStubsGen.ml" 35 1319 1333
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 35 1319 1334 "NativeStubsGen.ml" 35 1319 1341
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 35 1319 1342 "NativeStubsGen.ml" 35 1319 1347
+type(
+  string
+)
+ident(
+  int_ref cname "NativeStubsGen.ml" 34 1233 1278 "NativeStubsGen.ml" 34 1233 1283
+)
+"NativeStubsGen.ml" 35 1319 1348 "NativeStubsGen.ml" 35 1319 1349
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 34 1233 1285 "NativeStubsGen.ml" 34 1233 1286
+)
+"NativeStubsGen.ml" 35 1319 1320 "NativeStubsGen.ml" 35 1319 1349
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 36 1350 1366 "NativeStubsGen.ml" 36 1350 1372
+type(
+  string
+)
+"NativeStubsGen.ml" 36 1350 1360 "NativeStubsGen.ml" 36 1350 1372
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 36 1350 1359 "NativeStubsGen.ml" 36 1350 1372
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 36 1350 1381 "NativeStubsGen.ml" 36 1350 1384
+type(
+  string
+)
+"NativeStubsGen.ml" 36 1350 1375 "NativeStubsGen.ml" 36 1350 1384
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 36 1350 1374 "NativeStubsGen.ml" 36 1350 1384
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 36 1350 1394 "NativeStubsGen.ml" 36 1350 1399
+type(
+  string
+)
+ident(
+  def mname "NativeStubsGen.ml" 36 1350 1386 "NativeStubsGen.ml" 36 1350 1399
+)
+"NativeStubsGen.ml" 36 1350 1387 "NativeStubsGen.ml" 36 1350 1399
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 36 1350 1386 "NativeStubsGen.ml" 36 1350 1399
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 36 1350 1401 "NativeStubsGen.ml" 36 1350 1402
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 37 1435 1436 "NativeStubsGen.ml" 37 1435 1464
+)
+"NativeStubsGen.ml" 36 1350 1405 "NativeStubsGen.ml" 36 1350 1428
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodentry_attrs "NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+)
+"NativeStubsGen.ml" 36 1350 1401 "NativeStubsGen.ml" 36 1350 1428
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 37 1435 1436 "NativeStubsGen.ml" 37 1435 1449
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 37 1435 1450 "NativeStubsGen.ml" 37 1435 1456
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 37 1435 1457 "NativeStubsGen.ml" 37 1435 1462
+type(
+  string
+)
+ident(
+  int_ref mname "NativeStubsGen.ml" 36 1350 1394 "NativeStubsGen.ml" 36 1350 1399
+)
+"NativeStubsGen.ml" 37 1435 1463 "NativeStubsGen.ml" 37 1435 1464
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 36 1350 1401 "NativeStubsGen.ml" 36 1350 1402
+)
+"NativeStubsGen.ml" 37 1435 1436 "NativeStubsGen.ml" 37 1435 1464
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 38 1465 1481 "NativeStubsGen.ml" 38 1465 1492
+type(
+  string
+)
+"NativeStubsGen.ml" 38 1465 1475 "NativeStubsGen.ml" 38 1465 1492
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 38 1465 1474 "NativeStubsGen.ml" 38 1465 1492
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 38 1465 1501 "NativeStubsGen.ml" 38 1465 1504
+type(
+  string
+)
+"NativeStubsGen.ml" 38 1465 1495 "NativeStubsGen.ml" 38 1465 1504
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 38 1465 1494 "NativeStubsGen.ml" 38 1465 1504
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 38 1465 1514 "NativeStubsGen.ml" 38 1465 1519
+type(
+  string
+)
+ident(
+  def msign "NativeStubsGen.ml" 38 1465 1506 "NativeStubsGen.ml" 38 1465 1519
+)
+"NativeStubsGen.ml" 38 1465 1507 "NativeStubsGen.ml" 38 1465 1519
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 38 1465 1506 "NativeStubsGen.ml" 38 1465 1519
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 38 1465 1521 "NativeStubsGen.ml" 38 1465 1522
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 39 1555 1556 "NativeStubsGen.ml" 39 1555 1589
+)
+"NativeStubsGen.ml" 38 1465 1525 "NativeStubsGen.ml" 38 1465 1548
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodentry_attrs "NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+)
+"NativeStubsGen.ml" 38 1465 1521 "NativeStubsGen.ml" 38 1465 1548
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 39 1555 1556 "NativeStubsGen.ml" 39 1555 1569
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 39 1555 1570 "NativeStubsGen.ml" 39 1555 1581
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 39 1555 1582 "NativeStubsGen.ml" 39 1555 1587
+type(
+  string
+)
+ident(
+  int_ref msign "NativeStubsGen.ml" 38 1465 1514 "NativeStubsGen.ml" 38 1465 1519
+)
+"NativeStubsGen.ml" 39 1555 1588 "NativeStubsGen.ml" 39 1555 1589
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 38 1465 1521 "NativeStubsGen.ml" 38 1465 1522
+)
+"NativeStubsGen.ml" 39 1555 1556 "NativeStubsGen.ml" 39 1555 1589
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 40 1590 1605 "NativeStubsGen.ml" 40 1590 1620
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.empty
+)
+"NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def __strm "NativeStubsGen.ml" 29 970 972 "NativeStubsGen.ml" 40 1590 1620
+)
+"NativeStubsGen.ml" 28 931 963 "NativeStubsGen.ml" 40 1590 1620
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 42 1622 1626 "NativeStubsGen.ml" 42 1622 1648
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def parse_methodexit_attrs "NativeStubsGen.ml" 47 1790 1790 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 42 1622 1649 "NativeStubsGen.ml" 42 1622 1653
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def expr "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+"NativeStubsGen.ml" 43 1656 1664 "NativeStubsGen.ml" 43 1656 1668
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 42 1622 1649 "NativeStubsGen.ml" 42 1622 1653
+)
+"NativeStubsGen.ml" 44 1681 1697 "NativeStubsGen.ml" 44 1681 1705
+type(
+  string
+)
+"NativeStubsGen.ml" 44 1681 1691 "NativeStubsGen.ml" 44 1681 1705
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 44 1681 1690 "NativeStubsGen.ml" 44 1681 1705
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 44 1681 1714 "NativeStubsGen.ml" 44 1681 1717
+type(
+  string
+)
+"NativeStubsGen.ml" 44 1681 1708 "NativeStubsGen.ml" 44 1681 1717
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 44 1681 1707 "NativeStubsGen.ml" 44 1681 1717
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 44 1681 1727 "NativeStubsGen.ml" 44 1681 1734
+type(
+  string
+)
+ident(
+  def mthread "NativeStubsGen.ml" 44 1681 1719 "NativeStubsGen.ml" 44 1681 1734
+)
+"NativeStubsGen.ml" 44 1681 1720 "NativeStubsGen.ml" 44 1681 1734
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 44 1681 1719 "NativeStubsGen.ml" 44 1681 1734
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 45 1741 1742 "NativeStubsGen.ml" 45 1741 1755
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 45 1741 1756 "NativeStubsGen.ml" 45 1741 1764
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 45 1741 1765 "NativeStubsGen.ml" 45 1741 1772
+type(
+  string
+)
+ident(
+  int_ref mthread "NativeStubsGen.ml" 44 1681 1727 "NativeStubsGen.ml" 44 1681 1734
+)
+"NativeStubsGen.ml" 45 1741 1773 "NativeStubsGen.ml" 45 1741 1788
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.empty
+)
+"NativeStubsGen.ml" 45 1741 1742 "NativeStubsGen.ml" 45 1741 1788
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def __strm "NativeStubsGen.ml" 43 1656 1658 "NativeStubsGen.ml" 45 1741 1788
+)
+"NativeStubsGen.ml" 42 1622 1649 "NativeStubsGen.ml" 45 1741 1788
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 47 1790 1798 "NativeStubsGen.ml" 47 1790 1817
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def parse_vmalloc_attrs "NativeStubsGen.ml" 47 1790 1790 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 47 1790 1818 "NativeStubsGen.ml" 47 1790 1822
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def expr "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+"NativeStubsGen.ml" 48 1825 1833 "NativeStubsGen.ml" 48 1825 1837
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 47 1790 1818 "NativeStubsGen.ml" 47 1790 1822
+)
+"NativeStubsGen.ml" 49 1850 1866 "NativeStubsGen.ml" 49 1850 1874
+type(
+  string
+)
+"NativeStubsGen.ml" 49 1850 1860 "NativeStubsGen.ml" 49 1850 1874
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 49 1850 1859 "NativeStubsGen.ml" 49 1850 1874
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 49 1850 1883 "NativeStubsGen.ml" 49 1850 1886
+type(
+  string
+)
+"NativeStubsGen.ml" 49 1850 1877 "NativeStubsGen.ml" 49 1850 1886
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 49 1850 1876 "NativeStubsGen.ml" 49 1850 1886
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 49 1850 1896 "NativeStubsGen.ml" 49 1850 1908
+type(
+  string
+)
+ident(
+  def alloc_thread "NativeStubsGen.ml" 49 1850 1888 "NativeStubsGen.ml" 49 1850 1908
+)
+"NativeStubsGen.ml" 49 1850 1889 "NativeStubsGen.ml" 49 1850 1908
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 49 1850 1888 "NativeStubsGen.ml" 49 1850 1908
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 49 1850 1910 "NativeStubsGen.ml" 49 1850 1911
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 50 1940 1941 "NativeStubsGen.ml" 50 1940 1978
+)
+"NativeStubsGen.ml" 49 1850 1914 "NativeStubsGen.ml" 49 1850 1933
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_vmalloc_attrs "NativeStubsGen.ml" 47 1790 1798 "NativeStubsGen.ml" 47 1790 1817
+)
+"NativeStubsGen.ml" 49 1850 1910 "NativeStubsGen.ml" 49 1850 1933
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+"NativeStubsGen.ml" 50 1940 1941 "NativeStubsGen.ml" 50 1940 1954
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 50 1940 1955 "NativeStubsGen.ml" 50 1940 1963
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 50 1940 1964 "NativeStubsGen.ml" 50 1940 1976
+type(
+  string
+)
+ident(
+  int_ref alloc_thread "NativeStubsGen.ml" 49 1850 1896 "NativeStubsGen.ml" 49 1850 1908
+)
+"NativeStubsGen.ml" 50 1940 1977 "NativeStubsGen.ml" 50 1940 1978
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 49 1850 1910 "NativeStubsGen.ml" 49 1850 1911
+)
+"NativeStubsGen.ml" 50 1940 1941 "NativeStubsGen.ml" 50 1940 1978
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 51 1979 1995 "NativeStubsGen.ml" 51 1979 2002
+type(
+  string
+)
+"NativeStubsGen.ml" 51 1979 1989 "NativeStubsGen.ml" 51 1979 2002
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 51 1979 1988 "NativeStubsGen.ml" 51 1979 2002
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 51 1979 2011 "NativeStubsGen.ml" 51 1979 2014
+type(
+  string
+)
+"NativeStubsGen.ml" 51 1979 2005 "NativeStubsGen.ml" 51 1979 2014
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 51 1979 2004 "NativeStubsGen.ml" 51 1979 2014
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 51 1979 2024 "NativeStubsGen.ml" 51 1979 2035
+type(
+  string
+)
+ident(
+  def alloc_class "NativeStubsGen.ml" 51 1979 2016 "NativeStubsGen.ml" 51 1979 2035
+)
+"NativeStubsGen.ml" 51 1979 2017 "NativeStubsGen.ml" 51 1979 2035
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 51 1979 2016 "NativeStubsGen.ml" 51 1979 2035
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 51 1979 2038 "NativeStubsGen.ml" 51 1979 2039
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def p "NativeStubsGen.ml" 52 2068 2069 "NativeStubsGen.ml" 52 2068 2104
+)
+"NativeStubsGen.ml" 51 1979 2042 "NativeStubsGen.ml" 51 1979 2061
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_vmalloc_attrs "NativeStubsGen.ml" 47 1790 1798 "NativeStubsGen.ml" 47 1790 1817
+)
+"NativeStubsGen.ml" 51 1979 2038 "NativeStubsGen.ml" 51 1979 2061
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+"NativeStubsGen.ml" 52 2068 2069 "NativeStubsGen.ml" 52 2068 2082
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 52 2068 2083 "NativeStubsGen.ml" 52 2068 2090
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 52 2068 2091 "NativeStubsGen.ml" 52 2068 2102
+type(
+  string
+)
+ident(
+  int_ref alloc_class "NativeStubsGen.ml" 51 1979 2024 "NativeStubsGen.ml" 51 1979 2035
+)
+"NativeStubsGen.ml" 52 2068 2103 "NativeStubsGen.ml" 52 2068 2104
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref p "NativeStubsGen.ml" 51 1979 2038 "NativeStubsGen.ml" 51 1979 2039
+)
+"NativeStubsGen.ml" 52 2068 2069 "NativeStubsGen.ml" 52 2068 2104
+call(
+  tail
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 53 2105 2120 "NativeStubsGen.ml" 53 2105 2135
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.empty
+)
+"NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def __strm "NativeStubsGen.ml" 48 1825 1827 "NativeStubsGen.ml" 53 2105 2135
+)
+"NativeStubsGen.ml" 47 1790 1818 "NativeStubsGen.ml" 53 2105 2135
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  def callstackmap "NativeStubsGen.ml" 57 2177 2177 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 55 2137 2156 "NativeStubsGen.ml" 55 2137 2159
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  ext_ref Pervasives.ref
+)
+"NativeStubsGen.ml" 55 2137 2160 "NativeStubsGen.ml" 55 2137 2175
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.empty
+)
+"NativeStubsGen.ml" 55 2137 2156 "NativeStubsGen.ml" 55 2137 2175
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+"NativeStubsGen.ml" 57 2177 2185 "NativeStubsGen.ml" 57 2177 2196
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  def parse_jvmti "NativeStubsGen.ml" 57 2177 2177 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  def native_info "NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 57 2177 2213
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def expr "NativeStubsGen.ml" 58 2216 2218 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 58 2216 2222 "NativeStubsGen.ml" 58 2216 2239
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  def empty_method_info "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 58 2216 2259 "NativeStubsGen.ml" 58 2216 2282
+type(
+  Sawja_pack.JNativeStubs.ClassSignatureSet.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.ClassSignatureSet.empty
+)
+"NativeStubsGen.ml" 59 2284 2306 "NativeStubsGen.ml" 59 2284 2321
+type(
+  Sawja_pack.JNativeStubs.MethodSet.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodSet.empty
+)
+"NativeStubsGen.ml" 58 2216 2242 "NativeStubsGen.ml" 59 2284 2323
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 60 2327 2337 "NativeStubsGen.ml" 60 2327 2341
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 57 2177 2213
+)
+"NativeStubsGen.ml" 61 2354 2372 "NativeStubsGen.ml" 61 2354 2385
+type(
+  string
+)
+"NativeStubsGen.ml" 61 2354 2366 "NativeStubsGen.ml" 61 2354 2385
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 61 2354 2365 "NativeStubsGen.ml" 61 2354 2385
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 61 2354 2392 "NativeStubsGen.ml" 61 2354 2395
+type(
+  string
+)
+"NativeStubsGen.ml" 61 2354 2388 "NativeStubsGen.ml" 61 2354 2395
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 61 2354 2387 "NativeStubsGen.ml" 61 2354 2395
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def attrs "NativeStubsGen.ml" 62 2397 2434 "NativeStubsGen.ml" 62 2397 2442
+)
+"NativeStubsGen.ml" 62 2397 2409 "NativeStubsGen.ml" 62 2397 2432
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodentry_attrs "NativeStubsGen.ml" 28 931 939 "NativeStubsGen.ml" 28 931 962
+)
+"NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2432
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 62 2397 2439 "NativeStubsGen.ml" 62 2397 2442
+type(
+  string
+)
+"NativeStubsGen.ml" 62 2397 2435 "NativeStubsGen.ml" 62 2397 2442
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 62 2397 2434 "NativeStubsGen.ml" 62 2397 2442
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 63 2449 2456 "NativeStubsGen.ml" 63 2449 2466
+type(
+  string
+)
+ident(
+  def threadname "NativeStubsGen.ml" 64 2502 2505 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 63 2449 2469 "NativeStubsGen.ml" 63 2449 2483
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 63 2449 2484 "NativeStubsGen.ml" 63 2449 2492
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 63 2449 2493 "NativeStubsGen.ml" 63 2449 2498
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 63 2449 2469 "NativeStubsGen.ml" 63 2449 2498
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 64 2502 2509 "NativeStubsGen.ml" 64 2502 2514
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  def stack "NativeStubsGen.ml" 71 2689 2692 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 66 2526 2533 "NativeStubsGen.ml" 66 2526 2547
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 66 2526 2548 "NativeStubsGen.ml" 66 2526 2558
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+ident(
+  int_ref threadname "NativeStubsGen.ml" 63 2449 2456 "NativeStubsGen.ml" 63 2449 2466
+)
+"NativeStubsGen.ml" 66 2526 2560 "NativeStubsGen.ml" 66 2526 2572
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  int_ref callstackmap "NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+)
+"NativeStubsGen.ml" 66 2526 2559 "NativeStubsGen.ml" 66 2526 2572
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.( ! )
+)
+"NativeStubsGen.ml" 66 2526 2533 "NativeStubsGen.ml" 66 2526 2572
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 67 2573 2583 "NativeStubsGen.ml" 67 2573 2584
+type(
+  exn
+)
+"NativeStubsGen.ml" 68 2588 2599 "NativeStubsGen.ml" 68 2588 2600
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  def s "NativeStubsGen.ml" 69 2622 2624 "NativeStubsGen.ml" 70 2682 2685
+)
+"NativeStubsGen.ml" 68 2588 2603 "NativeStubsGen.ml" 68 2588 2615
+type(
+  unit -> string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  ext_ref Stack.create
+)
+"NativeStubsGen.ml" 68 2588 2616 "NativeStubsGen.ml" 68 2588 2618
+type(
+  unit
+)
+"NativeStubsGen.ml" 68 2588 2603 "NativeStubsGen.ml" 68 2588 2618
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 69 2622 2624 "NativeStubsGen.ml" 69 2622 2636
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  int_ref callstackmap "NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+)
+"NativeStubsGen.ml" 69 2622 2640 "NativeStubsGen.ml" 69 2622 2653
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 69 2622 2654 "NativeStubsGen.ml" 69 2622 2664
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+ident(
+  int_ref threadname "NativeStubsGen.ml" 63 2449 2456 "NativeStubsGen.ml" 63 2449 2466
+)
+"NativeStubsGen.ml" 69 2622 2665 "NativeStubsGen.ml" 69 2622 2666
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  int_ref s "NativeStubsGen.ml" 68 2588 2599 "NativeStubsGen.ml" 68 2588 2600
+)
+"NativeStubsGen.ml" 69 2622 2668 "NativeStubsGen.ml" 69 2622 2680
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  int_ref callstackmap "NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+)
+"NativeStubsGen.ml" 69 2622 2667 "NativeStubsGen.ml" 69 2622 2680
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.( ! )
+)
+"NativeStubsGen.ml" 69 2622 2640 "NativeStubsGen.ml" 69 2622 2680
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 69 2622 2624 "NativeStubsGen.ml" 69 2622 2680
+type(
+  unit
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t -> unit
+)
+ident(
+  ext_ref Pervasives.( := )
+)
+"NativeStubsGen.ml" 70 2682 2684 "NativeStubsGen.ml" 70 2682 2685
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  int_ref s "NativeStubsGen.ml" 68 2588 2599 "NativeStubsGen.ml" 68 2588 2600
+)
+"NativeStubsGen.ml" 69 2622 2624 "NativeStubsGen.ml" 70 2682 2685
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 68 2588 2595 "NativeStubsGen.ml" 70 2682 2685
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 65 2517 2522 "NativeStubsGen.ml" 70 2682 2685
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 71 2689 2696 "NativeStubsGen.ml" 71 2689 2717
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def previous_method_attrs "NativeStubsGen.ml" 76 2821 2824 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 73 2729 2736 "NativeStubsGen.ml" 73 2729 2745
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Stack.top
+)
+"NativeStubsGen.ml" 73 2729 2746 "NativeStubsGen.ml" 73 2729 2751
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  int_ref stack "NativeStubsGen.ml" 64 2502 2509 "NativeStubsGen.ml" 64 2502 2514
+)
+"NativeStubsGen.ml" 73 2729 2736 "NativeStubsGen.ml" 73 2729 2751
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 74 2752 2762 "NativeStubsGen.ml" 74 2752 2763
+type(
+  exn
+)
+"NativeStubsGen.ml" 75 2767 2774 "NativeStubsGen.ml" 75 2767 2787
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string ->
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.add
+)
+"NativeStubsGen.ml" 75 2767 2788 "NativeStubsGen.ml" 75 2767 2794
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 75 2767 2795 "NativeStubsGen.ml" 75 2767 2801
+type(
+  string
+)
+"NativeStubsGen.ml" 75 2767 2802 "NativeStubsGen.ml" 75 2767 2817
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.empty
+)
+"NativeStubsGen.ml" 75 2767 2774 "NativeStubsGen.ml" 75 2767 2817
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 72 2720 2725 "NativeStubsGen.ml" 75 2767 2817
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 76 2821 2828 "NativeStubsGen.ml" 76 2821 2834
+type(
+  string
+)
+ident(
+  def m_type "NativeStubsGen.ml" 80 3012 3015 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 76 2821 2837 "NativeStubsGen.ml" 76 2821 2851
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 76 2821 2852 "NativeStubsGen.ml" 76 2821 2858
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 76 2821 2859 "NativeStubsGen.ml" 76 2821 2864
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 76 2821 2837 "NativeStubsGen.ml" 76 2821 2864
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 77 2865 2872 "NativeStubsGen.ml" 77 2865 2879
+type(
+  string
+)
+ident(
+  def m_class "NativeStubsGen.ml" 80 3012 3015 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 77 2865 2882 "NativeStubsGen.ml" 77 2865 2896
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 77 2865 2897 "NativeStubsGen.ml" 77 2865 2904
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 77 2865 2905 "NativeStubsGen.ml" 77 2865 2910
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 77 2865 2882 "NativeStubsGen.ml" 77 2865 2910
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 78 2911 2918 "NativeStubsGen.ml" 78 2911 2924
+type(
+  string
+)
+ident(
+  def m_name "NativeStubsGen.ml" 80 3012 3015 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 78 2911 2927 "NativeStubsGen.ml" 78 2911 2941
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 78 2911 2942 "NativeStubsGen.ml" 78 2911 2948
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 78 2911 2949 "NativeStubsGen.ml" 78 2911 2954
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 78 2911 2927 "NativeStubsGen.ml" 78 2911 2954
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 79 2955 2962 "NativeStubsGen.ml" 79 2955 2973
+type(
+  string
+)
+ident(
+  def m_signature "NativeStubsGen.ml" 80 3012 3015 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 79 2955 2976 "NativeStubsGen.ml" 79 2955 2990
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 79 2955 2991 "NativeStubsGen.ml" 79 2955 3002
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 79 2955 3003 "NativeStubsGen.ml" 79 2955 3008
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 79 2955 2976 "NativeStubsGen.ml" 79 2955 3008
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 80 3012 3019 "NativeStubsGen.ml" 80 3012 3026
+type(
+  Sawja_pack.JNativeStubs.jmethod
+)
+ident(
+  def jmethod "NativeStubsGen.ml" 84 3130 3133 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 80 3012 3040 "NativeStubsGen.ml" 80 3012 3046
+type(
+  string
+)
+ident(
+  int_ref m_type "NativeStubsGen.ml" 76 2821 2828 "NativeStubsGen.ml" 76 2821 2834
+)
+"NativeStubsGen.ml" 81 3048 3063 "NativeStubsGen.ml" 81 3048 3070
+type(
+  string
+)
+ident(
+  int_ref m_class "NativeStubsGen.ml" 77 2865 2872 "NativeStubsGen.ml" 77 2865 2879
+)
+"NativeStubsGen.ml" 82 3072 3086 "NativeStubsGen.ml" 82 3072 3092
+type(
+  string
+)
+ident(
+  int_ref m_name "NativeStubsGen.ml" 78 2911 2918 "NativeStubsGen.ml" 78 2911 2924
+)
+"NativeStubsGen.ml" 83 3094 3113 "NativeStubsGen.ml" 83 3094 3124
+type(
+  string
+)
+ident(
+  int_ref m_signature "NativeStubsGen.ml" 79 2955 2962 "NativeStubsGen.ml" 79 2955 2973
+)
+"NativeStubsGen.ml" 80 3012 3029 "NativeStubsGen.ml" 83 3094 3126
+type(
+  Sawja_pack.JNativeStubs.jmethod
+)
+"NativeStubsGen.ml" 84 3130 3137 "NativeStubsGen.ml" 84 3130 3152
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  def new_native_info "NativeStubsGen.ml" 108 4100 4105 "NativeStubsGen.ml" 109 4129 4166
+)
+"NativeStubsGen.ml" 85 3155 3165 "NativeStubsGen.ml" 85 3155 3179
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 85 3155 3180 "NativeStubsGen.ml" 85 3155 3186
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 85 3155 3187 "NativeStubsGen.ml" 85 3155 3208
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref previous_method_attrs "NativeStubsGen.ml" 71 2689 2696 "NativeStubsGen.ml" 71 2689 2717
+)
+"NativeStubsGen.ml" 85 3155 3165 "NativeStubsGen.ml" 85 3155 3208
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 85 3155 3210 "NativeStubsGen.ml" 85 3155 3211
+type(
+  string -> string -> bool
+)
+ident(
+  ext_ref Pervasives.( = )
+)
+"NativeStubsGen.ml" 85 3155 3212 "NativeStubsGen.ml" 85 3155 3220
+type(
+  string
+)
+"NativeStubsGen.ml" 85 3155 3164 "NativeStubsGen.ml" 85 3155 3220
+type(
+  bool
+)
+"NativeStubsGen.ml" 86 3227 3238 "NativeStubsGen.ml" 86 3227 3249
+type(
+  string
+)
+ident(
+  def prev_m_type "NativeStubsGen.ml" 91 3520 3527 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 86 3227 3252 "NativeStubsGen.ml" 86 3227 3266
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 86 3227 3267 "NativeStubsGen.ml" 86 3227 3273
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 86 3227 3274 "NativeStubsGen.ml" 86 3227 3295
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref previous_method_attrs "NativeStubsGen.ml" 71 2689 2696 "NativeStubsGen.ml" 71 2689 2717
+)
+"NativeStubsGen.ml" 86 3227 3252 "NativeStubsGen.ml" 86 3227 3295
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 87 3296 3307 "NativeStubsGen.ml" 87 3296 3319
+type(
+  string
+)
+ident(
+  def prev_m_class "NativeStubsGen.ml" 91 3520 3527 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 87 3296 3322 "NativeStubsGen.ml" 87 3296 3336
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 87 3296 3337 "NativeStubsGen.ml" 87 3296 3344
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 87 3296 3345 "NativeStubsGen.ml" 87 3296 3366
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref previous_method_attrs "NativeStubsGen.ml" 71 2689 2696 "NativeStubsGen.ml" 71 2689 2717
+)
+"NativeStubsGen.ml" 87 3296 3322 "NativeStubsGen.ml" 87 3296 3366
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 88 3367 3378 "NativeStubsGen.ml" 88 3367 3389
+type(
+  string
+)
+ident(
+  def prev_m_name "NativeStubsGen.ml" 91 3520 3527 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 88 3367 3392 "NativeStubsGen.ml" 88 3367 3406
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 88 3367 3407 "NativeStubsGen.ml" 88 3367 3413
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 88 3367 3414 "NativeStubsGen.ml" 88 3367 3435
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref previous_method_attrs "NativeStubsGen.ml" 71 2689 2696 "NativeStubsGen.ml" 71 2689 2717
+)
+"NativeStubsGen.ml" 88 3367 3392 "NativeStubsGen.ml" 88 3367 3435
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 89 3436 3447 "NativeStubsGen.ml" 89 3436 3463
+type(
+  string
+)
+ident(
+  def prev_m_signature "NativeStubsGen.ml" 91 3520 3527 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 89 3436 3466 "NativeStubsGen.ml" 89 3436 3480
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 89 3436 3481 "NativeStubsGen.ml" 89 3436 3492
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 90 3493 3495 "NativeStubsGen.ml" 90 3493 3516
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref previous_method_attrs "NativeStubsGen.ml" 71 2689 2696 "NativeStubsGen.ml" 71 2689 2717
+)
+"NativeStubsGen.ml" 89 3436 3466 "NativeStubsGen.ml" 90 3493 3516
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 91 3520 3531 "NativeStubsGen.ml" 91 3520 3542
+type(
+  Sawja_pack.JNativeStubs.jmethod
+)
+ident(
+  def jprevmethod "NativeStubsGen.ml" 95 3669 3676 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 91 3520 3556 "NativeStubsGen.ml" 91 3520 3567
+type(
+  string
+)
+ident(
+  int_ref prev_m_type "NativeStubsGen.ml" 86 3227 3238 "NativeStubsGen.ml" 86 3227 3249
+)
+"NativeStubsGen.ml" 92 3569 3585 "NativeStubsGen.ml" 92 3569 3597
+type(
+  string
+)
+ident(
+  int_ref prev_m_class "NativeStubsGen.ml" 87 3296 3307 "NativeStubsGen.ml" 87 3296 3319
+)
+"NativeStubsGen.ml" 93 3599 3614 "NativeStubsGen.ml" 93 3599 3625
+type(
+  string
+)
+ident(
+  int_ref prev_m_name "NativeStubsGen.ml" 88 3367 3378 "NativeStubsGen.ml" 88 3367 3389
+)
+"NativeStubsGen.ml" 94 3627 3647 "NativeStubsGen.ml" 94 3627 3663
+type(
+  string
+)
+ident(
+  int_ref prev_m_signature "NativeStubsGen.ml" 89 3436 3447 "NativeStubsGen.ml" 89 3436 3463
+)
+"NativeStubsGen.ml" 91 3520 3545 "NativeStubsGen.ml" 94 3627 3665
+type(
+  Sawja_pack.JNativeStubs.jmethod
+)
+"NativeStubsGen.ml" 95 3669 3680 "NativeStubsGen.ml" 95 3669 3689
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  def meth_info "NativeStubsGen.ml" 99 3774 3781 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 97 3698 3702 "NativeStubsGen.ml" 97 3698 3716
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodMap.find
+)
+"NativeStubsGen.ml" 97 3698 3717 "NativeStubsGen.ml" 97 3698 3728
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key
+)
+ident(
+  int_ref jprevmethod "NativeStubsGen.ml" 91 3520 3531 "NativeStubsGen.ml" 91 3520 3542
+)
+"NativeStubsGen.ml" 97 3698 3729 "NativeStubsGen.ml" 97 3698 3740
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 97 3698 3702 "NativeStubsGen.ml" 97 3698 3740
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 98 3741 3748 "NativeStubsGen.ml" 98 3741 3749
+type(
+  exn
+)
+"NativeStubsGen.ml" 98 3741 3753 "NativeStubsGen.ml" 98 3741 3770
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref empty_method_info "NativeStubsGen.ml" 58 2216 2222 "NativeStubsGen.ml" 58 2216 2239
+)
+"NativeStubsGen.ml" 96 3692 3694 "NativeStubsGen.ml" 98 3741 3770
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 99 3774 3785 "NativeStubsGen.ml" 99 3774 3798
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  def new_meth_info "NativeStubsGen.ml" 103 3897 3899 "NativeStubsGen.ml" 103 3897 3950
+)
+"NativeStubsGen.ml" 100 3801 3805 "NativeStubsGen.ml" 100 3801 3814
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref meth_info "NativeStubsGen.ml" 95 3669 3680 "NativeStubsGen.ml" 95 3669 3689
+)
+"NativeStubsGen.ml" 101 3820 3841 "NativeStubsGen.ml" 101 3820 3854
+type(
+  Sawja_pack.JNativeStubs.MethodSet.elt ->
+  Sawja_pack.JNativeStubs.MethodSet.t -> Sawja_pack.JNativeStubs.MethodSet.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodSet.add
+)
+"NativeStubsGen.ml" 101 3820 3855 "NativeStubsGen.ml" 101 3820 3862
+type(
+  Sawja_pack.JNativeStubs.MethodSet.elt
+)
+ident(
+  int_ref jmethod "NativeStubsGen.ml" 80 3012 3019 "NativeStubsGen.ml" 80 3012 3026
+)
+"NativeStubsGen.ml" 102 3863 3869 "NativeStubsGen.ml" 102 3863 3878
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref meth_info "NativeStubsGen.ml" 95 3669 3680 "NativeStubsGen.ml" 95 3669 3689
+)
+"NativeStubsGen.ml" 102 3863 3869 "NativeStubsGen.ml" 102 3863 3891
+type(
+  Sawja_pack.JNativeStubs.MethodSet.t
+)
+"NativeStubsGen.ml" 101 3820 3841 "NativeStubsGen.ml" 102 3863 3891
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.MethodSet.t
+)
+"NativeStubsGen.ml" 100 3801 3803 "NativeStubsGen.ml" 102 3863 3893
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 103 3897 3899 "NativeStubsGen.ml" 103 3897 3912
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key ->
+  Sawja_pack.JNativeStubs.native_method_info ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodMap.add
+)
+"NativeStubsGen.ml" 103 3897 3913 "NativeStubsGen.ml" 103 3897 3924
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key
+)
+ident(
+  int_ref jprevmethod "NativeStubsGen.ml" 91 3520 3531 "NativeStubsGen.ml" 91 3520 3542
+)
+"NativeStubsGen.ml" 103 3897 3925 "NativeStubsGen.ml" 103 3897 3938
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref new_meth_info "NativeStubsGen.ml" 99 3774 3785 "NativeStubsGen.ml" 99 3774 3798
+)
+"NativeStubsGen.ml" 103 3897 3939 "NativeStubsGen.ml" 103 3897 3950
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 103 3897 3899 "NativeStubsGen.ml" 103 3897 3950
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 99 3774 3781 "NativeStubsGen.ml" 103 3897 3950
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 95 3669 3676 "NativeStubsGen.ml" 103 3897 3950
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 91 3520 3527 "NativeStubsGen.ml" 103 3897 3950
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 86 3227 3234 "NativeStubsGen.ml" 103 3897 3950
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 105 3961 3973 "NativeStubsGen.ml" 105 3961 3987
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 105 3961 3988 "NativeStubsGen.ml" 105 3961 3994
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 105 3961 3995 "NativeStubsGen.ml" 105 3961 4000
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 105 3961 3973 "NativeStubsGen.ml" 105 3961 4000
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 105 3961 4002 "NativeStubsGen.ml" 105 3961 4003
+type(
+  string -> string -> bool
+)
+ident(
+  ext_ref Pervasives.( = )
+)
+"NativeStubsGen.ml" 105 3961 4004 "NativeStubsGen.ml" 105 3961 4012
+type(
+  string
+)
+"NativeStubsGen.ml" 105 3961 3972 "NativeStubsGen.ml" 105 3961 4012
+type(
+  bool
+)
+"NativeStubsGen.ml" 106 4019 4021 "NativeStubsGen.ml" 106 4019 4034
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key ->
+  Sawja_pack.JNativeStubs.native_method_info ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodMap.add
+)
+"NativeStubsGen.ml" 106 4019 4035 "NativeStubsGen.ml" 106 4019 4042
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key
+)
+ident(
+  int_ref jmethod "NativeStubsGen.ml" 80 3012 3019 "NativeStubsGen.ml" 80 3012 3026
+)
+"NativeStubsGen.ml" 106 4019 4043 "NativeStubsGen.ml" 106 4019 4060
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref empty_method_info "NativeStubsGen.ml" 58 2216 2222 "NativeStubsGen.ml" 58 2216 2239
+)
+"NativeStubsGen.ml" 106 4019 4061 "NativeStubsGen.ml" 106 4019 4072
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 106 4019 4021 "NativeStubsGen.ml" 106 4019 4072
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 107 4073 4085 "NativeStubsGen.ml" 107 4073 4096
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 105 3961 3968 "NativeStubsGen.ml" 107 4073 4096
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 85 3155 3160 "NativeStubsGen.ml" 107 4073 4096
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 108 4100 4105 "NativeStubsGen.ml" 108 4100 4115
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t -> unit
+)
+ident(
+  ext_ref Stack.push
+)
+"NativeStubsGen.ml" 108 4100 4116 "NativeStubsGen.ml" 108 4100 4121
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 62 2397 2401 "NativeStubsGen.ml" 62 2397 2406
+)
+"NativeStubsGen.ml" 108 4100 4122 "NativeStubsGen.ml" 108 4100 4127
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  int_ref stack "NativeStubsGen.ml" 64 2502 2509 "NativeStubsGen.ml" 64 2502 2514
+)
+"NativeStubsGen.ml" 108 4100 4105 "NativeStubsGen.ml" 108 4100 4127
+call(
+  stack
+)
+type(
+  unit
+)
+"NativeStubsGen.ml" 109 4129 4134 "NativeStubsGen.ml" 109 4129 4145
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref parse_jvmti "NativeStubsGen.ml" 57 2177 2185 "NativeStubsGen.ml" 57 2177 2196
+)
+"NativeStubsGen.ml" 109 4129 4146 "NativeStubsGen.ml" 109 4129 4161
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref new_native_info "NativeStubsGen.ml" 84 3130 3137 "NativeStubsGen.ml" 84 3130 3152
+)
+"NativeStubsGen.ml" 109 4129 4162 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 57 2177 2213
+)
+"NativeStubsGen.ml" 109 4129 4134 "NativeStubsGen.ml" 109 4129 4166
+call(
+  tail
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 108 4100 4105 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 84 3130 3133 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 80 3012 3015 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 76 2821 2824 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 71 2689 2692 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 64 2502 2505 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 63 2449 2452 "NativeStubsGen.ml" 109 4129 4166
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 110 4167 4185 "NativeStubsGen.ml" 110 4167 4197
+type(
+  string
+)
+"NativeStubsGen.ml" 110 4167 4179 "NativeStubsGen.ml" 110 4167 4197
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 110 4167 4178 "NativeStubsGen.ml" 110 4167 4197
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 110 4167 4204 "NativeStubsGen.ml" 110 4167 4207
+type(
+  string
+)
+"NativeStubsGen.ml" 110 4167 4200 "NativeStubsGen.ml" 110 4167 4207
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 110 4167 4199 "NativeStubsGen.ml" 110 4167 4207
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 111 4209 4213 "NativeStubsGen.ml" 111 4209 4218
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def attrs "NativeStubsGen.ml" 111 4209 4245 "NativeStubsGen.ml" 111 4209 4253
+)
+"NativeStubsGen.ml" 111 4209 4221 "NativeStubsGen.ml" 111 4209 4243
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_methodexit_attrs "NativeStubsGen.ml" 42 1622 1626 "NativeStubsGen.ml" 42 1622 1648
+)
+"NativeStubsGen.ml" 111 4209 4213 "NativeStubsGen.ml" 111 4209 4243
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 111 4209 4250 "NativeStubsGen.ml" 111 4209 4253
+type(
+  string
+)
+"NativeStubsGen.ml" 111 4209 4246 "NativeStubsGen.ml" 111 4209 4253
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 111 4209 4245 "NativeStubsGen.ml" 111 4209 4253
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 112 4260 4267 "NativeStubsGen.ml" 112 4260 4277
+type(
+  string
+)
+ident(
+  def threadname "NativeStubsGen.ml" 113 4313 4316 "NativeStubsGen.ml" 118 4477 4510
+)
+"NativeStubsGen.ml" 112 4260 4280 "NativeStubsGen.ml" 112 4260 4294
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 112 4260 4295 "NativeStubsGen.ml" 112 4260 4303
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 112 4260 4304 "NativeStubsGen.ml" 112 4260 4309
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 111 4209 4213 "NativeStubsGen.ml" 111 4209 4218
+)
+"NativeStubsGen.ml" 112 4260 4280 "NativeStubsGen.ml" 112 4260 4309
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 113 4313 4320 "NativeStubsGen.ml" 113 4313 4325
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  def stack "NativeStubsGen.ml" 117 4446 4451 "NativeStubsGen.ml" 118 4477 4510
+)
+"NativeStubsGen.ml" 115 4337 4344 "NativeStubsGen.ml" 115 4337 4358
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 115 4337 4359 "NativeStubsGen.ml" 115 4337 4369
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+ident(
+  int_ref threadname "NativeStubsGen.ml" 112 4260 4267 "NativeStubsGen.ml" 112 4260 4277
+)
+"NativeStubsGen.ml" 115 4337 4371 "NativeStubsGen.ml" 115 4337 4383
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  int_ref callstackmap "NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+)
+"NativeStubsGen.ml" 115 4337 4370 "NativeStubsGen.ml" 115 4337 4383
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.( ! )
+)
+"NativeStubsGen.ml" 115 4337 4344 "NativeStubsGen.ml" 115 4337 4383
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 116 4384 4394 "NativeStubsGen.ml" 116 4384 4395
+type(
+  exn
+)
+"NativeStubsGen.ml" 116 4384 4399 "NativeStubsGen.ml" 116 4384 4407
+type(
+  string -> string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  ext_ref Pervasives.failwith
+)
+"NativeStubsGen.ml" 116 4384 4408 "NativeStubsGen.ml" 116 4384 4442
+type(
+  string
+)
+"NativeStubsGen.ml" 116 4384 4399 "NativeStubsGen.ml" 116 4384 4442
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 114 4328 4333 "NativeStubsGen.ml" 116 4384 4442
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 117 4446 4451 "NativeStubsGen.ml" 117 4446 4457
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t -> unit
+)
+ident(
+  ext_ref Pervasives.ignore
+)
+"NativeStubsGen.ml" 117 4446 4459 "NativeStubsGen.ml" 117 4446 4468
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Stack.pop
+)
+"NativeStubsGen.ml" 117 4446 4469 "NativeStubsGen.ml" 117 4446 4474
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  int_ref stack "NativeStubsGen.ml" 113 4313 4320 "NativeStubsGen.ml" 113 4313 4325
+)
+"NativeStubsGen.ml" 117 4446 4459 "NativeStubsGen.ml" 117 4446 4474
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 117 4446 4451 "NativeStubsGen.ml" 117 4446 4475
+type(
+  unit
+)
+"NativeStubsGen.ml" 118 4477 4482 "NativeStubsGen.ml" 118 4477 4493
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref parse_jvmti "NativeStubsGen.ml" 57 2177 2185 "NativeStubsGen.ml" 57 2177 2196
+)
+"NativeStubsGen.ml" 118 4477 4494 "NativeStubsGen.ml" 118 4477 4505
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 118 4477 4506 "NativeStubsGen.ml" 118 4477 4510
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 57 2177 2213
+)
+"NativeStubsGen.ml" 118 4477 4482 "NativeStubsGen.ml" 118 4477 4510
+call(
+  tail
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 117 4446 4451 "NativeStubsGen.ml" 118 4477 4510
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 113 4313 4316 "NativeStubsGen.ml" 118 4477 4510
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 112 4260 4263 "NativeStubsGen.ml" 118 4477 4510
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 119 4511 4529 "NativeStubsGen.ml" 119 4511 4538
+type(
+  string
+)
+"NativeStubsGen.ml" 119 4511 4523 "NativeStubsGen.ml" 119 4511 4538
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 119 4511 4522 "NativeStubsGen.ml" 119 4511 4538
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string
+)
+type(
+  exn
+)
+type(
+  exn -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.raise
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+"NativeStubsGen.ml" 119 4511 4545 "NativeStubsGen.ml" 119 4511 4548
+type(
+  string
+)
+"NativeStubsGen.ml" 119 4511 4541 "NativeStubsGen.ml" 119 4511 4548
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 119 4511 4540 "NativeStubsGen.ml" 119 4511 4548
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 120 4550 4554 "NativeStubsGen.ml" 120 4550 4559
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def attrs "NativeStubsGen.ml" 120 4550 4583 "NativeStubsGen.ml" 120 4550 4591
+)
+"NativeStubsGen.ml" 120 4550 4562 "NativeStubsGen.ml" 120 4550 4581
+type(
+  Genlex.token Stream.t -> string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref parse_vmalloc_attrs "NativeStubsGen.ml" 47 1790 1798 "NativeStubsGen.ml" 47 1790 1817
+)
+"NativeStubsGen.ml" 120 4550 4554 "NativeStubsGen.ml" 120 4550 4581
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  exn
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 120 4550 4588 "NativeStubsGen.ml" 120 4550 4591
+type(
+  string
+)
+"NativeStubsGen.ml" 120 4550 4584 "NativeStubsGen.ml" 120 4550 4591
+type(
+  Genlex.token
+)
+"NativeStubsGen.ml" 120 4550 4583 "NativeStubsGen.ml" 120 4550 4591
+call(
+  stack
+)
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  unit
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> unit
+)
+ident(
+  ext_ref Stream.junk
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+"NativeStubsGen.ml" 121 4598 4605 "NativeStubsGen.ml" 121 4598 4615
+type(
+  string
+)
+ident(
+  def threadname "NativeStubsGen.ml" 122 4651 4654 "NativeStubsGen.ml" 147 5623 5661
+)
+"NativeStubsGen.ml" 121 4598 4618 "NativeStubsGen.ml" 121 4598 4632
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 121 4598 4633 "NativeStubsGen.ml" 121 4598 4641
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 121 4598 4642 "NativeStubsGen.ml" 121 4598 4647
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 120 4550 4554 "NativeStubsGen.ml" 120 4550 4559
+)
+"NativeStubsGen.ml" 121 4598 4618 "NativeStubsGen.ml" 121 4598 4647
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 122 4651 4658 "NativeStubsGen.ml" 122 4651 4663
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  def stack "NativeStubsGen.ml" 126 4770 4773 "NativeStubsGen.ml" 147 5623 5661
+)
+"NativeStubsGen.ml" 124 4675 4682 "NativeStubsGen.ml" 124 4675 4696
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 124 4675 4697 "NativeStubsGen.ml" 124 4675 4707
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+ident(
+  int_ref threadname "NativeStubsGen.ml" 121 4598 4605 "NativeStubsGen.ml" 121 4598 4615
+)
+"NativeStubsGen.ml" 124 4675 4709 "NativeStubsGen.ml" 124 4675 4721
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  int_ref callstackmap "NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+)
+"NativeStubsGen.ml" 124 4675 4708 "NativeStubsGen.ml" 124 4675 4721
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Pervasives.( ! )
+)
+"NativeStubsGen.ml" 124 4675 4682 "NativeStubsGen.ml" 124 4675 4721
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 125 4722 4732 "NativeStubsGen.ml" 125 4722 4733
+type(
+  exn
+)
+"NativeStubsGen.ml" 125 4722 4737 "NativeStubsGen.ml" 125 4722 4745
+type(
+  string -> string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  ext_ref Pervasives.failwith
+)
+"NativeStubsGen.ml" 125 4722 4746 "NativeStubsGen.ml" 125 4722 4766
+type(
+  string
+)
+"NativeStubsGen.ml" 125 4722 4737 "NativeStubsGen.ml" 125 4722 4766
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 123 4666 4671 "NativeStubsGen.ml" 125 4722 4766
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+"NativeStubsGen.ml" 126 4770 4777 "NativeStubsGen.ml" 126 4770 4789
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  def method_attrs "NativeStubsGen.ml" 127 4811 4816 "NativeStubsGen.ml" 147 5623 5661
+)
+"NativeStubsGen.ml" 126 4770 4792 "NativeStubsGen.ml" 126 4770 4801
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t ->
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Stack.top
+)
+"NativeStubsGen.ml" 126 4770 4802 "NativeStubsGen.ml" 126 4770 4807
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+)
+ident(
+  int_ref stack "NativeStubsGen.ml" 122 4651 4658 "NativeStubsGen.ml" 122 4651 4663
+)
+"NativeStubsGen.ml" 126 4770 4792 "NativeStubsGen.ml" 126 4770 4807
+call(
+  stack
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+"NativeStubsGen.ml" 127 4811 4821 "NativeStubsGen.ml" 127 4811 4835
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 127 4811 4836 "NativeStubsGen.ml" 127 4811 4842
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 127 4811 4843 "NativeStubsGen.ml" 127 4811 4855
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref method_attrs "NativeStubsGen.ml" 126 4770 4777 "NativeStubsGen.ml" 126 4770 4789
+)
+"NativeStubsGen.ml" 127 4811 4821 "NativeStubsGen.ml" 127 4811 4855
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 127 4811 4857 "NativeStubsGen.ml" 127 4811 4858
+type(
+  string -> string -> bool
+)
+ident(
+  ext_ref Pervasives.( = )
+)
+"NativeStubsGen.ml" 127 4811 4859 "NativeStubsGen.ml" 127 4811 4867
+type(
+  string
+)
+"NativeStubsGen.ml" 127 4811 4820 "NativeStubsGen.ml" 127 4811 4867
+type(
+  bool
+)
+"NativeStubsGen.ml" 128 4874 4885 "NativeStubsGen.ml" 128 4874 4900
+type(
+  string
+)
+ident(
+  def allocated_class "NativeStubsGen.ml" 129 4935 4942 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 128 4874 4903 "NativeStubsGen.ml" 128 4874 4917
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 128 4874 4918 "NativeStubsGen.ml" 128 4874 4925
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 128 4874 4926 "NativeStubsGen.ml" 128 4874 4931
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref attrs "NativeStubsGen.ml" 120 4550 4554 "NativeStubsGen.ml" 120 4550 4559
+)
+"NativeStubsGen.ml" 128 4874 4903 "NativeStubsGen.ml" 128 4874 4931
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 129 4935 4946 "NativeStubsGen.ml" 129 4935 4952
+type(
+  string
+)
+ident(
+  def m_type "NativeStubsGen.ml" 133 5170 5177 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 129 4935 4955 "NativeStubsGen.ml" 129 4935 4969
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 129 4935 4970 "NativeStubsGen.ml" 129 4935 4976
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 129 4935 4977 "NativeStubsGen.ml" 129 4935 4989
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref method_attrs "NativeStubsGen.ml" 126 4770 4777 "NativeStubsGen.ml" 126 4770 4789
+)
+"NativeStubsGen.ml" 129 4935 4955 "NativeStubsGen.ml" 129 4935 4989
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 130 4990 5001 "NativeStubsGen.ml" 130 4990 5008
+type(
+  string
+)
+ident(
+  def m_class "NativeStubsGen.ml" 133 5170 5177 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 130 4990 5011 "NativeStubsGen.ml" 130 4990 5025
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 130 4990 5026 "NativeStubsGen.ml" 130 4990 5033
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 130 4990 5034 "NativeStubsGen.ml" 130 4990 5046
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref method_attrs "NativeStubsGen.ml" 126 4770 4777 "NativeStubsGen.ml" 126 4770 4789
+)
+"NativeStubsGen.ml" 130 4990 5011 "NativeStubsGen.ml" 130 4990 5046
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 131 5047 5058 "NativeStubsGen.ml" 131 5047 5064
+type(
+  string
+)
+ident(
+  def m_name "NativeStubsGen.ml" 133 5170 5177 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 131 5047 5067 "NativeStubsGen.ml" 131 5047 5081
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 131 5047 5082 "NativeStubsGen.ml" 131 5047 5088
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 131 5047 5089 "NativeStubsGen.ml" 131 5047 5101
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref method_attrs "NativeStubsGen.ml" 126 4770 4777 "NativeStubsGen.ml" 126 4770 4789
+)
+"NativeStubsGen.ml" 131 5047 5067 "NativeStubsGen.ml" 131 5047 5101
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 132 5102 5113 "NativeStubsGen.ml" 132 5102 5124
+type(
+  string
+)
+ident(
+  def m_signature "NativeStubsGen.ml" 133 5170 5177 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 132 5102 5127 "NativeStubsGen.ml" 132 5102 5141
+type(
+  Sawja_pack.JNativeStubs.StringMap.key ->
+  string Sawja_pack.JNativeStubs.StringMap.t -> string
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.find
+)
+"NativeStubsGen.ml" 132 5102 5142 "NativeStubsGen.ml" 132 5102 5153
+type(
+  Sawja_pack.JNativeStubs.StringMap.key
+)
+"NativeStubsGen.ml" 132 5102 5154 "NativeStubsGen.ml" 132 5102 5166
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  int_ref method_attrs "NativeStubsGen.ml" 126 4770 4777 "NativeStubsGen.ml" 126 4770 4789
+)
+"NativeStubsGen.ml" 132 5102 5127 "NativeStubsGen.ml" 132 5102 5166
+call(
+  stack
+)
+type(
+  string
+)
+"NativeStubsGen.ml" 133 5170 5181 "NativeStubsGen.ml" 133 5170 5188
+type(
+  Sawja_pack.JNativeStubs.jmethod
+)
+ident(
+  def jmethod "NativeStubsGen.ml" 137 5304 5311 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 133 5170 5202 "NativeStubsGen.ml" 133 5170 5208
+type(
+  string
+)
+ident(
+  int_ref m_type "NativeStubsGen.ml" 129 4935 4946 "NativeStubsGen.ml" 129 4935 4952
+)
+"NativeStubsGen.ml" 134 5210 5229 "NativeStubsGen.ml" 134 5210 5236
+type(
+  string
+)
+ident(
+  int_ref m_class "NativeStubsGen.ml" 130 4990 5001 "NativeStubsGen.ml" 130 4990 5008
+)
+"NativeStubsGen.ml" 135 5238 5256 "NativeStubsGen.ml" 135 5238 5262
+type(
+  string
+)
+ident(
+  int_ref m_name "NativeStubsGen.ml" 131 5047 5058 "NativeStubsGen.ml" 131 5047 5064
+)
+"NativeStubsGen.ml" 136 5264 5287 "NativeStubsGen.ml" 136 5264 5298
+type(
+  string
+)
+ident(
+  int_ref m_signature "NativeStubsGen.ml" 132 5102 5113 "NativeStubsGen.ml" 132 5102 5124
+)
+"NativeStubsGen.ml" 133 5170 5191 "NativeStubsGen.ml" 136 5264 5300
+type(
+  Sawja_pack.JNativeStubs.jmethod
+)
+"NativeStubsGen.ml" 137 5304 5315 "NativeStubsGen.ml" 137 5304 5324
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  def meth_info "NativeStubsGen.ml" 141 5405 5412 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 139 5333 5337 "NativeStubsGen.ml" 139 5333 5351
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodMap.find
+)
+"NativeStubsGen.ml" 139 5333 5352 "NativeStubsGen.ml" 139 5333 5359
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key
+)
+ident(
+  int_ref jmethod "NativeStubsGen.ml" 133 5170 5181 "NativeStubsGen.ml" 133 5170 5188
+)
+"NativeStubsGen.ml" 139 5333 5360 "NativeStubsGen.ml" 139 5333 5371
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 139 5333 5337 "NativeStubsGen.ml" 139 5333 5371
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 140 5372 5379 "NativeStubsGen.ml" 140 5372 5380
+type(
+  exn
+)
+"NativeStubsGen.ml" 140 5372 5384 "NativeStubsGen.ml" 140 5372 5401
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref empty_method_info "NativeStubsGen.ml" 58 2216 2222 "NativeStubsGen.ml" 58 2216 2239
+)
+"NativeStubsGen.ml" 138 5327 5329 "NativeStubsGen.ml" 140 5372 5401
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 141 5405 5416 "NativeStubsGen.ml" 141 5405 5429
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  def new_meth_info "NativeStubsGen.ml" 145 5544 5546 "NativeStubsGen.ml" 146 5573 5622
+)
+"NativeStubsGen.ml" 142 5432 5436 "NativeStubsGen.ml" 142 5432 5445
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref meth_info "NativeStubsGen.ml" 137 5304 5315 "NativeStubsGen.ml" 137 5304 5324
+)
+"NativeStubsGen.ml" 143 5451 5472 "NativeStubsGen.ml" 143 5451 5493
+type(
+  Sawja_pack.JNativeStubs.ClassSignatureSet.elt ->
+  Sawja_pack.JNativeStubs.ClassSignatureSet.t ->
+  Sawja_pack.JNativeStubs.ClassSignatureSet.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.ClassSignatureSet.add
+)
+"NativeStubsGen.ml" 143 5451 5494 "NativeStubsGen.ml" 143 5451 5509
+type(
+  Sawja_pack.JNativeStubs.ClassSignatureSet.elt
+)
+ident(
+  int_ref allocated_class "NativeStubsGen.ml" 128 4874 4885 "NativeStubsGen.ml" 128 4874 4900
+)
+"NativeStubsGen.ml" 144 5510 5516 "NativeStubsGen.ml" 144 5510 5525
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref meth_info "NativeStubsGen.ml" 137 5304 5315 "NativeStubsGen.ml" 137 5304 5324
+)
+"NativeStubsGen.ml" 144 5510 5516 "NativeStubsGen.ml" 144 5510 5538
+type(
+  Sawja_pack.JNativeStubs.ClassSignatureSet.t
+)
+"NativeStubsGen.ml" 143 5451 5472 "NativeStubsGen.ml" 144 5510 5538
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.ClassSignatureSet.t
+)
+"NativeStubsGen.ml" 142 5432 5434 "NativeStubsGen.ml" 144 5510 5540
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+"NativeStubsGen.ml" 145 5544 5546 "NativeStubsGen.ml" 145 5544 5557
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref parse_jvmti "NativeStubsGen.ml" 57 2177 2185 "NativeStubsGen.ml" 57 2177 2196
+)
+"NativeStubsGen.ml" 145 5544 5559 "NativeStubsGen.ml" 145 5544 5572
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key ->
+  Sawja_pack.JNativeStubs.native_method_info ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodMap.add
+)
+"NativeStubsGen.ml" 146 5573 5583 "NativeStubsGen.ml" 146 5573 5590
+type(
+  Sawja_pack.JNativeStubs.MethodMap.key
+)
+ident(
+  int_ref jmethod "NativeStubsGen.ml" 133 5170 5181 "NativeStubsGen.ml" 133 5170 5188
+)
+"NativeStubsGen.ml" 146 5573 5591 "NativeStubsGen.ml" 146 5573 5604
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+)
+ident(
+  int_ref new_meth_info "NativeStubsGen.ml" 141 5405 5416 "NativeStubsGen.ml" 141 5405 5429
+)
+"NativeStubsGen.ml" 146 5573 5605 "NativeStubsGen.ml" 146 5573 5616
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 145 5544 5559 "NativeStubsGen.ml" 146 5573 5616
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 146 5573 5618 "NativeStubsGen.ml" 146 5573 5622
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 57 2177 2213
+)
+"NativeStubsGen.ml" 145 5544 5546 "NativeStubsGen.ml" 146 5573 5622
+call(
+  tail
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 141 5405 5412 "NativeStubsGen.ml" 146 5573 5622
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 137 5304 5311 "NativeStubsGen.ml" 146 5573 5622
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 133 5170 5177 "NativeStubsGen.ml" 146 5573 5622
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 129 4935 4942 "NativeStubsGen.ml" 146 5573 5622
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 128 4874 4881 "NativeStubsGen.ml" 146 5573 5622
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 147 5623 5633 "NativeStubsGen.ml" 147 5623 5644
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref parse_jvmti "NativeStubsGen.ml" 57 2177 2185 "NativeStubsGen.ml" 57 2177 2196
+)
+"NativeStubsGen.ml" 147 5623 5645 "NativeStubsGen.ml" 147 5623 5656
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 147 5623 5657 "NativeStubsGen.ml" 147 5623 5661
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref expr "NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 57 2177 2213
+)
+"NativeStubsGen.ml" 147 5623 5633 "NativeStubsGen.ml" 147 5623 5661
+call(
+  tail
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 127 4811 4816 "NativeStubsGen.ml" 147 5623 5661
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 126 4770 4773 "NativeStubsGen.ml" 147 5623 5661
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 122 4651 4654 "NativeStubsGen.ml" 147 5623 5661
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 121 4598 4601 "NativeStubsGen.ml" 147 5623 5661
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 148 5662 5679 "NativeStubsGen.ml" 148 5662 5690
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 57 2177 2208
+)
+"NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token option
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  int_ref __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+type(
+  Genlex.token Stream.t -> Genlex.token option
+)
+ident(
+  ext_ref Stream.peek
+)
+type(
+  Genlex.token Stream.t
+)
+ident(
+  def __strm "NativeStubsGen.ml" 60 2327 2331 "NativeStubsGen.ml" 148 5662 5690
+)
+"NativeStubsGen.ml" 58 2216 2218 "NativeStubsGen.ml" 148 5662 5690
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 57 2177 2209 "NativeStubsGen.ml" 148 5662 5690
+type(
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 57 2177 2197 "NativeStubsGen.ml" 148 5662 5690
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 150 5692 5696 "NativeStubsGen.ml" 150 5692 5723
+type(
+  string -> Sawja_pack.JNativeStubs.t
+)
+ident(
+  def parse_jvmti_callstrace_file "NativeStubsGen.ml" 158 5980 6008 "_none_" 1 0 -1
+)
+"NativeStubsGen.ml" 150 5692 5724 "NativeStubsGen.ml" 150 5692 5728
+type(
+  string
+)
+ident(
+  def file "NativeStubsGen.ml" 151 5731 5733 "NativeStubsGen.ml" 158 5980 6008
+)
+"NativeStubsGen.ml" 151 5731 5737 "NativeStubsGen.ml" 151 5731 5748
+type(
+  'a Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  def native_info "NativeStubsGen.ml" 152 5770 5772 "NativeStubsGen.ml" 158 5980 6008
+)
+"NativeStubsGen.ml" 151 5731 5751 "NativeStubsGen.ml" 151 5731 5766
+type(
+  'a Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.MethodMap.empty
+)
+"NativeStubsGen.ml" 152 5770 5776 "NativeStubsGen.ml" 152 5770 5778
+type(
+  in_channel
+)
+ident(
+  def ic "NativeStubsGen.ml" 153 5797 5799 "NativeStubsGen.ml" 158 5980 6008
+)
+"NativeStubsGen.ml" 152 5770 5781 "NativeStubsGen.ml" 152 5770 5788
+type(
+  string -> in_channel
+)
+ident(
+  ext_ref Pervasives.open_in
+)
+"NativeStubsGen.ml" 152 5770 5789 "NativeStubsGen.ml" 152 5770 5793
+type(
+  string
+)
+ident(
+  int_ref file "NativeStubsGen.ml" 150 5692 5724 "NativeStubsGen.ml" 150 5692 5728
+)
+"NativeStubsGen.ml" 152 5770 5781 "NativeStubsGen.ml" 152 5770 5793
+call(
+  stack
+)
+type(
+  in_channel
+)
+"NativeStubsGen.ml" 153 5797 5803 "NativeStubsGen.ml" 153 5797 5809
+type(
+  char Stream.t
+)
+ident(
+  def stream "NativeStubsGen.ml" 154 5836 5840 "NativeStubsGen.ml" 158 5980 6008
+)
+"NativeStubsGen.ml" 153 5797 5812 "NativeStubsGen.ml" 153 5797 5829
+type(
+  in_channel -> char Stream.t
+)
+ident(
+  ext_ref Stream.of_channel
+)
+"NativeStubsGen.ml" 153 5797 5830 "NativeStubsGen.ml" 153 5797 5832
+type(
+  in_channel
+)
+ident(
+  int_ref ic "NativeStubsGen.ml" 152 5770 5776 "NativeStubsGen.ml" 152 5770 5778
+)
+"NativeStubsGen.ml" 153 5797 5812 "NativeStubsGen.ml" 153 5797 5832
+call(
+  stack
+)
+type(
+  char Stream.t
+)
+"NativeStubsGen.ml" 154 5836 5840 "NativeStubsGen.ml" 154 5836 5852
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref
+)
+ident(
+  int_ref callstackmap "NativeStubsGen.ml" 55 2137 2141 "NativeStubsGen.ml" 55 2137 2153
+)
+"NativeStubsGen.ml" 154 5836 5856 "NativeStubsGen.ml" 154 5836 5871
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.StringMap.empty
+)
+"NativeStubsGen.ml" 154 5836 5840 "NativeStubsGen.ml" 154 5836 5871
+type(
+  unit
+)
+type(
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t ref ->
+  string Sawja_pack.JNativeStubs.StringMap.t Stack.t
+  Sawja_pack.JNativeStubs.StringMap.t -> unit
+)
+ident(
+  ext_ref Pervasives.( := )
+)
+"NativeStubsGen.ml" 155 5873 5881 "NativeStubsGen.ml" 155 5873 5896
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  def new_native_info "NativeStubsGen.ml" 157 5961 5967 "NativeStubsGen.ml" 158 5980 6008
+)
+"NativeStubsGen.ml" 155 5873 5899 "NativeStubsGen.ml" 155 5873 5910
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t ->
+  Genlex.token Stream.t ->
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref parse_jvmti "NativeStubsGen.ml" 57 2177 2185 "NativeStubsGen.ml" 57 2177 2196
+)
+"NativeStubsGen.ml" 155 5873 5911 "NativeStubsGen.ml" 155 5873 5922
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+ident(
+  int_ref native_info "NativeStubsGen.ml" 151 5731 5737 "NativeStubsGen.ml" 151 5731 5748
+)
+"NativeStubsGen.ml" 156 5923 5930 "NativeStubsGen.ml" 156 5923 5940
+type(
+  string list -> char Stream.t -> Genlex.token Stream.t
+)
+ident(
+  ext_ref Genlex.make_lexer
+)
+"NativeStubsGen.ml" 156 5923 5941 "NativeStubsGen.ml" 156 5923 5949
+type(
+  string list
+)
+ident(
+  int_ref keywords "NativeStubsGen.ml" 26 904 908 "NativeStubsGen.ml" 26 904 916
+)
+"NativeStubsGen.ml" 156 5923 5950 "NativeStubsGen.ml" 156 5923 5956
+type(
+  char Stream.t
+)
+ident(
+  int_ref stream "NativeStubsGen.ml" 153 5797 5803 "NativeStubsGen.ml" 153 5797 5809
+)
+"NativeStubsGen.ml" 156 5923 5930 "NativeStubsGen.ml" 156 5923 5956
+call(
+  stack
+)
+type(
+  Genlex.token Stream.t
+)
+"NativeStubsGen.ml" 155 5873 5899 "NativeStubsGen.ml" 156 5923 5957
+call(
+  stack
+)
+type(
+  Sawja_pack.JNativeStubs.native_method_info
+  Sawja_pack.JNativeStubs.MethodMap.t
+)
+"NativeStubsGen.ml" 157 5961 5967 "NativeStubsGen.ml" 157 5961 5975
+type(
+  in_channel -> unit
+)
+ident(
+  ext_ref Pervasives.close_in
+)
+"NativeStubsGen.ml" 157 5961 5976 "NativeStubsGen.ml" 157 5961 5978
+type(
+  in_channel
+)
+ident(
+  int_ref ic "NativeStubsGen.ml" 152 5770 5776 "NativeStubsGen.ml" 152 5770 5778
+)
+"NativeStubsGen.ml" 157 5961 5967 "NativeStubsGen.ml" 157 5961 5978
+call(
+  stack
+)
+type(
+  unit
+)
+"NativeStubsGen.ml" 158 5980 5986 "NativeStubsGen.ml" 158 5980 5992
+type(
+  Sawja_pack.JNativeStubs.native_info -> Sawja_pack.JNativeStubs.t
+)
+ident(
+  ext_ref Sawja_pack.JNativeStubs.make_t
+)
+"NativeStubsGen.ml" 158 5980 5993 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.native_info
+)
+ident(
+  int_ref new_native_info "NativeStubsGen.ml" 155 5873 5881 "NativeStubsGen.ml" 155 5873 5896
+)
+"NativeStubsGen.ml" 158 5980 5986 "NativeStubsGen.ml" 158 5980 6008
+call(
+  tail
+)
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 157 5961 5967 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 155 5873 5877 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 154 5836 5840 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 153 5797 5799 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 152 5770 5772 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 151 5731 5733 "NativeStubsGen.ml" 158 5980 6008
+type(
+  Sawja_pack.JNativeStubs.t
+)
+"NativeStubsGen.ml" 150 5692 5724 "NativeStubsGen.ml" 158 5980 6008
+type(
+  string -> Sawja_pack.JNativeStubs.t
+)

@@ -15,7 +15,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
--include ../Makefile.config
+-include ../../Makefile.config
 
 JDK_PATH=$(JAVA_HOME)
 
