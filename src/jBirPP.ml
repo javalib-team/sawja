@@ -3,7 +3,6 @@ open Javalib
 open JProgram
 open JControlFlow
 
-
 type t = JBir.t PP.t
 let get_class = PP.get_class
 let get_meth = PP.get_meth
@@ -84,3 +83,27 @@ let normal_successors pp =
       (fun e -> goto_absolute pp e.JBir.e_handler) (handlers pp)
       
 
+type t'= t
+module JBirPPSet = Set.Make(struct
+                              type t = t'
+                              let compare = compare end)
+
+
+let reachable_pp from_pp =
+  let rec reachable_pp' from_pp to_explore already_explored = 
+    let new_pp = (normal_successors from_pp)@(exceptional_successors from_pp) in
+    let already_explored = JBirPPSet.add from_pp already_explored in
+    let to_explore = List.fold_left (fun set pp -> JBirPPSet.add pp set) to_explore new_pp
+    in
+    let to_explore = JBirPPSet.filter 
+                       (fun pp_exp -> not(JBirPPSet.mem pp_exp already_explored))
+                       to_explore
+    in
+      if JBirPPSet.is_empty to_explore 
+      then JBirPPSet.elements already_explored
+      else (
+        let next_pp = JBirPPSet.choose to_explore in
+        let to_explore = JBirPPSet.remove next_pp to_explore in
+        reachable_pp' next_pp to_explore already_explored)
+  in
+    reachable_pp' from_pp JBirPPSet.empty JBirPPSet.empty

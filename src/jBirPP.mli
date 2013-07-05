@@ -61,7 +61,7 @@ val static_pp_lookup : JBir.t program -> t -> t list
 
 (**[static_lookup program pp]: Return a list of class in which a method called
   from [pp] might be defined. None means that [pp] does not contains an
-  instruction which can lead to a method call.*)
+  instruction which can lead to a method call. It is less precise as static_pp_lookup.*)
 val static_lookup : JBir.t program -> t -> JBir.t node list option
 
 (** [handlers pp] returns the list of exception handlers which can be raised at
@@ -74,8 +74,10 @@ val normal_successors : t -> t list
 (** Return the list of possible exceptionnal successors.*)
 val exceptional_successors : t -> t list
 
+(** From a program point, give the list of reachable program points in the
+    whole function.*)
+val reachable_pp : t -> t list 
+
 val to_string : t -> string
 
 val pprint : Format.formatter -> t -> unit
-
-
