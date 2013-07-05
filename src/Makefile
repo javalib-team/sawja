@@ -44,6 +44,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 	safe reachableMethods jNativeStubs \
 	$(HEAP_PARSER)/parserType $(HEAP_PARSER)/parse_heap $(HEAP_PARSER)lex_heap  $(HEAP_PARSER)heapParser \
 	jCRA jRTA jRTAWithHeap jRRTA XTA \
+	jCFAOptions jCFADom jCFAPrinter jCFA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
 	$(DATAFLOW)availableExprSSA
 
@@ -55,6 +56,7 @@ MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	safe reachableMethods jUtil \
 	$(HEAP_PARSER)/parserType $(HEAP_PARSER)parse_heap $(HEAP_PARSER)heapParser\
 	jCRA XTA jRTA jRTAWithHeap jRRTA \
+	jCFAOptions jCFADom jCFAPrinter jCFA \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr
 
 
