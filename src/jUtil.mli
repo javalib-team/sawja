@@ -52,7 +52,7 @@ val find_index: 'a -> 'a list -> int
 module GenericSet ( S : sig type t end ) :
 sig
   type elt = int * S.t
-  type t = elt Ptmap.t
+  type t 
 
   val empty : t
   val is_empty : t -> bool
@@ -74,10 +74,13 @@ sig
   val of_array :(elt) array -> t
 end
 
+
+
+
 module GenericMap ( S : sig type t end ) :
 sig
   type key = int * S.t
-  type 'a t = (key * 'a) Ptmap.t
+  type 'a t 
 
   val empty : 'a t
   val is_empty : 'a t -> bool
@@ -100,6 +103,7 @@ sig
   val value_elements : 'a t -> 'a list
   val elements : 'a t -> (key * 'a) list
 end
+
 
 module MaptoSet ( S : sig type t end )
   ( GMap : GenericMapSig with type key = S.t )
