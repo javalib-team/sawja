@@ -90,10 +90,24 @@ let set_from_expr prog e abSt pp =
             let f_var = `Field ((),cn,fs) in
             let abf = CFAState.get_field abSt f_var in
               AbField.fSet2var abf (set_from_expr' e )
-        | _ -> assert false (*is primitive*)
+        | _ -> AbVar.primitive
   in set_from_expr' e
 
-
+let abstract_init_method_instr cn_node ms csts =
+  let cn = JProgram.get_name cn_node in
+  let pp_var = `PP ((),cn,ms,0) in
+  let m_var = `Method ((),cn,ms) in
+  let cst_loc =
+    {
+        CFAConstraints.dependencies = [m_var];
+        CFAConstraints.target = pp_var;
+        CFAConstraints.transferFun =
+          (fun abSt ->
+             let m_abst = CFAState.get_method abSt m_var in
+               `PPDomain (AbMethod.get_args m_abst)
+          )
+    }
+  in cst_loc::csts
 
 let abstract_instruction opt prog pp opcode succs csts =
   let pp_var = pp_var_from_PP pp in
@@ -124,80 +138,86 @@ let abstract_instruction opt prog pp opcode succs csts =
       succs 
       cstsl
   in
-  let handle_invoke opt_ret cn_lst ms args =
-    match opt_ret with 
-      | None -> csts
-      | Some ret_v ->
-          (*Constraint on the method arguments.*)
-          let csts_arg = 
-            let deps = 
-              List.fold_left 
-                (fun odep arg -> (expr_dep arg prog)@odep)
-                [pp_var;]
-                args
-            in
+  let handle_invoke ?(init=None) opt_ret cn_lst ms args =
+    (*Constraint on the method arguments.*)
+    let csts_arg = 
+      let deps = 
+        List.fold_left 
+          (fun odep arg -> (expr_dep arg prog)@odep)
+          [pp_var;]
+          args
+      in
+        List.fold_left
+          (fun csts cn -> 
+             let m_var = `Method ((),cn,ms) in
+             let cst = 
+               {
+                 CFAConstraints.dependencies = pp_var::(m_var::deps);
+                 CFAConstraints.target = m_var;
+                 CFAConstraints.transferFun =
+                   (fun abSt ->
+                      `MethodDomain
+                        (let ab_m = CFAState.get_method abSt m_var in
+                         let pos = ref (-1) in
+                         let set_args = 
+                           List.fold_left 
+                             (fun nl arg ->
+                                pos := !pos +1; 
+                                AbLocals.set_var !pos 
+                                  (set_from_expr prog arg abSt pp) nl
+                             ) AbLocals.init args
+                         in
+                           (*if in an init, we force this to its cn.*)
+                         let set_args =
+                           match init with
+                             | None -> set_args
+                             | Some cn -> 
+                                 AbLocals.set_var 0 
+                                   (AbVar.singleton [pp] cn) set_args
+                         in
+                           AbMethod.join ab_m
+                             (AbMethod.join_args AbMethod.init set_args)
+                        )
+                   )
+               }
+             in cst::csts
+          )
+          []
+          cn_lst
+    in
+      match opt_ret with 
+        | None -> make_csts ~cstsl:(csts_arg@csts) ()
+        | Some ret_v ->
+            let csts_ret = 
+              (*constraint on the local variables*)
               List.fold_left
                 (fun csts cn -> 
                    let m_var = `Method ((),cn,ms) in
-                   let cst = 
-                     {
-                       CFAConstraints.dependencies = m_var::deps;
-                       CFAConstraints.target = m_var;
-                       CFAConstraints.transferFun =
-                         (fun abSt ->
-                            `MethodDomain
-                              (let ab_m = CFAState.get_method abSt m_var in
-                                 if_alive_meth abSt
-                                   (
-                                     let pos = ref (-1) in
-                                     let set_args = 
-                                       List.fold_left 
-                                         (fun nl arg ->
-                                            pos := !pos +1; 
-                                            AbLocals.set_var !pos 
-                                              (set_from_expr prog arg abSt pp) nl
-                                         ) AbLocals.init args
-                                     in
-                                       AbMethod.join_args ab_m set_args
-                                   )
-                              )
-                         )
-                     }
-                   in cst::csts
+                     List.fold_left 
+                       (fun csts  target ->
+                          let cst = 
+                            let pp_targ = pp_var_from_PP target in
+                              {
+                                CFAConstraints.dependencies = [pp_var;m_var];
+                                CFAConstraints.target = pp_targ;
+                                CFAConstraints.transferFun =
+                                  (fun abSt ->
+                                     let l = CFAState.get_PP abSt pp_var in
+                                     let ab_m = CFAState.get_method abSt m_var in
+                                       `PPDomain (AbLocals.set_var (index ret_v) 
+                                                    (AbMethod.get_return ab_m) l)
+                                  )
+                              }
+                          in 
+                            cst::csts
+                       )
+                       csts
+                       succs
                 )
                 []
                 cn_lst
-          in
-          (*constraint on the local variables*)
-          let csts_ret = 
-            List.fold_left
-              (fun csts cn -> 
-                 let m_var = `Method ((),cn,ms) in
-                   List.fold_left 
-                     (fun csts  target ->
-                        let cst = 
-                          let pp_targ = pp_var_from_PP target in
-                            {
-                              CFAConstraints.dependencies = [pp_var;m_var];
-                              CFAConstraints.target = pp_targ;
-                              CFAConstraints.transferFun =
-                                (fun abSt ->
-                                   let l = CFAState.get_PP abSt pp_var in
-                                   let ab_m = CFAState.get_method abSt m_var in
-                                     `PPDomain (AbLocals.set_var (index ret_v) 
-                                       (AbMethod.get_return ab_m) l)
-                                )
-                            }
-                        in 
-                          cst::csts
-                     )
-                     csts
-                     succs
-              )
-              []
-              cn_lst
-          in
-            csts_arg@csts_ret@csts
+            in
+              csts_arg@csts_ret@csts
   in
     match opcode with
       | Ifd _ (*TODO there is some interesting things to do*)
@@ -278,12 +298,16 @@ let abstract_instruction opt prog pp opcode succs csts =
                     }::csts)
 	  in
             make_csts ~cstsl:(cstreturn) ()
-            | New (v, cn, _vt_args, _args) ->
-      make_csts ~prop_locals_f: 
-        (fun abSt -> 
-           let l = CFAState.get_PP abSt pp_var in
-           AbLocals.set_var (index v) (AbVSet.singleton [pp] cn) l
-        ) ()
+      | New (v, cn, vt_args, args) ->
+          let ms = make_ms "<init>" vt_args None in
+          let this = Var (TObject (TClass cn),v) in
+          let csts = handle_invoke ~init:(Some cn) None [cn] ms (this::args) in
+          make_csts ~cstsl:csts ~prop_locals_f: 
+            (fun abSt -> 
+               let l = CFAState.get_PP abSt pp_var in
+                 AbLocals.set_var (index v) (AbVSet.singleton [pp] cn) l
+            ) ()
+
       | NewArray (v, vt, _args) ->
           let rec gen_ar_cn vt =
             (match vt with
@@ -352,7 +376,15 @@ let compute_csts prog opt node m =
 
 (*TODO: Do not use list but map/set ???*)
 let get_csts program opt entry_points =
-
+  let init_meth_csts = 
+    ClassMethodMap.fold
+      (fun cms (nd,_cm) csts ->
+         let (_,ms) = cms_split cms in
+         abstract_init_method_instr nd ms csts 
+      )
+      program.JProgram.parsed_methods
+      []
+  in
   let init_csts =
     List.fold_left 
       (fun lst cms ->
@@ -362,11 +394,10 @@ let get_csts program opt entry_points =
            {CFAConstraints.dependencies = [];
             CFAConstraints.target = pp_var ;
             CFAConstraints.transferFun = 
-               (fun abst -> 
-                                      `PPDomain AbLocals.init )
+               (fun _abst -> `PPDomain AbLocals.init )
            }::lst
       )
-      []
+      init_meth_csts
       entry_points
   in
   let csts = 
@@ -488,7 +519,7 @@ let get_CFA_program
       (program: JBir.t JProgram.program)
       (entry_points:class_method_signature list)
       : JBir.t JProgram.program =
-         CFASolver.debug_level := 10;
+         CFASolver.debug_level := 0;
   let entry_st=
     List.map
       (fun cms -> let cn,ms =cms_split cms in `Method ((),cn,ms))

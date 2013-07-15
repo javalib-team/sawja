@@ -54,12 +54,22 @@ module ObjMap = GenericMap.Make (struct type t = obj end)
 
 module AbVSet = struct
 
-  type t = Set of (ObjSet.t) | Bot 
+  type t = 
+      Set of (ObjSet.t) 
+    | Primitive
+    | Bot 
 
   type analysisID = unit
   type analysisDomain = t	
 
   let bot = Bot
+
+  let primitive = Primitive
+
+  let isPrimitive t =
+    match t with
+      | Primitive -> true
+      | _ -> false
 
   let empty = Set (ObjSet.empty)
 
@@ -79,23 +89,28 @@ module AbVSet = struct
   let equal set1 set2 =
     match set1, set2 with
       | Bot, Bot -> true
-      | Bot, _ | _, Bot -> false
+      | Primitive, Primitive -> true
       | Set s1, Set s2 -> ObjSet.equal s1 s2 
+      | _ -> false
 
   let inter set1 set2 = 
     match set1, set2 with
       | Bot,_ | _, Bot -> Bot
+      | Primitive, Primitive -> Primitive
       | Set s1, Set s2 -> Set (ObjSet.inter s1 s2) 
+      | _ -> assert false (*trying to intersect a primitive and a cn set*)
 
   let join ?(modifies=ref false) set1 set2 =
     match set1, set2 with
       | _, Bot -> set1
       | Bot, _ -> modifies:=true; set2
+      | Primitive, Primitive -> Primitive
       | Set s1, Set s2 ->
           let union = (ObjSet.union s1 s2)  in
             if (ObjSet.equal union s1)
             then set1
             else (modifies:=true; set2)
+      | _ -> assert false (*trying to join a primitive and a cn set*)
 
   let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
     if do_join
@@ -106,7 +121,7 @@ module AbVSet = struct
 
   let concretize set = 
     match set with
-      | Bot -> ClassSet.empty
+      | Bot | Primitive -> ClassSet.empty
       | Set st -> ObjSet.fold
                     (fun (_ , (_,cn)) concset ->
                        ClassSet.add cn concset
@@ -118,6 +133,7 @@ module AbVSet = struct
     let open JProgram in
       match set with
         | Bot  -> Bot
+        | Primitive -> assert false (*cannot filter a primitive with a cn*)
         | Set s -> 
             let node = get_node prog cn in
             let s = 
@@ -149,6 +165,7 @@ module AbVSet = struct
   let pprint fmt set = 
     match set with
       | Bot ->  Format.pp_print_string fmt "Bot" 
+      | Primitive ->  Format.pp_print_string fmt "Primitive" 
       | Set set -> pprint_objset fmt set
       
   let to_string_objset set = 
@@ -168,6 +185,7 @@ module AbVSet = struct
     Printf.printf "entering AbVSet to_string";
     match set with
       | Bot -> "Bot"
+      | Primitive -> "Primitive"
       | Set set -> to_string_objset set
 
   let get_analysis _ el = el
@@ -175,15 +193,14 @@ module AbVSet = struct
 end
 
 module AbFSet = struct
-(*   type t = Set of (ObjSet.t * ObjSet.t) | Bot  *)
-  type t = Set of ObjSet.t ObjMap.t | Bot 
+  type t = Set of AbVSet.t ObjMap.t | Bot 
   type analysisID = unit
   type analysisDomain = t
 
 
   let bot = Bot
 
-  let empty = Set (ObjMap.empty)
+  let empty = Set ObjMap.empty
 
   let isBot set = 
     match set with 
@@ -201,7 +218,7 @@ module AbFSet = struct
       | Bot, Bot -> true
       | Bot, _ | _, Bot -> false
       | Set (map1), Set (map2) -> 
-          ObjMap.equal ObjSet.equal map1 map2
+          ObjMap.equal AbVSet.equal map1 map2
 
 
   let inter set1 set2 = 
@@ -212,7 +229,7 @@ module AbFSet = struct
             ObjMap.fold
               (fun objk set1 nMap ->
                  try let set2 = ObjMap.find objk map2 in
-                   ObjMap.add objk (ObjSet.inter set1 set2) nMap
+                   ObjMap.add objk (AbVSet.inter set1 set2) nMap
                  with Not_found ->
                    nMap
               )
@@ -230,13 +247,13 @@ module AbFSet = struct
             ObjMap.fold
               (fun objk set2 nMap ->
                  let set1 = ObjMap.find objk m1 in
-                   ObjMap.add objk (ObjSet.union set1 set2) nMap
+                   ObjMap.add objk (AbVSet.join set1 set2) nMap
               )
               m2
               m1
 
           in
-            if ObjMap.equal ObjSet.equal union m1
+            if ObjMap.equal AbVSet.equal union m1
             then s1
             else (modifies:=true; Set union)
 
@@ -256,7 +273,8 @@ module AbFSet = struct
   let var2fSet objAb varAb = 
     match objAb, varAb with
       | AbVSet.Bot, _ | _, AbVSet.Bot -> Bot
-      | AbVSet.Set objs, AbVSet.Set vars ->
+      | AbVSet.Primitive, _ -> assert false (*primitive has not fields*)
+      | AbVSet.Set objs, vars ->
           let nmap = 
             ObjSet.fold 
               (fun obj nmap ->
@@ -265,10 +283,13 @@ module AbFSet = struct
               objs
               ObjMap.empty in
             Set nmap
+       
+
 
   let fSet2var fsAb objvset =
     match fsAb, objvset with
       | Bot,_ | _, AbVSet.Bot -> AbVSet.Bot
+      | _, AbVSet.Primitive -> assert false
       | Set fsAb, AbVSet.Set objvset -> 
           let nset = 
             ObjSet.fold 
@@ -277,11 +298,11 @@ module AbFSet = struct
                  with Not_found -> nset
               )
               objvset
-              ObjSet.empty
+              AbVSet.empty
           in
-            if ObjSet.is_empty nset
+            if AbVSet.is_empty nset
             then AbVSet.Bot
-            else AbVSet.Set nset
+            else nset
 
 
   let to_string t = 
@@ -291,7 +312,7 @@ module AbFSet = struct
           let str =
             ObjMap.fold
               (fun (_hashk, objk) set str ->
-                 Printf.sprintf "%s, %s:%s" str (obj_to_string objk) (AbVSet.to_string_objset set)
+                 Printf.sprintf "%s, %s:%s" str (obj_to_string objk) (AbVSet.to_string set)
               )
               t
               "" in
@@ -307,7 +328,7 @@ module AbFSet = struct
             (fun (_hash,(_pplst,cn)) set ->
                let str= Printf.sprintf "%s: {\n" (cn_name cn) in
                  Format.pp_print_string fmt str;
-                 AbVSet.pprint_objset fmt set;
+                 AbVSet.pprint fmt set;
                  Format.pp_print_string fmt "}"
             )
             map
@@ -351,7 +372,7 @@ module AbMethod = struct
     
   let isBot t = match t with | Bot -> true | _ -> false
 
-  let init = Reachable ({args= AbLocals.init; return= AbVSet.empty})
+  let init = Reachable ({args= AbLocals.init; return= AbVSet.bot})
 
   let get_args v = 
     match v with 

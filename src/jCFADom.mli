@@ -12,12 +12,15 @@ sig
   val empty : t 
   val isBot : t -> bool
 
+  val primitive : t 
+  val isPrimitive : t -> bool
+
   (*If the set is empty, it means that the only possible concrete value of the
-  * variable is null.*)
+   * variable is null.*)
   val is_empty: t -> bool
-  (*[singleton pps cn]: Create a set from a singleton element. [pps] is a list
-  * of program point characterizing the location of the affectation. cn is the
-  * class of the allocated object. *)
+  (** [singleton pps cn]: Create a set from a singleton element. [pps] is a list
+    * of program point characterizing the location of the affectation. cn is the
+    * class of the allocated object. *)
   val singleton : JBirPP.t list -> class_name -> t
 
   val equal : t -> t -> bool
@@ -25,7 +28,9 @@ sig
   val inter : t -> t -> t
   val join : ?modifies:bool ref -> t -> t -> t 
   val join_ad : ?do_join:bool -> ?modifies:bool ref -> t -> t -> t
-
+  
+  (** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
+    * the type compatible with [cn].*)
   val filter_with_compatible : 'a JProgram.program -> t -> class_name -> t
   val concretize : t -> ClassSet.t
 
