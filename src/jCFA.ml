@@ -231,7 +231,6 @@ let abstract_instruction opt prog pp opcode succs csts =
           let dep = expr_dep e prog in
             make_csts ~other_dep:dep ~prop_locals_f:
               (fun abSt -> 
-                 Printf.printf "run affect\n";
                  let l = CFAState.get_PP abSt pp_var in
                    AbLocals.set_var (index v) (set_from_expr prog e abSt pp) l
               ) ()

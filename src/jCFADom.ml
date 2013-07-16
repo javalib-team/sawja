@@ -10,12 +10,9 @@ let obj_compare (lst1,cn1) (lst2,cn2) =
       | _l1,[] -> 1
       | [],_l2 -> -1
       | e1::l1, e2::l2 -> 
-          if e1 > e2 
-          then 1 
-          else 
-            if (e1 < e2)
-            then -1
-            else cmp_list l1 l2
+          (match JBirPP.compare e1 e2 with
+             | 0 -> cmp_list l1 l2
+             | i -> i)
   in
     match cn_compare cn1 cn2 with
       | 0 -> cmp_list lst1 lst2
@@ -44,7 +41,7 @@ let get_hash obj =
   try DicoObjrMap.find obj !dicoObj
   with Not_found -> 
     let new_hash = new_hash () in
-    let _ = DicoObjrMap.add obj new_hash !dicoObj in
+      dicoObj := DicoObjrMap.add obj new_hash !dicoObj;
       new_hash
 
 
@@ -109,7 +106,7 @@ module AbVSet = struct
           let union = (ObjSet.union s1 s2)  in
             if (ObjSet.equal union s1)
             then set1
-            else (modifies:=true; set2)
+            else (modifies:=true; Set union)
       | _ -> assert false (*trying to join a primitive and a cn set*)
 
   let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
@@ -155,7 +152,7 @@ module AbVSet = struct
     Format.pp_print_string fmt "<";
     ObjSet.iter 
       (fun (_hash,(_pplst,cn)) -> 
-         Format.pp_print_string fmt (cn_name cn)
+         Format.pp_print_string fmt ((cn_name cn)^";")
       ) 
       set;
     Format.pp_print_string fmt ">"
@@ -291,17 +288,29 @@ module AbFSet = struct
       | Bot,_ | _, AbVSet.Bot -> AbVSet.Bot
       | _, AbVSet.Primitive -> assert false
       | Set fsAb, AbVSet.Set objvset -> 
+          Printf.printf "in\n";
           let nset = 
+            ObjMap.iter 
+              (fun objk _ ->
+                 let (id ,st) = objk in
+                 Printf.printf "objk : %d %s \n" id (obj_to_string st);
+              )
+              fsAb;
+
+
             ObjSet.fold 
               (fun objset nset ->
-                 try ObjMap.find objset fsAb
+                 let (id ,st) = objset in
+                 Printf.printf "objset : %d %s \n" id (obj_to_string st);
+                 try AbVSet.join (ObjMap.find objset fsAb) nset
                  with Not_found -> nset
               )
               objvset
               AbVSet.empty
           in
+          Printf.printf "out\n";
             if AbVSet.is_empty nset
-            then AbVSet.Bot
+            then assert false
             else nset
 
 
