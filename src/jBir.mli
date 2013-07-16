@@ -327,7 +327,8 @@ val  params : t -> (JBasics.value_type * var) list
 val code : t -> instr array
 
 (** [exc_tbl] is the exception table of the method code. Jumps are
-    absolute. *)
+    absolute. The list is ordered in the same way as in the bytecode 
+    (See JVM Spec 7 $2.10). *)
 val exc_tbl : t -> exception_handler list
 
 (** [line_number_table] contains debug information. It is a list of pairs
