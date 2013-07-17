@@ -126,7 +126,7 @@ module AbVSet = struct
                     st
                     ClassSet.empty
 
-  let filter_with_compatible prog set cn =
+  let filter_with_compatible' prog set cn rev=
     let open JProgram in
       match set with
         | Bot  -> Bot
@@ -137,15 +137,22 @@ module AbVSet = struct
               ObjSet.filter 
                 (fun (_,(_,cn_in_set)) -> 
                    let node_in_set = get_node prog cn_in_set in
-                     (match (node_in_set, node) with
-                        | Class nd_in_set, Class nd ->
+                     (match (node_in_set, node, rev) with
+                        | Class nd_in_set, Class nd, false ->
                             extends_class nd_in_set nd
+                        | Class nd_in_set, Class nd, true ->
+                            not (extends_class nd_in_set nd)
                         | _ -> assert false (*cannot work with Interface*)
                      )
                 )
                 s
             in Set s
 
+  let filter_with_compatible prog set cn = 
+    filter_with_compatible' prog set cn false
+
+  let filter_with_uncompatible prog set cn = 
+    filter_with_compatible' prog set cn true
 
 
   let pprint_objset fmt set =
@@ -243,12 +250,15 @@ module AbFSet = struct
           let union = 
             ObjMap.fold
               (fun objk set2 nMap ->
-                 let set1 = ObjMap.find objk m1 in
+                 let set1 = 
+                   try ObjMap.find objk m1 
+                   with Not_found ->
+                     AbVSet.Bot
+                 in
                    ObjMap.add objk (AbVSet.join set1 set2) nMap
               )
               m2
               m1
-
           in
             if ObjMap.equal AbVSet.equal union m1
             then s1
@@ -360,7 +370,7 @@ end
 
 module AbMethod = struct
 
-  type abm = {args: AbLocals.t ; return: AbVSet.t;}
+  type abm = {args: AbLocals.t ; return: AbVSet.t; exc_return: AbVSet.t}
  
   type t = 
     | Bot 
@@ -376,22 +386,29 @@ module AbMethod = struct
       | Reachable rv1, Reachable rv2 -> 
           AbLocals.equal rv1.args rv2.args
           && AbVSet.equal rv1.return rv2.return
+          && AbVSet.equal rv1.exc_return rv2.exc_return
       
   let bot = Bot
     
   let isBot t = match t with | Bot -> true | _ -> false
 
-  let init = Reachable ({args= AbLocals.init; return= AbVSet.bot})
+  let init = Reachable ({args= AbLocals.init; return= AbVSet.bot; 
+                         exc_return= AbVSet.bot})
 
   let get_args v = 
     match v with 
-      | Bot -> AbLocals.bot
+      | Bot -> assert false (*AbLocals.bot*)
       | Reachable v -> v.args
 
   let get_return v = 
     match v with
-      | Bot -> AbVSet.bot
+      | Bot -> assert false (*AbVSet.bot*)
       | Reachable v -> v.return
+
+  let get_exc_return v = 
+    match v with
+      | Bot -> AbVSet.bot
+      | Reachable v -> v.exc_return
 
   let join_args v a =
     match v with
@@ -403,6 +420,13 @@ module AbMethod = struct
       | Bot -> Bot
       | Reachable v -> Reachable {v with return = AbVSet.join v.return r;}
 
+ 
+  let join_exc_return v r =
+    match v with
+      | Bot -> Bot
+      | Reachable v -> Reachable {v with exc_return = AbVSet.join v.exc_return r;}
+
+
   let join ?(modifies=ref false) 
       v1 v2  =
     if v1 == v2 
@@ -411,12 +435,14 @@ module AbMethod = struct
       match v1, v2 with
         | Bot, v2 -> modifies:=true;v2 
         | v1, Bot -> v1
-        | Reachable ({args=ar1; return=r1}), Reachable ({args=ar2; return=r2}) -> 
-            let (ma,mr) = (ref false, ref false) in
+        | Reachable ({args=ar1; return=r1; exc_return=excr1 }), 
+          Reachable ({args=ar2; return=r2; exc_return=excr2}) -> 
+            let (ma,mr, mer) = (ref false, ref false, ref false) in
             let nargs = AbLocals.join ~modifies:ma ar1 ar2 in
             let nreturn = AbVSet.join ~modifies:mr r1 r2 in
-            modifies:= !ma || !mr;
-            Reachable {args=nargs; return=nreturn;} 
+            let nexcreturn = AbVSet.join ~modifies:mr excr1 excr2 in
+            modifies:= !ma || !mr || !mer;
+            Reachable {args=nargs; return=nreturn; exc_return=nexcreturn} 
 
 
   let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
@@ -430,11 +456,13 @@ module AbMethod = struct
     match t with 
       | Bot -> "Bot"
       | Reachable t ->
-          let (args, ret) = (t.args,t.return) in
+          let (args, ret, exc_ret) = (t.args,t.return,t.exc_return) in
           let str_arg =
             AbLocals.to_string args in
           let str_ret = AbVSet.to_string ret in
-            Printf.sprintf "args: { %s }; ret : %s " str_arg str_ret
+          let str_exc_ret = AbVSet.to_string exc_ret in
+            Printf.sprintf "args: { %s }; ret : %s exc_ret: %s" str_arg str_ret
+              str_exc_ret
 
 
   let pprint fmt t =
@@ -449,6 +477,9 @@ module AbMethod = struct
             pp_print_space fmt ();
             pp_print_string fmt "return:";
             AbVSet.pprint fmt t.return;
+            pp_print_space fmt ();
+            pp_print_string fmt "exceptionnal return:";
+            AbVSet.pprint fmt t.exc_return;
             pp_print_space fmt ();
             pp_close_box fmt ()
 

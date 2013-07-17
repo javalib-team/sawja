@@ -93,6 +93,9 @@ let set_from_expr prog e abSt pp =
         | _ -> AbVar.primitive
   in set_from_expr' e
 
+
+
+
 let abstract_init_method_instr cn_node ms csts =
   let cn = JProgram.get_name cn_node in
   let pp_var = `PP ((),cn,ms,0) in
@@ -111,7 +114,7 @@ let abstract_init_method_instr cn_node ms csts =
 
 let abstract_instruction opt prog pp opcode succs csts =
   let pp_var = pp_var_from_PP pp in
-  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) =  
+  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =  
     (fun abSt -> `PPDomain (f abSt))
   in
   let is_dead abSt  =
@@ -124,20 +127,104 @@ let abstract_instruction opt prog pp opcode succs csts =
       | true -> AbMethod.bot
       | false -> f
   in
-
-
   let make_csts ?(cstsl=csts) ?(other_dep=[]) ?(prop_locals_f=fun abSt -> CFAState.get_PP abSt pp_var) _ =
     List.fold_right 
       (fun target csts ->
          let pp_targ = pp_var_from_PP target in
            {CFAConstraints.dependencies = pp_var::other_dep;
             CFAConstraints.target = pp_targ;
-            CFAConstraints.transferFun = propagate_locals ~f:prop_locals_f
+            CFAConstraints.transferFun = propagate_locals ~f:prop_locals_f ()
            }::csts
       )
       succs 
       cstsl
   in
+
+  let handle_throw ?(other_dep=[]) excAbSt =
+    let open JBirPP in
+    let possible_catch = handlers pp in
+    let pp_var = pp_var_from_PP pp in
+    (*constraints for the different catchs*)
+    let (csts, already_catched_cn) = 
+      List.fold_left
+        (fun (csts, already_catched_cn) exch ->
+           let pp_target_var = pp_var_from_PP (get_pp (get_class pp) 
+                                                 (get_meth pp) exch.e_handler) 
+           in
+             {
+               CFAConstraints.dependencies = pp_var::other_dep;
+               CFAConstraints.target = pp_target_var; 
+               CFAConstraints.transferFun = 
+                 propagate_locals
+                   ~f:(fun abSt -> 
+                         let local = CFAState.get_PP abSt pp_var in
+                         let varAbst = 
+                           match exch.e_catch_type with
+                             | None -> (excAbSt abSt)
+                             | Some cn -> 
+                                 (AbVar.filter_with_compatible prog
+                                    (excAbSt abSt)
+                                    cn
+                                 )
+                         in
+                         let varAbst = 
+                           List.fold_left
+                             (fun varAbst cn ->
+                                AbVar.filter_with_uncompatible prog varAbst cn
+                             )
+                             varAbst
+                             already_catched_cn
+                         in
+                           if (AbVar.is_empty varAbst) || (AbVar.isBot varAbst)
+                           then 
+                             AbLocals.bot
+                           else 
+                             AbLocals.set_var (index exch.e_catch_var)
+                               varAbst local
+                   ) ();
+             } :: csts, 
+             (match exch.e_catch_type with
+                | Some cn -> 
+                    cn::already_catched_cn
+                | None -> already_catched_cn)
+        )
+        ([], []) 
+        possible_catch
+    in 
+    (*constraint when it is not catched*)
+    let m_var = `Method ((),(JProgram.get_name (get_class pp)), 
+                         (get_meth pp).cm_signature) in
+    let cst_uncatched = 
+      {
+        CFAConstraints.dependencies = pp_var::other_dep;
+        CFAConstraints.target = m_var; 
+        CFAConstraints.transferFun = 
+          (fun abSt ->
+             `MethodDomain
+               (let ab_m = CFAState.get_method abSt m_var in
+                let uncatchedAbst = (excAbSt abSt) in
+                let uncatchedAbst = 
+                  List.fold_left
+                    (fun varAbst cn ->
+                       AbVar.filter_with_uncompatible prog varAbst cn
+                    )
+                    uncatchedAbst
+                    already_catched_cn
+                in
+                let uncatchedAbst = 
+                  if (AbVar.is_empty uncatchedAbst)
+                  then AbVar.bot
+                  else uncatchedAbst 
+                in
+                  AbMethod.join_exc_return ab_m uncatchedAbst
+               )
+          )
+      }
+    in cst_uncatched::csts
+  (**** handle_throw end*****)
+  in
+
+
   let handle_invoke ?(init=None) opt_ret cn_lst ms args =
     (*Constraint on the method arguments.*)
     let csts_arg = 
@@ -185,6 +272,7 @@ let abstract_instruction opt prog pp opcode succs csts =
           []
           cn_lst
     in
+    let csts = 
       match opt_ret with 
         | None -> make_csts ~cstsl:(csts_arg@csts) ()
         | Some ret_v ->
@@ -218,15 +306,34 @@ let abstract_instruction opt prog pp opcode succs csts =
                 cn_lst
             in
               csts_arg@csts_ret@csts
+    in
+      (*csts on uncatched exception from called function*)
+    let csts_exc = 
+      List.fold_left
+        (fun csts cn -> 
+           let m_called_var = `Method ((),cn,ms) in
+           let excAbst = 
+             (fun abSt -> let mAbSt = CFAState.get_method abSt m_called_var in
+                AbMethod.get_exc_return mAbSt)
+           in
+             (handle_throw ~other_dep:[m_called_var] excAbst)@csts
+        )
+        []
+        cn_lst
+    in
+      csts_exc@csts
+
+  (**** handle invoke end*****)
+
   in
     match opcode with
-      | Ifd _ (*TODO there is some interesting things to do*)
       | Goto _ 
       | MonitorEnter _
       | Check _
       | Formula _
       | MonitorExit _
       | Nop -> make_csts ()
+      | Ifd _ -> make_csts ()
       | AffectVar (v,e) ->
           let dep = expr_dep e prog in
             make_csts ~other_dep:dep ~prop_locals_f:
@@ -272,7 +379,10 @@ let abstract_instruction opt prog pp opcode succs csts =
             }
           in
             make_csts ~cstsl:(af_const::csts) ()
-      | Throw _e -> make_csts () (*TODO ??*)
+      | Throw e -> 
+          let excAbSt = (fun abSt -> set_from_expr prog e abSt pp) in
+          let exc_csts = handle_throw excAbSt in
+            exc_csts@csts
       | Return opt_retexpr ->
           let c = JBirPP.get_class pp in
           let ms = 
@@ -296,7 +406,7 @@ let abstract_instruction opt prog pp opcode succs csts =
                                     (CFAState.get_method abSt m_var) vexpr)))
                     }::csts)
 	  in
-            make_csts ~cstsl:(cstreturn) ()
+            cstreturn
       | New (v, cn, vt_args, args) ->
           let ms = make_ms "<init>" vt_args None in
           let this = Var (TObject (TClass cn),v) in
@@ -345,8 +455,7 @@ let abstract_instruction opt prog pp opcode succs csts =
             let ms = make_ms "clinit" [] None in
               handle_invoke None [cn] ms []
           )
-
-
+      
 
 let compute_csts prog opt node m =
   let open JBirPP in
@@ -354,21 +463,21 @@ let compute_csts prog opt node m =
       | Native -> []
       | Java _laz -> 
           let iter_on_pp pp csts = 
-            let lst_succ = (normal_successors pp)@
-                           (exceptional_successors pp) in
+            let lst_succ = (normal_successors pp) in
               abstract_instruction opt prog pp (get_opcode pp) lst_succ csts
           in
           let cn = JProgram.get_name node in
           let ms = m.cm_signature in
           let first_pp = get_first_pp prog cn ms in
           let reachable_pp = reachable_pp first_pp in
-
+          let csts_normal = 
             List.fold_left
               (fun csts pp -> 
                  iter_on_pp pp csts 
               )
               []
               reachable_pp
+          in csts_normal
 
 
 

@@ -32,6 +32,9 @@ sig
   (** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
     * the type compatible with [cn].*)
   val filter_with_compatible : 'a JProgram.program -> t -> class_name -> t
+(** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
+    * the type not compatible with [cn].*)
+  val filter_with_uncompatible : 'a JProgram.program -> t -> class_name -> t
   val concretize : t -> ClassSet.t
 
 
@@ -108,8 +111,10 @@ module AbMethod : sig
 
   val get_args : t -> AbLocals.t
   val get_return : t -> AbVSet.t
+  val get_exc_return : t -> AbVSet.t
   val join_args : t -> AbLocals.t -> t
   val join_return : t -> AbVSet.t -> t
+  val join_exc_return : t -> AbVSet.t -> t
   val join : ?modifies:bool ref -> t -> t -> t
   val join_ad : ?do_join:bool -> ?modifies:bool Pervasives.ref ->
        t -> analysisDomain -> t
