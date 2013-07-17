@@ -17,6 +17,9 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(** Builds high level representations of Java bytecode programs using 0-CFA
+  algorithm. *)
+
 open Javalib_pack
 
 val get_CFA_program :
