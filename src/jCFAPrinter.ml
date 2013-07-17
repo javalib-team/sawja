@@ -33,10 +33,20 @@ let field_annot state =
       [Buffer.contents buf]
 
 
+let method_annot state = 
+  fun cn ms ->
+    let m_var = `Method ((), cn, ms) in
+    let ms_ab = CFAState.get_method state m_var in
+    let buf = Buffer.create 200 in
+    let fmt_buf = Format.formatter_of_buffer buf in
+      AbMethod.pprint fmt_buf ms_ab;
+      Format.pp_print_flush fmt_buf ();
+      [Buffer.contents buf]
+
 let annot prog state = {
   p_class = (fun _ -> []);
   p_field = field_annot state;
-  p_method = (fun _ _ -> []);
+  p_method = method_annot state;
   p_pp = pp_annot prog state;
 }
 
