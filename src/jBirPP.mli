@@ -78,9 +78,11 @@ val next_instruction: t ->  t
   result (depending on the one used to build the program).*)
 val static_pp_lookup : JBir.t program -> t -> t list
 
-(**[static_lookup program pp]: Return a list of class in which a method called
-  from [pp] might be defined. None means that [pp] does not contains an
-  instruction which can lead to a method call. It is less precise as static_pp_lookup.*)
+
+(** [static_lookup program pp] returns the highest methods in the
+      hierarchy that may be called from program point [pp]. All methods that
+  may be called at execution time are known to implement or extend one of the
+  class that this function returns. *)
 val static_lookup : JBir.t program -> t -> JBir.t node list option
 
 (** [handlers pp] returns the list of exception handlers which can be raised at
