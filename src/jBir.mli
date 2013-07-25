@@ -314,6 +314,8 @@ type exception_handler = {
 (** [t] is the parameter type for JBir methods. *)
 type t
 
+val empty: t
+
 (** All variables that appear in the method. [vars.(i)] is the variable of
     index [i]. *)
 val vars : t -> var array
@@ -443,6 +445,13 @@ val transform :
   throw an JControlFlow.AmbigousFieldResolution exception.
  *)
 val resolve_all_fields : t JProgram.program -> t JProgram.program
+
+
+val get_callgraph : t JProgram.program -> JProgram.callgraph
+
+val get_callgraph_from_entries : t JProgram.program ->  JBasics.class_method_signature list 
+                                  -> JProgram.callgraph
+
 
 (** {2 Exceptions} *)
 

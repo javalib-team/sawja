@@ -242,30 +242,50 @@ type bir = {
   bir_line_number_table : (int * int) list option;
   bir_pc_bc2ir : int Ptmap.t;
   bir_pc_ir2bc : int array;
-  
+
   (* only for ssa *)
   bir_preds : (int array) array;
   bir_phi_nodes : (phi_node list) array;
   bir_mem_ssa : memory_ssa_info
 }
 
-  let rec ssa_print_code phi_simpl m i acc =
-    if i<0 then acc
-    else 
-      begin
-	let new_acc = 
-	  (app_phi_nodes phi_simpl i m.bir_preds.(i) m.bir_phi_nodes.(i)
-	     (Printf.sprintf "%3d: %s" 
-		i 
-		(print_instr m.bir_code.(i))::acc))
-	in
-	  ssa_print_code phi_simpl m (i-1) new_acc
-      end
-	
-	
-  let ssa_print ?(phi_simpl=true) m =
-    let size = Array.length m.bir_code in
-      ssa_print_code phi_simpl m (size-1) []
+let empty = 
+  {
+    bir_vars = [||];
+    bir_params = [];
+    bir_code = [||];
+    bir_exc_tbl = [];
+    bir_line_number_table = None;
+    bir_pc_bc2ir = Ptmap.empty;
+    bir_pc_ir2bc = [||];
+    bir_preds = [||];
+    bir_phi_nodes = [||];
+    bir_mem_ssa = 
+      {
+        mem_ssa_in= (fun a -> a);
+        mem_ssa_out= (fun a -> a);
+        mem_ssa_phi= (fun a -> a, [|a|])
+      }
+  }
+
+
+let rec ssa_print_code phi_simpl m i acc =
+  if i<0 then acc
+  else 
+    begin
+      let new_acc = 
+        (app_phi_nodes phi_simpl i m.bir_preds.(i) m.bir_phi_nodes.(i)
+           (Printf.sprintf "%3d: %s" 
+              i 
+              (print_instr m.bir_code.(i))::acc))
+      in
+        ssa_print_code phi_simpl m (i-1) new_acc
+    end
+
+
+let ssa_print ?(phi_simpl=true) m =
+  let size = Array.length m.bir_code in
+    ssa_print_code phi_simpl m (size-1) []
 
 let rec print_code code i acc =
   if i<0 then acc
@@ -4108,7 +4128,121 @@ let exc_handler_html _program _ioc _ms handler =
        )
     )
 
-(*************** FIELD Resolution ********************)
+(*************** FIELD Resolution END ********************)
+
+
+let get_method_calls p cs cm =
+  let open JProgram in
+  let l = ref Ptmap.empty in
+  let f_lookup = p.static_lookup_method in
+    begin
+      match cm with
+	| {cm_implementation = Java code}
+	    when
+	      ClassMethodMap.mem cm.cm_class_method_signature p.parsed_methods ->
+	    let ms = cm.cm_signature in
+	      Array.iteri
+		(fun pp op ->
+		   match op with
+		     | InvokeStatic _
+		     | InvokeVirtual _
+                     | InvokeNonVirtual _ ->
+			 let lookup = (f_lookup cs ms pp) in
+			   l := Ptmap.add pp lookup !l
+		     | _ -> ())
+		((Lazy.force code).bir_code)
+	| _ -> ()
+    end;
+    !l
+
+let get_callgraph p =
+  let open JProgram in
+  let methodcalls2callsite cs ms calls =
+    let l = ref [] in
+      Ptmap.iter
+	(fun pp cmset ->
+	   ClassMethodSet.iter
+	     (fun ccms ->
+		let (ccs,cms) = cms_split ccms in
+		  l := ((cs,ms,pp),(ccs,cms)) :: !l
+	     ) cmset
+	) calls;
+      !l in
+  let calls = ref [] in
+    iter
+      (fun ioc ->
+	 match ioc with
+	   | Interface {i_info = {i_name = cs; i_initializer = Some cm}} ->
+               calls :=
+                 (methodcalls2callsite cs cm.cm_signature
+		    (get_method_calls p cs cm)) @ !calls
+           | Interface _ -> ()
+	   | Class c ->
+	       MethodMap.iter
+		 (fun _ m ->
+		    match m with
+		      | ConcreteMethod cm ->
+			  let cs = c.c_info.c_name in
+			    calls :=
+			      (methodcalls2callsite cs cm.cm_signature
+				 (get_method_calls p cs cm))
+			    @ !calls
+		      | AbstractMethod _ -> ()
+		 ) c.c_info.c_methods
+      ) p;
+    !calls
+
+let get_callgraph_from_entries p entries = 
+  let open JProgram in
+  let methodcalls2callsite cs ms calls =
+    let l = ref [] in
+      Ptmap.iter
+	(fun pp cmset ->
+	   ClassMethodSet.iter
+	     (fun ccms ->
+		let (ccs,cms) = cms_split ccms in
+		  l := ((cs,ms,pp),(ccs,cms)) :: !l
+	     ) cmset
+	) calls;
+      !l in
+  let calls = ref [] in
+  let history = ref (List.fold_left 
+                       (fun map el -> ClassMethodSet.add el map) 
+                       (ClassMethodSet.empty) entries) 
+  in
+  let workset = ref entries in
+    while ((List.length !workset) > 0 ) do
+      (
+        let cur_cms = List.hd !workset in
+          workset :=List.tl !workset;
+          let (cur_cn, cur_ms) = cms_split cur_cms in
+          let m = get_method (get_node p cur_cn) cur_ms in
+            match m with
+              | ConcreteMethod cm ->
+                  let mcalls = (get_method_calls p cur_cn cm) in
+                    Ptmap.iter
+                      (fun _pp cmsSet ->
+                         ClassMethodSet.iter 
+                           (fun cms ->
+                              if (ClassMethodSet.mem cms !history)
+                              then ()
+                              else 
+                                (history := ClassMethodSet.add cms !history;
+                                 workset := cms::!workset
+                                )
+                           )
+                           cmsSet
+                      )
+                      mcalls;
+                    calls := ((methodcalls2callsite cur_cn cm.cm_signature mcalls)
+                              @ !calls)
+              | AbstractMethod _ -> ()
+      )
+    done;
+    !calls
+
+
+
 let bir_code_map (f: instr -> instr) (m: bir) : bir =
   { m with bir_code =
     Array.init (Array.length m.bir_code)
