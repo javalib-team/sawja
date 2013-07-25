@@ -130,6 +130,12 @@ type t = {
   (* code is a copy of bir.code modulo a cast from jBir.instr to A3Bir.instr *)
   code : instr array;
 }
+let empty = 
+  {
+    bir = Bir.empty;
+    code = [||];
+  }
+
 
 let vars m = m.bir.Bir.bir_vars
 let params m = m.bir.Bir.bir_params

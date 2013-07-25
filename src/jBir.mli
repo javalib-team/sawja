@@ -314,6 +314,7 @@ type exception_handler = {
 (** [t] is the parameter type for JBir methods. *)
 type t
 
+(*Create an empty bir representation. Can be used for stubs.*)
 val empty: t
 
 (** All variables that appear in the method. [vars.(i)] is the variable of

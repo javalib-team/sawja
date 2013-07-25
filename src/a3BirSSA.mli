@@ -277,6 +277,9 @@ type memory_ssa_info = {
 (** [t] is the parameter type for A3BirSSA methods. *)
 type t 
 
+(*Create an empty bir representation. Can be used for stubs.*)
+val empty : t 
+
 (** All variables that appear in the method. [vars.(i)] is the variable of
     index [i]. *)
 val vars : t -> var Ptmap.t
