@@ -20,6 +20,7 @@
 
 open Javalib_pack
 open JBasics
+open JProgram
 
 module AbVSet:
 sig
@@ -31,6 +32,7 @@ sig
   (*==Null*)
   val empty : t 
   val isBot : t -> bool
+  val isTop: t -> bool
 
   val primitive : t 
   val isPrimitive : t -> bool
@@ -129,10 +131,13 @@ module AbMethod : sig
   val isBot : t -> bool
   val init : t
 
+  (**For a virtual method, the argument at index 0, is 'this'.*)
   val get_args : t -> AbLocals.t
+  val init_locals : JBir.t node -> method_signature -> t -> AbLocals.t
   val get_return : t -> AbVSet.t
   val get_exc_return : t -> AbVSet.t
   val join_args : t -> AbLocals.t -> t
+  val set_args: t -> AbLocals.t -> t
   val join_return : t -> AbVSet.t -> t
   val join_exc_return : t -> AbVSet.t -> t
   val join : ?modifies:bool ref -> t -> t -> t

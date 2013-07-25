@@ -18,6 +18,7 @@
  *)
 
 open Javalib_pack
+open Javalib
 open JBasics
 
 type obj = JBirPP.t list * class_name
@@ -74,17 +75,21 @@ module AbVSet = struct
       Set of (ObjSet.t) 
     | Primitive
     | Bot 
+    | Top
 
   type analysisID = unit
   type analysisDomain = t	
 
   let bot = Bot
 
+  let top = Top
+
   let primitive = Primitive
 
   let isPrimitive t =
     match t with
       | Primitive -> true
+      | Top -> assert false
       | _ -> false
 
   let empty = Set (ObjSet.empty)
@@ -94,9 +99,15 @@ module AbVSet = struct
       | Bot -> true
       | _ -> false
 
+  let isTop set = 
+    match set with
+      | Top -> true
+      | _ -> false
+
   let is_empty set = 
     match set with
       | Set s -> ObjSet.is_empty s 
+      | Top -> assert false
       | _ -> false
 
   let singleton pp_lst cn = Set (ObjSet.add (get_hash (pp_lst, cn), (pp_lst, cn)) 
@@ -107,6 +118,7 @@ module AbVSet = struct
       | Bot, Bot -> true
       | Primitive, Primitive -> true
       | Set s1, Set s2 -> ObjSet.equal s1 s2 
+      | Top, Top -> true
       | _ -> false
 
   let inter set1 set2 = 
@@ -114,19 +126,51 @@ module AbVSet = struct
       | Bot,_ | _, Bot -> Bot
       | Primitive, Primitive -> Primitive
       | Set s1, Set s2 -> Set (ObjSet.inter s1 s2) 
+      | Top, x | x, Top ->  x
       | _ -> assert false (*trying to intersect a primitive and a cn set*)
+
+  let to_string_objset set = 
+    let str = 
+      ObjSet.fold
+        (fun (_hash, obj) str ->
+           Printf.sprintf "%s, %s" str (obj_to_string obj)
+        )
+        set
+        "" 
+    in 
+      Printf.sprintf "{%s}" str
+
+
+
+  let to_string set = 
+    match set with
+      | Bot -> "Bot"
+      | Primitive -> "Primitive"
+      | Set set -> to_string_objset set
+      | Top -> "Top"
+
+
 
   let join ?(modifies=ref false) set1 set2 =
     match set1, set2 with
       | _, Bot -> set1
+      | Top, _ -> Top
       | Bot, _ -> modifies:=true; set2
+      | _, Top -> modifies:=true; Top
       | Primitive, Primitive -> Primitive
       | Set s1, Set s2 ->
           let union = (ObjSet.union s1 s2)  in
             if (ObjSet.equal union s1)
             then set1
             else (modifies:=true; Set union)
-      | _ -> assert false (*trying to join a primitive and a cn set*)
+      | _ -> 
+(*
+         Printf.printf "set1: %s\n" (to_string set1);
+         Printf.printf "set2: %s\n" (to_string set2);
+         Printf.printf "Var set to bottom";
+ *)
+         Top 
+(*             raise Safe.Domain.DebugDom (*trying to join a primitive and a cn set*)  *)
 
   let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
     if do_join
@@ -138,6 +182,7 @@ module AbVSet = struct
   let concretize set = 
     match set with
       | Bot | Primitive -> ClassSet.empty
+      | Top -> assert false
       | Set st -> ObjSet.fold
                     (fun (_ , (_,cn)) concset ->
                        ClassSet.add cn concset
@@ -149,20 +194,32 @@ module AbVSet = struct
     let open JProgram in
       match set with
         | Bot  -> Bot
-        | Primitive -> assert false (*cannot filter a primitive with a cn*)
+        | Primitive | Top-> raise Safe.Domain.DebugDom (*cannot filter a primitive with a cn*)
         | Set s -> 
             let node = get_node prog cn in
             let s = 
               ObjSet.filter 
                 (fun (_,(_,cn_in_set)) -> 
-                   let node_in_set = get_node prog cn_in_set in
-                     (match (node_in_set, node, rev) with
-                        | Class nd_in_set, Class nd, false ->
-                            extends_class nd_in_set nd
-                        | Class nd_in_set, Class nd, true ->
-                            not (extends_class nd_in_set nd)
-                        | _ -> assert false (*cannot work with Interface*)
-                     )
+                   try 
+                     let node_in_set = 
+                       get_node prog cn_in_set 
+                     in
+                       (match (node_in_set, node, rev) with
+                          | Class nd_in_set, Class nd, false ->
+                              extends_class nd_in_set nd
+                          | Class _nd_in_set, Interface _nd, false ->
+                              extends node_in_set node
+                          | Class nd_in_set, Class nd, true ->
+                              not (extends_class nd_in_set nd)
+                          | Class _nd_in_set, Interface _nd, true ->
+                              not (extends node_in_set node)
+                          | _ -> assert false (*cannot work with Interface*)
+                       )
+                   with Not_found -> true
+                (*It can append for dynamic class which are badly
+                 * inserted into the callgraph (I am thinking about array
+                 * classes). 
+                 * TODO: Handle more correctly array classes.*)
                 )
                 s
             in Set s
@@ -188,29 +245,10 @@ module AbVSet = struct
   let pprint fmt set = 
     match set with
       | Bot ->  Format.pp_print_string fmt "Bot" 
+      | Top ->  Format.pp_print_string fmt "Top" 
       | Primitive ->  Format.pp_print_string fmt "Primitive" 
       | Set set -> pprint_objset fmt set
       
-  let to_string_objset set = 
-    let str = 
-      ObjSet.fold
-        (fun (_hash, obj) str ->
-           Printf.sprintf "%s, %s" str (obj_to_string obj)
-        )
-        set
-        "" 
-    in 
-      Printf.sprintf "{%s}" str
-
-
-
-  let to_string set = 
-    Printf.printf "entering AbVSet to_string";
-    match set with
-      | Bot -> "Bot"
-      | Primitive -> "Primitive"
-      | Set set -> to_string_objset set
-
   let get_analysis _ el = el
 
 end
@@ -299,7 +337,9 @@ module AbFSet = struct
   let var2fSet objAb varAb = 
     match objAb, varAb with
       | AbVSet.Bot, _ | _, AbVSet.Bot -> Bot
-      | AbVSet.Primitive, _ -> assert false (*primitive has not fields*)
+      | AbVSet.Primitive, _ -> assert false 
+      | AbVSet.Top, _ -> assert false
+      | _, AbVSet.Top -> raise Safe.Domain.DebugDom(*assert false primitive has not fields*)
       | AbVSet.Set objs, vars ->
           let nmap = 
             ObjSet.fold 
@@ -315,32 +355,34 @@ module AbFSet = struct
   let fSet2var fsAb objvset =
     match fsAb, objvset with
       | Bot,_ | _, AbVSet.Bot -> AbVSet.Bot
-      | _, AbVSet.Primitive -> assert false
+      | _, AbVSet.Primitive | _, AbVSet.Top -> raise Safe.Domain.DebugDom(*assert false primitive has not fields*)
       | Set fsAb, AbVSet.Set objvset -> 
-          Printf.printf "in\n";
           let nset = 
+(*
+          Printf.printf "in\n";
             ObjMap.iter 
-              (fun objk _ ->
+              (fun objk set ->
                  let (id ,st) = objk in
                  Printf.printf "objk : %d %s \n" id (obj_to_string st);
+                 Printf.printf "set: %s\n" (AbVSet.to_string set )
               )
               fsAb;
 
+ *)
 
             ObjSet.fold 
               (fun objset nset ->
-                 let (id ,st) = objset in
-                 Printf.printf "objset : %d %s \n" id (obj_to_string st);
+(*                  let (id ,st) = objset in 
+                  Printf.printf "objset : %d %s \n" id (obj_to_string st); *)
                  try AbVSet.join (ObjMap.find objset fsAb) nset
                  with Not_found -> nset
               )
               objvset
-              AbVSet.empty
+              AbVSet.bot
           in
-          Printf.printf "out\n";
-            if AbVSet.is_empty nset
-            then assert false
-            else nset
+(*           Printf.printf "out\n"; *)
+          nset
+
 
 
   let to_string t = 
@@ -362,6 +404,7 @@ module AbFSet = struct
     match set with
       | Bot ->  Format.pp_print_string fmt "Bot" 
       | Set map -> 
+          Format.pp_print_string fmt "[|";
           ObjMap.iter
             (fun (_hash,(_pplst,cn)) set ->
                let str= Printf.sprintf "%s: {\n" (cn_name cn) in
@@ -369,7 +412,8 @@ module AbFSet = struct
                  AbVSet.pprint fmt set;
                  Format.pp_print_string fmt "}"
             )
-            map
+            map;
+          Format.pp_print_string fmt "|]"
 
   let get_analysis _ el = el
 
@@ -378,6 +422,11 @@ end
 
 module AbLocals = struct
   include Safe.Domain.Local(AbVSet) 
+  let set_var i abV dom =
+    match (AbVSet.isBot abV ) with
+      | true -> bot
+      | _ -> set_var i abV dom
+
   let to_string t = 
     let buf = Buffer.create 200 in
     let buf_fmt = Format.formatter_of_buffer buf in
@@ -419,9 +468,40 @@ module AbMethod = struct
       | Bot -> assert false (*AbLocals.bot*)
       | Reachable v -> v.args
 
+  let init_locals node ms abm =
+    let from_args pos args = 
+      let curAbs =(AbLocals.get_var pos args) in
+        match AbVSet.isBot curAbs with
+          | true -> AbVSet.top
+          | false -> curAbs
+    in
+    match abm with
+      | Bot ->  AbLocals.bot
+      | Reachable s ->
+          let (_vars, params) = 
+            match (JProgram.get_method node ms) with
+              | ConcreteMethod cm ->
+                  (match cm.cm_implementation with
+                     | Native -> assert false
+                     | Java laz ->
+                         let a3bir = (Lazy.force laz) in
+                           (JBir.vars a3bir, JBir.params a3bir))
+              | _ -> assert false
+          in
+          let pos = ref (-1) in
+            List.fold_left
+              (fun state (_,curvar) ->
+                 pos:=!pos+1;
+                 AbLocals.set_var (JBir.index curvar) (from_args !pos s.args) state  
+              )
+              AbLocals.init
+              params
+
+
+
   let get_return v = 
     match v with
-      | Bot -> assert false (*AbVSet.bot*)
+      | Bot -> AbVSet.bot
       | Reachable v -> v.return
 
   let get_exc_return v = 
@@ -433,6 +513,11 @@ module AbMethod = struct
     match v with
       | Bot -> Bot
       | Reachable rv -> Reachable {rv with args = AbLocals.join rv.args a;}
+
+  let set_args v a =
+    match v with
+      | Bot -> Bot
+      | Reachable rv -> Reachable {rv with args = a}
       
   let join_return v r =
     match v with

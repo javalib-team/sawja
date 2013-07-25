@@ -25,6 +25,7 @@ open Javalib_pack
 val get_CFA_program :
   ?opt:JCFAOptions.cfa_options ->
   JBir.t JProgram.program ->
-  JBasics.class_method_signature list -> JBir.t JProgram.program
+  JBasics.class_method_signature list -> JBasics.class_method_signature ->
+  JBir.t JProgram.program
 
 
