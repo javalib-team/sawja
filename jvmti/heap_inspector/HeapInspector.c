@@ -1826,6 +1826,8 @@ hi_error check_reference_fields(tmp_ref_info* tmp_ref)
   char * referee_sig; //object dynamic signature
   char * referee_st_sig; //static field signature
   jboolean is_array=false;
+  array_class_info * c_array; //used if referee is an array
+  array_info * arrayMap; //used if referee is an array
   //do allocation first
   jvmti_err=alloc(sizeof(jfieldID),&fieldId);
   if(jvmti_err!=JVMTI_ERROR_NONE){return JVMTI_ERR_ON_ALLOC;}
@@ -1890,6 +1892,16 @@ hi_error check_reference_fields(tmp_ref_info* tmp_ref)
       err= get_or_add_instance(tmp_ref->tag,&(c_info->instanceMap), &imap);
       if(err!=NO_ERROR){return err;}
   }
+  else{
+      //Add array which are referenced as field but do not have any elements
+      //This is needed to get 0 elements array
+      if(is_array){
+          err= get_or_add_array_class(&referee_sig, &c_array);
+          if(err!=NO_ERROR){return err;}
+          err = get_or_add_array(&(c_array->map), tmp_ref->tag,
+                                 referee_obj,&arrayMap);
+      }
+  }
   //put in map the field
   err= get_or_add_class(referer_sig,&c_info);
   if(err!=NO_ERROR){return err;}
@@ -1929,6 +1941,8 @@ hi_error check_static_reference_fields(tmp_ref_info* tmp_ref)
   char * referee_sig=NULL;//dynamic sig
   char * referee_st_sig=NULL;//static sig
   jboolean is_array=false;
+  array_class_info * c_array; //used if referee is an array
+  array_info * arrayMap; //used if referee is an array
 
   //do allocation first
   jvmti_err=alloc(sizeof(jfieldID),&fieldId);
@@ -1996,6 +2010,16 @@ hi_error check_static_reference_fields(tmp_ref_info* tmp_ref)
       if(err!=NO_ERROR){return err;}
       err= get_or_add_instance(tmp_ref->tag,&(c_info->instanceMap),NULL);
       if(err!=NO_ERROR){return err;}
+  }
+  else{
+      //Add array which are referenced as field but do not have any elements
+      //This is needed to get 0 elements array
+      if(is_array){
+          err= get_or_add_array_class(&referee_sig, &c_array);
+          if(err!=NO_ERROR){return err;}
+          err = get_or_add_array(&(c_array->map), tmp_ref->tag,
+                                 referee_obj,&arrayMap);
+      }
   }
   //put the field in map
   err= get_or_add_class(referer_sig,&c_info);
