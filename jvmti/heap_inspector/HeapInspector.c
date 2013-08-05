@@ -66,6 +66,7 @@ enum HeapKind
   REFERENCE_ARRAY_ELEMENT,
   REFERENCE_STATIC_FIELD,
   PRIMITIVE_ARRAY_ELEMENTS,
+  REFERENCE_CLASS,
 };
 
 
@@ -582,6 +583,8 @@ enum HeapKind jvmtiRefKind2RefKind(jvmtiHeapReferenceKind jkind)
       return REFERENCE_ARRAY_ELEMENT;
     case(JVMTI_HEAP_REFERENCE_STATIC_FIELD):
       return REFERENCE_STATIC_FIELD;
+    case(JVMTI_HEAP_REFERENCE_CLASS):
+      return REFERENCE_CLASS;
     default:
       return -1;
   }
@@ -991,14 +994,16 @@ hi_error get_fieldId(jint glob_idx, jclass cur_cl, jfieldID* res_id)
       jvmti_err=(*jvmti_cur_env)->GetClassFields(jvmti_cur_env,
                                                  interface_set[i]->cl,
                                                  &nb_fields, &field_ar);
-      if(jvmti_err!=JVMTI_ERROR_NONE){printf("~~1~~\n");return JVMTI_ERR_ON_FIELD;}
+      if(jvmti_err!=JVMTI_ERROR_NONE){return JVMTI_ERR_ON_FIELD;}
       glob_idx=glob_idx-nb_fields;
       dealloc(interface_set[i]->name);
       dealloc(interface_set[i]);
   }
 
   if(glob_idx<0){
-      printf("neg after inter\n");
+      printf("Error: negative index \n");
+      return JVMTI_ERR_ON_FIELD;
+
   }
   //second step: starting from the higer class, get the fieldId corresponding
   //to given index.
@@ -1025,7 +1030,7 @@ hi_error get_fieldId(jint glob_idx, jclass cur_cl, jfieldID* res_id)
   }
   res_id=NULL;
   print_sig_from_class(&cur_cl);
-  printf("~~2~~\n");return JVMTI_ERR_ON_FIELD;
+  return JVMTI_ERR_ON_FIELD;
 }
 
 /*
@@ -2049,6 +2054,10 @@ hi_error check_reference_array_element(tmp_ref_info* tmp_ref)
   array_el_info * ar_el_info;
   jvmtiError jvmti_err;
   jboolean referee_is_ar;
+  class_info* c_info=NULL;
+
+  char * referee_sig; //object dynamic signature
+  jclass * referee_class=NULL; //only not null if the value is an object
   
   //feed ar_el_info
    err= object_from_tag(tmp_ref->tag, &referee_obj);
@@ -2083,11 +2092,25 @@ hi_error check_reference_array_element(tmp_ref_info* tmp_ref)
       return NO_ERROR;
     }
   if(err!=NO_ERROR){return err;}
-  //err= get_or_add_ar_class(referee_sig,&c_info);
-  //if(err!=NO_ERROR){return err;}
-  //err= get_or_add_instance(tmp_ref->tag,&(c_info->instanceMap), NULL);
-  //if(err!=NO_ERROR){return err;}
+  if(!referee_is_ar){
 
+      jvmti_err=alloc(sizeof(jclass),&referee_class);
+      if(jvmti_err!=JVMTI_ERROR_NONE){return JVMTI_ERR_ON_ALLOC;}
+      err= object_from_tag(tmp_ref->tag, &referee_obj);
+      if(err!=NO_ERROR){return err;}
+      err=class_from_object(referee_obj,&referee_class);
+      if(err!=NO_ERROR){return err;}
+      err =signature_from_class(referee_class, &referee_sig);
+      if(err!=NO_ERROR){return err;}
+
+
+      err= get_or_add_class(referee_sig,&c_info);
+      if(err!=NO_ERROR){return err;}
+      err= get_or_add_instance(tmp_ref->tag,&(c_info->instanceMap), NULL);
+      if(err!=NO_ERROR){return err;}
+      err=dealloc(referee_class);
+      if(err!=NO_ERROR){return err;}
+  }
   //put the add element in its array
   err=get_or_add_array_class(&referer_sig, &array_cl);
   if(err!=NO_ERROR){return err;}
@@ -2138,6 +2161,35 @@ hi_error check_primitive_array(tmp_ref_info * tmp_ref)
   return NO_ERROR;
 }
 
+hi_error check_reference_class(tmp_ref_info * tmp_ref){
+  hi_error err;
+  jvmtiError jvmti_err;
+  jobject * referee_obj=NULL; 
+  jclass * referee_class=NULL; 
+  char * referee_sig; //object dynamic signature
+  class_info* c_info=NULL;
+  instanceMap * imap;
+
+  err= object_from_tag(tmp_ref->tag, &referee_obj);
+  if(err!=NO_ERROR){return err;}
+  jvmti_err=alloc(sizeof(jclass),&referee_class);
+  if(jvmti_err!=JVMTI_ERROR_NONE){return JVMTI_ERR_ON_ALLOC;}
+  err=class_from_object(referee_obj,&referee_class);
+  if(err!=NO_ERROR){return err;}
+  err =signature_from_class(referee_class, &referee_sig);
+  if(err!=NO_ERROR){return err;}
+
+  err= get_or_add_class(referee_sig,&c_info);
+  if(err!=NO_ERROR){return err;}
+  err= get_or_add_instance(tmp_ref->tag,&(c_info->instanceMap), &imap);
+  if(err!=NO_ERROR){return err;}
+  err=dealloc(referee_class);
+  if(err!=NO_ERROR){return err;}
+
+
+  return NO_ERROR;
+}
+
 hi_error check_ref(tmp_ref_info* tmp_ref)
 {
   hi_error err=NO_ERROR;
@@ -2158,6 +2210,9 @@ hi_error check_ref(tmp_ref_info* tmp_ref)
       break;
     case PRIMITIVE_ARRAY_ELEMENTS:
       err=check_primitive_array(tmp_ref);
+      break;
+    case REFERENCE_CLASS:
+      err= check_reference_class(tmp_ref); 
       break;
     default:
       break;
@@ -2230,6 +2285,7 @@ jint JNICALL hp_reference_callback (jvmtiHeapReferenceKind reference_kind,
   jlong referer_tag;
 
   switch (reference_kind){
+    case JVMTI_HEAP_REFERENCE_CLASS:
     case JVMTI_HEAP_REFERENCE_FIELD:
     case JVMTI_HEAP_REFERENCE_STATIC_FIELD:
     case JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT:
@@ -2242,8 +2298,15 @@ jint JNICALL hp_reference_callback (jvmtiHeapReferenceKind reference_kind,
           i->index=id;
       }
       else{
-          id=get_field_id_from_ref_info(reference_info);
-          i->index=id;
+          if(reference_kind == JVMTI_HEAP_REFERENCE_FIELD || 
+             reference_kind == JVMTI_HEAP_REFERENCE_STATIC_FIELD)
+            {
+              id=get_field_id_from_ref_info(reference_info);
+              i->index=id;
+            }
+          else {
+              i->index=0;
+          }
       }
       if((*tag_ptr) == 0){
           tag=generate_tag();
