@@ -41,7 +41,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 	jCodePP cmn bir birA3 jBir jBirPP a3Bir a3BirPP \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
-	safe reachableMethods jNativeStubs \
+	safe reachableMethods jNativeStubs jType \
 	$(HEAP_PARSER)/parserType $(HEAP_PARSER)/parse_heap $(HEAP_PARSER)lex_heap  $(HEAP_PARSER)heapParser \
 	jCRA jRTA jRTAWithHeap jRRTA XTA \
 	jCFAOptions jCFADom jCFAPrinter jCFA \
@@ -53,7 +53,7 @@ MODULE_INTERFACES = $(DATAFLOW)iter wlist \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	jCodePP jBir jBirPP a3Bir a3BirPP jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
-	safe reachableMethods jUtil \
+	safe reachableMethods jUtil jType \
 	$(HEAP_PARSER)/parserType $(HEAP_PARSER)parse_heap $(HEAP_PARSER)heapParser\
 	jCRA XTA jRTA jRTAWithHeap jRRTA \
 	jCFAOptions jCFADom jCFAPrinter jCFA \
