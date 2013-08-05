@@ -24,7 +24,7 @@ type cfa_options = {
 }
 let default_opt = 
   {
-    cfa_clinit_as_entry = true;
+    cfa_clinit_as_entry = false; (*Analyse unsound when set to true*)
     cfa_debug = 0;
     cfa_html_dump = None;
   }

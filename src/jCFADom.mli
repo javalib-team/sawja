@@ -43,7 +43,7 @@ sig
   (** [singleton pps cn]: Create a set from a singleton element. [pps] is a list
     * of program point characterizing the location of the affectation. cn is the
     * class of the allocated object. *)
-  val singleton : JBirPP.t list -> class_name -> t
+  val singleton : JBirPP.t list -> object_type-> t
 
   val equal : t -> t -> bool
 
@@ -53,11 +53,11 @@ sig
   
   (** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
     * the type compatible with [cn].*)
-  val filter_with_compatible : 'a JProgram.program -> t -> class_name -> t
+  val filter_with_compatible : 'a JProgram.program -> t -> object_type -> t
 (** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
     * the type not compatible with [cn].*)
-  val filter_with_uncompatible : 'a JProgram.program -> t -> class_name -> t
-  val concretize : t -> ClassSet.t
+  val filter_with_uncompatible : 'a JProgram.program -> t -> object_type -> t
+  val concretize : t -> JType.ObjectSet.t
 
 
   val to_string : t -> string

@@ -20,10 +20,11 @@
 open Javalib_pack
 open Javalib
 open JBasics
+open JType
 
-type obj = JBirPP.t list * class_name
+type asite = JBirPP.t list * object_type
 
-let obj_compare (lst1,cn1) (lst2,cn2) =
+let asite_compare (lst1,cn1) (lst2,cn2) =
   let rec cmp_list l1 l2 =
     match l1, l2 with
       | [],[] -> 0
@@ -34,11 +35,11 @@ let obj_compare (lst1,cn1) (lst2,cn2) =
              | 0 -> cmp_list l1 l2
              | i -> i)
   in
-    match cn_compare cn1 cn2 with
+    match obj_compare cn1 cn2 with
       | 0 -> cmp_list lst1 lst2
       | i -> i
 
-let obj_to_string (pplst, cn) =
+let asite_to_string (pplst, obj) =
   let str_pp = 
     List.fold_left 
       (fun str pp -> 
@@ -46,33 +47,39 @@ let obj_to_string (pplst, cn) =
       )
       ""
       pplst in
-    Printf.sprintf "(%s ): %s" str_pp (cn_name cn) 
+    Printf.sprintf "(%s ): %s" str_pp (JPrint.object_type obj) 
 
 
-module DicoObjrMap = Map.Make(struct type t=obj let compare = obj_compare end)
+module DicoSiteMap = Map.Make(struct type t=asite let compare = asite_compare end)
 let cur_hash = ref 0
-let dicoObj = ref DicoObjrMap.empty
+let dicoObj = ref DicoSiteMap.empty
 
 let new_hash _ =
   cur_hash := !cur_hash+1;
   !cur_hash
 
-let get_hash obj =
-  try DicoObjrMap.find obj !dicoObj
+let get_hash asite =
+  try DicoSiteMap.find asite !dicoObj
   with Not_found -> 
     let new_hash = new_hash () in
-      dicoObj := DicoObjrMap.add obj new_hash !dicoObj;
+      dicoObj := DicoSiteMap.add asite new_hash !dicoObj;
       new_hash
 
 
 
-module ObjSet = GenericSet.Make (struct type t = obj end)
-module ObjMap = GenericMap.Make (struct type t = obj end)
+module SiteSet = GenericSet.Make (struct 
+                                   type t = asite 
+                                   let get_hash = get_hash 
+                                 end)
+module SiteMap = GenericMap.Make (struct 
+                                   type t = asite
+                                   let get_hash = get_hash
+                                 end)
 
 module AbVSet = struct
 
   type t = 
-      Set of (ObjSet.t) 
+      Set of (SiteSet.t) 
     | Primitive
     | Bot 
     | Top
@@ -92,7 +99,7 @@ module AbVSet = struct
       | Top -> assert false
       | _ -> false
 
-  let empty = Set (ObjSet.empty)
+  let empty = Set (SiteSet.empty)
 
   let isBot set = 
     match set with 
@@ -106,18 +113,17 @@ module AbVSet = struct
 
   let is_empty set = 
     match set with
-      | Set s -> ObjSet.is_empty s 
+      | Set s -> SiteSet.is_empty s 
       | Top -> assert false
       | _ -> false
 
-  let singleton pp_lst cn = Set (ObjSet.add (get_hash (pp_lst, cn), (pp_lst, cn)) 
-                                   ObjSet.empty)
+  let singleton pp_lst obj = Set (SiteSet.add (pp_lst, obj) SiteSet.empty)
 
   let equal set1 set2 =
     match set1, set2 with
       | Bot, Bot -> true
       | Primitive, Primitive -> true
-      | Set s1, Set s2 -> ObjSet.equal s1 s2 
+      | Set s1, Set s2 -> SiteSet.equal s1 s2 
       | Top, Top -> true
       | _ -> false
 
@@ -125,15 +131,15 @@ module AbVSet = struct
     match set1, set2 with
       | Bot,_ | _, Bot -> Bot
       | Primitive, Primitive -> Primitive
-      | Set s1, Set s2 -> Set (ObjSet.inter s1 s2) 
+      | Set s1, Set s2 -> Set (SiteSet.inter s1 s2) 
       | Top, x | x, Top ->  x
-      | _ -> assert false (*trying to intersect a primitive and a cn set*)
+      | _ -> assert false (*trying to intersect a primitive and a object set*)
 
-  let to_string_objset set = 
+  let to_string_siteset set = 
     let str = 
-      ObjSet.fold
-        (fun (_hash, obj) str ->
-           Printf.sprintf "%s, %s" str (obj_to_string obj)
+      SiteSet.fold
+        (fun site str ->
+           Printf.sprintf "%s, %s" str (asite_to_string site)
         )
         set
         "" 
@@ -146,7 +152,7 @@ module AbVSet = struct
     match set with
       | Bot -> "Bot"
       | Primitive -> "Primitive"
-      | Set set -> to_string_objset set
+      | Set set -> to_string_siteset set
       | Top -> "Top"
 
 
@@ -159,8 +165,8 @@ module AbVSet = struct
       | _, Top -> modifies:=true; Top
       | Primitive, Primitive -> Primitive
       | Set s1, Set s2 ->
-          let union = (ObjSet.union s1 s2)  in
-            if (ObjSet.equal union s1)
+          let union = (SiteSet.union s1 s2)  in
+            if (SiteSet.equal union s1)
             then set1
             else (modifies:=true; Set union)
       | _ -> 
@@ -181,61 +187,44 @@ module AbVSet = struct
 
   let concretize set = 
     match set with
-      | Bot | Primitive -> ClassSet.empty
+      | Bot | Primitive -> ObjectSet.empty
       | Top -> assert false
-      | Set st -> ObjSet.fold
-                    (fun (_ , (_,cn)) concset ->
-                       ClassSet.add cn concset
+      | Set st -> SiteSet.fold
+                    (fun (_,obj) concset ->
+                       ObjectSet.add obj concset
                     )
                     st
-                    ClassSet.empty
+                    ObjectSet.empty
 
-  let filter_with_compatible' prog set cn rev=
-    let open JProgram in
+  let filter_with_compatible' prog set objt rev=
       match set with
         | Bot  -> Bot
         | Primitive | Top-> raise Safe.Domain.DebugDom (*cannot filter a primitive with a cn*)
         | Set s -> 
-            let node = get_node prog cn in
             let s = 
-              ObjSet.filter 
-                (fun (_,(_,cn_in_set)) -> 
-                   try 
-                     let node_in_set = 
-                       get_node prog cn_in_set 
-                     in
-                       (match (node_in_set, node, rev) with
-                          | Class nd_in_set, Class nd, false ->
-                              extends_class nd_in_set nd
-                          | Class _nd_in_set, Interface _nd, false ->
-                              extends node_in_set node
-                          | Class nd_in_set, Class nd, true ->
-                              not (extends_class nd_in_set nd)
-                          | Class _nd_in_set, Interface _nd, true ->
-                              not (extends node_in_set node)
-                          | _ -> assert false (*cannot work with Interface*)
-                       )
-                   with Not_found -> true
-                (*It can append for dynamic class which are badly
-                 * inserted into the callgraph (I am thinking about array
-                 * classes). 
-                 * TODO: Handle more correctly array classes.*)
+              SiteSet.filter 
+                (fun (_,obj_in_set) -> 
+                   match rev with
+                     | false -> (obj_compare obj_in_set objt = 0) || 
+                                subtype prog obj_in_set objt
+                     | true -> (obj_compare obj_in_set objt <> 0) && 
+                               not (subtype prog obj_in_set objt)
                 )
                 s
             in Set s
 
-  let filter_with_compatible prog set cn = 
-    filter_with_compatible' prog set cn false
+  let filter_with_compatible prog set objt = 
+    filter_with_compatible' prog set objt false
 
-  let filter_with_uncompatible prog set cn = 
-    filter_with_compatible' prog set cn true
+  let filter_with_uncompatible prog set objt = 
+    filter_with_compatible' prog set objt true
 
 
   let pprint_objset fmt set =
     Format.pp_print_string fmt "<";
-    ObjSet.iter 
-      (fun (_hash,(_pplst,cn)) -> 
-         Format.pp_print_string fmt ((cn_name cn)^";")
+    SiteSet.iter 
+      (fun (_pplst,obj) -> 
+         Format.pp_print_string fmt ((JPrint.object_type obj)^";")
       ) 
       set;
     Format.pp_print_string fmt ">"
@@ -254,14 +243,14 @@ module AbVSet = struct
 end
 
 module AbFSet = struct
-  type t = Set of AbVSet.t ObjMap.t | Bot 
+  type t = Set of AbVSet.t SiteMap.t | Bot 
   type analysisID = unit
   type analysisDomain = t
 
 
   let bot = Bot
 
-  let empty = Set ObjMap.empty
+  let empty = Set SiteMap.empty
 
   let isBot set = 
     match set with 
@@ -271,7 +260,7 @@ module AbFSet = struct
   let is_empty set = 
     match set with
       | Set objm ->
-          ObjMap.is_empty objm
+          SiteMap.is_empty objm
       | _ -> false
 
   let equal set1 set2 =
@@ -279,7 +268,7 @@ module AbFSet = struct
       | Bot, Bot -> true
       | Bot, _ | _, Bot -> false
       | Set (map1), Set (map2) -> 
-          ObjMap.equal AbVSet.equal map1 map2
+          SiteMap.equal AbVSet.equal map1 map2
 
 
   let inter set1 set2 = 
@@ -287,15 +276,15 @@ module AbFSet = struct
       | Bot,_ | _, Bot -> Bot
       | Set (map1), Set (map2) -> 
           let nmap = 
-            ObjMap.fold
+            SiteMap.fold
               (fun objk set1 nMap ->
-                 try let set2 = ObjMap.find objk map2 in
-                   ObjMap.add objk (AbVSet.inter set1 set2) nMap
+                 try let set2 = SiteMap.find objk map2 in
+                   SiteMap.add objk (AbVSet.inter set1 set2) nMap
                  with Not_found ->
                    nMap
               )
               map1
-              ObjMap.empty in
+              SiteMap.empty in
             Set nmap
           
 
@@ -305,19 +294,19 @@ module AbFSet = struct
       | Bot, _ -> modifies:=true; s2
       | Set (m1), Set (m2) ->
           let union = 
-            ObjMap.fold
+            SiteMap.fold
               (fun objk set2 nMap ->
                  let set1 = 
-                   try ObjMap.find objk m1 
+                   try SiteMap.find objk m1 
                    with Not_found ->
                      AbVSet.Bot
                  in
-                   ObjMap.add objk (AbVSet.join set1 set2) nMap
+                   SiteMap.add objk (AbVSet.join set1 set2) nMap
               )
               m2
               m1
           in
-            if ObjMap.equal AbVSet.equal union m1
+            if SiteMap.equal AbVSet.equal union m1
             then s1
             else (modifies:=true; Set union)
 
@@ -329,8 +318,8 @@ module AbFSet = struct
     else (modifies := true;v2)
 
   let static_field_dom = 
-    let obj = ([],make_cn "static") in
-      AbVSet.Set (ObjSet.add ((get_hash obj), obj) (ObjSet.empty))
+    let site = ([],TClass (make_cn "static")) in
+      AbVSet.Set (SiteSet.add site (SiteSet.empty))
 
 
 
@@ -340,27 +329,27 @@ module AbFSet = struct
       | AbVSet.Primitive, _ -> assert false 
       | AbVSet.Top, _ -> assert false
       | _, AbVSet.Top -> raise Safe.Domain.DebugDom(*assert false primitive has not fields*)
-      | AbVSet.Set objs, vars ->
+      | AbVSet.Set sites, vars ->
           let nmap = 
-            ObjSet.fold 
-              (fun obj nmap ->
-                 ObjMap.add obj vars nmap
+            SiteSet.fold 
+              (fun site nmap ->
+                 SiteMap.add site vars nmap
               )
-              objs
-              ObjMap.empty in
+              sites
+              SiteMap.empty in
             Set nmap
        
 
 
-  let fSet2var fsAb objvset =
-    match fsAb, objvset with
+  let fSet2var fsAb siteset =
+    match fsAb, siteset with
       | Bot,_ | _, AbVSet.Bot -> AbVSet.Bot
       | _, AbVSet.Primitive | _, AbVSet.Top -> raise Safe.Domain.DebugDom(*assert false primitive has not fields*)
-      | Set fsAb, AbVSet.Set objvset -> 
+      | Set fsAb, AbVSet.Set siteset -> 
           let nset = 
 (*
           Printf.printf "in\n";
-            ObjMap.iter 
+            SiteMap.iter 
               (fun objk set ->
                  let (id ,st) = objk in
                  Printf.printf "objk : %d %s \n" id (obj_to_string st);
@@ -370,14 +359,14 @@ module AbFSet = struct
 
  *)
 
-            ObjSet.fold 
-              (fun objset nset ->
+            SiteSet.fold 
+              (fun siteset nset ->
 (*                  let (id ,st) = objset in 
                   Printf.printf "objset : %d %s \n" id (obj_to_string st); *)
-                 try AbVSet.join (ObjMap.find objset fsAb) nset
+                 try AbVSet.join (SiteMap.find siteset fsAb) nset
                  with Not_found -> nset
               )
-              objvset
+              siteset
               AbVSet.bot
           in
 (*           Printf.printf "out\n"; *)
@@ -390,9 +379,9 @@ module AbFSet = struct
       | Bot -> "Bot"
       | Set t ->
           let str =
-            ObjMap.fold
-              (fun (_hashk, objk) set str ->
-                 Printf.sprintf "%s, %s:%s" str (obj_to_string objk) (AbVSet.to_string set)
+            SiteMap.fold
+              (fun objk set str ->
+                 Printf.sprintf "%s, %s:%s" str (asite_to_string objk) (AbVSet.to_string set)
               )
               t
               "" in
@@ -405,9 +394,9 @@ module AbFSet = struct
       | Bot ->  Format.pp_print_string fmt "Bot" 
       | Set map -> 
           Format.pp_print_string fmt "[|";
-          ObjMap.iter
-            (fun (_hash,(_pplst,cn)) set ->
-               let str= Printf.sprintf "%s: {\n" (cn_name cn) in
+          SiteMap.iter
+            (fun (_pplst,objtyp) set ->
+               let str= Printf.sprintf "%s: {\n" (JPrint.object_type objtyp) in
                  Format.pp_print_string fmt str;
                  AbVSet.pprint fmt set;
                  Format.pp_print_string fmt "}"
