@@ -19,6 +19,7 @@
 
 open Javalib_pack
 open JBasics
+open JType
 
 (** {2 Final type } *)
 type reference = 
@@ -38,8 +39,6 @@ type parser_value =
   | VArray of value_type * reference 
 
 
-(** !!!! WARNING !!!! You have to take care because fieldMap are build using
-* field's dynamic type and not declared type.*)
 type class_el ={
   cl_name: class_name;
   cl_static_fields: parser_value FieldMap.t;
@@ -48,14 +47,16 @@ type class_el ={
 
 type parsed_heap={
   hp_class: class_el ClassMap.t;
-  hp_array: parser_value array Ptmap.t ClassMap.t;
+  hp_array: parser_value array Ptmap.t ObjectMap.t;
   (**For each array class, a map of instance (key is the instance identifier)
     representing the array.*)
 }
 
+val get_dyn_type: int -> object_type
 
 (** {2 Printer. } *)
 val parser_value2string: parser_value -> string 
+val heap_to_string : parsed_heap -> string
 
 (** {2 Temporary types (only used during parsing } *)
 type field = 
@@ -83,10 +84,10 @@ val add_class: class_el ClassMap.t -> class_el -> class_el ClassMap.t
 val gen_instance_ar: int64 -> int -> (int * int64) list -> instance_ar
 val add_instance_ar: instance_ar -> instance_ar Ptmap.t -> instance_ar Ptmap.t
 val gen_class_ar: string -> int -> instance_ar Ptmap.t -> 
-  class_name * parser_value array Ptmap.t
+  object_type * parser_value array Ptmap.t
 
-val finalize_class_ar: ClassMap.key * parser_value array Ptmap.t -> 
-  parser_value array Ptmap.t ClassMap.t -> parser_value array Ptmap.t ClassMap.t
+val finalize_class_ar: object_type * parser_value array Ptmap.t -> 
+  parser_value array Ptmap.t ObjectMap.t -> parser_value array Ptmap.t ObjectMap.t
 
 
 

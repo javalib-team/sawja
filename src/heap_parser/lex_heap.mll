@@ -69,6 +69,8 @@ rule token = parse
   | "float" {TFloat}
   | "int" {TInt}
   | "bool" {TBool}
+  | "byte" {TByte}
+  | "char" {TChar}
   | "[]" {ArrayType}
   | '[' number ']' {ArrayIdx (get_array_idx (Lexing.lexeme lexbuf))} (*can also be a size*)
   | ident {Ident (Lexing.lexeme lexbuf)}

@@ -19,6 +19,7 @@
 open Javalib_pack
 open JBasics
 open Printf
+open JType
 
 type reference = 
   | Null 
@@ -47,35 +48,33 @@ type class_el ={
 
 type parsed_heap={
   hp_class: class_el ClassMap.t;
-  hp_array: parser_value array Ptmap.t ClassMap.t;
+  hp_array: parser_value array Ptmap.t ObjectMap.t;
 }
 
 
 let vtype_of_parser_value v =
   match v with
-  | VInt _ -> TBasic `Int
-  | VChar _ -> TBasic `Char
-  | VShort _ -> TBasic `Short
-  | VBool _ -> TBasic `Bool
-  | VByte _ -> TBasic `Byte
-  | VLong _ -> TBasic `Long
-  | VFloat _ -> TBasic `Float
-  | VDouble _ -> TBasic `Double
-  | VObject (cn,_) -> TObject (TClass cn)
-  | VArray (vt, _) -> TObject (TArray vt)
+    | VInt _ -> TBasic `Int
+    | VChar _ -> TBasic `Char
+    | VShort _ -> TBasic `Short
+    | VBool _ -> TBasic `Bool
+    | VByte _ -> TBasic `Byte
+    | VLong _ -> TBasic `Long
+    | VFloat _ -> TBasic `Float
+    | VDouble _ -> TBasic `Double
+    | VObject (cn,_) -> TObject (TClass cn)
+    | VArray (vt, _) -> TObject (TArray vt)
 
 (* ############Class oriented stuff ############ *)
 
-(*This type is used to recover ar*)
-(* type tmp_array_val= *)
-
+(* map which for a ref gives its dynamic class.*)
+let dynTypeOfref = ref Ptmap.empty
 
 let raw_2_ref raw_val = 
   match raw_val with 
     | v when (Int64.compare v Int64.zero)=0 -> Null
     | _ -> Ref (Int64.to_int raw_val)
 
-(* ############ Class oriented stuff ############ *)
 type field = 
 {
   fname: string;
@@ -90,6 +89,7 @@ let fs_of_field field = make_fs field.fname (vtype_of_parser_value field.fvalue)
 let gen_instance id fields = (Int64.to_int id, fields) 
 
 let gen_class name static_fields instances =
+  let cn = make_cn name in
   let static_f_map = 
     List.fold_left
       (fun map field -> 
@@ -101,6 +101,8 @@ let gen_class name static_fields instances =
   let instances_map =
     List.fold_left
       (fun map (inst_id, fields) ->
+         (*feed the dynTypeOfref map*)
+         dynTypeOfref:=Ptmap.add inst_id (TClass cn) !dynTypeOfref; 
          let fieldsMap = 
            List.fold_left
              (fun fmap field ->
@@ -113,7 +115,6 @@ let gen_class name static_fields instances =
       )
       Ptmap.empty
       instances in
-  let cn = make_cn name in
   {
     cl_name= cn;
     cl_static_fields = static_f_map;
@@ -123,6 +124,12 @@ let gen_class name static_fields instances =
 let add_class map cl =
   ClassMap.add cl.cl_name cl map
 
+let get_dyn_type ref = 
+  try 
+    Ptmap.find ref !dynTypeOfref
+  with Not_found ->
+    Printf.printf "%d not found\n" ref;
+    raise Not_found
 
 type instance_ar = {
   ista_id : int;
@@ -173,21 +180,35 @@ let raw_2_parser_value c_name ar_depth raw_val =
       | _ -> VObject (make_cn c_name, (raw_2_ref raw_val))
   in
     if ar_depth > 0 
-    then VArray (c_name_2_value c_name (ar_depth -1), raw_2_ref raw_val)
+    then 
+      (
+        let ref = raw_2_ref raw_val in
+        let vtype = c_name_2_value c_name (ar_depth-1) in
+          match ref with 
+            | Null -> 
+                  dynTypeOfref:= Ptmap.add 0 (TArray vtype) !dynTypeOfref;
+                VArray (vtype, ref)
+            | Ref ref_int ->
+                  dynTypeOfref:= Ptmap.add ref_int (TArray vtype) !dynTypeOfref;
+                  VArray (vtype, ref)
+      )
     else simple_str_2_parser_type c_name 
 
 
 (*Init java array with default value (depending of its type)*)
 let init_java_array ar_size c_name ar_depth =
-  Array.make ar_size (raw_2_parser_value c_name ar_depth Int64.zero)
+  Array.make ar_size (raw_2_parser_value c_name (ar_depth-1) Int64.zero)
 
 let gen_class_ar c_name ar_depth inst_map =
   let type_instance_ar c_name ar_depth inst_map = 
     Ptmap.map
       (fun inst ->
+         dynTypeOfref := Ptmap.add inst.ista_id 
+                           (TArray (c_name_2_value c_name (ar_depth-1)))
+                              !dynTypeOfref;
          List.fold_left
            (fun ar (idx, raw_val) ->
-              ar.(idx)<- raw_2_parser_value c_name ar_depth raw_val;
+              ar.(idx)<- raw_2_parser_value c_name (ar_depth-1) raw_val;
               ar
            )
            (init_java_array inst.ista_size c_name ar_depth)
@@ -195,11 +216,11 @@ let gen_class_ar c_name ar_depth inst_map =
       )
       inst_map
   in
- (make_cn c_name, type_instance_ar c_name ar_depth inst_map)
+ (TArray (c_name_2_value c_name (ar_depth-1)), type_instance_ar c_name ar_depth inst_map)
 
 
-let finalize_class_ar (cn, inst_map) map =
-  ClassMap.add cn inst_map map
+let finalize_class_ar (obj, inst_map) map =
+  ObjectMap.add obj inst_map map
 
 (* ############ Printer ############ *)
 
@@ -221,3 +242,66 @@ let parser_value2string v =
     | VObject (_,ref) -> sprintf "object %s" (reference_2_string ref)
     | VArray (_,ref) -> sprintf "[] %s" (reference_2_string ref)
 
+let fields_to_string sf =
+  FieldMap.fold
+    (fun fs f_val str ->
+       sprintf "%s\n\t\t %s %s = %s"
+         str
+         (JDumpBasics.value_signature (fs_type fs))
+         (fs_name fs)
+         (parser_value2string f_val)
+    )
+    sf
+    ""
+
+let instances_to_string ins = 
+  Ptmap.fold
+    (fun inst_id fmap str ->
+       sprintf "%s %d {\n %s}\n" str inst_id (fields_to_string fmap)
+    )
+    ins
+    ""
+
+
+let class_to_string cl = 
+  sprintf "static fields: \n \t%s \n instance: \n \t%s" 
+    (fields_to_string cl.cl_static_fields)
+    (instances_to_string cl.cl_instances)
+
+
+let array_to_string ar = 
+  (Array.fold_left
+    (fun str el ->
+       sprintf "%s: \t\t%s\n" str (parser_value2string el)
+    )
+    "["
+    ar)^"]"
+
+
+let array_inst_to_string ar =
+  Ptmap.fold
+    (fun inst_id ar str ->
+       sprintf "%s %d: [%s]\n" str inst_id (array_to_string ar)
+    )
+    ar
+    ""
+
+
+let array_class_to_string ar =
+  ObjectMap.fold
+    (fun obj pmap str->
+       sprintf "%s %s %s\n" str (JPrint.object_type obj) (array_inst_to_string pmap)
+    )
+    ar
+    ""
+
+let heap_to_string hp = 
+  sprintf "classes: %s\n arrays: %s\n" 
+    (ClassMap.fold 
+       (fun cn cl_el str ->
+          sprintf "%s\n%s{\n%s}\n" str (cn_name cn) 
+            (class_to_string cl_el))
+       hp.hp_class
+       ""
+    )
+    (array_class_to_string hp.hp_array)

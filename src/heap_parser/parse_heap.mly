@@ -22,6 +22,7 @@
 open Javalib_pack
 open JBasics
 open ParserType
+open JType
 
 
 %}
@@ -31,7 +32,7 @@ open ParserType
 %token <int> ArrayIdx
 /*Every number is parsed as a int64 and then casted to the correct type.*/
 %token <int64> Num HexNum 
-%token Open Close Eq SemiCol Class Static TLong TShort TDouble TFloat TInt TBool TByte
+%token Open Close Eq SemiCol Class Static TLong TShort TDouble TFloat TInt TBool TByte TChar
 %token ArrayType ClassPart ArrayPart Eof
 
 %start input
@@ -82,6 +83,7 @@ field:
     | TInt Ident Eq Num SemiCol{{fname=$2;fvalue= VInt(Int64.to_int32($4))}}
     | TBool Ident Eq Num SemiCol{{fname=$2;fvalue= VBool(Int64.to_int($4))}}
     | TByte Ident Eq Num SemiCol{{fname=$2;fvalue= VByte(Int64.to_int($4))}}
+    | TChar Ident Eq Num SemiCol{{fname=$2;fvalue= VChar(Int64.to_int($4))}}
     | Ident Ident Eq Num SemiCol/*first Ident is a class type, second Ident is a var name*/
       {
       {fname=$2;fvalue= VObject((JBasics.make_cn $1), (raw_2_ref $4))}
@@ -95,6 +97,7 @@ field:
     | TInt arrayDec Ident Eq Num SemiCol {{fname=$3; fvalue= VArray(TBasic `Int, raw_2_ref $5);}}
     | TBool arrayDec Ident Eq Num SemiCol {{fname=$3; fvalue= VArray(TBasic `Bool , raw_2_ref $5);}}
     | TByte arrayDec Ident Eq Num SemiCol {{fname=$3; fvalue= VArray(TBasic `Byte, raw_2_ref $5);}}
+    | TChar arrayDec Ident Eq Num SemiCol {{fname=$3; fvalue= VArray(TBasic `Char, raw_2_ref $5);}}
     | Ident arrayDec Ident Eq Num SemiCol{
         {fname=$3; 
          fvalue= VArray(TObject (TClass(JBasics.make_cn $1)), raw_2_ref $5);}
@@ -125,11 +128,10 @@ arrayEl:
 
 /* ################ CLASSPART ################ */
 arrayPart:
-  /*empty*/ {ClassMap.empty}
+  /*empty*/ {ObjectMap.empty}
   | arrayPart ar_class_desc {finalize_class_ar $2 $1}
 
 ar_class_desc:
-  |  Class Ident arrayTyp Open instances_ar Close {gen_class_ar $2 $3 $5}
   |  Class TInt arrayTyp Open instances_ar Close {gen_class_ar "int" $3 $5}
   |  Class TLong arrayTyp Open instances_ar Close {gen_class_ar "long" $3 $5}
   |  Class TShort arrayTyp Open instances_ar Close {gen_class_ar "short" $3 $5}
@@ -137,6 +139,8 @@ ar_class_desc:
   |  Class TFloat arrayTyp Open instances_ar Close {gen_class_ar "float" $3 $5}
   |  Class TBool arrayTyp Open instances_ar Close {gen_class_ar "bool" $3 $5}
   |  Class TByte arrayTyp Open instances_ar Close {gen_class_ar "byte" $3 $5}
+  |  Class TChar arrayTyp Open instances_ar Close {gen_class_ar "char" $3 $5}
+  |  Class Ident arrayTyp Open instances_ar Close {gen_class_ar $2 $3 $5}
 
 /*return the depth of the array*/
 arrayTyp:

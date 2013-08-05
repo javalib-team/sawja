@@ -1,7 +1,4 @@
 open Javalib_pack
-open JBasics
-open JProgram
-open Javalib
 open ParserType 
 exception InvalidFile  
 
