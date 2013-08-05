@@ -19,12 +19,10 @@
 
 open Javalib_pack
 open JBasics
-open HeapParser
 open ParserType
 
-let parse_program instances_dump classpath cms = 
-  let heap = get_init_heap instances_dump in
-  let (hp_class,hp_array) = (heap.hp_class,heap.hp_array)
+let parse_program heap classpath cms = 
+  let (hp_class,_hp_array) = (heap.hp_class,heap.hp_array)
   in
   let instanciated = 
     ClassMap.fold 
@@ -34,7 +32,8 @@ let parse_program instances_dump classpath cms =
            | false -> cn::lst) 
       hp_class []
   in
+    (*we also want to add every possible native exception*)
+  let instanciated = instanciated@default_native_throwable in
+
   JRTA.parse_program ~instantiated:instanciated ~other_entrypoints:[] classpath cms
-
-
 

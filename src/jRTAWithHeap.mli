@@ -21,4 +21,10 @@ open Javalib_pack
 open JProgram
 open JBasics
 
-val parse_program: string -> string -> class_method_signature -> JCode.jcode program * JCode.jcode class_node ClassMap.t
+(*[parse_program dump classpath main]: Like RTA but instead of starting from
+* some java internal entrypoints, use an initial concrete heap as starting
+* point for initialized class. [dump] contains this initial heap (obtained
+* using HeapInspector). [classpath] is the path of java class, and main is the
+* main entrypoint method. *)
+val parse_program: ParserType.parsed_heap -> string -> class_method_signature -> 
+  JCode.jcode program * JCode.jcode class_node ClassMap.t
