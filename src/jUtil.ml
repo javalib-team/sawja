@@ -46,9 +46,14 @@ let find_index x l =
     aux 0 l
 
 (* Containers. *)
+module Key(S: sig type t end) =
+struct
+  type t = int * S.t
+  let get_hash (i,_) = i
+end
 
-module GenericSet = GenericSet.Make
-module GenericMap = GenericMap.Make
+module GenericSet(S: sig type t end) = GenericSet.Make(Key(S))
+module GenericMap(S: sig type t end) = GenericMap.Make(Key(S))
 
 open Javalib_pack.JBasics
 
