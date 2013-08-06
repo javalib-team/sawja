@@ -20,6 +20,8 @@
 
 open Javalib_pack
 
+exception DebugDom
+
 module type TRADUCTOR_ANALYSIS = sig
   type localID
   type localDomain

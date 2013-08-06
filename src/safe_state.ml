@@ -55,6 +55,7 @@ module type S = sig
       | `PP of PP.t]
 
   type t
+  exception DebugSt of t
   val bot : (int*int*int*int*int) -> t
   val pprint : Format.formatter -> t -> unit
   val get_pinfo : 'a JProgram.program -> t -> JPrintHtml.info -> JPrintHtml.info
@@ -166,6 +167,8 @@ struct
 	    field_data:Field.t HashFieldVar.t;
 	    method_data:Method.t HashMethodVar.t;
 	    pp_data:PP.t HashPPVar.t;}
+
+  exception DebugSt of t
 
   let bot (sizes:int*int*int*int*int) =
     let global_size,ioc_size,field_size,method_size,pp_size = sizes

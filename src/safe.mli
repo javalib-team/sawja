@@ -61,8 +61,12 @@
 *)
 
 open Javalib_pack
-
 module Domain : sig
+
+  (*This exception can be used for debugging purpose. If your domain raise such
+   * an exception, it will stop and raise an State.DebugSt exception containing
+   * the last state reached before the fail.*)
+  exception DebugDom
 
   (** This may be used to combine analyzes. *)
   module type TRADUCTOR_ANALYSIS =
@@ -312,6 +316,8 @@ module State : sig
         | `PP of PP.t ]
 
     type t
+
+    exception DebugSt of t
  
     (** [bot (g,c,f,m,p)] generates an bottom element where [g], [c], [f], [m]
         and [p] are approximations of the number of global, class, field, method
@@ -397,9 +403,14 @@ module Constraints : sig
     val pprint : Format.formatter -> cst -> unit
 
     (** [apply_cst ?modifies abst cst] applies the constraint [cst] on the current
-        [abst].  The result of the constraint (given by [cst.transferFun]) is
-        joined to the current value stored in [abst]. [modifies] is set to true
-        if the application of a constraint modified the state [abst].*)
+      [abst].  The result of the constraint (given by [cst.transferFun]) is
+      joined to the current value stored in [abst]. [modifies] is set to true
+      if the application of a constraint modified the state [abst].
+
+      If a DebugDom exception is raised by the used domain, this function catch
+      it and raise a DebugSt exception containing the last state reached before
+      the fail. This is intended for debug.
+      *)
     val apply_cst : ?do_join:bool -> ?modifies:bool ref -> State.t -> cst -> unit
   end
 
