@@ -84,6 +84,37 @@ let primitive_direct_supertype t1 t2 =
     | `Int, `Short
     | `Short, `Byte -> true
     | _ -> false
+
+let primitive_supertype t1 t2 = 
+  match t1, t2 with 
+    | `Double, `Double -> false
+    | `Double, _ -> true
+    | `Float , `Double
+    | `Float , `Float -> false
+    | `Float , _ -> true
+    | `Long, `Double 
+    | `Long, `Float 
+    | `Long, `Long -> false
+    | `Long, _ -> true
+    | `Int , `Char
+    | `Int , `Short
+    | `Int, `Byte -> true
+    | `Int, _ -> false
+    | `Char, _  -> false
+    | `Short, `Byte -> true
+    | `Short, _ -> false
+    | `Byte, _ 
+    | `Bool, _ -> false
+
+let get_primitive_super prim =
+  match prim with
+    | `Byte -> `Short
+    | `Short -> `Int
+    | `Char -> `Int
+    | `Int -> `Long 
+    | `Long -> `Float
+    | `Float -> `Double
+    | _ -> raise Not_found
      
   (*Return true of t1 is a supertype of t2*)
 let class_supertype prog t1 t2 =
@@ -94,8 +125,11 @@ let class_supertype prog t1 t2 =
             extends_class c2 c1
         | Interface i1, Interface i2 ->
             extends_interface i2 i1
-        | Class c1, Interface i2 ->
-            implements c1 i2
+        | Interface i1, Class c2 ->
+            implements c2 i1
+        | Class c1, Interface i2 
+                      when node_equal (get_node prog java_lang_object) nd1 
+          -> true
         | _ -> false
   in
   let rec class_or_array_supertype t1 t2 =
@@ -105,6 +139,10 @@ let class_supertype prog t1 t2 =
       | TArray (TObject vt1) , TArray (TObject vt2) ->
           (*if S and T are both reference types, then S[] >1 T[] iff S >1 T .*)
           class_or_array_supertype vt1 vt2
+      | TArray (TBasic prim1) , TArray (TBasic prim2) ->
+          (*if S and T are both reference types, then S[] >1 T[] iff S >1 T .*)
+          primitive_supertype prim1 prim2
+
       | TClass cn1, TArray _ ->
           (cn_equal java_lang_object cn1 ||
            cn_equal (make_cn "java.lang.Cloneable") cn1 ||
@@ -119,35 +157,37 @@ let direct_superclass prog cn1 cn2 =
     | None -> false
     | Some c2 -> node_equal (Class c2) (get_node prog cn1)
 
-(*
   (* Return true if cn1 is a direct superinterface of cn2 *)
-let direct_superinterface prog cn1 cn2 = 
+let direct_superinterface cn1 cn2 = 
   List.exists
-    (fun i_node -> node_equal i_node (get_node prog cn1))
-    (directly_implements (get_node prog cn2))
+    (fun i_node -> node_equal (Interface i_node) cn1)
+    (directly_implemented_interfaces cn2)
 
   (*Return true of t1 is a direct supertype of t2*)
-let class_direct_supertype prog t1 t2 =
+let rec class_direct_supertype prog t1 t2 =
+  let java_lang_cloneable = make_cn "java.lang.Cloneable" in
+  let java_lang_serializable = make_cn "java.lang.Serializable" in 
   match t1, t2 with 
     | TClass cn1, TClass cn2 -> 
         let nd1, nd2=  (get_node prog cn1), (get_node prog cn2) in
           (match nd2 with
              | Interface inode2 ->
                  let super_inter2 = super_interfaces inode2 in
-                   if List.is_empty super_inter2
-                   then         
-                     (* 3)
-                      * The type object if cn2 is an interface with no direct
-                      * superinterfaces.
-                      **)
-                     (cn_equal cn1 java_lang_object)
-                   else 
-                       (*
-                        *The superinterfaces.
-                        * *)
-                       List.exists
-                         (fun super_nd2 -> node_equal nd1 super_nd2)
-                         super_inter2
+                   (match super_inter2 with
+                     | [] -> 
+                         (* 3)
+                          * The type object if cn2 is an interface with no direct
+                          * superinterfaces.
+                          **)
+                         (cn_equal cn1 java_lang_object)
+                     | _ ->
+                         (*
+                          *The superinterfaces.
+                          * *)
+                         List.exists
+                           (fun super_nd2 -> node_equal nd1 (Interface super_nd2))
+                           super_inter2
+                   )
              | Class cnode ->
 
                  (*
@@ -156,15 +196,41 @@ let class_direct_supertype prog t1 t2 =
                   * t2 is a class superclass of type C2
                   * if c1 is a direct superclass of c2 then t1 is a supertype of t2
                   *)
-                 direct_superclass cn1 cn2 ||
+                 (direct_superclass prog cn1 cn2) ||
                  (* 2)
                   * t1 is a superinterface of t2
                   * *)
-                 direct_superinterface cn1 cn2
+                 (direct_superinterface nd1 cnode)
           )
+    | TArray (TObject o1), TArray (TObject o2) ->
+        (*If S and T are both reference types, then S[] >1 T[] OFF S >1 T[]. *)
+        class_direct_supertype prog o1 o2
+    | TArray (TBasic prim1), TArray (TBasic prim2) ->
+        primitive_direct_supertype prim1 prim2
+    | TClass cn1, TArray (TObject (TClass cn2)) when 
+        ((cn_equal cn1 java_lang_object) ||
+         (cn_equal cn1 java_lang_cloneable) ||
+         (cn_equal cn1 java_lang_serializable)
+        ) && (cn_equal cn2 java_lang_object) -> true
+    | TClass cn1, TArray (TBasic _) when 
+        ((cn_equal cn1 java_lang_object) ||
+         (cn_equal cn1 java_lang_cloneable) ||
+         (cn_equal cn1 java_lang_serializable)
+        ) -> true
+    | _ -> false
 
-    
- *)
+
+
+
+let direct_subtype prog t1 t2 =
+  match obj_compare t1 t2 with
+    | 0 -> false
+    | _-> class_direct_supertype prog t2 t1
+
+let direct_supertype prog t1 t2 = 
+  match obj_compare t1 t2 with
+    | 0 -> false
+    | _ -> class_direct_supertype prog t1 t2
 
 (*Return true if t1 is a supertype of t2*)
 let supertype prog t1 t2  =
@@ -180,5 +246,43 @@ let supertype prog t1 t2  =
 let subtype prog t1 t2 =
   match obj_compare t1 t2 with
     | 0 -> false (*if t1 = t2 then false*)
-    | _ -> supertype prog t2 t1
+    | _ -> class_supertype prog t2 t1
+
+
+let rec supertype_from_direct prog t1 t2 = 
+  match direct_supertype prog t1 t2 with
+    | true -> true
+    | false -> 
+        (match t2, t1 with
+           | TClass _, _  -> 
+               let t2_super = 
+                 ClassMap.filteri
+                   (fun cn _nd ->
+                      direct_supertype prog (TClass cn) t2
+                   )
+                   prog.classes
+               in 
+                 ClassMap.fold
+                   (fun t2s_cn _ b ->
+                      (match b with 
+                         | true -> true
+                         | _ -> supertype_from_direct prog t1 (TClass t2s_cn)
+                      )
+                   )
+                   t2_super
+                   false
+           | TArray (TObject subarray2), TArray (TObject subarray1) ->
+               (supertype_from_direct prog subarray1 subarray2)
+
+           | TArray (TObject subarray2), TClass _ ->
+               (supertype_from_direct prog t1 subarray2)
+           | TArray (TBasic prim2), TArray (TBasic prim1) ->
+               (try supertype_from_direct prog t1 
+                      (TArray (TBasic (get_primitive_super prim2)))
+                with Not_found -> false)
+           | _ -> false)
+
+let subtype_from_direct prog t1 t2 =
+  supertype_from_direct prog t2 t1
+
 

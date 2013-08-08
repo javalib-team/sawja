@@ -21,7 +21,9 @@ open JProgram
  *)
 
 (** This module provides some type utilities. It uses the JBasics object type,
-* allowing type comparaison and subtyping. *)
+* allowing type comparaison and subtyping. Current implementation does not
+* handle subtyping of parameterized types and generics.
+* *)
 
 val obj_compare : object_type -> object_type -> int 
 
@@ -38,4 +40,21 @@ module ObjectSet : GenericSetSig with type elt = object_type
 val supertype : 'a program -> object_type -> object_type -> bool
 (*[subtype t1 t2] Return true if t1 is a subtype of t2*)
 val subtype: 'a program -> object_type -> object_type -> bool
+
+(** Return true of t1 is a direct supertype of t2*)
+val direct_supertype : 'a program -> object_type -> object_type -> bool
+
+(** Return true of t1 is a direct subtype of t2*)
+val direct_subtype : 'a program -> object_type -> object_type -> bool
+
+(** Return true of t1 is a supertype of t2 using recursively direct_supertype.
+* It is used to debugging purpose and supertype function should be preferably
+* used for performance reasons.*)
+val supertype_from_direct: 'a program -> object_type -> object_type -> bool
+
+(** Return true of t1 is a subtype of t2 using recursively direct_subtype.
+* It is used to debugging purpose and subtype function should be preferably
+* used for performance reasons.*)
+val subtype_from_direct: 'a program -> object_type -> object_type -> bool
+
 
