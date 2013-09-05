@@ -248,24 +248,26 @@ let rec super_interfaces i =
     i.i_interfaces
     []
 
+
+let directly_implemented_interfaces c =
+  ClassMap.fold
+    (fun _iname i ilist ->
+       i::(List.rev_append (super_interfaces i) ilist))
+    c.c_interfaces
+    []
+
 let rec implemented_interfaces' (c:'a class_node) : 'a interface_node list =
-  let directly_implemented_interfaces =
-    ClassMap.fold
-      (fun _iname i ilist ->
-	i::(List.rev_append (super_interfaces i) ilist))
-      c.c_interfaces
-      []
-  in
     match super (Class c) with
-      | None -> directly_implemented_interfaces
+      | None -> (directly_implemented_interfaces c)
       | Some c' ->
-	  List.rev_append directly_implemented_interfaces (implemented_interfaces' c')
+	  List.rev_append (directly_implemented_interfaces c) (implemented_interfaces' c')
 
 let rec rem_dbl = function
   | e::(_::_ as l) -> e:: (List.filter ((!=)e) (rem_dbl l))
   | l -> l
 
 let implemented_interfaces c = rem_dbl (implemented_interfaces' c)
+
 
 let rec first_common_super_class (c1:'a class_node) (c2:'a class_node) : 'a class_node =
   if extends_class c1 c2

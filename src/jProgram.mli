@@ -181,6 +181,10 @@ val super_class : 'a node -> 'a class_node option
     super-interfaces. *)
 val implemented_interfaces : 'a class_node -> 'a interface_node list
 
+(** [directly_implements cn] returns the interfaces directly implemented
+    by [cn]. *)
+val directly_implemented_interfaces: 'a class_node -> 'a interface_node list
+
 (** [super_interfaces iname] returns the explicit and implicit
     super-interfaces of [iname].*)
 val super_interfaces : 'a interface_node -> 'a interface_node list
