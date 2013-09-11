@@ -349,7 +349,7 @@ let abstract_init_method_instr cn_node ms csts =
 let handle_native_exc prog node cm =
   let impl = 
     match cm.cm_implementation with
-      | Native -> assert false
+      | Native -> raise Safe.Domain.DebugDom
       | Java laz -> Lazy.force laz
   in
   let ms = cm.cm_signature in
@@ -1149,7 +1149,7 @@ let cfa_static_lookup state prog classes =
                                           | TClass cn ->
                                               let cms = make_cms cn called_ms in
                                                 ClassMethodSet.add cms cmsset
-                                          | TArray _ -> assert false
+                                          | TArray _ -> raise Safe.Domain.DebugDom
                                      )
                                      possible_obj
                                      ClassMethodSet.empty 

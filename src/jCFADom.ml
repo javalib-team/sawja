@@ -96,7 +96,7 @@ module AbVSet = struct
   let isPrimitive t =
     match t with
       | Primitive -> true
-      | Top -> assert false
+      | Top -> raise Safe.Domain.DebugDom
       | _ -> false
 
   let empty = Set (SiteSet.empty)
@@ -114,7 +114,7 @@ module AbVSet = struct
   let is_empty set = 
     match set with
       | Set s -> SiteSet.is_empty s 
-      | Top -> assert false
+      | Top -> raise Safe.Domain.DebugDom
       | _ -> false
 
   let singleton pp_lst obj = Set (SiteSet.add (pp_lst, obj) SiteSet.empty)
@@ -133,7 +133,7 @@ module AbVSet = struct
       | Primitive, Primitive -> Primitive
       | Set s1, Set s2 -> Set (SiteSet.inter s1 s2) 
       | Top, x | x, Top ->  x
-      | _ -> assert false (*trying to intersect a primitive and a object set*)
+      | _ -> raise Safe.Domain.DebugDom(*trying to intersect a primitive and a object set*)
 
   let to_string_siteset set = 
     let str = 
@@ -188,7 +188,7 @@ module AbVSet = struct
   let concretize set = 
     match set with
       | Bot | Primitive -> ObjectSet.empty
-      | Top -> assert false
+      | Top -> raise Safe.Domain.DebugDom
       | Set st -> SiteSet.fold
                     (fun (_,obj) concset ->
                        ObjectSet.add obj concset
@@ -326,8 +326,8 @@ module AbFSet = struct
   let var2fSet objAb varAb = 
     match objAb, varAb with
       | AbVSet.Bot, _ | _, AbVSet.Bot -> Bot
-      | AbVSet.Primitive, _ -> assert false 
-      | AbVSet.Top, _ -> assert false
+      | AbVSet.Primitive, _ -> raise Safe.Domain.DebugDom
+      | AbVSet.Top, _ -> raise Safe.Domain.DebugDom
       | _, AbVSet.Top -> raise Safe.Domain.DebugDom(*assert false primitive has not fields*)
       | AbVSet.Set sites, vars ->
           let nmap = 
@@ -454,7 +454,7 @@ module AbMethod = struct
 
   let get_args v = 
     match v with 
-      | Bot -> assert false (*AbLocals.bot*)
+      | Bot -> raise Safe.Domain.DebugDom(*AbLocals.bot*)
       | Reachable v -> v.args
 
   let init_locals node ms abm =
@@ -471,11 +471,11 @@ module AbMethod = struct
             match (JProgram.get_method node ms) with
               | ConcreteMethod cm ->
                   (match cm.cm_implementation with
-                     | Native -> assert false
+                     | Native -> raise Safe.Domain.DebugDom
                      | Java laz ->
                          let a3bir = (Lazy.force laz) in
                            (JBir.vars a3bir, JBir.params a3bir))
-              | _ -> assert false
+              | _ -> raise Safe.Domain.DebugDom
           in
           let pos = ref (-1) in
             List.fold_left
