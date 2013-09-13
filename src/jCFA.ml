@@ -1206,7 +1206,7 @@ let print_cfa_prog prog state dir =
      (if (not (Sys.is_directory dir))
       then (Printf.printf "Impossible to dump cfa program: %s is not a valid directory." dir;
             exit 1))
-   with Sys_error _ -> Unix.mkdir dir 0o644);
+   with Sys_error _ -> Unix.mkdir dir 0o744);
   JCFAPrinter.print prog state dir
 
 
