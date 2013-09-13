@@ -1201,7 +1201,13 @@ let cfa_program_from_state st prog =
         parsed_methods = upd_reachable_methods prog st
   }
 
-let print_cfa_prog prog state dir = JCFAPrinter.print prog state dir
+let print_cfa_prog prog state dir = 
+  (try 
+     (if (not (Sys.is_directory dir))
+      then (Printf.printf "Impossible to dump cfa program: %s is not a valid directory." dir;
+            exit 1))
+   with Sys_error _ -> Unix.mkdir dir 0o644);
+  JCFAPrinter.print prog state dir
 
 
 let get_CFA_program 
