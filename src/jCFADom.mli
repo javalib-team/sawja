@@ -22,6 +22,7 @@ open Javalib_pack
 open JBasics
 open JProgram
 
+  (*Abstraction of a variable*)
 module AbVSet:
 sig
   type t
@@ -54,7 +55,7 @@ sig
   (** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
     * the type compatible with [cn].*)
   val filter_with_compatible : 'a JProgram.program -> t -> object_type -> t
-(** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
+(** [filter_with_uncompatible prog abs cn] :Restrain the abstraction [abs] to
     * the type not compatible with [cn].*)
   val filter_with_uncompatible : 'a JProgram.program -> t -> object_type -> t
   val concretize : t -> JType.ObjectSet.t
@@ -66,6 +67,7 @@ sig
  
 end
 
+  (*Abstraction of a field*)
 module AbFSet :
 sig
   type t

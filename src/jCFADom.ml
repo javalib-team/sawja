@@ -22,6 +22,8 @@ open Javalib
 open JBasics
 open JType
 
+  (*allocation site, identified by a list of pp points representing a partial
+  * stack where the allocation occured and the object type.*)
 type asite = JBirPP.t list * object_type
 
 let asite_compare (lst1,cn1) (lst2,cn2) =
@@ -243,6 +245,7 @@ module AbVSet = struct
 end
 
 module AbFSet = struct
+
   type t = Set of AbVSet.t SiteMap.t | Bot 
   type analysisID = unit
   type analysisDomain = t
@@ -347,29 +350,14 @@ module AbFSet = struct
       | _, AbVSet.Primitive | _, AbVSet.Top -> raise Safe.Domain.DebugDom(*assert false primitive has not fields*)
       | Set fsAb, AbVSet.Set siteset -> 
           let nset = 
-(*
-          Printf.printf "in\n";
-            SiteMap.iter 
-              (fun objk set ->
-                 let (id ,st) = objk in
-                 Printf.printf "objk : %d %s \n" id (obj_to_string st);
-                 Printf.printf "set: %s\n" (AbVSet.to_string set )
-              )
-              fsAb;
-
- *)
-
             SiteSet.fold 
               (fun siteset nset ->
-(*                  let (id ,st) = objset in 
-                  Printf.printf "objset : %d %s \n" id (obj_to_string st); *)
                  try AbVSet.join (SiteMap.find siteset fsAb) nset
                  with Not_found -> nset
               )
               siteset
               AbVSet.bot
           in
-(*           Printf.printf "out\n"; *)
           nset
 
 
@@ -458,30 +446,24 @@ module AbMethod = struct
       | Reachable v -> v.args
 
   let init_locals node ms abm =
-    let from_args pos args = 
-      let curAbs =(AbLocals.get_var pos args) in
-        match AbVSet.isBot curAbs with
-          | true -> AbVSet.top
-          | false -> curAbs
-    in
     match abm with
       | Bot ->  AbLocals.bot
       | Reachable s ->
-          let (_vars, params) = 
+          let  params = 
             match (JProgram.get_method node ms) with
               | ConcreteMethod cm ->
                   (match cm.cm_implementation with
                      | Native -> raise Safe.Domain.DebugDom
                      | Java laz ->
                          let a3bir = (Lazy.force laz) in
-                           (JBir.vars a3bir, JBir.params a3bir))
+                           JBir.params a3bir)
               | _ -> raise Safe.Domain.DebugDom
           in
           let pos = ref (-1) in
             List.fold_left
               (fun state (_,curvar) ->
                  pos:=!pos+1;
-                 AbLocals.set_var (JBir.index curvar) (from_args !pos s.args) state  
+                 AbLocals.set_var (JBir.index curvar) (AbLocals.get_var !pos s.args) state  
               )
               AbLocals.init
               params

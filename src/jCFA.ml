@@ -117,8 +117,6 @@ struct
     let val_ar_var = `Field ((), java_lang_object, array_field_fs) in
     let hs_var = `Field ((), cn_str, hs_fs) in
     let hs32_var = `Field ((), cn_str, hs32_fs) in
-(*     let len_fs = make_fs "length" (TBasic `Int)  in *)
-(*     let len_var = `Field ((), cn_char_ar, len_fs) in *)
       [(*initialize value field*)
         {CFAConstraints.dependencies = [pp_var];
         CFAConstraints.target = val_var;
@@ -423,6 +421,95 @@ let affect_array f_obje f_abse dep =
        (fun abSt -> `FieldDomain (AbField.var2fSet (f_obje abSt) (f_abse abSt)))
     }
 
+
+let handle_throw ?(other_dep=[]) prog pp excAbSt =
+  let open JBirPP in
+  let pp_var = pp_var_from_PP pp in
+  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =  
+    (fun abSt -> `PPDomain (f abSt)) in
+  let possible_catch = handlers pp in
+  let pp_var = pp_var_from_PP pp in
+  (*constraints for the different catchs*)
+  let (csts, already_catched_cn) = 
+    List.fold_left
+      (fun (csts, already_catched_cn) exch ->
+         let pp_target_var = pp_var_from_PP (get_pp (get_class pp) 
+                                               (get_meth pp) exch.e_handler) 
+         in
+           {
+             CFAConstraints.dependencies = pp_var::other_dep;
+             CFAConstraints.target = pp_target_var; 
+             CFAConstraints.transferFun = 
+               propagate_locals
+                 ~f:(fun abSt -> 
+                       let local = CFAState.get_PP abSt pp_var in
+                         (*search wich exception are compatible we the
+                         * catched var.*)
+                       let varAbst = 
+                         match exch.e_catch_type with
+                           | None -> (excAbSt abSt)
+                           | Some cn -> 
+                               (AbVar.filter_with_compatible prog
+                                  (excAbSt abSt)
+                                  (TClass cn)
+                               )
+                       in
+                        (*Remove exception which would have already been by
+                        * previous catch.*)
+                       let varAbst = 
+                         List.fold_left
+                           (fun varAbst cn ->
+                              AbVar.filter_with_uncompatible prog varAbst (TClass cn)
+                           )
+                           varAbst
+                           already_catched_cn
+                       in
+                         if (AbVar.is_empty varAbst) || (AbVar.isBot varAbst)
+                         then  AbLocals.bot
+                         else  AbLocals.set_var (index exch.e_catch_var)
+                                 varAbst local
+                 ) ();
+           } :: csts, 
+           (match exch.e_catch_type with
+              | Some cn -> cn::already_catched_cn
+              | None -> already_catched_cn)
+      )
+      ([], []) 
+      possible_catch
+  in 
+  (*constraint when it is not catched: can be thrown by the method*)
+  let m_var = `Method ((),(JProgram.get_name (get_class pp)), 
+                       (get_meth pp).cm_signature) in
+  let cst_uncatched = 
+    {
+      CFAConstraints.dependencies = pp_var::other_dep;
+      CFAConstraints.target = m_var; 
+      CFAConstraints.transferFun = 
+        (fun abSt ->
+           `MethodDomain
+             (let ab_m = CFAState.get_method abSt m_var in
+              let uncatchedAbst = (excAbSt abSt) in
+              let uncatchedAbst = 
+                List.fold_left
+                  (fun varAbst cn ->
+                     AbVar.filter_with_uncompatible prog varAbst (TClass cn)
+                  )
+                  uncatchedAbst
+                  already_catched_cn
+              in
+              let uncatchedAbst = 
+                if (AbVar.is_empty uncatchedAbst) || (AbVar.isBot uncatchedAbst)
+                then AbVar.bot
+                else uncatchedAbst 
+              in
+                AbMethod.join_exc_return ab_m uncatchedAbst
+             )
+        )
+    }
+  in cst_uncatched::csts
+
+
+
 let abstract_instruction opt prog pp opcode succs csts =
   let pp_var = pp_var_from_PP pp in
   let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =  
@@ -432,8 +519,7 @@ let abstract_instruction opt prog pp opcode succs csts =
     let l = CFAState.get_PP abSt pp_var in
     AbLocals.isBot l 
   in
-
- let if_alive_meth abSt f = 
+  let if_alive_meth abSt f = 
     match is_dead abSt with
       | true -> AbMethod.bot
       | false -> f
@@ -453,88 +539,10 @@ let abstract_instruction opt prog pp opcode succs csts =
   (*for every instruction, we first check there is not literal string in
    * expression.*)
   let csts = (LiteralStr.handle_string prog pp opcode)@ csts in
-  let handle_throw ?(other_dep=[]) excAbSt =
-    let open JBirPP in
-    let possible_catch = handlers pp in
-    let pp_var = pp_var_from_PP pp in
-    (*constraints for the different catchs*)
-    let (csts, already_catched_cn) = 
-      List.fold_left
-        (fun (csts, already_catched_cn) exch ->
-           let pp_target_var = pp_var_from_PP (get_pp (get_class pp) 
-                                                 (get_meth pp) exch.e_handler) 
-           in
-             {
-               CFAConstraints.dependencies = pp_var::other_dep;
-               CFAConstraints.target = pp_target_var; 
-               CFAConstraints.transferFun = 
-                 propagate_locals
-                   ~f:(fun abSt -> 
-                         let local = CFAState.get_PP abSt pp_var in
-                         let varAbst = 
-                           match exch.e_catch_type with
-                             | None -> (excAbSt abSt)
-                             | Some cn -> 
-                                 (AbVar.filter_with_compatible prog
-                                    (excAbSt abSt)
-                                    (TClass cn)
-                                 )
-                         in
-                         let varAbst = 
-                           List.fold_left
-                             (fun varAbst cn ->
-                                AbVar.filter_with_uncompatible prog varAbst (TClass cn)
-                             )
-                             varAbst
-                             already_catched_cn
-                         in
-                           if (AbVar.is_empty varAbst) || (AbVar.isBot varAbst)
-                           then  AbLocals.bot
-                           else  AbLocals.set_var (index exch.e_catch_var)
-                                   varAbst local
-                   ) ();
-             } :: csts, 
-             (match exch.e_catch_type with
-                | Some cn -> cn::already_catched_cn
-                | None -> already_catched_cn)
-        )
-        ([], []) 
-        possible_catch
-    in 
-    (*constraint when it is not catched*)
-    let m_var = `Method ((),(JProgram.get_name (get_class pp)), 
-                         (get_meth pp).cm_signature) in
-    let cst_uncatched = 
-      {
-        CFAConstraints.dependencies = pp_var::other_dep;
-        CFAConstraints.target = m_var; 
-        CFAConstraints.transferFun = 
-          (fun abSt ->
-             `MethodDomain
-               (let ab_m = CFAState.get_method abSt m_var in
-                let uncatchedAbst = (excAbSt abSt) in
-                let uncatchedAbst = 
-                  List.fold_left
-                    (fun varAbst cn ->
-                       AbVar.filter_with_uncompatible prog varAbst (TClass cn)
-                    )
-                    uncatchedAbst
-                    already_catched_cn
-                in
-                let uncatchedAbst = 
-                  if (AbVar.is_empty uncatchedAbst) || (AbVar.isBot uncatchedAbst)
-                  then AbVar.bot
-                  else uncatchedAbst 
-                in
-                  AbMethod.join_exc_return ab_m uncatchedAbst
-               )
-          )
-      }
-    in cst_uncatched::csts
-  (**** handle_throw end*****)
-  in
 
-
+  (*init: if we are in an allocation, name of initizalized class.
+  * static: true if the invoke is a static call.
+  * *)
   let handle_invoke ?(init=None) ?(static=false) opt_ret cn_lst ms args =
     (*Constraint on the method arguments.*)
     let csts_arg = 
@@ -557,21 +565,6 @@ let abstract_instruction opt prog pp opcode succs csts =
                       (if_alive_meth abSt (
                          let pos = ref (-1) in
                          let set_args = 
-(*
-                                Printf.printf "1\n";
-                          Printf.printf "in cn: %s ms: %s %s\n"
-                            (cn_name (JProgram.get_name(JBirPP.get_class pp))) 
-                            (ms_name ((JBirPP.get_meth pp).cm_signature))
-                            (JPrint.value_type_list
-                               (ms_args ((JBirPP.get_meth pp).cm_signature)))
-                            ;
-                          Printf.printf "calling cn: %s ms: %s %s\n"
-                            (cn_name cn) 
-                            (ms_name ms)
-                            (JPrint.value_type_list (ms_args ms))
-                            ;
-
- *)
                            List.fold_left 
                              (fun nl arg ->
                                 pos := !pos +1;  
@@ -617,7 +610,7 @@ let abstract_instruction opt prog pp opcode succs csts =
     in
     let csts = 
       match init, opt_ret with 
-        | Some _, _ -> (csts_arg@csts)
+        | Some _, _ -> (csts_arg@csts) (*make_csts done while handling the new*)
         | _,None -> make_csts ~cstsl:(csts_arg@csts) ()
         | _,Some ret_v ->
             let csts_ret = 
@@ -660,7 +653,7 @@ let abstract_instruction opt prog pp opcode succs csts =
              (fun abSt -> let mAbSt = CFAState.get_method abSt m_called_var in
                 AbMethod.get_exc_return mAbSt)
            in
-             (handle_throw ~other_dep:[m_called_var] excAbst)@csts
+             (handle_throw ~other_dep:[m_called_var] prog pp excAbst)@csts
         )
         []
         cn_lst
@@ -734,7 +727,7 @@ let abstract_instruction opt prog pp opcode succs csts =
       | Throw e -> 
 (*                                 Printf.printf "6\n"; *)
           let excAbSt = (fun abSt -> set_from_expr prog e abSt pp) in
-          let exc_csts = handle_throw excAbSt in
+          let exc_csts = handle_throw prog pp excAbSt in
             exc_csts@csts
       | Return opt_retexpr ->
           let c = JBirPP.get_class pp in
