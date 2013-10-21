@@ -139,8 +139,6 @@ type 'a program = { classes : 'a node ClassMap.t;
 					'a concrete_method) ClassMethodMap.t;
 		    static_lookup_method : 'a static_lookup_method }
 
-type 'a t = 'a program
-
 let super = function
   | Interface i -> Some i.i_super
   | Class c -> c.c_super
@@ -408,7 +406,7 @@ let to_class_node node =
     | Class c -> c
     | Interface _ -> failwith "to_class_node applied on an interface node."
 
-let to_concrete_method m =
+let _to_concrete_method m =
   match m with
     | ConcreteMethod cm -> cm
     | AbstractMethod _ -> failwith "to_concrete_method applied on an abstract method."

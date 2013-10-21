@@ -423,7 +423,7 @@ struct
 	      (ClassMethodSet.union rset s) cmmap)
 	   p.static_special_lookup)
 
-  let rec invoke_special_lookup p current_class_sig cs ms =
+  let invoke_special_lookup p current_class_sig cs ms =
     let current_class = (get_class_info p current_class_sig).class_data in
     let called_class = to_class_node (get_class_info p cs).class_data in
     let (rc,cm) =
@@ -435,7 +435,7 @@ struct
       (* we add (cs,ms) to the workset *)
       add_to_workset p (rcs,ms)
 
-  let rec invoke_static_lookup p cs ms =
+  let invoke_static_lookup p cs ms =
     let c = to_class_node (get_class_info p cs).class_data in
     let (rc,cm) = JControlFlow.invoke_static_lookup c ms in
     let rcs = rc.c_info.c_name in

@@ -19,7 +19,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
 open Genlex
 
 type jmethod = { m_type : string;

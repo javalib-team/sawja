@@ -47,7 +47,7 @@ module Make (S:sig end) = struct
     | Set s -> ClassSet.cardinal s
     | Top -> raise (Invalid_argument "set_size")
 
-  let filter f = function
+  let _filter f = function
     | Set s -> Set (ClassSet.filter f s)
     | Bot -> Bot
     | Top -> Top

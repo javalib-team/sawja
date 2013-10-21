@@ -18,8 +18,6 @@
  *)
 
 
-open Javalib_pack
-
 module Make (Constraints:Constraints.S) :sig
 
   (** [debug_level] defines the debugging level (verbosity) of the

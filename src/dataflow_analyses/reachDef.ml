@@ -18,10 +18,6 @@
  *)
 
 
-open Javalib_pack
-open JBasics
-open JCode 
-open Javalib
 
 module Lat = struct
   (* canonic lattice on (JBir.var -> Powerset(PC)) *)

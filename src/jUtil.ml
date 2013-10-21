@@ -71,9 +71,9 @@ let rec print_list_sep_rec sep pp = function
   | [] -> ""
   | x::q -> sep^(pp x)^(print_list_sep_rec sep pp q)
 
-let rec print_list_sep_list_rec sep pp = function
+let rec _print_list_sep_list_rec sep pp = function
   | [] -> []
-  | x::q -> (sep^(pp x))::(print_list_sep_list_rec sep pp q)
+  | x::q -> (sep^(pp x))::(_print_list_sep_list_rec sep pp q)
 
 let print_list_sep sep pp = function
   | [] -> ""

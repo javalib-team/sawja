@@ -18,10 +18,6 @@
  *)
 
 
-open Javalib_pack
-open JBasics
-open JCode 
-open Javalib
 
 (* we reject exprs that are alias-sensible *)
 let rec is_available_expr = function
@@ -98,7 +94,7 @@ let eval_transfer = function
   | Kill x -> Lat.kill x
   | Nop -> (fun ab -> ab)
 
-let rec gen_instrs i = function
+let gen_instrs i = function
   | JBir.Ifd (_, j) -> [(Nop,j);(Nop,i+1)]
   | JBir.Goto j -> [Nop,j]
   | JBir.Throw _

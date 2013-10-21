@@ -48,7 +48,7 @@ let iter_code f = function
 	     | ConcreteMethod cm -> lift_cm f cm
 	     | _ -> ()) c.c_methods
 
-let array_exists f t =
+let _array_exists f t =
   let n = Array.length t in
   let rec aux i = i<n && (f t.(i) || aux (i+1)) in
     aux 0
@@ -288,7 +288,7 @@ let print_list_sep sep pp = function
   | [] -> ""
   | x::q -> (pp x)^(print_list_sep_rec sep pp q)
       
-let print_set s =
+let _print_set s =
   "{"^(print_list_sep "," string_of_int (Ptset.elements s))^"}"
 
 let inter (a,b) (c,d) =
@@ -465,7 +465,7 @@ let end_inlining () =
   Printf.printf " done in %fs\n" (Unix.time () -. !time);
   flush stdout
 		
-let test target = Javalib.iter
+let _test target = Javalib.iter
   (iter_code
      (fun code ->
 	let (jsr,instrs) = get_jsr code in

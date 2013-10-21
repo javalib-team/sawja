@@ -18,10 +18,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
-open JBasics
-open JCode 
-open Javalib
 open JBirSSA
 
 (* we reject exprs that are alias-sensible *)
@@ -97,7 +93,7 @@ let eval_transfer = function
   | Nop -> (fun ab -> ab)
 
 (* generate transfer function for an instruction *)
-let rec gen_instrs csts = function
+let gen_instrs csts = function
   | AffectVar (x,e) -> 
       let tf = if is_available_expr e then Assign e else Nop in
 	(* link affected variable to entrypoint (0) *)

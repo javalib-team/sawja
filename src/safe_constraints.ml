@@ -18,8 +18,6 @@
  *)
 
 
-open Javalib_pack
-
 module type S = sig
 
   module State:State.S

@@ -21,7 +21,6 @@
 
 open Javalib_pack
 open JBasics
-open JCode
 open Javalib
 open JProgram
 
@@ -115,7 +114,7 @@ module PP = struct
 
   let goto_relative pp jmp : 'a t ={pp with pc=pp.pc+jmp;}
 
-  let not_throws_instance_of program pp exn_class=
+  let _not_throws_instance_of program pp exn_class=
     let cl =
       (* static_lookup program pp  (* safe, but using RTA is more precise *) *)
       let cs = get_name (get_class pp)
@@ -293,7 +292,7 @@ let lookup_virtual_method ms (c:'a class_node) : 'a class_node =
 	| AbstractMethod _ -> raise AbstractMethodError
     with Not_found -> raise AbstractMethodError
 
-let lookup_interface_method = lookup_virtual_method
+let _lookup_interface_method = lookup_virtual_method
 
 let overrides_methods ms c =
   let result = ref [] in
@@ -429,7 +428,7 @@ let static_lookup_static program cs ms =
 
 (* Usefull functions for get_successors functions*)
 
-let get_class_to_initialize caller = function
+let _get_class_to_initialize caller = function
   | Interface _ as callee ->
       if defines_method callee clinit_signature
       then Some (make_cms (get_name callee) clinit_signature)
@@ -468,7 +467,7 @@ let get_class_to_initialize caller = function
 
 (* Common code for get_successors functions *)
 
-let get_successors
+let _get_successors
     (f: 'a program -> 'a node -> 'a concrete_method -> ClassMethodSet.t -> ClassMethodSet.t)
     (program:'a program)
     (node:'a node)

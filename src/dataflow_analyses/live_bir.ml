@@ -17,10 +17,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
-open JBasics
-open JCode 
-open Javalib
 
 module Env = struct
   (* lattice of powerset of JBir variables *)
