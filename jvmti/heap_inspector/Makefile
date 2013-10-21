@@ -34,8 +34,9 @@ HeapInspector.so: HeapInspector.c
 	@$(GCC) -O2 -Wall -fPIC -c $^ ${INCLUDES} -o HeapInspector.o
 	@$(GCC) -O2 -shared ${INCLUDES} HeapInspector.o -o libHeapInspector.so
 run: java inspector
-	@java -agentlib:HeapInspector=sawja.HeapInit sawja.HeapInit
+	@java -classpath . -agentlib:HeapInspector=sawja.HeapInit sawja.HeapInit
 
 clean: 
 	rm -f *.o
 	rm -f *.so
+
