@@ -88,7 +88,7 @@ module Make (State:State.S) = struct
               let new_var = cst.transferFun abst in
                 State.join ~do_join ~modifies abst target new_var
             with Domain.DebugDom -> 
-              Printf.printf "Error during following constraint: \n" ;
+              Printf.eprintf "Error during following constraint: \n" ;
               pprint Format.err_formatter cst ;
               raise (State.DebugSt abst)
 end
