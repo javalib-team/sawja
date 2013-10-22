@@ -47,7 +47,6 @@ let void_info =
     p_method = (fun _ _ -> []);
     p_pp = (fun _ _ _ -> []) }
     
-let html_indent = 3
 let class_class = "class"
 let classname_class = "classname"
 let methodname_class = "methodname clickable"
@@ -282,7 +281,7 @@ let returntype2html program rt currentclass =
     | None -> [PCData "void"]
     | Some t -> valuetype2html program t currentclass
 	
-let get_class_name program cs =
+let _get_class_name program cs =
   let ioc = get_node program cs in get_name ioc
 				     
 let cn2anchorname = cn_name

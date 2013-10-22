@@ -91,8 +91,6 @@ module AbVSet = struct
 
   let bot = Bot
 
-  let top = Top
-
   let primitive = Primitive
 
   let isPrimitive t =

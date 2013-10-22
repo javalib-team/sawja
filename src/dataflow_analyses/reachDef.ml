@@ -128,4 +128,3 @@ let run m =
       }
 
 
-let to_string = Lat.to_string

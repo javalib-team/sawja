@@ -38,7 +38,7 @@ struct
 	mutable memorized_virtual_calls : MethodSet.t;
 	mutable memorized_interface_calls : MethodSet.t }
 
-  type class_method = JCode.jcode class_node * JCode.jcode concrete_method
+  (*type class_method = JCode.jcode class_node * JCode.jcode concrete_method*)
 
   type program_cache =
       { mutable classes : class_info ClassMap.t;
@@ -647,7 +647,7 @@ struct
         Javalib.close_class_path classpath;
         raise e
 
-  let parse_program_bench instantiated entrypoints classpath =
+  let _parse_program_bench instantiated entrypoints classpath =
     let time_start = Sys.time() in
     let (p,_) = parse_program instantiated entrypoints None classpath in
     let s = Wlist.size p.workset in

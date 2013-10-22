@@ -77,8 +77,6 @@ let transform2arg = function
   | Boolean (f, _def) -> Arg.Bool f
   | NotPlugin spec -> spec
 
-let list_from_string str sep = ExtString.String.nsplit str sep
-
 let gen_xml_desc (name, desc) arg_list plug_out_name =
   let arg_unit_list = 
     let get_tag_and_def = function

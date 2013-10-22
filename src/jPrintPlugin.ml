@@ -23,7 +23,6 @@ open JProgram
 open Javalib 
 open JPrintUtil
 
-exception NoDebugInfo of class_name
 
 (* Tags and attributes*)
 let warn_tag = "warning"
@@ -708,7 +707,6 @@ module JCodePrinter = Make(
     open AdaptedASTGrammar
 
     type p_code = jcode
-    type p_instr = jopcode
     type p_expr = unit
 
     (* include JCodeUtil from JPrintUtil that contains common code

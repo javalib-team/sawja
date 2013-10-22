@@ -54,7 +54,7 @@ end = struct
     cst:Constraints.cst; (* the constraint *)
   }
 
-  exception Found of (cst_to_apply)
+  (*exception Found of (cst_to_apply)*)
 
   let print_times () =
     let times = Unix.times ()

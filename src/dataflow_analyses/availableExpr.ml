@@ -80,7 +80,6 @@ type transfer =
   | Nop
 
 type pc = int
-type constr = pc*pc*transfer
 
 let transfer_to_string = function
   | Assign (x,e) ->
@@ -149,4 +148,3 @@ let run m =
     }
 
 
-let to_string = Lat.to_string
