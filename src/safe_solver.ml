@@ -54,8 +54,6 @@ end = struct
     cst:Constraints.cst; (* the constraint *)
   }
 
-  (*exception Found of (cst_to_apply)*)
-
   let print_times () =
     let times = Unix.times ()
     in Printf.eprintf "utime: %f\nstime: %f\n%!"

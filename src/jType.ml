@@ -127,7 +127,7 @@ let class_supertype prog t1 t2 =
             extends_interface i2 i1
         | Interface i1, Class c2 ->
             implements c2 i1
-        | Class c1, Interface i2 
+        | Class _c1, Interface _i2 
                       when node_equal (get_node prog java_lang_object) nd1 
           -> true
         | _ -> false
@@ -276,7 +276,7 @@ let rec supertype_from_direct prog t1 t2 =
 
            | TArray (TObject subarray2), TClass _ ->
                (supertype_from_direct prog t1 subarray2)
-           | TArray (TBasic prim2), TArray (TBasic prim1) ->
+           | TArray (TBasic prim2), TArray (TBasic _prim1) ->
                (try supertype_from_direct prog t1 
                       (TArray (TBasic (get_primitive_super prim2)))
                 with Not_found -> false)
