@@ -47,6 +47,9 @@ let static_lookup program pp =
         Some ([static_lookup_static program cs ms])
     | JBirSSA.InvokeNonVirtual (_, _, cs, ms, _) ->
         Some ([Class (static_lookup_special program (get_class pp) cs ms)])
+    | JBirSSA.New(_, cs,argts, _) ->
+          let ms = JBasics.make_ms "<init>" argts None in
+        Some ([Class (static_lookup_special program (get_class pp) cs ms)])
     | _ -> None
 
   (*Veut t'on une implémentation plus compliqué et rarement plus précise -> 
