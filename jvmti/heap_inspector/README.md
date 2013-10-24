@@ -6,11 +6,11 @@ of the *JVM* (before the CLINIT of the class containing the main method).
 This is used to know precisely the objects and fields early initialized by the
 *JVM*. It is a C library which uses *JVMTI* and can be loaded in the JVM during
 the execution of an analysed program. The analyzed program is important
-because, it has been observe that the virtual machine initialization is
-dependant of this program (even if no line of this program have been run at the
+because, it has been observed that the virtual machine initialization is
+dependent on this program (even if no lines of this program have been run at the
 inspection time).
 
-The result are dumped into a text file using a precise format which can be then
+Results are dumped into a text file using a precise format which can be then
 used by other programs.
 
 How to compile
@@ -29,7 +29,7 @@ make
 
 Set installation environment
 ----------------------------
-*LD_LIBRARY_PATH* must include the directory where is libHeapInspector.so is
+*LD_LIBRARY_PATH* must include the directory where libHeapInspector.so is
 located in order to easily load the library in the *JVM*
 
 Have a try
@@ -46,14 +46,14 @@ java -agentlib:HeapInspector="<pkg>.<MainClass>" <pkg>.<MainClass>
 How to read/use the dump
 ========================
 
-The first part of the dump represent classes. For each initialized static
+The first part of the dump represents classes. For each initialized static
 field, we get its value. If it is an object, the value will be an index to the
 object. After the static fields, we get a list of objects for a class and in
 this list we can see the value of each instantiated field. The second part is
 about the arrays: for each array type, it dumps for each instance, every
 element of the array.
 
-Sawja can use the dumps to initialize an analysis state with information from
+Sawja can use dumps to initialize an analysis state with information from
 the dump. It includes a dump parser in sawja/src/heap_parser.
 
 Here is the full grammar of the dump:
