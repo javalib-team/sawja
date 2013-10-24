@@ -110,22 +110,6 @@ arrayDec:
     | ArrayType arrayDec {}
 ;
 
-/*
-arrayVal:
-    | Open arrayEls Close {$2}
-;
-
-arrayEls:
-    | / *empty* /  {[]}
-    | arrayEls arrayEl {$2::$1}
-;
-
-arrayEl:
-    | ArrayIdx Eq Num SemiCol {($1,$3)}
-    | ArrayIdx Eq HexNum SemiCol{($1,$3)}
-;
-*/   
-
 /* ################ CLASSPART ################ */
 arrayPart:
   /*empty*/ {ObjectMap.empty}
