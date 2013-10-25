@@ -30,9 +30,15 @@
     #directory "... path of Sawja sources ...";;</code></pre>
   
 <p>The different modules of Sawja and Javalib are encapsulated in Sawja_pack
-  and Javalib_pack modules, to direcly use them, you only need to type:</p>
-<pre><code>    open Javalib_pack;;
-    open Sawja_pack;;
+  and Javalib_pack modules. To uses them, you have to load the different used
+  library and thoses packs:</p>
+<pre><code>    #load "ptrees.cma";;
+#load "extLib.cma";;
+#load "str.cma";;
+#load "unix.cma";;
+#load "zip.cma";;
+#load "javalib_pack.cmo";;
+#load "sawja_pack.cmo";;
 </code></pre>
 
 <pre><code>    let (prta,instantiated_classes) =
