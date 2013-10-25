@@ -1,6 +1,3 @@
-open Javalib_pack
-open JBasics
-open JProgram
 (*
  * This file is part of SAWJA
  * Copyright (c)2013 Pierre Vittet (INRIA)
@@ -19,6 +16,10 @@ open JProgram
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
+open Javalib_pack
+open JBasics
+open JProgram
+
 
 (** This module provides some type utilities. It uses the JBasics object type,
 * allowing type comparaison and subtyping. Current implementation does not
