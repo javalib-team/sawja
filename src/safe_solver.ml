@@ -221,7 +221,7 @@ end = struct
                add_to_work_stack (DynArray.get var_csts2 v))
 	  var_init;
 
-        if !debug_level > 1 then
+        if !debug_level > 3 then
           begin
             let print_cst cst =
               print_string ("{id:"^string_of_int cst.id
@@ -268,7 +268,7 @@ end = struct
             (* if !debug_level > 1 then *)
             (*   Constraints.pprint Format.std_formatter cst.cst; *)
             Constraints.apply_cst ~do_join:(do_join cst.target) ~modifies !abState cst.cst;
-            if !debug_level > 2 then
+            if !debug_level > 3 then
               (let print_cst cst =
                  print_string ("{id:"^string_of_int cst.id
                                ^ ", target:"^string_of_int cst.target

@@ -108,7 +108,6 @@ struct
   let add_constraint prog pp str =
     let pp_var = pp_var_from_PP pp in
     let cn_str = make_cn "java.lang.String" in
-(*     let cn_char_ar = make_cn "Sawja_array.Char" in *)
     let objt_char_ar = TArray (TBasic `Char) in
     let val_fs = make_fs "value" (TObject (TArray (TBasic `Char)))  in
     let hs_fs = make_fs "hash" (TBasic `Int)  in
@@ -343,7 +342,10 @@ let abstract_init_method_instr cn_node ms csts =
     }
   in cst_loc::csts
 
-
+(* Handle native exception: 
+*  On every exception handler, we check if it can catch a native exception. For
+*  those exception handler, we add a constraint stating that such an exception
+*  might have been throwed from any pp covered by the handler.*)
 let handle_native_exc prog node cm =
   let impl = 
     match cm.cm_implementation with
@@ -1210,7 +1212,7 @@ let get_CFA_program
       (entry_points:class_method_signature list)
       (main_entry_points : class_method_signature)
       : JBir.t JProgram.program =
-         CFASolver.debug_level := 0;
+         CFASolver.debug_level := 3;
   let entry_st=
     match init_heap with
        None ->

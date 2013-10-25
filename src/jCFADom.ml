@@ -170,13 +170,7 @@ module AbVSet = struct
             then set1
             else (modifies:=true; Set union)
       | _ -> 
-(*
-         Printf.printf "set1: %s\n" (to_string set1);
-         Printf.printf "set2: %s\n" (to_string set2);
-         Printf.printf "Var set to bottom";
- *)
          Top 
-(*             raise Safe.Domain.DebugDom (*trying to join a primitive and a cn set*)  *)
 
   let join_ad ?(do_join=true) ?(modifies=ref false) v1 v2 =
     if do_join
@@ -196,6 +190,11 @@ module AbVSet = struct
                     st
                     ObjectSet.empty
 
+  (*If [rev] is false, return the subset of [set] containing only object which
+   * are subtype of [objt] (or equal to [objt]. 
+   * If [rev] is true, return the subset of [set] containing only object which
+   * are not subtype of [objt] (or which are not equal). 
+  * *)
   let filter_with_compatible' prog set objt rev=
       match set with
         | Bot  -> Bot
@@ -248,7 +247,6 @@ module AbFSet = struct
   type analysisID = unit
   type analysisDomain = t
 
-
   let bot = Bot
 
   let empty = Set SiteMap.empty
@@ -260,8 +258,7 @@ module AbFSet = struct
 
   let is_empty set = 
     match set with
-      | Set objm ->
-          SiteMap.is_empty objm
+      | Set objm -> SiteMap.is_empty objm
       | _ -> false
 
   let equal set1 set2 =
