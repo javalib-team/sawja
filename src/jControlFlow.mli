@@ -20,9 +20,6 @@
  *)
 
 
-(* TODO: static_lookup_* function have been removed. this was a bad
-   idea.*)
-
 (** Provides some JVM resolution and lookup functions and allows some 
     navigation in the control flow graph of a program for static analysis. *)
 

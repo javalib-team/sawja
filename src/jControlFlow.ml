@@ -239,8 +239,6 @@ let rec resolve_interface_method' ?(acc=[]) ms (c:'a node) : 'a interface_node l
     (get_interfaces c)
     acc
 
-(* TODO : like resolve_field, resolve_method should return a list in
-   case the method is defined in several interfaces at the same time. *)
 (* TODO : we could use c_resolve_methods or update it if there are no
    matches to see if it increases performance. According to some
    tests on the loading of soot.jar, it's not significant *)
