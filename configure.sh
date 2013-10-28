@@ -60,7 +60,7 @@ FLAGS="-w Aer"
 # Do version check for packages 
 VCHECK="true"
 
-JAVALIB_VERSION="2.2.2"
+JAVALIB_VERSION="JAVALIB_TRUNK"
 
 # The camlp4o pretty-printer
 PP=
