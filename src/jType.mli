@@ -20,11 +20,12 @@ open Javalib_pack
 open JBasics
 open JProgram
 
+(** It provides some type utilities (mainly subtyping). It uses the JBasics
+  * object type, allowing type comparaison and subtyping. Current
+  * implementation does not handle subtyping of parameterized types and
+  * generics.
+*)
 
-(** This module provides some type utilities. It uses the JBasics object type,
-* allowing type comparaison and subtyping. Current implementation does not
-* handle subtyping of parameterized types and generics.
-* *)
 
 val obj_compare : object_type -> object_type -> int 
 

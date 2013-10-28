@@ -7,7 +7,7 @@
 {2 {L Documentation}}
 
 {b {L High level manipulations of programs}}
-{!modules: JProgram JControlFlow JNativeStubs JCRA JRTA JRRTA XTA}
+{!modules: JProgram JControlFlow JType JNativeStubs JCRA JRTA JRRTA XTA}
 
 {b {L Intermediate Representations}}
 {!modules: JBir A3Bir JBirSSA A3BirSSA}
