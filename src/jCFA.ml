@@ -510,6 +510,36 @@ let handle_throw ?(other_dep=[]) prog pp excAbSt =
     }
   in cst_uncatched::csts
 
+let rec ar_2_type cur_dim vt =
+  if cur_dim = 1 
+  then (TArray vt) 
+  else (TArray (TObject (ar_2_type (cur_dim-1) vt)))
+
+
+let rec handle_new_array pp pp_var vt ar_dim over_ar =
+  let abVar_for_new_ar vt dim = 
+      (fun _ -> AbVar.singleton [pp] (ar_2_type dim vt))
+  in
+
+  let has_obj_content vt =
+    (match vt with
+       | TBasic _ -> false
+       | TObject _ -> true
+    ) in
+  let obje = abVar_for_new_ar vt ar_dim in
+  let vare = (fun abSt -> 
+                if (ar_dim > 1 )
+                then abVar_for_new_ar vt (ar_dim -1) abSt
+                else (if (has_obj_content vt)
+                then AbVar.empty 
+                else AbVar.primitive)) in
+  let content_cst = affect_array obje vare [pp_var;] in
+    if ar_dim = 1
+    then content_cst::over_ar
+    else handle_new_array pp pp_var vt (ar_dim-1) (content_cst::over_ar)
+
+
+
 
 
 let abstract_instruction opt prog pp opcode succs csts =
@@ -769,23 +799,14 @@ let abstract_instruction opt prog pp opcode succs csts =
                  AbLocals.set_var (index v) (AbVSet.singleton [pp] (TClass cn)) l
             ) ()
 
-      | NewArray (v, vt, _args) ->
-          let has_obj_content vt =
-            (match vt with
-               | TBasic _ -> false
-               | TObject _ -> true
-(*                | TObject (TArray vt) -> true *)
-            )
-          in
-          let obje = (fun _ -> AbVar.singleton [pp] (TArray vt)) in
-          let vare = (fun _ -> if (has_obj_content vt)
-                      then AbVar.empty 
-                      else AbVar.primitive) in
-          let content_cst = affect_array obje vare [pp_var;] in
-            make_csts ~cstsl:(content_cst::csts) ~prop_locals_f:
+      | NewArray (v, vt, args) ->
+          let dim = List.length args in
+          let content_cst =  handle_new_array pp pp_var vt dim [] in
+            make_csts ~cstsl:(content_cst@csts) ~prop_locals_f:
               (fun abSt -> 
                  let l = CFAState.get_PP abSt pp_var in
-                   AbLocals.set_var (index v) (AbVSet.singleton [pp] (TArray vt)) l
+                   AbLocals.set_var (index v) 
+                     (AbVSet.singleton [pp] (ar_2_type dim vt)) l
               ) ()
       | InvokeStatic (opt_ret, cn, ms, args) ->
           handle_invoke ~static:true opt_ret [cn] ms args
