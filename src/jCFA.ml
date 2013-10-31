@@ -1233,7 +1233,7 @@ let get_CFA_program
       (entry_points:class_method_signature list)
       (main_entry_points : class_method_signature)
       : JBir.t JProgram.program =
-         CFASolver.debug_level := 3;
+         CFASolver.debug_level := opt.cfa_debug;
   let entry_st=
     match init_heap with
        None ->

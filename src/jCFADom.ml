@@ -27,19 +27,18 @@ open JType
 type asite = JBirPP.t list * object_type
 
 let asite_compare (lst1,cn1) (lst2,cn2) =
-  let rec cmp_list l1 l2 =
+  let cmp_list l1 l2 =
     match l1, l2 with
-      | [],[] -> 0
-      | _l1,[] -> 1
-      | [],_l2 -> -1
-      | e1::l1, e2::l2 -> 
-          (match JBirPP.compare e1 e2 with
-             | 0 -> cmp_list l1 l2
-             | i -> i)
+      | [], [] -> 0
+      | [], e2::_ -> 1
+      | _e1::_, [] -> -1
+      | e1::_, e2::_ -> JBirPP.compare e1 e2 
+      | _ -> assert false (*In the current implementation is always a list with
+            a 0 (for static field) or 1 element.*)
   in
     match obj_compare cn1 cn2 with
-      | 0 -> cmp_list lst1 lst2
       | i -> i
+      | 0 -> cmp_list lst1 lst2
 
 let asite_to_string (pplst, obj) =
   let str_pp = 
