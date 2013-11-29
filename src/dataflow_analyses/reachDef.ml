@@ -126,5 +126,20 @@ let run m =
 	Iter.dom_to_string = Lat.to_string m;
 	Iter.transfer_to_string = transfer_to_string
       }
+let run2 m =
+  let init = init (JBir.params m) in
+    Iter2.run 
+      {
+	Iter2.bot = Lat.bot ;
+	Iter2.join = Lat.join;
+	Iter2.leq = Lat.order;
+	Iter2.eval = eval_transfer;
+	Iter2.normalize = (fun x -> x);
+	Iter2.cstrs = gen_symbolic m;
+	Iter2.verbose = false;
+	Iter2.dom_to_string = Lat.to_string m;
+	Iter2.transfer_to_string = transfer_to_string
+      }
+
 
 

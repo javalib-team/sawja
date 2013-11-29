@@ -37,4 +37,5 @@ module Lat :
 the reachable definitions analysis before execution of the program
 point [pc]*)
 val run : JBir.t -> int -> Lat.t
+val run2 : JBir.t -> int -> Lat.t
 

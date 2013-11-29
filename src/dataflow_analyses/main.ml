@@ -22,8 +22,6 @@
 open Sawja_pack
 open Javalib_pack
 
-open JBasics
-open JCode
 open Javalib
 
 let run filename =
@@ -38,6 +36,7 @@ let run filename =
 		 (JPrint.method_signature cm.cm_signature);
 	       let live = Live_bir.run ir_code in
 	       let rd = ReachDef.run ir_code in
+         let rd2 = ReachDef.run2 ir_code in				
 	       let ae = AvailableExpr.run ir_code in
 		 Array.iteri 
 		   (fun i op -> 
@@ -45,6 +44,8 @@ let run filename =
 			(Live_bir.to_string (live i));
 		      Printf.printf "     --> RD[%d]: %s\n" i
 			(ReachDef.Lat.to_string ir_code (rd i));
+					Printf.printf "     --> RD2[%d]: %s\n" i
+			(ReachDef.Lat.to_string ir_code (rd2 i));
 		      Printf.printf "     --> AE[%d]: %s\n" i
 			(AvailableExpr.Lat.to_string (ae i));
 			Printf.printf "%3d: %s\n"
