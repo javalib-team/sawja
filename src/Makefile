@@ -35,7 +35,7 @@ else
 CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
-MODULES = $(DATAFLOW)iter jUtil wlist \
+MODULES = iter jUtil wlist \
 	jProgram classDomain jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	jCodePP cmn bir birA3 jBir jBirPP a3Bir a3BirPP \
@@ -48,7 +48,7 @@ MODULES = $(DATAFLOW)iter jUtil wlist \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
 	$(DATAFLOW)availableExprSSA
 
-MODULE_INTERFACES = $(DATAFLOW)iter wlist \
+MODULE_INTERFACES = iter wlist \
 	jProgram classDomain jNativeStubs jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	jCodePP jBir jBirPP a3Bir a3BirPP jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
