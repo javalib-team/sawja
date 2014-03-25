@@ -160,7 +160,7 @@ type check =
   | CheckArrayStore of tvar * tvar (** [CheckArrayStore(a,e)] checks [e] can be stored as an element of the array [a] and raises the Java ArrayStoreException if this is not the case. *)
   | CheckNegativeArraySize of tvar (** [CheckNegativeArray e] checks that [e], denoting an array size, is positive or zero and raises the Java NegativeArraySizeException if this is not the case.*)
   | CheckCast of tvar * JBasics.object_type (** [CheckCast(e,t)] checks the object denoted by [e] can be casted to the object type [t] and raises the Java ClassCastException if this is not the case. *)
-  | CheckArithmetic of tvar (** [CheckArithmetic e] checks that the divisor [e] is not zero, and raises ArithmeticExcpetion if this is not the case. *)
+  | CheckArithmetic of tvar (** [CheckArithmetic e] checks that the divisor [e] is not zero, and raises ArithmeticException if this is not the case. *)
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
 	  [op] instruction, must be started and if so if it

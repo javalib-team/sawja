@@ -190,7 +190,7 @@ type check =
           ClassCastException if this is not the case. *)
   | CheckArithmetic of expr
       (** [CheckArithmetic e] checks that the divisor [e] is not zero,
-          and raises ArithmeticExcpetion if this is not the case. *)
+          and raises ArithmeticException if this is not the case. *)
   | CheckLink of JCode.jopcode
       (** [CheckLink op] checks if linkage mechanism, depending on
 	  [op] instruction, must be started and if so if it
