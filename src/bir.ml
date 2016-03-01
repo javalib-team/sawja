@@ -3,6 +3,8 @@
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -240,7 +242,7 @@ type bir = {
   bir_code : instr array;
   bir_exc_tbl : exception_handler list;
   bir_line_number_table : (int * int) list option;
-  bir_pc_bc2ir : int Ptmap.t;
+  (*  bir_pc_bc2ir : int Ptmap.t;*)
   bir_pc_ir2bc : int array;
 
   (* only for ssa *)
@@ -256,7 +258,7 @@ let empty =
     bir_code = [||];
     bir_exc_tbl = [];
     bir_line_number_table = None;
-    bir_pc_bc2ir = Ptmap.empty;
+    (*bir_pc_bc2ir = Ptmap.empty;*)
     bir_pc_ir2bc = [||];
     bir_preds = [||];
     bir_phi_nodes = [||];
@@ -1197,7 +1199,7 @@ let to_addr3_binop dico mode binop ssa fresh_counter s =
       in 
 	(match binop with 
 	   | Div jvm_t 
-	   | Rem jvm_t when jvm_t = `Int2Bool or jvm_t = `Long ->
+	   | Rem jvm_t when jvm_t = `Int2Bool || jvm_t = `Long ->
 	       begin
 		 let q = topE s in 
 		 let e = Binop (binop,topE (pop s),topE s) in
@@ -1211,7 +1213,7 @@ let to_addr3_binop dico mode binop ssa fresh_counter s =
     | _ -> 
 	(match binop with 
 	   | Div jvm_t 
-	   | Rem jvm_t when jvm_t = `Int2Bool or jvm_t = `Long ->  
+	   | Rem jvm_t when jvm_t = `Int2Bool || jvm_t = `Long ->  
 	       begin
 		 let q = topE s in 
 		   E (Binop (binop,topE (pop s), topE s))::(pop2 s), [Check (CheckArithmetic q)]
@@ -2120,7 +2122,7 @@ module CheckInfoDebug = struct
 	Ptmap.fold
 	  (fun i s b -> 
 	     let s2 = (get m2 i) in 
-	       b && ((s = s2) or s2 = FastCheckInfoDebug.UnDef)
+	       b && ((s = s2) || s2 = FastCheckInfoDebug.UnDef)
 	  )
 	  m1 true
       with Not_found -> false
@@ -2300,7 +2302,6 @@ module CheckInfoDebug = struct
 	)
 	code
 
-
   let run m =
     let init = init m.bir_params in
     let res =
@@ -2439,7 +2440,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type arrayload_
 	      (List.fold_left 
 		 (fun nb_loc_arg -> 
 		    function  
-			TBasic jbt when ((jbt = `Double) or (jbt = `Long)) ->
+			TBasic jbt when ((jbt = `Double) || (jbt = `Long)) ->
 			  nb_loc_arg + 2
 		      | _ -> nb_loc_arg + 1)
 		 (if cm.cm_static then 0 else 1)
@@ -2664,7 +2665,7 @@ let rec remove_dead_instrs code ir2bc bc2ir handlers =
       (* first instruction has (-1) as predecessor and is not a dead
          instr *)
       pc >= 0 &&
-        (Ptset.is_empty predsi.(pc) or is_its_own_pred ())
+        (Ptset.is_empty predsi.(pc) || is_its_own_pred ())
   in
     (* calculate program point correspondance between old code and
        code without dead instructions *)
@@ -2800,10 +2801,22 @@ let rm_dead_instr_from_bcv code is_typed =
       code.c_exc_tbl
   in {code with c_exc_tbl = eh_list}
 
+let jsr_ir2bc_post_treatment (assoc: (int*int) list) (ir2bc: int array) : int array =
+  let rec update_pp pp pp_list =
+      match pp_list with
+      | [] -> pp
+      | (inline_pp, bc_pp)::tail -> if inline_pp = pp
+				    then bc_pp
+				    else update_pp pp tail in
+  Array.iteri
+    (fun i pp -> Array.set ir2bc i (update_pp pp assoc))
+    ir2bc;
+  ir2bc
+
 let jcode2bir mode bcv ch_link ssa cm jcode =
   let code = jcode in
     match JsrInline.inline code with
-      | Some code ->
+      | Some (code, assoc) ->
 	  (* [make_transformation no_debug] returns the code
 	     transformation and a boolean value indicating if the
 	     debug information on variables could be
@@ -2848,8 +2861,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	      ({ bir_params = gen_params dico pp_var cm;
 		 bir_vars = make_array_var dico;
 		 bir_code = nir_code;
-		 bir_pc_ir2bc = nir2bc;
-		 bir_pc_bc2ir = nbc2ir;
+		 bir_pc_ir2bc = jsr_ir2bc_post_treatment assoc nir2bc;
 		 bir_exc_tbl = nir_exc_tbl;
 		 bir_line_number_table = code.c_line_number_table;
 		 (* ssa *)
@@ -3554,7 +3566,96 @@ module SSA = struct
     let (idom,_children) = idom dom in
       idom
 
-  let run ir_code live =
+ (* We follow 'A Fast Algorithm for Finding Dominators in a Flowgraph'
+   by Lengauer and Tarjan *)
+  (* [r] is an entry point in [0 .. n-1] *)
+  (* returns (dom,_) where, dom(w) = v is the immediate dominator of w. *)
+  let tarjan_idom succ pred r n =
+    let semi = Array.make n (-1) in
+    let vertex = Array.make n (-1) in
+    let label = Array.make n (-1) in
+    let dom = Array.make n (-1) in
+    let ancestor = Array.make n (-1) in
+    let parent = Array.make n (-1) in
+    let bucket = Array.make n [] in
+    let nb_dfs = ref 0 in
+    let nb_dead = ref 0 in
+    let rec dfs v =
+      semi.(v) <- !nb_dfs;
+      vertex.(!nb_dfs) <- v;
+      label.(v) <- v;
+      incr nb_dfs;
+      List.iter
+	(fun w -> 
+	 if semi.(w) = -1 then 
+	   begin
+	     parent.(w) <- v;
+	     dfs w
+	   end)
+	(succ v) in
+    let rec compress v =
+      if not (ancestor.(ancestor.(v)) = -1) then
+	begin
+	  compress ancestor.(v);
+	  if semi.(label.(ancestor.(v))) < semi.(label.(v)) then
+	    label.(v) <- label.(ancestor.(v));
+	  ancestor.(v) <- ancestor.(ancestor.(v))
+	end in 
+    let eval v =
+      if ancestor.(v) = -1 then v
+      else begin
+	  compress v;
+	  label.(v)
+	end in 
+    let link v w = ancestor.(w) <- v in
+    dfs r;
+    Array.iteri
+      (fun i w ->
+	 if (w = -1) then begin
+	     (* Printf.printf "Error: point %d seems not reachable !!!\n" (i+1); *)
+	     incr nb_dead
+	   end)
+      semi;
+    let add v t w =
+      t.(w) <- v :: t.(w) in
+    for i= !nb_dfs-1 downto 1 do 
+      let w = vertex.(i) in
+	List.iter 
+	  (fun v -> 
+	   if semi.(v) >=0 then
+	     let u = eval v in 
+	     if semi.(u) < semi.(w) then semi.(w) <- semi.(u))
+	  (pred w);
+	add w bucket vertex.(semi.(w));
+	link parent.(w) w;
+	List.iter 
+	  (fun v ->
+	   let u = eval v in
+	   dom.(v) <- if semi.(u) < semi.(v) then u else parent.(w))
+	  bucket.(parent.(w));
+	bucket.(parent.(w)) <- []
+    done;
+    for i=1 to !nb_dfs-1 do
+      let w = vertex.(i) in
+      if w>=0 && not (dom.(w) = vertex.(semi.(w))) then
+	dom.(w) <- dom.(dom.(w))
+    done;
+    let children = Array.make n [] in
+    for i=0 to n-1 do
+      let d = dom.(i) in
+      if d>=0 then children.(d) <- i :: children.(d)
+    done; 
+    let idom i =
+      try dom.(i)
+      with Invalid_argument _ -> assert false in
+    let children i =
+      if i=(-1) then [0]
+      else try children.(i)
+	   with Invalid_argument _ ->
+	     Printf.printf "children[%d]?\n" i; assert false in
+    (idom, children) (* (fun i -> semi.(i)<0), vertex) *)
+
+ let run ir_code live =
     (*
       let rd = ReachDef.run ir_code in
       let jump_target = jump_target ir_code in
@@ -3562,8 +3663,14 @@ module SSA = struct
     let n = Array.length ir_code.bir_code in
     let preds = preds ir_code in
     let succs = succs ir_code in
-    let dom = dominator ir_code.bir_code preds in
-    let (idom,children) = idom dom in
+    let (idom,children) = tarjan_idom succs preds 0 n  in 
+
+(*    let dom = dominator ir_code.bir_code preds in
+    let (idom,children) = idom dom in *)
+(*    for i=0 to n-1 do
+      assert (idom i=idom' i);
+      assert (List.sort compare (children i)=List.sort compare (children' i))
+    done;   *)
     let domf = domf n preds idom in
     let var_defs = var_defs ir_code in
     let phi_nodes = place_phi_nodes ir_code n var_defs domf live in
@@ -3572,7 +3679,8 @@ module SSA = struct
       try
 	  (Ptset.elements (Ptmap.find i phi_nodes)) 
       with Not_found -> [] in
-      ((fun i -> dom.(i)),idom,domf,phi_nodes,var_defs,rename,preds)
+    (* ((fun i -> dom.(i)), *)
+     (idom,domf,phi_nodes,var_defs,rename,preds)
 
   let to_string s =
     Printf.sprintf "{%s}"
@@ -3582,7 +3690,7 @@ module SSA = struct
     Printf.sprintf "{%s}"
       (JUtil.print_list_sep "," var_name_g s)
 
-  let debug ir_code (dom,idom,domf,phi_nodes,var_defs,(_rename_def,_rename_def_phi, rename_use,phi_nodes'),_preds) =
+ let debug ir_code (idom,domf,phi_nodes,var_defs,(_rename_def,_rename_def_phi, rename_use,phi_nodes'),_preds) =
     let jump_target = bir_jump_target ir_code in
     let var_defs = 
       JUtil.foldi
@@ -3607,12 +3715,12 @@ module SSA = struct
                     print_newline ()) var_defs;
       Array.iteri 
         (fun i op -> 
-           Printf.printf "     --> DOM[%d]: %s\n" i
-             (to_string (dom i));
+(*           Printf.printf "     --> DOM[%d]: %s\n" i
+             (to_string (dom i)); *)
            Printf.printf "     --> IDOM[%d]: %d\n" i
              (idom i);
-           Printf.printf "     --> DOMF[%d]: %s\n" i
-             (to_string (domf i));
+          Printf.printf "     --> DOMF[%d]: %s\n" i
+             (to_string (domf i)); 
            let phis = List.filter (fun v -> v<>heap_index) (phi_nodes i) in
            let phis = List.map (fun v -> (ir_code.bir_vars.(v))) phis in
              Printf.printf "     --> PHI[%d]: %s\n" i
@@ -3669,7 +3777,7 @@ module SSA = struct
     let debug i msg = 
       Printf.printf "-----------------\nFailure %s line %d\n-----------------\n" msg i;
       debug ir_code run in
-    let (_,_,_,_,_,
+    let (_,_,_,_,
 	 (rename_def, rename_def_phi, rename_use,phi_nodes'),preds) = run in
     let dico = make_dictionary_from ir_code.bir_vars in
     let make_var x i = make_var dico (make_var_ssa x i)in
@@ -3740,7 +3848,7 @@ module SSA = struct
 	};
 	bir_exc_tbl = exc_t;
 	bir_line_number_table = ir_code.bir_line_number_table;
-	bir_pc_bc2ir = ir_code.bir_pc_bc2ir;
+	(*bir_pc_bc2ir = ir_code.bir_pc_bc2ir;*)
 	bir_pc_ir2bc = ir_code.bir_pc_ir2bc
       }
 
@@ -3943,7 +4051,7 @@ module GetFormula = struct
         bir_code = code_new;
         bir_exc_tbl = m.bir_exc_tbl;
         bir_line_number_table = m.bir_line_number_table;
-        bir_pc_bc2ir = m.bir_pc_bc2ir;
+	(*        bir_pc_bc2ir = m.bir_pc_bc2ir;*)
         bir_pc_ir2bc = m.bir_pc_ir2bc;
         bir_preds = m.bir_preds; (* not computed yet *)
         bir_phi_nodes = m.bir_phi_nodes; (* not computed yet *)
@@ -4407,6 +4515,32 @@ struct
 
 
 end
+
+(* we perform some simple optimizations to remove some null pointer checks *)
+let simplify_CheckNullPointer (cm:'a concrete_method) (b:bir) : unit =
+  if not cm.cm_static then
+    begin
+      let this = b.bir_vars.(0) in
+      let code = b.bir_code in
+      if (ExtArray.Array.for_all (* we check that no instruction assigns the [this] variable *)
+		(fun ins ->
+		 match ins with
+		 | AffectVar (x,_)
+		 | NewArray (x,_,_)
+		 | New (x,_,_,_) 
+		 | InvokeStatic (Some x,_,_,_)
+		 | InvokeVirtual (Some x,_,_,_,_) 
+		 | InvokeNonVirtual (Some x,_,_,_,_) -> not (var_equal this x)
+		 | _ -> true) code)
+      then Array.iteri
+	(fun i ins ->
+	 match ins with
+	 | Check (CheckNullPointer (Var (_,x))) when var_equal this x ->
+	    code.(i) <- Nop
+	 | _ -> ())
+	code
+    end
+  
 
 module IRUtil =
 struct

@@ -2,6 +2,8 @@
  * This file is part of SAWJA
  * Copyright (c)2010 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,4 +29,4 @@ open Javalib_pack
     contain subroutines at all, [code'] is physically equal to
     [code]. If [code] contains too complex subroutines (for example,
     nested subroutines), then [inline code] returns [None]. *)
-val inline : JCode.jcode -> JCode.jcode option
+val inline : JCode.jcode -> (JCode.jcode * ((int*int) list)) option

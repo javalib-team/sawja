@@ -1,6 +1,8 @@
 (*
  * This file is part of SAWJA
  * Copyright (c)2013 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

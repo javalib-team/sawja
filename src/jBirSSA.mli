@@ -352,7 +352,7 @@ val  line_number_table : t -> (int * int) list option
     if pc is not an original bytecode pc or if the corresponding
     bytecode instruction has no predecessors and has been removed
     because it is unreachable.*)
-val  pc_bc2ir : t -> int Ptmap.t
+(*val  pc_bc2ir : t -> int Ptmap.t*)
 
 (** map from ir code line to bytecode code line: the last bytecode
     instruction corresponding to the given ir instruction is

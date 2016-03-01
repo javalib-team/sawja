@@ -3,6 +3,8 @@
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -142,7 +144,7 @@ let params m = m.bir.Bir.bir_params
 let code m = m.code
 let exc_tbl m = m.bir.Bir.bir_exc_tbl
 let line_number_table m = m.bir.Bir.bir_line_number_table
-let pc_bc2ir m = m.bir.Bir.bir_pc_bc2ir
+(*let pc_bc2ir m = m.bir.Bir.bir_pc_bc2ir*)
 let pc_ir2bc m = m.bir.Bir.bir_pc_ir2bc 
 
 let default_formula_cmd = Bir.default_formula_cmd

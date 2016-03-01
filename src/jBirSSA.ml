@@ -2,6 +2,8 @@
  * This file is part of SAWJA
  * Copyright (c)2009 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,7 +46,7 @@ let params m = m.bir_params
 let code m = m.bir_code
 let exc_tbl m = m.bir_exc_tbl
 let line_number_table m = m.bir_line_number_table
-let pc_bc2ir m = m.bir_pc_bc2ir
+(*let pc_bc2ir m = m.bir_pc_bc2ir*)
 let pc_ir2bc m = m.bir_pc_ir2bc 
 let phi_nodes m = m.bir_phi_nodes
 let preds m = m.bir_preds

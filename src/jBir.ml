@@ -27,7 +27,7 @@ let params m = m.bir_params
 let code m = m.bir_code
 let exc_tbl m = m.bir_exc_tbl
 let line_number_table m = m.bir_line_number_table
-let pc_bc2ir m = m.bir_pc_bc2ir
+(*let pc_bc2ir m = m.bir_pc_bc2ir*)
 let pc_ir2bc m = m.bir_pc_ir2bc 
 
 let get_source_line_number pc_ir m = 

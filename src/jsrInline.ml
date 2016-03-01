@@ -2,6 +2,8 @@
  * This file is part of SAWJA
  * Copyright (c)2010 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -296,10 +298,23 @@ let inter (a,b) (c,d) =
   assert (c<=d);
   let low = max a c in
   let high = min b d in
-    if low <= high then Some (low,high) else None
+  if low <= high then Some (low,high) else None
+
+let is_invoke opcode =
+  match opcode with
+  | OpInvoke (`Interface _, _) -> true
+  | OpInvoke (`Virtual (TClass _), _) -> true
+  | OpInvoke (`Virtual (TArray _), _) -> true
+  | OpInvoke(`Static _, _) -> true
+  | OpInvoke (`Special _, _) -> true
+  | _ -> false					     
 
 
-let inline code instrs subroutines =
+(* [inline] generates a couple [(new_code, assoc)] where
+   [assoc] is an association list between between pairs (new_pp, old_pp)
+   of program point that handle invoke instructions  *)
+let inline code instrs subroutines : (JCode.jcode * ((int*int) list)) =
+  let assoc = ref [] in
   let new_size =
     (* Add size of corresponding subroutine for each subroutine start
        (code of the same subroutine code is added several times)*)
@@ -325,8 +340,14 @@ let inline code instrs subroutines =
 	       (fun i -> 
 		  (* we dont copy the OpStore linked with the Jsr
 		     instruction (at code_start)*)
-		  if i <> code_start then
-		    new_code.(!current+i-code_start) <- code.c_code.(i)
+
+		  if i <> code_start then begin
+		      new_code.(!current+i-code_start) <- code.c_code.(i);
+		      (*let is_invoke _ = true in (* FIXME *)*)
+		      if is_invoke code.c_code.(i) then
+			assoc := (!current+i-code_start, i) :: !assoc
+		    end
+	       
 	       ) codes;
 	     (* Replace Jsr instr by Goto (to new start of subroutine
 		excluding the OpStore linked with the Jsr
@@ -377,7 +398,7 @@ let inline code instrs subroutines =
 	  else pp
 	with _ -> pp
       in
-	{
+      ({
 	  c_max_stack = code.c_max_stack;
 	  c_max_locals = code.c_max_locals;
 	  c_code = new_code;
@@ -407,7 +428,8 @@ let inline code instrs subroutines =
 	  c_stack_map_midp = None;
 	  c_stack_map_java6 =  None;
 	  c_attributes = code.c_attributes
-	}
+      },
+       !assoc)
 
 (** [scan_subroutine code jump_target start] returns (start pp, set of
     pps included, pp of Ret instr, length of subroutine, handlers
@@ -479,7 +501,7 @@ let _test target = Javalib.iter
 				  jsr Ptmap.empty in
 		end_inlining ();
 		write code !nb_meth "old";
-		let new_code = inline code instrs (fun i -> Ptmap.find i subroutines) in
+		let (new_code, _) = inline code instrs (fun i -> Ptmap.find i subroutines) in
 		  write new_code !nb_meth "new";
 		  incr nb_meth
 	    end
@@ -487,11 +509,18 @@ let _test target = Javalib.iter
   target;
   Printf.printf "%d methods with subroutines\n" !nb_meth
 
-let inline code = 
+let inline code =
   (* couple (Pset (Jsr targets), List (jsr_src_pp,jsr_trg_pp))*)
   let (jsr,instrs) = get_jsr code in
-    if Ptset.is_empty jsr then Some code
-    else
+  if Ptset.is_empty jsr then
+    let id =  array_fold 
+		(fun i op assoc ->
+		 (*		 let is_invoke _ = true in (* FIXME *)		*)
+		 if is_invoke op then (i,i) :: assoc else assoc)
+		code.c_code 
+		[] in
+    Some (code,id)
+  else
       try
 	(* For all source jumps (handlers, goto, ... except jsr): Array[trg_pp] = Pset(src_pp) *)
 	let jump_target = compute_jump_target code in
