@@ -3,6 +3,8 @@
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,10 +62,10 @@ val index : var -> int
 
 
 (** This module allows to build efficient sets of [var] values. *)
-module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+module VarSet : GenericSet.GenericSetSig with type elt = var
 
 (** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+module VarMap : GenericMap.GenericMapSig with type key = var
 
 (** {3 Expressions} *)
 

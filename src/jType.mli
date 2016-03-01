@@ -1,6 +1,8 @@
 (*
  * This file is part of SAWJA
  * Copyright (c)2013 Pierre Vittet (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,11 +33,11 @@ val obj_compare : object_type -> object_type -> int
 
 
 (** This module allows to build maps of elements indexed by [object_type] values. *)
-module ObjectMap : GenericMapSig with type key = object_type
+module ObjectMap : GenericMap.GenericMapSig with type key = object_type
 
 
 (** This module allows to build sets of [object_type] values. *)
-module ObjectSet : GenericSetSig with type elt = object_type
+module ObjectSet : GenericSet.GenericSetSig with type elt = object_type
 
 
 (*[supertype t1 t2] Return true if t1 is a supertype of t2*)

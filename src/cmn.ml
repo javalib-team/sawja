@@ -3,6 +3,8 @@
  * Copyright (c)2009 Delphine Demange (INRIA)
  * Copyright (c)2009 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -151,8 +153,8 @@ let make_dictionary_from (vars : var array) =
     var_next = Array.length vars}
 
 
-module VarSet = JUtil.GenericSet(struct type t = unindexed_var end)
-module VarMap = JUtil.GenericMap(struct type t = unindexed_var end)
+module VarSet = GenericSet.Make(struct type t = var let get_hash = fst end)
+module VarMap = GenericMap.Make(struct type t = var let get_hash = fst end)
 
 type exception_handler = {
   e_start : int;

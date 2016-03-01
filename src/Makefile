@@ -35,7 +35,7 @@ else
 CLASS_DOMAIN = classDomainPtrees.ml
 endif
 
-MODULES = iter jUtil wlist \
+MODULES = jUtil iter iter2 wlist \
 	jProgram classDomain jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	jCodePP cmn bir birA3 jBir jBirPP a3Bir a3BirPP \

@@ -2,6 +2,8 @@
  * This file is part of SAWJA
  * Copyright (c)2009 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,10 +68,10 @@ val var_ssa_index : var -> int
 
 
 (** This module allows to build efficient sets of [var] values. *)
-module VarSet : Javalib_pack.JBasics.GenericSetSig with type elt = var
+module VarSet : GenericSet.GenericSetSig with type elt = var
 
 (** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : Javalib_pack.JBasics.GenericMapSig with type key = var
+module VarMap : GenericMap.GenericMapSig with type key = var
 
 (** {3 Expressions} *)
 
@@ -118,9 +120,6 @@ type expr =
   | Binop of binop * tvar * tvar
   | Field of tvar * JBasics.class_name * JBasics.field_signature  (** Reading fields of arbitrary expressions *)
   | StaticField of JBasics.class_name * JBasics.field_signature  (** Reading static fields *)
-
-(** [type_of_tvar e] returns the type of the expression [e]. *)      
-val type_of_tvar : tvar -> JBasics.value_type
 
 (** [type_of_expr e] returns the type of the expression [e]. *)      
 val type_of_expr : expr -> JBasics.value_type
@@ -322,7 +321,7 @@ val  line_number_table : t -> (int * int) list option
     if pc is not an original bytecode pc or if the corresponding
     bytecode instruction has no predecessors and has been removed
     because it is unreachable.*)
-val  pc_bc2ir : t -> int Ptmap.t
+(*val  pc_bc2ir : t -> int Ptmap.t*)
 
 (** map from ir code line to bytecode code line: the last bytecode
     instruction corresponding to the given ir instruction is

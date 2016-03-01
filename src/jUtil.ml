@@ -1,6 +1,8 @@
 (*
  * This file is part of SAWJA
  * Copyright (c)2010 David Pichardie (INRIA)
+ * Copyright (c)2016 David Pichardie (ENS Rennes)
+ * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,25 +47,6 @@ let find_index x l =
 	else aux (i+1) q in
     aux 0 l
 
-(* Containers. *)
-module Key(S: sig type t end) =
-struct
-  type t = int * S.t
-  let get_hash (i,_) = i
-end
-
-module GenericSet(S: sig type t end) = GenericSet.Make(Key(S))
-module GenericMap(S: sig type t end) = GenericMap.Make(Key(S))
-
-open Javalib_pack.JBasics
-
-module MaptoSet ( S : sig type t end )
-  ( GMap : GenericMapSig with type key = S.t )
-  ( GSet : GenericSetSig with type elt = S.t ) =
-struct
-  let to_set m =
-    GMap.fold (fun k _ s -> GSet.add k s) m GSet.empty
-end
 
 (* Print utilities ... *)
 
@@ -83,11 +66,22 @@ let print_list_sep_id sep = print_list_sep sep (fun x -> x)
 
 let print_field ?(long_fields=false) c f =
   if long_fields then
-    Printf.sprintf "<%s:%s>" (Javalib_pack.JPrint.class_name c) (fs_name f)
-  else (fs_name f)
+    Printf.sprintf "<%s:%s>" (Javalib_pack.JPrint.class_name c) (Javalib_pack.JBasics.fs_name f)
+  else (Javalib_pack.JBasics.fs_name f)
 
 let bracket b s =
   if b then s else Printf.sprintf "(%s)" s
 
+(* timing utilities *)
+let timer f x =
+  let timer = Unix.gettimeofday () in
+  let res = f x in
+    (res, Unix.gettimeofday () -. timer)
+
+let ref_timer r f x =
+  let timer = Unix.gettimeofday () in
+  let res = f x in
+  r := !r +. Unix.gettimeofday () -. timer;
+  res
 
 
