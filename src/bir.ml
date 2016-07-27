@@ -1738,11 +1738,13 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       in
 	to_addr3_unop dico mode (InstanceOf c) ssa fresh_counter s check_instr
   | OpMonitorEnter ->
-      let r = topE s in
-	pop s, [Check (CheckNullPointer r); MonitorEnter r]
+     let r = topE s in
+     let s, instrs = clean dico ssa fresh_counter is_heap_sensible_element_in_expr s [] in
+     pop s, instrs@[Check (CheckNullPointer r); MonitorEnter r]
   | OpMonitorExit ->
-      let r = topE s in
-	pop s, [Check (CheckNullPointer r); MonitorExit r]
+     let r = topE s in
+     let s, instrs = clean dico ssa fresh_counter is_heap_sensible_element_in_expr s [] in
+     pop s, instrs@[Check (CheckNullPointer r); MonitorExit r]
   | OpAMultiNewArray (cn,dim) as instr ->
       let x = make_tempvar dico ssa fresh_counter s next_store in
       let params = param dim s in
