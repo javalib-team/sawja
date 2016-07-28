@@ -5,7 +5,8 @@ New features:
 Minor Changes:
     - none
 Bug fixes:
-    - #26037 (synchronization blocks)
+	- #26037 (synchronization blocks)
+	- PP of IR and PP of byte are coherent when subroutines are inlined and when an OpInvoke opcode is encountered
  
 From  1.5 to 1.5.1
 -----------------
