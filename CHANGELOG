@@ -1,4 +1,23 @@
-FROM 1.4 to 1.5 
+From 1.5.1 to 1.5.2
+-------------------
+New features:
+    - none
+Minor Changes:
+    - none
+Bug fixes:
+    - #26037 (synchronization blocks)
+ 
+From  1.5 to 1.5.1
+-----------------
+New features
+    - none
+Minor changes:
+    - update a few files to take into account the new declaration of generic map and
+	generic set in the  library javalib 
+Bug fixes:
+    - none 
+
+From 1.4 to 1.5 
 ---------------
 New features:
     - add Subtyping functionnality (in file jType).
