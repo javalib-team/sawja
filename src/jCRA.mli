@@ -19,15 +19,15 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+(** Builds high level representations of Java bytecode programs using basic
+    Class Reachability Analysis. *)
+
 open Javalib_pack
 open JBasics
 
 (** This exception is raised if a needed class is not found in the classpath
   while parsing the program.*)
 exception Class_not_found of class_name
-
-(** Builds high level representations of Java bytecode programs using basic
-    Class Reachability Analysis. *)
 
 (** [parse_program other_classes cp names] parses a list of
     classes [names] as entrypoints, looking for them in the classpath [cp] (a list of directories

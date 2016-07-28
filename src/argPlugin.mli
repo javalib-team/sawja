@@ -18,9 +18,6 @@
  *)
 
 (** ArgPlugin is a wrapper for the module Arg that normalizes arguments for
-    the Sawja Eclipse Plugin.*)
-
-(** ArgPlugin is a wrapper for the module Arg that normalizes arguments for
     the Sawja Eclipse Plugin. The final executable must use
     ArgPlugin in order to be "installed" and executed by the Sawja
     Eclipse Plugin.*)
