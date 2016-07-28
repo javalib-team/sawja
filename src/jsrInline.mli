@@ -2,8 +2,6 @@
  * This file is part of SAWJA
  * Copyright (c)2010 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
- * Copyright (c)2016 David Pichardie (ENS Rennes)
- * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,9 +22,13 @@
 
 open Javalib_pack
 
-(** [inline code] returns [Some code'] where [code'] is an equivalent
+(** [inline code] returns [Some (code',assoc)] where [code'] is an equivalent
     version of [code] without subroutines. In case [code] does not
     contain subroutines at all, [code'] is physically equal to
     [code]. If [code] contains too complex subroutines (for example,
-    nested subroutines), then [inline code] returns [None]. *)
+    nested subroutines), then [inline code] returns [None].
+    [assoc] is an association list between between pairs (new_pp, old_pp)
+    of program point that handle invoke instructions  ([new_pp] belongs to [code']
+    and [old_pp] belongs to [code]
+ *)
 val inline : JCode.jcode -> (JCode.jcode * ((int*int) list)) option

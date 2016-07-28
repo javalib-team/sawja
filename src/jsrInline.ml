@@ -2,8 +2,6 @@
  * This file is part of SAWJA
  * Copyright (c)2010 David Pichardie (INRIA)
  * Copyright (c)2010 Vincent Monfort (INRIA)
- * Copyright (c)2016 David Pichardie (ENS Rennes)
- * Copyright (c)2016 Laurent Guillo (CNRS)
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -298,7 +296,8 @@ let inter (a,b) (c,d) =
   assert (c<=d);
   let low = max a c in
   let high = min b d in
-  if low <= high then Some (low,high) else None
+    if low <= high then Some (low,high) else None
+
 
 let is_invoke opcode =
   match opcode with
@@ -307,9 +306,10 @@ let is_invoke opcode =
   | OpInvoke (`Virtual (TArray _), _) -> true
   | OpInvoke(`Static _, _) -> true
   | OpInvoke (`Special _, _) -> true
-  | _ -> false					     
+  | _ -> false
 
-
+					       
+					       
 (* [inline] generates a couple [(new_code, assoc)] where
    [assoc] is an association list between between pairs (new_pp, old_pp)
    of program point that handle invoke instructions  *)
@@ -340,14 +340,12 @@ let inline code instrs subroutines : (JCode.jcode * ((int*int) list)) =
 	       (fun i -> 
 		  (* we dont copy the OpStore linked with the Jsr
 		     instruction (at code_start)*)
-
 		  if i <> code_start then begin
 		      new_code.(!current+i-code_start) <- code.c_code.(i);
 		      (*let is_invoke _ = true in (* FIXME *)*)
 		      if is_invoke code.c_code.(i) then
 			assoc := (!current+i-code_start, i) :: !assoc
 		    end
-	       
 	       ) codes;
 	     (* Replace Jsr instr by Goto (to new start of subroutine
 		excluding the OpStore linked with the Jsr
@@ -398,7 +396,7 @@ let inline code instrs subroutines : (JCode.jcode * ((int*int) list)) =
 	  else pp
 	with _ -> pp
       in
-      ({
+      ( {
 	  c_max_stack = code.c_max_stack;
 	  c_max_locals = code.c_max_locals;
 	  c_code = new_code;
@@ -428,8 +426,8 @@ let inline code instrs subroutines : (JCode.jcode * ((int*int) list)) =
 	  c_stack_map_midp = None;
 	  c_stack_map_java6 =  None;
 	  c_attributes = code.c_attributes
-      },
-       !assoc)
+	},
+	!assoc )
 
 (** [scan_subroutine code jump_target start] returns (start pp, set of
     pps included, pp of Ret instr, length of subroutine, handlers
