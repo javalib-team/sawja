@@ -249,7 +249,7 @@ let get_XTA_program
       and d22 = XTADom.join ~modifies:m' d2 d2'
       and d33 = XTADom.join ~modifies:m'' d3 d3'
       in
-	if !m or !m' or !m''
+	if !m || !m' || !m''
 	then (
 	  modifies := true;
 	  (d11,d22,d33))

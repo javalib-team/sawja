@@ -38,7 +38,7 @@ module Dom = struct
   let bot = false
   let isBot = (not)
   let join ?(modifies=ref false) v1 v2 =
-    let res = v1 or v2 in
+    let res = v1 || v2 in
       if v1 != res then modifies := true;
       res
   let join_ad ?(do_join=true) =
