@@ -29,7 +29,6 @@
 open Javalib_pack
 
 (** {2 Language} *)
-
 (** {3 Variables} *)
 
 (** Abstract data type for variables *)

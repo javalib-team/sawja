@@ -20,15 +20,16 @@
 
 (** Pretty-Html-printer for high level programs. *)
 
-open Javalib_pack
-open JBasics
-open Javalib
-open JProgram
 
 (** A set of primitives to generate a website from high level programs.  This
   website can be used for any kind of visualisation or debbuging purposes.
   Annotations can be attached to the program and will be displayed properly
   (according to a given css). *)
+open Javalib_pack
+open JBasics
+open Javalib
+open JProgram
+
   
 (** {2 Program information.} *)
   

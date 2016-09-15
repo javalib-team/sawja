@@ -21,19 +21,16 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
 
-(** Stackless, 3-address like and unstructured intermediate
-    representation for Java Bytecode, in which basic expression trees
-    are reconstructed and method and constructor calls are folded.*)
+
+(** Stackless, 3-address like and unstructured intermediate representation for Java Bytecode, in which basic expression trees are reconstructed and method and constructor calls are folded.*)
 
 (** {2 Language} *)
 
 (** {3 Variables} *)
-
-(** Abstract data type for variables *)
+open Javalib_pack
 type var
-
+(** Abstract data type for variables *)
 (** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
 val var_equal : var -> var -> bool
 
@@ -286,10 +283,10 @@ val exc_tbl : t -> exception_handler list
     code for a new line [j] in the original source file begins.  *)
 val line_number_table : t -> (int * int) list option
 
-(** map from bytecode code line to ir code line. It raises Not_found
+(*(** map from bytecode code line to ir code line. It raises Not_found
     if pc is not an original bytecode pc or if the corresponding
     bytecode instruction has no predecessors and has been removed
-    because it is unreachable.*)
+    because it is unreachable.*)*)
 (*val pc_bc2ir : t -> int Ptmap.t*)
 
 (** map from ir code line to bytecode code line: the last bytecode

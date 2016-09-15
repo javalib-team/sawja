@@ -20,10 +20,10 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+
 
 (** SSA form of the {!A3Bir} intermediate representation.*)
-
+open Javalib_pack
 
 (** {2 Language} *)
 
