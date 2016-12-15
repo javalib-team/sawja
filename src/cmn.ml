@@ -33,6 +33,7 @@ type unindexed_var =
   | BranchVar of int * int
   | BranchVar2 of int * int
   | SSAVar of var * int
+  | FreshVar of int 
 and var = int * unindexed_var
 
 let var_equal ((i1,_):var) ((i2,_):var) = i1==i2
@@ -41,6 +42,7 @@ let varname =  "$bcvar"
 let tempname =  "$irvar"
 let branchvarname =  "$T"
 let branchvarname2 =  "$T'"
+let freshvarname = "$freshvar"
 
 let var_name_debug (_,v) =
   match v with
@@ -71,6 +73,7 @@ let rec unindexed_var_name v =
     | BranchVar (i,j) -> Printf.sprintf "%s%d_%d" branchvarname j i
     | BranchVar2 (i,j) -> Printf.sprintf "%s%d_%d" branchvarname2 j i
     | SSAVar ((_,v),i) -> Printf.sprintf "%s_%d" (unindexed_var_name v) i
+    | FreshVar i -> Printf.sprintf "%s%d " freshvarname i
 
 let var_name (_,v) = unindexed_var_name v
 		       

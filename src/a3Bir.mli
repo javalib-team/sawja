@@ -309,6 +309,7 @@ val exception_edges :  t -> (int * exception_handler) list
     representation and the attribute LineNumberTable (cf. JVMS §4.7.8).*)
 val get_source_line_number : int -> t -> int option
 
+val make_fresh_var : t -> var					     
  
 (** {2 Printing functions} *)
 

@@ -144,6 +144,14 @@ let params m = m.bir.Bir.bir_params
 let code m = m.code
 let exc_tbl m = m.bir.Bir.bir_exc_tbl
 let line_number_table m = m.bir.Bir.bir_line_number_table
+
+let fresh_counter = ref 0
+			
+let make_fresh_var (code:t) : var =
+  incr fresh_counter;
+  make_var code.bir.Bir.bir_dico (FreshVar(!fresh_counter))
+	   
+			    
 (*let pc_bc2ir m = m.bir.Bir.bir_pc_bc2ir*)
 let pc_ir2bc m = m.bir.Bir.bir_pc_ir2bc 
 

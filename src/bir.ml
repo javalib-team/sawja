@@ -238,6 +238,7 @@ let print_expr ?(show_type=true) = print_expr' ~show_type:show_type true
 	
 type bir = {
   bir_vars : var array;  (** All variables that appear in the method. [vars.(i)] is the variable of index [i]. Caution, when we are in bir SSA, it contains both the bir variables (with lower index) and birSSA variables. *)
+  bir_dico : dictionary;
   bir_params : (JBasics.value_type * var) list;
   bir_code : instr array;
   bir_exc_tbl : exception_handler list;
@@ -248,12 +249,14 @@ type bir = {
   (* only for ssa *)
   bir_preds : (int array) array;
   bir_phi_nodes : (phi_node list) array;
-  bir_mem_ssa : memory_ssa_info
+  bir_mem_ssa : memory_ssa_info;
+
 }
 
 let empty = 
   {
     bir_vars = [||];
+    bir_dico = make_dictionary();
     bir_params = [];
     bir_code = [||];
     bir_exc_tbl = [];
@@ -2864,6 +2867,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
 	    in
 	      ({ bir_params = gen_params dico pp_var cm;
 		 bir_vars = make_array_var dico;
+		 bir_dico = dico;
 		 bir_code = nir_code;
 		 bir_pc_ir2bc = jsr_ir2bc_post_treatment assoc nir2bc;
 		 bir_exc_tbl = nir_exc_tbl;
@@ -3835,6 +3839,7 @@ module SSA = struct
     in
       {
 	bir_vars = vars;
+	bir_dico = dico;
 	bir_params = params;
 	bir_code  = code;
 	bir_preds = preds;
@@ -4051,6 +4056,7 @@ module GetFormula = struct
       done;
       {
         bir_vars = m.bir_vars;
+	bir_dico = m.bir_dico;
         bir_params = m.bir_params;
         bir_code = code_new;
         bir_exc_tbl = m.bir_exc_tbl;
