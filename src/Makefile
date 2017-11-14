@@ -42,6 +42,7 @@ MODULES = jUtil iter iter2 wlist \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	safe reachableMethods jNativeStubs jType \
+	nexir  \
 	$(HEAP_PARSER)/parserType $(HEAP_PARSER)/parse_heap $(HEAP_PARSER)lex_heap  $(HEAP_PARSER)heapParser \
 	jCRA jRTA jRTAWithHeap jRRTA XTA \
 	jCFAOptions jCFADom jCFAPrinter jCFA \
@@ -54,6 +55,7 @@ MODULE_INTERFACES = iter wlist \
 	jCodePP jBir jBirPP a3Bir a3BirPP jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
 	$(DATAFLOW)live_bir $(DATAFLOW)live_a3bir \
 	safe reachableMethods jUtil jType \
+	nexir \
 	$(HEAP_PARSER)/parserType $(HEAP_PARSER)parse_heap $(HEAP_PARSER)heapParser\
 	jCRA XTA jRTA jRTAWithHeap jRRTA \
 	jCFAOptions jCFADom jCFAPrinter jCFA \
