@@ -75,23 +75,22 @@ E_SCRIPTERROR=84
 
 #
 # The msg recursive function takes care of the pretty-printing.
-# It uses "fmt" to stick to 75 characters columns.
 #
 function msg() 
 {
   if [ $# -eq 2 ]; then
     if [ $1 = "err" ]; then
       echo ""
-      echo "! configure error: $2." | fmt >&2
+      echo "! configure error: $2." >&2
       exit $E_MAKERERROR
     elif [ $1 = "inf" ]; then
-      echo "* $2." | fmt
+      echo "* $2." 
       return 0
     fi
   elif [ $# -eq 3 ]; then
     if [ $1 = "ser" ]; then
       echo ""
-      echo "! script error ($2): $3. Please file a bug." | fmt >&2
+      echo "! script error ($2): $3. Please file a bug." >&2
       exit $E_SCRIPTERROR
     fi
     msg "ser" "msg" "unexpected message type"
@@ -345,11 +344,11 @@ echo " done."
 SAWJA=`$FINDER query sawja 2>/dev/null`
 ALR_INST=$?
 echo ""
-echo "WHAT'S NEXT: all dependencies are satisfied." | fmt
+echo "WHAT'S NEXT: all dependencies are satisfied." 
 if [ $ALR_INST = 0 ]; then
 	echo " A version of Sawja is already installed."
-	echo " Compile, remove and install Sawja with the following commands:" | fmt
-    else echo " Compile and install Sawja with the following commands:" | fmt
+	echo " Compile, remove and install Sawja with the following commands:" 
+    else echo " Compile and install Sawja with the following commands:" 
     fi
 if [ "$LOCALDEST" ]; then
     if [ $ALR_INST = 0 ]; then
@@ -363,6 +362,6 @@ else
     fi   
 fi
 echo ""
-echo "More details can be found in the installation documentation (INSTALL or http://javalib.gforge.inria.fr/sawja-doc.html)." | fmt
+echo "More details can be found in the installation documentation (INSTALL or http://javalib.gforge.inria.fr/sawja-doc.html)." 
 
 exit 0
