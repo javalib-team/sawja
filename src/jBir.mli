@@ -343,7 +343,7 @@ val line_number_table : t -> (int * int) list option
     if pc is not an original bytecode pc or if the corresponding
     bytecode instruction has no predecessors and has been removed
     because it is unreachable.*)
-(*val pc_bc2ir : t -> int Ptmap.t*)
+(*val pc_bc2ir : t -> int Ptmap.t*) (* FIXME *)
 
 (** map from ir code line to bytecode code line: the last bytecode
     instruction corresponding to the given ir instruction is
@@ -424,7 +424,13 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     - [?ch_link]: Check instructions are generated when a linkage
     operation is done if and only if [ch_link] is [true].
 
-  - [?formula]: Enables or disables formulae. Every static call to a method in
+    - [?almost-ssa]: If this option is set to [true], we will generate a fresh
+     identifier when we need one, instead of reusing old ones. It is then 
+     easier to do a flow insensitive analysis on this kind of variables. 
+     This is 'almost' a SSA form, except for Java bytecode local variables.
+     Its default value is [false]
+
+    - [?formula]: Enables or disables formulae. Every static call to a method in
     the list [formula_cmd] generates a [Formula _] statement. Its default value
     is [false].
 
@@ -436,7 +442,7 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     
     [transform] can raise several exceptions. See exceptions below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> 
+  ?bcv:bool -> ?ch_link:bool -> ?almost_ssa:bool ->
   ?formula:bool -> ?formula_cmd:JBasics.class_method_signature list ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
