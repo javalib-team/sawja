@@ -389,7 +389,7 @@ let store_callgraph callgraph file =
   let out = IO.output_channel (open_out file) in
     List.iter
       (fun ((cs,ms,pp),(ccs,cms)) ->
-	 IO.nwrite out
+	 IO.write_string out
 	   (JPrint.method_signature
 	      ~callee:(TClass cs) ms
 	    ^ ","

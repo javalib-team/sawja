@@ -112,32 +112,32 @@ let print_xml_tree_ext ?(br=true) ?(spc=0) xmltree out =
 	| CustomTag (opening,tree,closing) ->
 	    if br then
 	      IO.write out '\n';
-	    IO.nwrite out spc;
-	    IO.nwrite out opening;
+	    IO.write_string out spc;
+	    IO.write_string out opening;
 	    List.iter (fun tree -> print (dec+1) tree) tree;
 	    if br then
 	      IO.write out '\n';
-	    IO.nwrite out spc;
-	    IO.nwrite out closing;
+	    IO.write_string out spc;
+	    IO.write_string out closing;
 	    
 	| SimpleTag tag ->
 	    if br then
 	      IO.write out '\n';
-	    IO.nwrite out spc;
-	    IO.nwrite out tag;
+	    IO.write_string out spc;
+	    IO.write_string out tag;
 	| PCData data ->
 	    let data = replace_pcdata_ch data in
 	      if br then
 		IO.write out '\n';
-	      IO.nwrite out spc;
-	      IO.nwrite out data;
+	      IO.write_string out spc;
+	      IO.write_string out data;
 	| CData data ->
 	    if br then
 	      IO.write out '\n';
-	    IO.nwrite out spc;
-	    IO.nwrite out "<![CDATA[";
-	    IO.nwrite out data;
-	    IO.nwrite out "]]>";
+	    IO.write_string out spc;
+	    IO.write_string out "<![CDATA[";
+	    IO.write_string out data;
+	    IO.write_string out "]]>";
 
   in
     print 0 xmltree
