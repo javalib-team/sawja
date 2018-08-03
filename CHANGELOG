@@ -1,4 +1,15 @@
-From 1.5.1 to 1.5.2
+From 1.5.3 to 1.5.4
+-------------------
+Minor Changes:
+    - adding an optional argument almost_ssa to JBir.transform in order
+      to not generate the same intermediate variable for different types
+
+From 1.5.2 to 1.5.3
+-------------------
+Minor Changes:
+    - compatibility with -safe-string
+
+	From 1.5.1 to 1.5.2
 -------------------
 New features:
     - none
