@@ -875,12 +875,12 @@ module JCodePrinter = Make(
 	       method_ret_elem program cs cms;
 	       invoke_elem program cs ms pp ccs cms;
 	       method_args_elem program cs cms]
-	  | OpInvoke ((`Static ccs),cms) ->
+	  | OpInvoke ((`Static (_,ccs)),cms) ->
 	      [simple_elem inst;
 	       method_ret_elem program cs cms;
 	       invoke_elem program cs ms pp ccs cms;
 	       method_args_elem program cs cms]
-	  | OpInvoke ((`Special ccs),cms) ->
+	  | OpInvoke ((`Special (_,ccs)),cms) ->
 	      [simple_elem inst;
 	       method_ret_elem program cs cms;
 	       invoke_elem program cs ms pp ccs cms;

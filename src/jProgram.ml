@@ -316,24 +316,13 @@ let get_callgraph p =
   let calls = ref [] in
     iter
       (fun ioc ->
-	 match ioc with
-	   | Interface {i_info = {i_name = cs; i_initializer = Some cm}} ->
-               calls :=
-                 (methodcalls2callsite cs cm.cm_signature
-		    (get_method_calls p cs cm)) @ !calls
-           | Interface _ -> ()
-	   | Class c ->
-	       MethodMap.iter
-		 (fun _ m ->
-		    match m with
-		      | ConcreteMethod cm ->
-			  let cs = c.c_info.c_name in
-			    calls :=
-			      (methodcalls2callsite cs cm.cm_signature
-				 (get_method_calls p cs cm))
-			    @ !calls
-		      | AbstractMethod _ -> ()
-		 ) c.c_info.c_methods
+        let cs = get_name ioc in
+        MethodMap.iter
+          (fun _ cm ->
+	       calls :=
+		 (methodcalls2callsite cs cm.cm_signature (get_method_calls p cs cm))
+		 @ !calls)
+          (get_concrete_methods ioc)
       ) p;
     !calls
 

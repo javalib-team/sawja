@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-
+open Javalib_pack
 exception DebugDom
 
 module type TRADUCTOR_ANALYSIS = sig

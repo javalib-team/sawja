@@ -783,8 +783,8 @@ module JCodePrinter = Make(
 		      begin
 			match invtype with
 			    `Interface cn
-			  | `Special cn
-			  | `Static cn -> 
+			  | `Special (_,cn)
+			  | `Static (_,cn) -> 
 			      Some (Expression
 				      (MethodInvocationNonVirtual (cn,ms)))
 			  | `Virtual ot -> 

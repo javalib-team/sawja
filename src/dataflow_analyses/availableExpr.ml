@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-
+open Javalib_pack
 
 (* we reject exprs that are alias-sensible *)
 let rec is_available_expr = function

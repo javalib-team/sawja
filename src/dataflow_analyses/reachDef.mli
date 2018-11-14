@@ -27,7 +27,7 @@ could have defined its value*)
 module Lat :
   sig
     type t
-    val get : t -> JBir.var -> Ptset.t
+    val get : t -> JBir.var -> Javalib_pack.Ptset.t
     val to_string : JBir.t -> t -> string
   end
 

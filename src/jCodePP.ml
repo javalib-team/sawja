@@ -60,9 +60,9 @@ let static_lookup program pp =
   match get_opcode pp with
     | OpInvoke (`Virtual obj, ms) ->
         Some (static_lookup_virtual program obj ms)
-    | OpInvoke (`Static cs, ms) ->
+    | OpInvoke (`Static (_,cs), ms) ->
         Some ([static_lookup_static program cs ms])
-    | OpInvoke (`Special cs, ms) ->
+    | OpInvoke (`Special (_,cs), ms) ->
         Some ([Class (static_lookup_special program (get_class pp) cs ms)])
     | OpInvoke (`Interface cs, ms) ->
         Some (static_lookup_interface program cs ms)
@@ -228,10 +228,10 @@ let get_successors program node m =
        | JCode.OpInvoke (kind,ms) ->
            begin
              match kind with
-      	 | `Static cn' ->
+      	 | `Static (_,cn') ->
       	     let c' = match get_node program cn' with
       	       | Class c' -> c'
-      	       | Interface _ -> raise IncompatibleClassChangeError
+      	       | Interface _ -> failwith "Error: this version of Sawja does not handle concrete methods in interfaces. Please report."
       	     in
       	     let c' = JControlFlow.resolve_method' ms c' in
       	       (match (get_class_to_initialize node (Class c')) with

@@ -64,13 +64,7 @@ struct
     let mmap =
       match ioc with
 	| JClass c -> c.c_methods
-	| JInterface i ->
-	    let mmap =
-	      MethodMap.map (fun am -> AbstractMethod am) i.i_methods in
-	      (match i.i_initializer with
-		 | None -> mmap
-		 | Some cm ->
-		     MethodMap.add clinit_signature (ConcreteMethod cm) mmap)
+	| JInterface i -> i.i_methods
     in
       MethodMap.map (fun m -> { has_been_parsed = false; c_method = m }) mmap
 
@@ -489,10 +483,10 @@ struct
       | OpInvoke(`Interface cs,ms) ->
 	  load_method_params_classes p ms;
 	  invoke_interface_lookup p cs ms
-      | OpInvoke(`Special cs,ms) ->
+      | OpInvoke(`Special (_,cs),ms) ->
 	  load_method_params_classes p ms;
       	  invoke_special_lookup p current_class_name cs ms
-      | OpInvoke(`Static cs,ms) ->
+      | OpInvoke(`Static (_,cs),ms) ->
 	  load_method_params_classes p ms;
       	  let rcs = invoke_static_lookup p cs ms in
 	    add_class_clinits p rcs
@@ -537,7 +531,7 @@ struct
 		 | TArray _ -> failwith "Bad class"
 		 | TClass cn -> cn in
 	   let (parameters,rettype) =
-	     JParseSignature.parse_method_descriptor m_signature in
+	     md_split (JParseSignature.parse_method_descriptor m_signature) in
 	   let ms = make_ms m_name parameters rettype in
 	     add_to_workset p (cs,ms)
 	) calls
@@ -706,9 +700,9 @@ let static_lookup_method p :
 			      (* should only happen with [clone()] *)
 			      static_virtual_lookup virtual_lookup_map
 				java_lang_object cms
-			  | OpInvoke (`Static ccs,cms) ->
+			  | OpInvoke (`Static (_,ccs),cms) ->
 			      static_static_lookup static_lookup_map ccs cms
-			  | OpInvoke (`Special ccs,cms) ->
+			  | OpInvoke (`Special (_,ccs),cms) ->
 			      static_special_lookup special_lookup_map cs ccs cms
 			  | _ -> raise Not_found
 		       )

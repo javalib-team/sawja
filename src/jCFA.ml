@@ -78,6 +78,7 @@ struct
         cm_synthetic = false;
         cm_other_flags = [];
         cm_exceptions = [];
+        cm_parameters = [];
         cm_attributes = {
           synthetic = false;
           deprecated = false;
@@ -248,6 +249,7 @@ struct
         cm_synthetic = false;
         cm_other_flags = [];
         cm_exceptions = [];
+        cm_parameters = [];
         cm_attributes = {
           synthetic = false;
           deprecated = false;
@@ -1015,6 +1017,7 @@ struct
         cm_synthetic = false;
         cm_other_flags = [];
         cm_exceptions = [];
+        cm_parameters = [];
         cm_attributes = {
           synthetic = false;
           deprecated = false;

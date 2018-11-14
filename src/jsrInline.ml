@@ -34,19 +34,8 @@ let lift_cm f cm =
     | Native -> ()
     | Java code -> f (Lazy.force code)
 	
-let iter_code f = function
-  | JInterface i ->
-      begin
-	match i.i_initializer with
-	  | None -> ()
-	  | Some cm -> lift_cm f cm
-      end
-  | JClass c ->
-      MethodMap.iter
-	(fun _ jm -> 
-	   match jm with
-	     | ConcreteMethod cm -> lift_cm f cm
-	     | _ -> ()) c.c_methods
+let iter_code f ioc =
+  MethodMap.iter (fun _ -> lift_cm f) (get_concrete_methods ioc)
 
 let _array_exists f t =
   let n = Array.length t in
@@ -423,8 +412,7 @@ let inline code instrs subroutines : (JCode.jcode * ((int*int) list)) =
 	  c_line_number_table = None;
 	  c_local_variable_table = None;
           c_local_variable_type_table = None;
-	  c_stack_map_midp = None;
-	  c_stack_map_java6 =  None;
+	  c_stack_map =  None;
 	  c_attributes = code.c_attributes
 	},
 	!assoc )

@@ -816,7 +816,7 @@ let get_XTA_program
 				      ClassMethodMaptoSet.to_set
 					(JControlFlow.invoke_interface_lookup
 					   ~i:(Some callee) callee_ms instances)
-				| JCode.OpInvoke (`Special cn, ms) ->
+				| JCode.OpInvoke (`Special (_,cn), ms) ->
 				    let callee = match ClassMap.find cn classes with
 				      | Class c -> c
 				      | Interface _ -> raise IncompatibleClassChangeError
@@ -825,7 +825,7 @@ let get_XTA_program
 					  (Lazy.force caller_c) callee ms
 				    in
 				      ClassMethodSet.singleton cm.cm_class_method_signature
-				| JCode.OpInvoke (`Static cn, ms) ->
+				| JCode.OpInvoke (`Static (_,cn), ms) ->
 				    let callee = match ClassMap.find cn classes with
 				      | Class c -> c
 				      | Interface _ -> raise IncompatibleClassChangeError

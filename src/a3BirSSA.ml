@@ -18,6 +18,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
 include BirA3
 
 let vars m = JUtil.foldi 

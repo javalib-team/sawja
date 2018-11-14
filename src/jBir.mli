@@ -77,6 +77,8 @@ type const = [
 | `Double of float
 | `String of JBasics.jstr
 | `Class of JBasics.object_type
+| `MethodType of JBasics.method_descriptor 
+| `MethodHandle of JBasics.method_handle
 ]
 
 (** Conversion operators *)

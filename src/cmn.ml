@@ -198,6 +198,8 @@ type const = [
 | `Double of float
 | `String of JBasics.jstr
 | `Class of JBasics.object_type
+| `MethodType of method_descriptor                      
+| `MethodHandle of method_handle                                  
 ]
 
 
@@ -246,6 +248,9 @@ let jconst2const = function
   | `Int c -> `Int c
   | `String c -> `String c
   | `Class c -> `Class c
+  | `MethodType md -> `MethodType md
+  | `MethodHandle mh -> `MethodHandle mh
+
 
 
 (* Printing functions *)
@@ -260,6 +265,9 @@ let print_const = function
   | `Short a -> Printf.sprintf "%d " a
   | `String s -> Printf.sprintf "'%s'" (jstr_pp s)
   | `Class c -> Printf.sprintf "%s" (JDumpBasics.object_value_signature c)
+  | `MethodType md -> assert false (* TODO Java8 *)
+  | `MethodHandle mh -> assert false (* TODO Java8  *)
+              
 
 let print_unop = function
   | Neg t -> Printf.sprintf "%cNeg" (JDumpBasics.jvm_basic_type t)

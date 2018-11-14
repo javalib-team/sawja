@@ -19,7 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-
+open Javalib_pack
 
 module Lat = struct
   (* canonic lattice on (JBir.var -> Powerset(PC)) *)

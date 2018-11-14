@@ -91,6 +91,8 @@ let type_of_const i =
     | `Double _ -> TBasic `Double
     | `Float _ -> TBasic `Float
     | `Long  _ -> TBasic `Long
+    | `MethodType md -> TObject (TClass java_lang_object)
+    | `MethodHandle mh -> TObject (TClass java_lang_object)
 
 
 let type_of_expr = function
@@ -393,7 +395,9 @@ let convert_type = function
 let convert_const = function
   | `String _  | `Class _   | `ANull
   | `Byte _  | `Short _  | `Float _
-  | `Int _ -> Op32
+  | `Int _
+  | `MethodHandle _ | `MethodType _
+    -> Op32
   | `Long _   | `Double _ -> Op64
 
 let rec convert_field_type = function
@@ -1599,7 +1603,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
   | OpInvoke (x, ms) as instr ->
       begin
 	(match x with
-	   | `Static c ->
+	   | `Static (_,c) ->
 	       (match ms_rtype ms with
 		  | None ->
 		      let instrs = 
@@ -1673,7 +1677,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
 			    match x with
 			      | `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
 			      | `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
-			      | `Special c -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
+			      | `Special (_,c) -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
 			      | `Static _ -> assert false (* already treated above *)
 			  in
 			  let checks = 
@@ -3895,7 +3899,7 @@ module GetFormula = struct
       f_meths
 
   let is_command_checklink f_meths = function
-    | OpInvoke (`Static cn,ms) -> is_command f_meths cn ms
+    | OpInvoke (`Static (_,cn),ms) -> is_command f_meths cn ms
     | _ -> false
   
   let neg_cond (c,e1,e2) =
@@ -4290,11 +4294,17 @@ let get_callgraph p =
     iter
       (fun ioc ->
 	 match ioc with
-	   | Interface {i_info = {i_name = cs; i_initializer = Some cm}} ->
-               calls :=
-                 (methodcalls2callsite cs cm.cm_signature
-		    (get_method_calls p cs cm)) @ !calls
-           | Interface _ -> ()
+	   | Interface {i_info = {i_name = cs; i_methods = meths}} ->
+	       MethodMap.iter
+		 (fun _ m ->
+		    match m with
+		      | ConcreteMethod cm ->
+			    calls :=
+			      (methodcalls2callsite cs cm.cm_signature
+				 (get_method_calls p cs cm))
+			    @ !calls
+		      | AbstractMethod _ -> ()
+		 ) meths
 	   | Class c ->
 	       MethodMap.iter
 		 (fun _ m ->
@@ -4308,7 +4318,7 @@ let get_callgraph p =
 		      | AbstractMethod _ -> ()
 		 ) c.c_info.c_methods
       ) p;
-    !calls
+    !calls 
 
 let get_callgraph_from_entries p entries = 
   let open JProgram in

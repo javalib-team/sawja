@@ -91,10 +91,14 @@ module PP = struct
 
   let get_first_pp prog cs ms : 'a t =
     match get_node prog cs with
-      | Interface {i_info = {i_initializer = Some m}} as c
-	  when ms_equal m.cm_signature ms ->
-	  {cl=c;meth=m;pc=0;}
-      | Class c as cl' when MethodMap.mem ms c.c_info.c_methods ->
+    | Interface i as cl' when MethodMap.mem ms i.i_info.i_methods ->
+	  begin
+	    match MethodMap.find ms i.i_info.i_methods with
+	      | ConcreteMethod m->
+		  {cl=cl'; meth=m; pc=0;}
+	      | _ -> raise (NoCode (cs,ms))
+	  end
+    | Class c as cl' when MethodMap.mem ms c.c_info.c_methods ->
 	  begin
 	    match MethodMap.find ms c.c_info.c_methods with
 	      | ConcreteMethod m->
@@ -376,7 +380,7 @@ let static_lookup_interface prog cs ms : 'a node list =
 
 let static_lookup_special prog cl cs ms =
   match resolve_class prog cs with
-    | Interface _ -> raise IncompatibleClassChangeError
+    | Interface _ -> failwith "Error: this version of Sawja does not handle concrete methods in interfaces. Please report."
     | Class c ->
 	let c' = resolve_method ms c in
 	  match cl,c' with
@@ -417,7 +421,7 @@ let static_lookup_static program cs ms =
   let c =
     match resolve_class program cs with
       | Class c -> resolve_method ms c
-      | Interface _ -> raise IncompatibleClassChangeError
+      | Interface _ -> failwith "Error: this version of Sawja does not handle concrete methods in interfaces. Please report."
   in
     match c with
       | Class c' when implements_method c' ms -> c

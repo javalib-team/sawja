@@ -131,7 +131,7 @@ let add_class_referenced c classmap to_add =
       | ConstMethod (TClass cn,_)
       | ConstInterfaceMethod (cn,_)
       | ConstField (cn,_)
-      | ConstValue (ConstClass (TClass cn)) ->
+      | ConstClass (TClass cn) ->
 	  if not (ClassMap.mem cn classmap) then to_add := cn::!to_add
       | _ -> ()) (Javalib.get_consts c)
 
@@ -314,7 +314,7 @@ let static_lookup_method =
 			     	    | Class c -> c in
 				static_virtual_lookup virtual_lookup_map
 				  children_classes cobj cms
-			  | OpInvoke (`Static ccs, cms) ->
+			  | OpInvoke (`Static (_,ccs), cms) ->
 			      let cc =
 				let ioc =
 				  (ClassMap.find ccs classes_map) in
@@ -323,7 +323,7 @@ let static_lookup_method =
 					failwith "Impossible InvokeStatic"
 				    | Class c -> c in
 				static_static_lookup static_lookup_map cc cms
-			  | OpInvoke (`Special ccs, cms) ->
+			  | OpInvoke (`Special (_,ccs), cms) ->
 			      let cc =
 				let ioc =
 				  (ClassMap.find ccs classes_map) in

@@ -18,6 +18,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
 open JBirSSA
 
 (* we reject exprs that are alias-sensible *)

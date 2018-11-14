@@ -20,6 +20,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
+open Javalib_pack
 include Bir
 
 type t = bir

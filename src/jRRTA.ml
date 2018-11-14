@@ -378,7 +378,7 @@ let parse_vta_method pvta ioc m =
 		     let ioc =
 		       ClassMap.find cs pvta.p.classes in
 		       parse_get_put_static pvta ioc fs
-		 | OpInvoke (`Static ccs, cms) ->
+		 | OpInvoke (`Static (_,ccs), cms) ->
 		     let cc =
 		       let iocc =
 			 ClassMap.find ccs pvta.p.classes in
@@ -388,7 +388,7 @@ let parse_vta_method pvta ioc m =
 			 ) in
 		     let rc = parse_invoke_static pvta m cc cms in
 		       add_class_clinits pvta rc
-		 | OpInvoke (`Special ccs, cms) ->
+		 | OpInvoke (`Special (_,ccs), cms) ->
 		     let cc =
 		       let iocc =
 		 	 ClassMap.find ccs pvta.p.classes in
@@ -474,14 +474,14 @@ let static_lookup_method pvta =
 		       and ccms = make_cms (JBasics.java_lang_object) cms in
 		       let cmmap = ClassMethodMap.find cms virtual_lookup_map in
 			 ClassMethodMap.find ccms cmmap
-		   | OpInvoke (`Static ccs,cms) ->
+		   | OpInvoke (`Static (_,ccs),cms) ->
 		       let cms = make_cms cs ms
 		       and ccms = make_cms ccs cms in
 		       let cmmap = ClassMethodMap.find cms static_lookup_map in
 		       let cm = ClassMethodMap.find ccms cmmap in
 			 ClassMethodSet.add cm.cm_class_method_signature
 			   ClassMethodSet.empty
-		   | OpInvoke (`Special ccs,cms) ->
+		   | OpInvoke (`Special (_,ccs),cms) ->
 		       let cms = make_cms cs ms
 		       and ccms = make_cms ccs cms in
 		       let cmmap = ClassMethodMap.find cms special_lookup_map in

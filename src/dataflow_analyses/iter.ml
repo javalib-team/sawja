@@ -17,7 +17,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-
+open Javalib_pack
+   
 type workset_strategy =
   | Decr (* program points are chosen in decreasing order *)
   | Incr (* program points are chosen in increasing order *)
