@@ -77,7 +77,7 @@ META: META.source ../Makefile.config
 	if [ "$(BUDDY)" = "yes" ]; then \
 		$(SED) 's/requires = "javalib"/requires = "javalib,buddy"/' $< > $@ ; \
 	else \
-		$(SED) 's/requires = "javalib"/requires = "javalib,ptrees"/' $< > $@ ; \
+		$(SED) 's/requires = "javalib"/requires = "javalib"/' $< > $@ ; \
 	fi
 
 install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
