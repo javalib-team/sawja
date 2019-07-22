@@ -73,6 +73,8 @@ type instr =
       of var option * expr * virtual_call_kind * method_signature * expr list
   | InvokeNonVirtual
       of var option * expr * JBasics.class_name * method_signature * expr list
+  | InvokeDynamic
+      of var option * JBasics.bootstrap_method * JBasics.method_signature * expr list
   | MonitorEnter of expr
   | MonitorExit of expr
   | MayInit of JBasics.class_name
@@ -204,6 +206,8 @@ let print_instr ?(show_type=true) = function
   | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (JUtil.print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_expr' ~show_type:show_type true e)) le)
   | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s)" (JPrint.class_name c) (ms_name ms) (JUtil.print_list_sep "," (print_expr' ~show_type:show_type true) le)
   | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c) (ms_name ms) (JUtil.print_list_sep "," (print_expr' ~show_type:show_type true) le)
+  | InvokeDynamic (None,bm,ms,le) -> Printf.sprintf "DYNAMIC[%s](%s)" (ms_name ms) (JUtil.print_list_sep "," (print_expr' ~show_type:show_type true) le)
+  | InvokeDynamic (Some x,bm,ms,le) -> Printf.sprintf "%s := DYNAMIC[%s](%s)" (var_name_g x) (ms_name ms) (JUtil.print_list_sep "," (print_expr' ~show_type:show_type true) le)
   | InvokeVirtual (r,e1,_,ms,le) ->
       Printf.sprintf "%s%s.%s(%s)"
 	(match r with
@@ -758,6 +762,7 @@ module BCV = struct
 		      let c = match x with
 			| `ANull -> Null
 			| `String _
+                        | `MethodHandle _ |`MethodType _ 
 			| `Class _ -> Object
 			| `Byte _
 			| `Short _
@@ -1645,6 +1650,48 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
 			(E (Var (t,x))::(popn (List.length (ms_args ms)) s),
 			 instrs@[InvokeStatic (Some x,c,ms,params)])
 	       )
+	   | `Dynamic bm ->
+	       (match ms_rtype ms with
+		  | None ->
+		      let instrs = 
+			if ch_link then
+			  [Check (CheckLink instr)]
+			else
+			  []
+		      in
+		      let s,instrs = 
+			clean dico ssa fresh_counter 
+			  is_heap_sensible_element_in_expr
+			  s
+			  instrs
+		      in
+			(* Must be done after clean because
+			   params could have been transformed in a
+			   temp variable*)
+		      let params = param (List.length  (ms_args ms)) s in
+			popn (List.length (ms_args ms)) s,instrs@[InvokeDynamic (None,bm,ms,params)]
+		  | Some t ->
+		      let instrs = 
+			if ch_link then
+			  [Check (CheckLink instr)]
+			else
+			  []
+		      in
+		      let s,instrs = 
+			clean dico ssa fresh_counter is_heap_sensible_element_in_expr
+			  s
+			  instrs
+		      in
+			(* Must be done after clean
+			   because temp variables could have been generated*)
+		      let x = make_tempvar dico ssa fresh_counter s next_store in
+			(* Must be done after clean because
+			   params could have been transformed in a
+			   temp variable*)
+		      let params = param (List.length (ms_args ms)) s in
+			(E (Var (t,x))::(popn (List.length (ms_args ms)) s),
+			 instrs@[InvokeDynamic (Some x,bm,ms,params)])
+	       )
 	   | x ->
 	       begin
 		 let popn_s = popn (List.length (ms_args ms)) s in
@@ -1678,6 +1725,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
 			      | `Virtual o -> [InvokeVirtual (target,this,VirtualCall o,ms,param nb_args s)]
 			      | `Interface c -> [InvokeVirtual (target,this,InterfaceCall c,ms,param nb_args s)]
 			      | `Special (_,c) -> [InvokeNonVirtual (target,this,c,ms,param nb_args s)]
+			      | `Dynamic _ -> assert false (* already treated above *)
 			      | `Static _ -> assert false (* already treated above *)
 			  in
 			  let checks = 
@@ -2181,6 +2229,7 @@ module CheckInfoDebug = struct
     | AffectVar (x,_) 
     | NewArray (x,_,_)
     | New (x,_,_,_) 
+    | InvokeDynamic (Some x,_,_,_) 
     | InvokeStatic (Some x,_,_,_) 
     | InvokeVirtual (Some x,_,_,_,_) 
     | InvokeNonVirtual (Some x,_,_,_,_) -> 
@@ -2193,6 +2242,7 @@ module CheckInfoDebug = struct
     | AffectStaticField _
     | AffectField _
     | AffectArray _
+    | InvokeDynamic _
     | InvokeStatic _
     | InvokeVirtual _ 
     | InvokeNonVirtual _ 
@@ -2272,6 +2322,7 @@ module CheckInfoDebug = struct
 	      VarSet.union (vars e1) (VarSet.union (vars e2) (vars e3))
 	  | NewArray (_,_,el)
 	  | New (_,_,_,el) 
+	  | InvokeDynamic (_,_,_,el) 
 	  | InvokeStatic (_,_,_,el) -> 
 	      List.fold_left 
 		(fun set e -> VarSet.union (vars e) set)
@@ -3050,6 +3101,7 @@ module Live = struct
     | AffectVar (x,e) -> [[GenVars [e]; Kill x],i+1]
     | NewArray (x,_,le)
     | New (x,_,_,le) 
+    | InvokeDynamic (Some x,_,_,le)
     | InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
     | InvokeVirtual (Some x,e,_,_,le) 
     | InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]
@@ -3058,6 +3110,7 @@ module Live = struct
     | AffectStaticField (_,_,e) -> [[GenVars [e]],i+1]
     | AffectField (e1,_,_,e2) -> [[GenVars [e1;e2]],i+1]
     | AffectArray (e1,e2,e3) -> [[GenVars [e1;e2;e3]],i+1]
+    | InvokeDynamic (None,_,_,le)
     | InvokeStatic (None,_,_,le) -> [[GenVars le],i+1]
     | InvokeVirtual (None,e,_,_,le) 
     | InvokeNonVirtual (None,e,_,_,le) -> [[GenVars (e::le)],i+1]
@@ -3314,7 +3367,8 @@ module SSA = struct
 	| AffectStaticField (_,_,e) -> vars (Ptset.add heap_index Ptset.empty) e
 	| NewArray (_,_,le)
 	| New (_,_,_,le) 
-	| InvokeStatic (_,_,_,le) -> List.fold_left vars (Ptset.add heap_index Ptset.empty) le
+	| InvokeStatic (_,_,_,le) 
+	| InvokeDynamic (_,_,_,le) -> List.fold_left vars (Ptset.add heap_index Ptset.empty) le
 	| InvokeVirtual (_,e,_,_,le) 
 	| InvokeNonVirtual (_,e,_,_,le) -> List.fold_left vars (Ptset.add heap_index Ptset.empty) (e::le)
 	| AffectArray (e1,e2,e3) -> vars (vars (vars (Ptset.add heap_index Ptset.empty) e1) e2) e3
@@ -3396,6 +3450,8 @@ module SSA = struct
 	| New (x,c,lt,le) -> New (def x,c,lt,List.map (use) le)
 	| InvokeStatic (None,c,ms,le) -> InvokeStatic (None,c,ms,List.map (use) le)
 	| InvokeStatic (Some x,c,ms,le) -> InvokeStatic (Some (def x),c,ms,List.map (use) le)
+	| InvokeDynamic (None,bm,ms,le) -> InvokeDynamic (None,bm,ms,List.map (use) le)
+	| InvokeDynamic (Some x,bm,ms,le) -> InvokeDynamic (Some (def x),bm,ms,List.map (use) le)
 	| InvokeVirtual (None,e,c,ms,le) -> InvokeVirtual (None,use e,c,ms,List.map (use) le)
 	| InvokeVirtual (Some x,e,c,ms,le) -> InvokeVirtual (Some (def x),use e,c,ms,List.map (use) le)
 	| InvokeNonVirtual (None,e,c,ms,le) -> InvokeNonVirtual (None,use e,c,ms,List.map (use) le)
@@ -4423,6 +4479,7 @@ let bir_field_resolve_in_code prog (inst:instr) : instr =
   | New (x,c,tl,args) -> New (x, c, tl, List.map resolve args)
   | NewArray (x,t,el) -> NewArray (x, t, List.map resolve el)
   | InvokeStatic (x,c,ms,args) -> InvokeStatic (x, c, ms, List.map  resolve args)
+  | InvokeDynamic (x,bm,ms,args) -> InvokeDynamic (x, bm, ms, List.map  resolve args)
   | InvokeVirtual (x,e,k,ms,args) -> InvokeVirtual (x, resolve e, k, ms, List.map resolve args)
   | InvokeNonVirtual (x,e,c,ms,args) -> InvokeNonVirtual (x, resolve e, c, ms, List.map resolve args)
   | MonitorEnter e -> MonitorEnter (resolve e)
@@ -4654,10 +4711,11 @@ struct
 		  Some (AdaptedASTGrammar.Expression
 			  (AdaptedASTGrammar.MethodInvocationNonVirtual (cn,ms)))
 	  end
-      | InvokeStatic (_,cn,ms,_le) 
+      | InvokeStatic (_,cn,ms,_le)
       | InvokeNonVirtual (_,_,cn,ms,_le) -> 
 	  Some (AdaptedASTGrammar.Expression
 		  (AdaptedASTGrammar.MethodInvocationNonVirtual (cn,ms)))
+      | InvokeDynamic _ -> None (* not supported *)
       | Check _ -> None
       | Formula _ -> None
 

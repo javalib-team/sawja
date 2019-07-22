@@ -787,6 +787,7 @@ module JCodePrinter = Make(
 			  | `Static (_,cn) -> 
 			      Some (Expression
 				      (MethodInvocationNonVirtual (cn,ms)))
+                          | `Dynamic _ -> None  (* not supported *)
 			  | `Virtual ot -> 
 			      Some (Expression
 				      (MethodInvocationVirtual (ot,ms)))

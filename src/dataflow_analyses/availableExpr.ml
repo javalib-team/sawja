@@ -100,7 +100,8 @@ let gen_instrs i = function
   | JBir.Return _  -> []
   | JBir.AffectVar (x,e) -> 
       let tf = if is_available_expr e then Assign (x,e) else Kill x in
-	[tf,i+1]
+      [tf,i+1]
+  | JBir.InvokeDynamic _ -> assert false (* TODO *)
   | JBir.NewArray (x,_,_)
   | JBir.New (x,_,_,_) 
   | JBir.InvokeVirtual (Some x,_,_,_,_) 

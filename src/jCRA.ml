@@ -173,7 +173,7 @@ let rec add_node class_path c classes_map interfaces =
 		   add_node class_path c !p_classes interfaces
 	done;
 	  !p_classes
-	with Failure "hd" -> !p_classes
+	with Failure _ -> !p_classes
     end
 
 let get_children_classes c children_classes =

@@ -88,8 +88,9 @@ let gen_instrs last i =
   | A3Bir.Return (Some e)  ->  [[GenVars [e]],last]
   | A3Bir.AffectVar (x,e) -> [[GenVars (Env.tvars_in_expr e); Kill x],i+1]
   | A3Bir.NewArray (x,_,le)
-  | A3Bir.New (x,_,_,le) 
+  | A3Bir.New (x,_,_,le)
   | A3Bir.InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
+  | A3Bir.InvokeDynamic _ -> assert false (* TODO *)
   | A3Bir.InvokeVirtual (Some x,e,_,_,le) 
   | A3Bir.InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]
   | A3Bir.MonitorEnter e 

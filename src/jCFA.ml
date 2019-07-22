@@ -810,6 +810,7 @@ let abstract_instruction opt prog pp opcode succs csts =
                    AbLocals.set_var (index v) 
                      (AbVSet.singleton [pp] (ar_2_type dim vt)) l
               ) ()
+      | InvokeDynamic _ -> assert false (* TODO *)
       | InvokeStatic (opt_ret, cn, ms, args) ->
           handle_invoke ~static:true opt_ret [cn] ms args
       | InvokeVirtual (opt_ret, obje, _, ms, args) 

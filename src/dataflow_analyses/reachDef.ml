@@ -64,17 +64,19 @@ let transfer_to_string = function
   | KillGen (x,i) -> Printf.sprintf "KillGen(%s,%d)" (JBir.var_name_g x) i
   | Init -> "INIT"
 
+              (*
 let transfer_to_stringdot = function 
   | Nop -> "Nop"
   | KillGen (x,i) -> Printf.sprintf "KillGen(%s,%d)" (JBir.var_name_g x) i
   | Init -> "INIT"
-
+               *)
       
 (* [gen_instrs last i] computes a list of transfert function [(f,j);...] with
    [j] the successor of [i] for the transfert function [f]. *)
 let gen_instrs i = function
   | JBir.Ifd (_, j) -> [(Nop,j);(Nop,i+1)]
   | JBir.Goto j -> [Nop,j]
+  | JBir.InvokeDynamic _ -> assert false (* TODO *)
   | JBir.Throw _
   | JBir.Return _  -> []
   | JBir.AffectVar (x,_) 

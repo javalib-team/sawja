@@ -320,6 +320,8 @@ let rec transform_code (code:A3Bir.t) (normal_ret:A3Bir.var) (normal_end_pc:int)
        let cms = make_cms c ms in 
        transform_invoke_static  old_pc exc_ret exc_end_pc code x cms args
 				
+    | A3Bir.InvokeDynamic _ -> assert false (* TODO *)
+
     | A3Bir.InvokeVirtual(x,y,k,ms,args) ->
        let virtual_method_call = 
          match k with

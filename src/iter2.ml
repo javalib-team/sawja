@@ -308,9 +308,9 @@ let run (man:('var,'dom,'tf) manager) =
   Printf.printf "# of symbolic variable that could be merged: %d / %d\n" !nb_arity1 size;
 
   (* we build a scc of the dependency graph, just considering identity edges *)
-  let id_scc = 
+(*  let id_scc = 
     let iter_adj i f = List.iter (fun v -> f (hash_var v)) id_succs.(i) in
-    CycleDetection.run size iter_adj in
+    CycleDetection.run size iter_adj in *)
 
 
 (*  Array.iteri
@@ -660,7 +660,7 @@ let m_run (man:('var,'dom,'tf) mutable_manager) =
   
 
   (* we build the dependence graph between variables *)
-  let nb_of_cstr = Array.length cstrs' in
+  (*  let nb_of_cstr = Array.length cstrs' in *)
   let arity = Array.make size 0 in
   let cstr = Array.make size [] in
 

@@ -128,7 +128,7 @@ end = struct
       try
 	let cst =
           try List.hd !work_list_bis
-          with Failure "hd" ->
+          with Failure _ ->
             work_list_bis :=
               List.fast_sort
                 (fun cst1 cst2 -> cst1.target - cst2.target)
@@ -140,7 +140,7 @@ end = struct
 	  BitSet.unset work_set cst.id;
 	  decr work_set_size;
 	  cst
-      with Failure "hd" ->
+      with Failure _ ->
 	failwith "get_from_work_stack"
     in
     let add_to_work_stack cst_list =
@@ -308,7 +308,7 @@ end = struct
                 incr didnt_modified;)
 	done;
 	assert false;
-      with Failure "get_from_work_stack" ->
+      with Failure _ -> (* "get_from_work_stack" *)
         if !debug_level > 2 then 
           (print_times ();
 	   print_debug 3

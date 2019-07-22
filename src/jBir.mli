@@ -281,6 +281,8 @@ type instr =
 	  
 	  The exception [UnsatisfiedLinkError] could be thrown 
 	  if the method is native and the code cannot be found.*)
+  | InvokeDynamic
+      of var option * JBasics.bootstrap_method * JBasics.method_signature * expr list
   | MonitorEnter of expr (** [MonitorEnter e] locks the object [e]. *)
   | MonitorExit of expr (** [MonitorExit e] unlocks the object
 			    [e]. 

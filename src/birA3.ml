@@ -22,7 +22,6 @@
  *)
 
 open Javalib_pack
-open Javalib
 open JBasics
 open JCode 
 
@@ -47,6 +46,7 @@ let type_of_expr = function
       match i with
 	| `ANull
 	| `Class _
+        | `MethodHandle _ | `MethodType _
 	| `String _ -> TObject (TClass java_lang_object)
 	| `Int _ -> TBasic `Int
 	| `Double _ -> TBasic `Double
@@ -121,6 +121,8 @@ type instr =
   | InvokeVirtual of var option * tvar * virtual_call_kind * method_signature * tvar list
   | InvokeNonVirtual
       of var option * tvar * class_name * method_signature * tvar list
+  | InvokeDynamic
+      of var option * JBasics.bootstrap_method * JBasics.method_signature * tvar list
   | MonitorEnter of tvar
   | MonitorExit of tvar 
   | MayInit of class_name
@@ -225,6 +227,8 @@ let print_instr ?(show_type=true) = function
   | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (JUtil.print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_tvar ~show_type:show_type  e)) le) 
   | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s) // static" (JPrint.class_name c) (ms_name ms) (JUtil.print_list_sep "," (print_tvar ~show_type:show_type) le) 
   | InvokeStatic (Some x,c,ms,le) -> Printf.sprintf "%s := %s.%s(%s) // static" (var_name_g x) (JPrint.class_name c) (ms_name ms) (JUtil.print_list_sep "," (print_tvar ~show_type:show_type) le) 
+  | InvokeDynamic (None,_,ms,le) -> Printf.sprintf "DYNAMIC[%s](%s)" (ms_name ms) (JUtil.print_list_sep "," (print_tvar ~show_type:show_type) le)
+  | InvokeDynamic (Some x,_,ms,le) -> Printf.sprintf "%s := DYNAMIC[%s](%s)" (var_name_g x) (ms_name ms) (JUtil.print_list_sep "," (print_tvar ~show_type:show_type) le)
   | InvokeVirtual (r,x,k,ms,le) -> 
       Printf.sprintf "%s%s.%s(%s) // %s"
 	(match r with
@@ -341,6 +345,7 @@ let bir2a3bir_instr = function
   | Bir.Return None -> Return None
   | Bir.New(v,cn,vtl,el) -> New (v,cn,vtl,List.map expr2tvar el)
   | Bir.NewArray(v,vt,el) -> NewArray(v,vt,List.map expr2tvar el)
+  | Bir.InvokeDynamic(v,cn,ms,el) -> InvokeDynamic(v,cn,ms,List.map expr2tvar el) 
   | Bir.InvokeStatic(v,cn,ms,el) -> InvokeStatic(v,cn,ms,List.map expr2tvar el) 
   | Bir.InvokeVirtual(optv,expr, kind, ms, el) ->InvokeVirtual(optv, expr2tvar expr, kind2kind kind, ms, List.map expr2tvar el)
   | Bir.InvokeNonVirtual(optv, e, cn, ms, el) -> InvokeNonVirtual(optv,expr2tvar  e, cn, ms, List.map expr2tvar el) 
@@ -396,6 +401,7 @@ let a3_field_resolve_in_code prog (inst:instr) : instr =
   | Return _
   | New _
   | NewArray _
+  | InvokeDynamic _ 
   | InvokeStatic _
   | InvokeVirtual _
   | InvokeNonVirtual _
@@ -479,7 +485,7 @@ struct
     Bir.bir_get_source_line_number pp code.bir
 
   let inst_disp = 
-    inst_disp' print_instr
+    inst_disp' (print_instr ~show_type:true)
       
   let to_plugin_warning jm pp_warn_map = 
     to_plugin_warning' (fun c -> c.bir.Bir.bir_code)  (fun c -> c.bir.Bir.bir_exc_tbl) 

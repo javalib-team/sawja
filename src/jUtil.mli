@@ -24,9 +24,6 @@
     they are internal and must to be used outside of Sawja.*)
 
 
-open Javalib_pack.JBasics
-
-
 (** {2 Various utility functions over arrays and lists}*)
 
 (**

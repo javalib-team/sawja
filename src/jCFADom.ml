@@ -33,12 +33,10 @@ let asite_compare (lst1,cn1) (lst2,cn2) =
       | [], e2::_ -> 1
       | _e1::_, [] -> -1
       | e1::_, e2::_ -> JBirPP.compare e1 e2 
-      | _ -> assert false (*In the current implementation is always a list with
-            a 0 (for static field) or 1 element.*)
   in
     match obj_compare cn1 cn2 with
       | i -> i
-      | 0 -> cmp_list lst1 lst2
+(*      | 0 -> cmp_list lst1 lst2 UNUSED??? *)
 
 let asite_to_string (pplst, obj) =
   let str_pp = 
