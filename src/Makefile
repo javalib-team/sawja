@@ -90,8 +90,7 @@ ocaml:sawja.cma
 	$(OCAMLMKTOP) $(INCLUDE) -linkpkg -o $@ sawja.cma
 
 .depend:$(MODULE_INTERFACES:=.mli) $(MODULES:=.ml)
-	$(OCAMLDEP) -I $(DATAFLOW) $(patsubst jNativeStubs.%,,$^) > $@
-	$(OCAMLDEP) $(PP) jNativeStubs.ml jNativeStubs.mli >> $@
+	$(OCAMLDEP) -I $(DATAFLOW) $^ > $@
 
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),cleanall)
@@ -100,11 +99,6 @@ ifneq ($(MAKECMDGOALS),cleandoc)
 endif
 endif
 endif
-
-jNativeStubs.cmo:jNativeStubs.ml
-	$(OCAMLC) $(INCLUDE) $(PP) -c $<
-jNativeStubs.cmx jNativeStubs.o:jNativeStubs.ml
-	$(OCAMLOPT) $(INCLUDE) $(PP) $(FOR_PACK) -c $<
 
 classDomain.ml:$(CLASS_DOMAIN)
 	cp $< $@

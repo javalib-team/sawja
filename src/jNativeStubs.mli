@@ -76,11 +76,3 @@ val fprint_native_info : t -> string -> unit
 (** [merge_native_info native_info1 native_info2] returns the result of
     merging both parameters. *)
 val merge_native_info : t -> t -> t
-
-(** idem that [merge_native_info] with file parameters *)
-val merge_native_info_files : string -> string -> t
-
-(** [parse_native_info_file infofile] builds an abstract representation
-    from the file [infofile]. Files like [infofile] can be created by the
-    function [fprint_native_info]. *)
-val parse_native_info_file : string -> t

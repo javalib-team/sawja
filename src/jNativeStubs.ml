@@ -19,8 +19,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Genlex
-
 type jmethod = { m_type : string;
 		 m_class : string;
 		 m_name : string;
@@ -65,103 +63,6 @@ type native_method_info = { native_alloc : ClassSignatureSet.t;
 			    native_calls : MethodSet.t }
 
 type native_info = native_method_info MethodMap.t
-
-let keywords = ["{"; "}"]
-
-let rec parse_method_attrs expr =
-  match expr with parser
-    | [< 'Ident "type"; 'Ident "="; 'String mtype;
-	 p = parse_method_attrs >] ->
-	StringMap.add "type" mtype p
-    | [< 'Ident "class"; 'Ident "="; 'String cname;
-	 p = parse_method_attrs >] ->
-	StringMap.add "class" cname p
-    | [< 'Ident "name"; 'Ident "="; 'String mname;
-	 p = parse_method_attrs >] ->
-	StringMap.add "name" mname p
-    | [< 'Ident "signature"; 'Ident "="; 'String msign;
-	 p = parse_method_attrs >] ->
-	StringMap.add "signature" msign p
-    | [< >] -> StringMap.empty
-
-let rec parse_native_alloc expr =
-  match expr with parser
-    | [< 'String class_signature; allocated_classes = parse_native_alloc >] ->
-	ClassSignatureSet.add class_signature allocated_classes
-    | [< >] -> ClassSignatureSet.empty
-
-let rec parse_native_calls expr =
-  match expr with parser
-    | [< 'Ident "Method"; 'Kwd "{"; method_attrs = parse_method_attrs;
-	 'Kwd "}"; native_calls = parse_native_calls >] ->
-	let m_type = StringMap.find "type" method_attrs
-	and m_class = StringMap.find "class" method_attrs
-	and m_name = StringMap.find "name" method_attrs
-	and m_signature = StringMap.find "signature" method_attrs in
-	let jmethod = { m_type = m_type;
-			m_class = m_class;
-			m_name = m_name;
-			m_signature = m_signature } in
-	  MethodSet.add jmethod native_calls
-    | [< >] -> MethodSet.empty
-
-let rec parse_native_alloc_calls method_attrs native_info expr =
-  let empty_method_info = { native_alloc = ClassSignatureSet.empty;
-			    native_calls = MethodSet.empty } in
-  let m_type = StringMap.find "type" method_attrs
-  and m_class = StringMap.find "class" method_attrs
-  and m_name = StringMap.find "name" method_attrs
-  and m_signature = StringMap.find "signature" method_attrs in
-  let jmethod = { m_type = m_type;
-		  m_class = m_class;
-		  m_name = m_name;
-		  m_signature = m_signature } in
-    match expr with parser
-      | [< 'Ident "VMAlloc"; 'Kwd "{";
-	   allocated_classes = parse_native_alloc; 'Kwd "}" >] ->
-	  let method_info =
-	    try MethodMap.find jmethod native_info
-	    with _ -> empty_method_info in
-	  let new_method_info =
-	    { method_info with
-		native_alloc = ClassSignatureSet.union
-		allocated_classes method_info.native_alloc } in
-	  let new_native_info =
-	    MethodMap.add jmethod new_method_info native_info in
-	    parse_native_alloc_calls method_attrs new_native_info expr
-      | [< 'Ident "Invokes"; 'Kwd "{";
-	   native_calls = parse_native_calls; 'Kwd "}" >] ->
-	  let method_info =
-	    try MethodMap.find jmethod native_info
-	    with _ -> empty_method_info in
-	  let new_method_info =
-	    { method_info with
-		native_calls = MethodSet.union
-		native_calls method_info.native_calls } in
-	  let new_native_info =
-	    MethodMap.add jmethod new_method_info native_info in
-	    parse_native_alloc_calls method_attrs new_native_info expr
-      | [< >] ->
-	  if (MethodMap.mem jmethod native_info) then
-	    native_info
-	  else MethodMap.add jmethod empty_method_info native_info
-
-let rec parse_native_info_stream native_info expr =
-  match expr with parser
-    | [< 'Ident "Method"; 'Kwd "{";
-	 attrs = parse_method_attrs; 'Kwd "}";
-	 'Kwd "{"; new_native_info = parse_native_alloc_calls attrs native_info;
-	 'Kwd "}" >] -> parse_native_info_stream new_native_info expr
-    | [< _ = Stream.empty >] -> native_info
-
-let parse_native_info_file file =
-  let native_info = MethodMap.empty in
-  let ic = open_in file in
-  let stream = Stream.of_channel ic in
-  let new_native_info = parse_native_info_stream native_info
-    (make_lexer keywords stream) in
-    close_in ic;
-    new_native_info
 
 let indent_size = 4
 let indent = String.make indent_size ' '
@@ -245,8 +146,3 @@ let merge_native_info info1 info2 =
 	   MethodMap.add jmeth new_methinfo native_info
        else
 	 MethodMap.add jmeth methinfo1 native_info) info1 info2
-
-let merge_native_info_files file1 file2 =
-  let info1 = parse_native_info_file file1
-  and info2 = parse_native_info_file file2 in
-    merge_native_info info1 info2

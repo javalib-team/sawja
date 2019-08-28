@@ -577,8 +577,7 @@ struct
     let (parse_natives,native_methods_info) =
       match native_stubs with
 	| None -> (false, JNativeStubs.empty_info)
-	| Some file -> (true,
-			JNativeStubs.parse_native_info_file file) in
+	| Some info -> (true, info) in
     let workset = Wlist.create () in
     let p =
       { classes = ClassMap.empty;

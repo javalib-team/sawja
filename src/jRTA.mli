@@ -44,7 +44,7 @@ open JProgram
 val parse_program :
   ?instantiated:class_name list ->
   ?other_entrypoints:class_method_signature list ->
-  ?native_stubs:string option ->
+  ?native_stubs:JNativeStubs.t option ->
   string -> class_method_signature ->
   JCode.jcode program * JCode.jcode class_node ClassMap.t
 

@@ -8,7 +8,6 @@
 ###     Determine whether javalib and buddy are installed
 ###     Check for recode
 ###     Set the debug flag
-###     Select the camlp4 package and camlp4o syntax 
 ###     Infer the destdir value from the localdest flag
 ###     Infer the ocamlopt flag value from the debug flag
 ###     Write the variables to the Makefile.config file
@@ -282,25 +281,6 @@ if [ $? = 0 ]; then
 else
   msg "err" "Package javalib not found: check your installation. In particular, if you performed a non-global installation of Javalib, use the -l flag to specify its location"  
 fi
-
-#
-# Check camlp4 / camlp4o
-#
-location=$FINDER query camlp4 2>/dev/null
-if [ $? != 0 ]; then
-  msg "inf" "Package camlp4 found at $location"
-else
-  msg "err" "Package camlp4 not found."  
-fi
-
-cp4=`which camlp4o`
-if [ $? != 0 ]; then
-  msg "err" "No camlp4o executable found"
-fi
-msg "inf" "Camlp4o found at $cp4"
-
-PP="-package camlp4 -syntax `basename $cp4`"
-
 
 #
 # Infer the value of the DESTDIR and OPT_FLAGS variables
