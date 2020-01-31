@@ -13,10 +13,11 @@ install: [
   [make "install"]
 ]
 homepage: "http://sawja.inria.fr"
+dev-repo: "git+https://github.com/javalib-team/sawja.git"
 depends: [
   "ocaml" {>= "4.02"}
   "ocamlfind" {build}
-  "javalib" {>= "3.1.1" & < "3.2.1"}
+  "javalib" {>= "3.2.1" & < "3.3"}
 ]
 
 synopsis: "Sawja provides a high level representation of Java bytecode programs and static analysis tools"

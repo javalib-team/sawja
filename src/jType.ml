@@ -84,11 +84,13 @@ let get_hash obj =
 module ObjectMap = GenericMap.Make (struct 
                                       type t = object_type 
                                       let get_hash = get_hash
+                                      let compare = Stdlib.compare
                                     end)
 
 module ObjectSet = GenericSet.Make (struct 
                                       type t = object_type 
                                       let get_hash = get_hash
+                                      let compare = Stdlib.compare
                                     end)
 
 

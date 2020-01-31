@@ -156,8 +156,14 @@ let make_dictionary_from (vars : var array) =
     var_next = Array.length vars}
 
 
-module VarSet = GenericSet.Make(struct type t = var let get_hash = fst end)
-module VarMap = GenericMap.Make(struct type t = var let get_hash = fst end)
+module VarSet = GenericSet.Make(struct type t = var
+                                       let get_hash = fst
+                                       let compare = Stdlib.compare
+                                end)
+module VarMap = GenericMap.Make(struct type t = var
+                                       let get_hash = fst
+                                       let compare = Stdlib.compare
+                                end)
 
 type exception_handler = {
   e_start : int;
