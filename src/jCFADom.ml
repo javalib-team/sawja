@@ -69,10 +69,12 @@ let get_hash asite =
 module SiteSet = GenericSet.Make (struct 
                                    type t = asite 
                                    let get_hash = get_hash 
+                                   let compare = Stdlib.compare
                                  end)
 module SiteMap = GenericMap.Make (struct 
                                    type t = asite
                                    let get_hash = get_hash
+                                   let compare = Stdlib.compare
                                  end)
 
 module AbVSet = struct
