@@ -1,5 +1,12 @@
 opam-version: "2.0"
+name: "sawja"
+version: "1.5.8"
 maintainer: "sawja@inria.fr"
+authors: "Sawja development team"
+homepage: "http://sawja.inria.fr"
+bug-reports: "https://github.com/javalib-team/sawja/issues"
+license: "GPL-3.0"
+dev-repo: "git+https://github.com/javalib-team/sawja.git"
 build: [
   ["./configure.sh"]
   [make]
@@ -7,15 +14,11 @@ build: [
 remove: [
   ["ocamlfind" "remove" "sawja"]
 ]
-bug-reports: "sawja@inria.fr"
-authors: "Sawja development team"
 install: [
   [make "install"]
 ]
-homepage: "http://sawja.inria.fr"
-dev-repo: "git+https://github.com/javalib-team/sawja.git"
 depends: [
-  "ocaml" {>= "4.02"}
+  "ocaml" {>= "4.04"}
   "ocamlfind" {build}
   "javalib" {>= "3.2.1" & < "3.3"}
 ]

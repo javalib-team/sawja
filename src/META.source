@@ -1,4 +1,4 @@
-version = "SAWJA_TRUNK"
+version = "1.5.8"
 description = "Sawja helps you to manipulates Java bytecode programs"
 archive(native) = "sawja.cmxa"
 archive(byte) = "sawja.cma"
