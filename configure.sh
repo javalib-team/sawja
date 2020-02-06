@@ -41,8 +41,6 @@ DESTDIR=
 OCAMLPATH=
 # The path to ocamlfind
 FINDER=`which ocamlfind`
-# The perl executable
-PERL=
 # The debug flag
 DEBUG=yes
 # The shared option flag
@@ -249,21 +247,6 @@ else
   FLAGS="$FLAGS -annot"
 fi
 
-
-#
-# Check Perl
-#
-PERL=`which perl`
-if [ $? = 0 ]; then
-  msg "inf" "Perl found at $PERL"
-else
-  msg "err" "Perl not found.
-
-Use your system's software packaging tools to install Perl, or download it from:
-http://www.perl.org/get.html"
-fi
-
-
 #
 # Check for Javalib and Buddy.
 #
@@ -305,7 +288,7 @@ echo -n "  ."
 # Configuration variables
 echo "" >> $makeconfig
 echo "# Variables detected at configure-time" >> $makeconfig
-for var in FLAGS OPT_FLAGS LOCALDEST FINDER PERL DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
+for var in FLAGS OPT_FLAGS LOCALDEST FINDER DEBUG SHARED JAVALIB BUDDY INCLUDE PP; do
   echo "$var=${!var}" >> $makeconfig
 done
 echo -n "."
