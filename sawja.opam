@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "sawja"
-version: "1.5.8"
+version: "1.5.9"
 maintainer: "sawja@inria.fr"
 authors: "Sawja development team"
 homepage: "http://sawja.inria.fr"
