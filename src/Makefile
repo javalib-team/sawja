@@ -49,7 +49,7 @@ MODULES = jUtil iter iter2 wlist \
 	$(DATAFLOW)reachDef $(DATAFLOW)availableExpr \
 	$(DATAFLOW)availableExprSSA
 
-MODULE_INTERFACES = iter wlist \
+MODULE_INTERFACES = iter iter2 wlist \
 	jProgram classDomain jNativeStubs jsrInline \
 	jControlFlow jPrintUtil jPrintHtml jPrintPlugin argPlugin\
 	jCodePP jBir jBirPP a3Bir a3BirPP jBirSSA jBirSSAPP a3BirSSA a3BirSSAPP \
@@ -103,11 +103,11 @@ endif
 classDomain.ml:$(CLASS_DOMAIN)
 	cp $< $@
 
-jPrintHtml.cmo:jPrintHtml.ml
-	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -p -e 'BEGIN{open(CSS,$(CSS));\$$css=\"\\\"\\\"\";while(<CSS>){chomp(\$$_);\$$css=\"\$$css^\\n\\\"\$$_\\\\n\\\"\";} print \"# 1 \\\"$<\\\"\n\";}s/\\\"\(\* CSS \*\)\\\"/\$$css/;'" -c $<
+#jPrintHtml.cmo:jPrintHtml.ml
+#	$(OCAMLC) $(INCLUDE) -pp "$(PERL) -p -e 'BEGIN{open(CSS,$(CSS));\$$css=\"\\\"\\\"\";while(<CSS>){chomp(\$$_);\$$css=\"\$$css^\\n\\\"\$$_\\\\n\\\"\";} print \"# 1 \\\"$<\\\"\n\";}s/\\\"\(\* CSS \*\)\\\"/\$$css/;'" -c $<
 
-jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
-	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -p -e 'BEGIN{open(CSS,$(CSS));\$$css=\"\\\"\\\"\";while(<CSS>){chomp(\$$_);\$$css=\"\$$css^\\n\\\"\$$_\\\\n\\\"\";} print \"# 1 \\\"$<\\\"\n\";}s/\\\"\(\* CSS \*\)\\\"/\$$css/;'" $(FOR_PACK) -c $<
+#jPrintHtml.cmx jPrintHtml.o:jPrintHtml.ml
+#	$(OCAMLOPT) $(INCLUDE) -pp "$(PERL) -p -e 'BEGIN{open(CSS,$(CSS));\$$css=\"\\\"\\\"\";while(<CSS>){chomp(\$$_);\$$css=\"\$$css^\\n\\\"\$$_\\\\n\\\"\";} print \"# 1 \\\"$<\\\"\n\";}s/\\\"\(\* CSS \*\)\\\"/\$$css/;'" $(FOR_PACK) -c $<
 
 safe.ml: safe_domain.ml safe_var.ml safe_state.ml safe_constraints.ml safe_solver.ml
 	$(RM) $@
