@@ -1,5 +1,4 @@
-open Javalib_pack
-(*open Sawja_pack *)
+open! Javalib_pack
 open JBasics
 open A3Bir
 
@@ -22,7 +21,7 @@ module Formula=
       
     type condition = 
       | BinCond of [ `Eq | `Le | `Lt | `Ne | `Ge | `Gt] *  expr *  expr
-      | IsInstanceOf of expr * object_type  (* object type from Javalib_pack.JBasics. *)
+      | IsInstanceOf of expr * object_type  (* object type from JBasics. *)
       | IsNotInstanceOf of expr * object_type (* TODO: add comments and take care of null *)
       | IsArrayElementInstanceOf of expr * expr (** (element variable, array variable) *)
       | IsNotArrayElementInstanceOf of expr * expr (** (element variable, array variable) *)
@@ -64,8 +63,8 @@ type instrCfg =
   | AssignVar of A3Bir.var * A3Bir.expr 
       (*r [AssignVar (x,e)] assigns var [x] with the result of 
 	  the evaluation of expression [e] *) 
-  | AffectField of tvar * Javalib_pack.JBasics.class_name * Javalib_pack.JBasics.field_signature * tvar
-  | AffectStaticField of Javalib_pack.JBasics.class_name * Javalib_pack.JBasics.field_signature * tvar
+  | AffectField of tvar * JBasics.class_name * JBasics.field_signature * tvar
+  | AffectStaticField of JBasics.class_name * JBasics.field_signature * tvar
   | ArrayStore of A3Bir.tvar * A3Bir.tvar * A3Bir.tvar 
          (*r ArrayStore(t,i,v) == t[i] = v *)
   | Assume of Formula.formula  * Formula.should_be_verified
@@ -75,8 +74,8 @@ type instrCfg =
 	  holds otherwise it will try to prove it. *)
   | AllocVar of A3Bir.var * JBasics.class_name * JBasics.value_type list * A3Bir.tvar list
   | AllocArray of A3Bir.var * JBasics.value_type * A3Bir.tvar list
-  | CheckLink of Javalib_pack.JCode.jopcode
-  | MayInit of Javalib_pack.JBasics.class_name
+  | CheckLink of JCode.jopcode
+  | MayInit of JBasics.class_name
 
   | MonitorEnter of A3Bir.tvar
   | MonitorExit of A3Bir.tvar

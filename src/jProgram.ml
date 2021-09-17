@@ -20,19 +20,18 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open JCode
-open Javalib
 
 type 'a class_node = {
-  c_info : 'a jclass;
+  c_info : 'a Javalib.jclass;
   c_super : 'a class_node option;
   c_interfaces : 'a interface_node ClassMap.t;
   mutable c_children : 'a class_node list;
 }
 and 'a interface_node = {
-  i_info : 'a jinterface;
+  i_info : 'a Javalib.jinterface;
   i_super : 'a class_node;
   (** must be java.lang.Object. But note that interfaces are not
       considered as children of java.lang.Object.*)
@@ -53,18 +52,18 @@ let make_class_node c super interfaces =
     ClassMap.iter
       (fun _ i ->
 	 if not(List.exists
-		  (fun chc -> cn_equal chc.c_info.c_name c.c_name)
-		  i.i_children_classes) then
+		  (fun chc -> cn_equal chc.c_info.Javalib.c_name c.Javalib.c_name)
+		  i.i_children_classes) then 
 	   i.i_children_classes <- node :: i.i_children_classes
 	 else failwith "Inconsistent make_class_node : child already present."
       ) interfaces;
     (match super with
        | None -> ()
        | Some sc ->
-	   (match c.c_super_class with
-	      | Some scn when cn_equal scn sc.c_info.c_name ->
+	   (match c.Javalib.c_super_class with
+	      | Some scn when cn_equal scn sc.c_info.Javalib.c_name ->
 		  if not(List.exists
-			   (fun chc -> cn_equal chc.c_info.c_name c.c_name)
+			   (fun chc -> cn_equal chc.c_info.Javalib.c_name c.Javalib.c_name)
 			   sc.c_children) then
 		    sc.c_children <- node :: sc.c_children
 		  else
@@ -85,7 +84,7 @@ let make_interface_node i super interfaces =
     ClassMap.iter
       (fun _ si ->
 	 if not(List.exists
-		  (fun chi -> cn_equal chi.i_info.i_name i.i_name)
+		  (fun chi -> cn_equal chi.i_info.Javalib.i_name i.Javalib.i_name)
 		  si.i_children_interfaces) then
 	   si.i_children_interfaces <- node :: si.i_children_interfaces
 	 else
@@ -100,16 +99,16 @@ let main_signature =
 			   (TClass java_lang_string)))]) None
 
 let get_name = function
-  | Interface i -> i.i_info.i_name
-  | Class c -> c.c_info.c_name
+  | Interface i -> i.i_info.Javalib.i_name
+  | Class c -> c.c_info.Javalib.c_name
 
 let get_interfaces = function
   | Interface i -> i.i_interfaces
   | Class c -> c.c_interfaces
 
 let get_consts = function
-  | Interface i -> i.i_info.i_consts
-  | Class c -> c.c_info.c_consts
+  | Interface i -> i.i_info.Javalib.i_consts
+  | Class c -> c.c_info.Javalib.c_consts
 
 let c_equal = (==)
 let i_equal = (==)
@@ -121,7 +120,7 @@ let node_equal c1 c2 = match c1,c2 with
   | Interface i1, Interface i2 ->
       i1 == i2
       (* equal_class_names i1.i_info.i_signature i2.i_info.i_signature *)
-  | _, _ -> false
+  | Class _, Interface _ | Interface _, Class _ -> false
 
 let rec get_all_children_classes c =
   let direct_children = c.c_children in
@@ -136,7 +135,7 @@ type 'a static_lookup_method = class_name -> method_signature -> int ->
 
 type 'a program = { classes : 'a node ClassMap.t;
 		    parsed_methods : ('a node *
-					'a concrete_method) ClassMethodMap.t;
+					'a Javalib.concrete_method) ClassMethodMap.t;
 		    static_lookup_method : 'a static_lookup_method }
 
 let super = function
@@ -152,8 +151,8 @@ exception IllegalAccessError
 
 let to_ioc ioc =
   match ioc with
-    | Interface i -> JInterface (i.i_info)
-    | Class c -> JClass (c.c_info)
+    | Interface i -> Javalib.JInterface (i.i_info)
+    | Class c -> Javalib.JClass (c.c_info)
 
 let defines_method ioc ms = Javalib.defines_method (to_ioc ioc) ms
 
@@ -279,10 +278,10 @@ let get_method_calls p cs cm =
   let f_lookup = p.static_lookup_method in
     begin
       match cm with
-	| {cm_implementation = Java code}
+	| {Javalib.cm_implementation = Javalib.Java code}
 	    when
-	      ClassMethodMap.mem cm.cm_class_method_signature p.parsed_methods ->
-	    let ms = cm.cm_signature in
+	      ClassMethodMap.mem cm.Javalib.cm_class_method_signature p.parsed_methods ->
+	    let ms = cm.Javalib.cm_signature in
 	      Array.iteri
 		(fun pp op ->
 		   match op with
@@ -320,7 +319,7 @@ let get_callgraph p =
         MethodMap.iter
           (fun _ cm ->
 	       calls :=
-		 (methodcalls2callsite cs cm.cm_signature (get_method_calls p cs cm))
+		 (methodcalls2callsite cs cm.Javalib.cm_signature (get_method_calls p cs cm))
 		 @ !calls)
           (get_concrete_methods ioc)
       ) p;
@@ -351,7 +350,7 @@ let get_callgraph_from_entries p entries =
           let (cur_cn, cur_ms) = cms_split cur_cms in
           let m = get_method (get_node p cur_cn) cur_ms in
             match m with
-              | ConcreteMethod cm ->
+              | Javalib.ConcreteMethod cm ->
                   let mcalls = (get_method_calls p cur_cn cm) in
                     Ptmap.iter
                       (fun _pp cmsSet ->
@@ -367,9 +366,9 @@ let get_callgraph_from_entries p entries =
                            cmsSet
                       )
                       mcalls;
-                    calls := ((methodcalls2callsite cur_cn cm.cm_signature mcalls)
+                    calls := ((methodcalls2callsite cur_cn cm.Javalib.cm_signature mcalls)
                               @ !calls)
-              | AbstractMethod _ -> ()
+              | Javalib.AbstractMethod _ -> ()
       )
     done;
     !calls
@@ -397,8 +396,8 @@ let to_class_node node =
 
 let _to_concrete_method m =
   match m with
-    | ConcreteMethod cm -> cm
-    | AbstractMethod _ -> failwith "to_concrete_method applied on an abstract method."
+    | Javalib.ConcreteMethod cm -> cm
+    | Javalib.AbstractMethod _ -> failwith "to_concrete_method applied on an abstract method."
 
 let to_interface_node node =
   match node with
@@ -414,9 +413,9 @@ let add_interface_or_class cmap c nodemap =
 	  (nodemap, node)
       with Not_found ->
 	match c with
-	  | JClass c ->
+	  | Javalib.JClass c ->
 	      let (nodemap, super_node) =
-		(match c.c_super_class with
+		(match c.Javalib.c_super_class with
 		   | None -> (nodemap, None)
 		   | Some sc ->
 		       let super = ClassMap.find sc cmap in
@@ -436,8 +435,8 @@ let add_interface_or_class cmap c nodemap =
 		  ) interfaces (nodemap, ClassMap.empty) in
 	      let node_info = make_class_node c super_node interfaces_nodes in
 	      let node = Class node_info in
-		(ClassMap.add c.c_name node nodemap, node)
-	  | JInterface i ->
+		(ClassMap.add c.Javalib.c_name node nodemap, node)
+	  | Javalib.JInterface i ->
 	      let (nodemap, super_node) =
 		let (nm, o) =
 		  add_interface_or_class cobject nodemap in
@@ -455,12 +454,12 @@ let add_interface_or_class cmap c nodemap =
 		  ) interfaces (nodemap, ClassMap.empty) in
 	      let node_info = make_interface_node i super_node interfaces_nodes in
 	      let node = Interface node_info in
-		(ClassMap.add i.i_name node nodemap, node)
+		(ClassMap.add i.Javalib.i_name node nodemap, node)
   in fst (add_interface_or_class c nodemap)
 
 
 let build_hierarchy 
-    (cmap : 'a interface_or_class ClassMap.t) 
+    (cmap : 'a Javalib.interface_or_class ClassMap.t) 
     : 'a node ClassMap.t =
   ClassMap.fold
     (fun _ c m ->
@@ -485,16 +484,16 @@ let map_program2' map_program_classes f fpp p =
 	  (fun cn ms pp -> 
 	     try
 	       match get_method (ClassMap.find cn classes) ms with
-		   ConcreteMethod cm -> 
-		     (match cm.cm_implementation with
-			  Java laz -> 
+		   Javalib.ConcreteMethod cm -> 
+		     (match cm.Javalib.cm_implementation with
+			  Javalib.Java laz -> 
 			    p.static_lookup_method
 			      cn
 			      ms
 			      (fpp (Lazy.force laz) pp)
-			| Native -> ClassMethodSet.empty
+			| Javalib.Native -> ClassMethodSet.empty
 		     )
-		 | AbstractMethod _ -> ClassMethodSet.empty
+		 | Javalib.AbstractMethod _ -> ClassMethodSet.empty
 		     
 		     
 	     with _ -> ClassMethodSet.empty
@@ -505,27 +504,27 @@ let map_program2' map_program_classes f fpp p =
 	ClassMethodMap.map
 	  (fun (node,cm) ->
 	     let cn = get_name node in
-	     let ms = cm.cm_signature in
+	     let ms = cm.Javalib.cm_signature in
 	     let node = ClassMap.find cn classes in
 	     let m = get_method node ms in
 	       match m with
-		 | AbstractMethod _ -> assert false
-		 | ConcreteMethod cm -> (node,cm)
+		 | Javalib.AbstractMethod _ -> assert false
+		 | Javalib.ConcreteMethod cm -> (node,cm)
 	  ) p.parsed_methods;
       static_lookup_method = slm	  
     }
 
 let map_program2 f fpp p = 
-  map_program2' (map_program_classes map_interface_or_class_context) f fpp p
+  map_program2' (map_program_classes (Javalib.map_interface_or_class_context ~force:false)) f fpp p
 
 let map_program f =
   map_program2
-    (fun node cm -> f (get_name node) cm.cm_signature)
+    (fun node cm -> f (get_name node) cm.Javalib.cm_signature)
 
 let map_program_with_native2 f fpp p = 
   map_program2' 
-    (map_program_classes map_interface_or_class_with_native_context) f fpp p
+    (map_program_classes Javalib.map_interface_or_class_with_native_context) f fpp p
 
 let map_program_with_native f =
   map_program_with_native2
-    (fun node cm -> f (get_name node) cm.cm_signature)
+    (fun node cm -> f (get_name node) cm.Javalib.cm_signature)

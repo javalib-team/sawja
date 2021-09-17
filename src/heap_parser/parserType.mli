@@ -67,6 +67,7 @@ type field =
 
 
 type instance
+
 (**for array instance.*)
 type instance_ar 
 

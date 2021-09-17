@@ -26,8 +26,8 @@
     constructor calls are folded. You might find transformation and
     representation details at
     {{:http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}http://www.irisa.fr/celtique/pichardie/papers/aplas10.pdf}*)
-open Javalib_pack
-
+open! Javalib_pack
+   
 (** {2 Language} *)
 (** {3 Variables} *)
 

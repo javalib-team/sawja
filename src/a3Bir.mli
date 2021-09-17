@@ -28,9 +28,12 @@
 (** {2 Language} *)
 
 (** {3 Variables} *)
-open Javalib_pack
+open! Javalib_pack
+  
 type var
+
 (** Abstract data type for variables *)
+
 (** [var_equal v1 v2] is equivalent to [v1 = v2], but is faster.  *)
 val var_equal : var -> var -> bool
 
@@ -59,10 +62,10 @@ val index : var -> int
 
 
 (** This module allows to build efficient sets of [var] values. *)
-module VarSet : GenericSet.GenericSetSig with type elt = var
+module VarSet : Javalib_pack.GenericSet.GenericSetSig with type elt = var
 
 (** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : GenericMap.GenericMapSig with type key = var
+module VarMap : Javalib_pack.GenericMap.GenericMapSig with type key = var
 
 (** {3 Expressions} *)
 

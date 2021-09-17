@@ -19,7 +19,7 @@
 
 (** Primitives for generating warnings and information for the Sawja Eclipse Plugin *)
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open Javalib
 open JProgram
@@ -231,7 +231,7 @@ sig
 
     (** Function to provide in order to display the source variable
 	names in the method signatures. *)
-    val method_param_names : p_code Javalib.interface_or_class -> method_signature
+    val method_param_names : p_code interface_or_class -> method_signature
       -> string list option
 
     (** This function should transform a {!precise_warning_pp} from a

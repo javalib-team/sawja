@@ -21,8 +21,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
-open Javalib
+open! Javalib_pack
+open! Javalib
 open JBasics
 open JCode
 include Cmn
@@ -93,9 +93,9 @@ let type_of_const i =
       TBasic `Float
   | `Long _ ->
       TBasic `Long
-  | `MethodType md ->
+  | `MethodType _md ->
       TObject (TClass java_lang_object)
-  | `MethodHandle mh ->
+  | `MethodHandle _mh ->
       TObject (TClass java_lang_object)
 
 let type_of_expr = function
@@ -306,27 +306,27 @@ let print_instr ?(show_type = true) = function
       Printf.sprintf "%s := %s.%s(%s)" (var_name_g x) (JPrint.class_name c)
         (ms_name ms)
         (JUtil.print_list_sep "," (print_expr' ~show_type true) le)
-  | InvokeDynamic (None, bm, ms, le) ->
+  | InvokeDynamic (None, _bm, _ms, _le) ->
       assert false (* None never happens *)
   | InvokeDynamic (Some x, bm, ms, le) ->
       let print_method_handle = function
-        | `GetField (cn, fs) ->
+        | `GetField (_cn, _fs) ->
             "GetField..."
-        | `GetStatic (cn, fs) ->
+        | `GetStatic (_cn, _fs) ->
             "GetStatic..."
-        | `PutField (cn, fs) ->
+        | `PutField (_cn, _fs) ->
             "PutField..."
-        | `PutStatic (cn, fs) ->
+        | `PutStatic (_cn, _fs) ->
             "PutStatic..."
-        | `InvokeVirtual (ot, ms) ->
+        | `InvokeVirtual (_ot, _ms) ->
             "InvokeVirtual..."
-        | `NewInvokeSpecial (cn, ms) ->
+        | `NewInvokeSpecial (_cn, _ms) ->
             "NewInvokeSpecial..."
-        | `InvokeStatic m ->
+        | `InvokeStatic _m ->
             "InvokeStatic..."
-        | `InvokeSpecial m ->
+        | `InvokeSpecial _m ->
             "InvokeSpecial..."
-        | `InvokeInterface (cn, ms) ->
+        | `InvokeInterface (_cn, _ms) ->
             "InvokeInterface..."
       in
       Printf.sprintf "%s := CLOSURE[%s[%d],%s](%s)" (var_name_g x)
@@ -3386,7 +3386,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
         let ir_code, ir2bc, bc2ir, ir_exc_tbl =
           flatten_code ir_code ir_exc_tbl
         in
-        let nir_code, nir2bc, nbc2ir, nir_exc_tbl =
+        let nir_code, nir2bc, _nbc2ir, nir_exc_tbl =
           remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
         in
         ( { bir_params= gen_params dico pp_var cm
@@ -3547,7 +3547,7 @@ module Live = struct
   let fun_to_string = function
     | GenVars e ->
         Printf.sprintf "GenVars(%s)"
-          (String.concat "::" (List.map print_expr e))
+          (String.concat "::" (List.map (print_expr) e))
     | Kill x ->
         Printf.sprintf "Kill(%s)" (var_name_g x)
 
@@ -4233,7 +4233,7 @@ module SSA = struct
     let link v w = ancestor.(w) <- v in
     dfs r ;
     Array.iteri
-      (fun i w ->
+      (fun _i w ->
         if w = -1 then
           (* Printf.printf "Error: point %d seems not reachable !!!\n" (i+1); *)
           incr nb_dead )

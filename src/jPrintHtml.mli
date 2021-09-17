@@ -25,7 +25,7 @@
   website can be used for any kind of visualisation or debbuging purposes.
   Annotations can be attached to the program and will be displayed properly
   (according to a given css). *)
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open Javalib
 open JProgram
@@ -136,7 +136,7 @@ sig
       directory [outputdir] does not exist. @raise Invalid_argument if
       the name corresponding to [outputdir] is a file.*)
   val print_class :
-    ?css:string -> ?js:string -> ?info:info -> code Javalib.interface_or_class -> string -> unit
+    ?css:string -> ?js:string -> ?info:info -> code interface_or_class -> string -> unit
 
 end
 
@@ -147,6 +147,7 @@ sig
   
   (** Type of exception handlers. *)
   type p_handler
+     
   (** Type of the code. *)
   type p_code
 
@@ -162,7 +163,7 @@ sig
 
   (** Function to provide in order to display the source variable
       names in the method signatures. *)
-  val method_param_names : p_code Javalib.interface_or_class -> method_signature
+  val method_param_names : p_code interface_or_class -> method_signature
     -> string list option
 
   (** Function to provide in order to display instructions. Given
@@ -170,7 +171,7 @@ sig
   current method signature, the instruction you want to display and
   its program point, you must provide a list of [elem] by using the
   functions defined in {!JPrintHtml} module. *)
-  val inst_html : p_code program option -> p_code Javalib.interface_or_class -> method_signature -> int
+  val inst_html : p_code program option -> p_code interface_or_class -> method_signature -> int
     -> p_instr -> elem list
 
   (** Function to provide in order to display exception handlers. Given the

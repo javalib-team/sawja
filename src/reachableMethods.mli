@@ -23,7 +23,7 @@
     {!JProgram.program}.  The implementation is not very efficient,
     but it is simple and rely on the {!Safe} framework. *)
 
-open Javalib_pack
+open! Javalib_pack
 
 (** [compute_reachable_methods p entry_points] computes the methods of
     a program that are reachable from the set of entry points

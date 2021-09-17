@@ -41,6 +41,7 @@ sig
   (*If the set is empty, it means that the only possible concrete value of the
    * variable is null.*)
   val is_empty: t -> bool
+
   (** [singleton pps cn]: Create a set from a singleton element. [pps] is a list
     * of program point characterizing the location of the affectation. cn is the
     * class of the allocated object. *)
@@ -55,7 +56,8 @@ sig
   (** [filter_with_compatible prog abs cn] :Restrain the abstraction [abs] to
     * the type compatible with [cn].*)
   val filter_with_compatible : 'a JProgram.program -> t -> object_type -> t
-(** [filter_with_uncompatible prog abs cn] :Restrain the abstraction [abs] to
+
+  (** [filter_with_uncompatible prog abs cn] :Restrain the abstraction [abs] to
     * the type not compatible with [cn].*)
   val filter_with_uncompatible : 'a JProgram.program -> t -> object_type -> t
   val concretize : t -> JType.ObjectSet.t
@@ -87,6 +89,7 @@ sig
 
   (** [var2fSet obj var]: for a field such as [obj].field = [var], return its AbFSet according to the AbVSet of [obj] and [var]. *)
   val var2fSet : AbVSet.t -> AbVSet.t -> t
+
   (** [fSet2var fset objvSet]: From a field abstraction [fset] and [objvSet],
     * the abstraction of the object variable used to access the field,  return
     * a variable abstraction corresponding to the possible abstract values when
@@ -143,7 +146,7 @@ module AbMethod : sig
   val join_return : t -> AbVSet.t -> t
   val join_exc_return : t -> AbVSet.t -> t
   val join : ?modifies:bool ref -> t -> t -> t
-  val join_ad : ?do_join:bool -> ?modifies:bool Pervasives.ref ->
+  val join_ad : ?do_join:bool -> ?modifies:bool Stdlib.ref ->
        t -> analysisDomain -> t
   val pprint : Format.formatter -> t -> unit
   val to_string : t -> string 

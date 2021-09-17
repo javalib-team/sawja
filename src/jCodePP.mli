@@ -19,11 +19,10 @@
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open Javalib
 open JProgram
-open JControlFlow
 open JCode
 
 type t

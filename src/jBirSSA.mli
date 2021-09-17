@@ -22,11 +22,12 @@
 
 (** SSA form of the {!JBir} intermediate representation.*)
 
-open Javalib_pack
-
+open! Javalib_pack
+     
 (** {2 Language} *)
 
 (** {3 Variables} *)
+
 (** Abstract data type for variables *)
 type var
 
@@ -64,10 +65,10 @@ val var_ssa_index : var -> int
 
 
 (** This module allows to build efficient sets of [var] values. *)
-module VarSet : GenericSet.GenericSetSig with type elt = var
+module VarSet : Javalib_pack.GenericSet.GenericSetSig with type elt = var
 
 (** This module allows to build maps of elements indexed by [var] values. *)
-module VarMap : GenericMap.GenericMapSig with type key = var
+module VarMap : Javalib_pack.GenericMap.GenericMapSig with type key = var
 
 (** {3 Expressions} *)
 
@@ -315,7 +316,7 @@ val empty : t
 
 (** All variables that appear in the method. [vars.(i)] is the variable of
     index [i]. *)
-val vars : t -> var Ptmap.t
+val vars : t -> var Javalib_pack.Ptmap.t
 
 (** Returns a pair containing the index of the first SSA variable and of the
   last SSA variable. This is useful as the index does not start at 0, but after
@@ -339,6 +340,7 @@ val  exc_tbl : t -> exception_handler list
 (** [preds.(pc)] is the array of program points that are
     predecessors of instruction at program point [pc]. *)
 val preds : t -> (int array) array
+
 (** Array of phi nodes assignments. Each phi nodes assignments at
     point [pc] must be executed before the corresponding [code.(pc)]
     instruction.*)

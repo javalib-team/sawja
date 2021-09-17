@@ -45,7 +45,7 @@ let _prev (l:'a wlist) : 'a wlist = l.prev
 let tail (l:'a wlist) : 'a wlist =
   match l.content with
     | Head -> l.prev
-    | _ -> raise NoHeadNode
+    | Tail | Content _ -> raise NoHeadNode
 
 let add (e:'a) (l:'a wlist) =
   match l.content with
@@ -56,13 +56,13 @@ let add (e:'a) (l:'a wlist) =
 	let cell = new_elm.next in
 	  cell.prev <- new_elm;
 	  l.next <- new_elm
-    | _ -> raise NoHeadNode
+    | Tail | Content _ -> raise NoHeadNode
 
 let _del (l:'a wlist) =
   match l.content with
     | Head -> raise HeadNode
     | Tail -> raise TailNode
-    | _ ->
+    | Content _ ->
 	l.next.prev <- l.prev;
 	l.prev.next <- l.next
 

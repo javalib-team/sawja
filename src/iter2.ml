@@ -123,6 +123,7 @@ module TopologicalSort = struct (* TODO : creer une librairie pour les graphes ?
     
 end
 
+(* dead code
 module CycleDetection = struct
 
   (* Tarjan's strongly connected components algorithm *)
@@ -177,7 +178,7 @@ module CycleDetection = struct
     scc
 
 
-  end
+  end *)
 						      
 (* We will use a hash table to give an unique number to each constraint
    variable *)

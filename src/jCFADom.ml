@@ -27,11 +27,11 @@ open JType
 type asite = JBirPP.t list * object_type
 
 let asite_compare (lst1,cn1) (lst2,cn2) =
-  let cmp_list l1 l2 =
+  let _cmp_list l1 l2 =
     match l1, l2 with
       | [], [] -> 0
-      | [], e2::_ -> 1
-      | _e1::_, [] -> -1
+      | [], _::_ -> 1
+      | _::_, [] -> -1
       | e1::_, e2::_ -> JBirPP.compare e1 e2 
   in
     match obj_compare cn1 cn2 with
@@ -69,7 +69,6 @@ let get_hash asite =
 module SiteSet = GenericSet.Make (struct 
                                    type t = asite 
                                    let get_hash = get_hash 
-                                   let compare = Stdlib.compare
                                  end)
 module SiteMap = GenericMap.Make (struct 
                                    type t = asite

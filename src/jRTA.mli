@@ -21,9 +21,8 @@
 (** Builds high level representations of Java bytecode programs using Rapid Type
     Analysis algorithm. *)
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
-open Javalib
 open JProgram
 
 (** [parse_program ~instantiated ~other_entrypoints classpath cms]

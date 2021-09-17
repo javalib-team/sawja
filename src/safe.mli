@@ -60,7 +60,8 @@
 
 *)
 
-open Javalib_pack
+open! Javalib_pack
+  
 module Domain : sig
 
   (*This exception can be used for debugging purpose. If your domain raise such
@@ -116,7 +117,8 @@ module Domain : sig
     (** [join modifies v1 v2] returns the union of [v1] and [v2] and sets
         [modifies] to true if the result is different from [v1]. *)
     val join : ?modifies:bool ref -> t -> t -> t
-      (** [join_ad modifies v1 v2] returns the union of [v1] and [v2]
+
+    (** [join_ad modifies v1 v2] returns the union of [v1] and [v2]
           and sets [modifies] to true if the result is different from
           [v1]. The option [do_join] allows avoiding to compute the
           join of values when it is known that the target value (the
@@ -136,7 +138,8 @@ module Domain : sig
     type analysisDomain = t
     val bot : t (*No map (Unreachable code)*)
     val init : t
-      (** [init] is an initial value for local variables: it is not bottom but
+
+    (** [init] is an initial value for local variables: it is not bottom but
           contains no local variable (it correspond to a reachable point in the
           code). *)
     val isBot : analysisDomain -> bool
@@ -171,12 +174,14 @@ module Domain : sig
     val pprint : Format.formatter -> t -> unit
     val init : t
       (** initial (empty) stack *)
+
     val push : Var.t -> t -> t
     val pop_n : int -> t -> t
     val pop : t -> t
     val first : t -> Var.t
       (** raise [Invalid_argument] if the stack is empty. Raise Failure if the
           stack is Top. *)
+
     val dup : t -> t
     val dupX1 : t -> t
     val dupX2 : t -> t

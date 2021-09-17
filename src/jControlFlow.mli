@@ -24,7 +24,7 @@
     navigation in the control flow graph of a program for static analysis. *)
 
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open Javalib
 open JProgram
@@ -33,6 +33,7 @@ open JProgram
 (** {3 Lookup and resolution procedures} *)
 (** {b Warning : lookup and resolve functions do not take in account
     visibility yet}! *)
+
 (** [resolve_class p cn] returns the class named [cn] in program [p], if
     any.
     @raise NoClassDefFoundError if [p] does not contain a class named

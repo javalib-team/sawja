@@ -17,10 +17,10 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+open! Javalib_pack
 
 module Make :
-  functor (S : sig val nb_bits:int end) ->
+  functor (_ : sig val nb_bits:int end) ->
     sig
       type t
       type analysisID = unit

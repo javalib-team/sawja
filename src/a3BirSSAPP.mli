@@ -17,12 +17,10 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open Javalib
 open JProgram
-open JControlFlow
-
 
 type t
 

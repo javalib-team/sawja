@@ -17,9 +17,6 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
-open JBasics
-open JProgram
 open ParserType
 exception InvalidFile  
 

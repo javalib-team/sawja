@@ -16,12 +16,9 @@
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
-open Javalib_pack
-open JBasics
-open Javalib
+open Javalib_pack.JBasics
+open Javalib_pack.Javalib
 open JProgram
-open JControlFlow
-
 
 type t
 
