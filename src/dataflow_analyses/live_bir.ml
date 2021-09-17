@@ -89,6 +89,7 @@ let gen_instrs last i = function
   | JBir.NewArray (x,_,le)
   | JBir.New (x,_,_,le) 
   | JBir.InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
+  | JBir.Alloc (x,_) ->  [[Kill x],i+1]
   | JBir.InvokeDynamic _ -> assert false (* TODO *)
   | JBir.InvokeVirtual (Some x,e,_,_,le) 
   | JBir.InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]

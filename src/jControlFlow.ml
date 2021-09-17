@@ -19,10 +19,10 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
-open Javalib
-open JProgram
+open! Javalib
+open! JProgram
 
 
 (*Usefull functions for program pointers access functions*)
@@ -136,8 +136,8 @@ module PP = struct
 	   let e = JProgram.get_node program e
 	   in JProgram.extends_class (ioc2c e) exn)
 	(match m with
-	   | AbstractMethod {am_exceptions=exn_list}
-	   | ConcreteMethod {cm_exceptions=exn_list} -> exn_list)
+	   | AbstractMethod {am_exceptions=exn_list; _}
+	   | ConcreteMethod {cm_exceptions=exn_list; _} -> exn_list)
     in
       not (List.exists
 	     (fun (cs,ms) ->
@@ -340,8 +340,8 @@ let overridden_by_methods ms c : 'a class_node list=
   in
     begin
       match get_method c ms with
-	| AbstractMethod {am_signature = signature}
-        | ConcreteMethod {cm_signature = signature} ->
+	| AbstractMethod {am_signature = signature; _}
+        | ConcreteMethod {cm_signature = signature; _} ->
 	    let mname = ms_name signature in
               if (mname = "<clinit>" || mname = "<init>") then
 		raise (Invalid_argument "overridden_by_methods")
@@ -359,7 +359,7 @@ let implements_method c ms =
 let implements_methods ms c =
   ClassMap.fold
     (fun _ i l -> resolve_all_interface_methods ms i @ l)
-    c.c_interfaces
+    c.JProgram.c_interfaces
     []
 
 let static_lookup_interface prog cs ms : 'a node list =
@@ -438,7 +438,7 @@ let _get_class_to_initialize caller = function
   | Class callee ->
       let caller =
         match caller with
-          | Interface {i_super = caller}
+          | Interface {i_super = caller; _}
           | Class caller
             -> caller
       in

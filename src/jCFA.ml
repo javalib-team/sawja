@@ -18,7 +18,7 @@
  *)
 
 
-open Javalib_pack
+open! Javalib_pack
 open JBasics
 open JBir
 open Javalib
@@ -427,7 +427,7 @@ let affect_array f_obje f_abse dep =
 
 
 let handle_throw ?(other_dep=[]) prog pp excAbSt =
-  let open JBirPP in
+  let open! JBirPP in
   let pp_var = pp_var_from_PP pp in
   let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =  
     (fun abSt -> `PPDomain (f abSt)) in
@@ -800,6 +800,7 @@ let abstract_instruction opt prog pp opcode succs csts =
                let l = CFAState.get_PP abSt pp_var in
                  AbLocals.set_var (index v) (AbVSet.singleton [pp] (TClass cn)) l
             ) ()
+      | Alloc _ -> failwith "jCFA does not support Alloc instruction"
 
       | NewArray (v, vt, args) ->
           let dim = List.length args in
@@ -1035,7 +1036,7 @@ struct
 
 
   let init_state_from_heap prog hp state =
-    let open ParserType in
+    let open! ParserType in
     let get_abstract_val v = 
       match v with
         | VInt _ | VChar _ | VShort _ | VBool _ | VByte _ | VLong _
@@ -1127,7 +1128,7 @@ let initial_state program init_heap entry_points =
 
 (*TODO: always fail if we are in unreachable code*)
 let cfa_static_lookup state prog classes = 
-  let open JProgram in
+  let open! JProgram in
   fun cn ms pc ->
     let abm = CFAState.get_method state (`Method ((),cn,ms))
     in

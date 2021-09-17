@@ -90,6 +90,7 @@ let gen_instrs last i =
   | A3Bir.NewArray (x,_,le)
   | A3Bir.New (x,_,_,le)
   | A3Bir.InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
+  | A3Bir.Alloc (x,_) ->  [[Kill x],i+1]
   | A3Bir.InvokeDynamic _ -> assert false (* TODO *)
   | A3Bir.InvokeVirtual (Some x,e,_,_,le) 
   | A3Bir.InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]

@@ -278,7 +278,7 @@ let get_method_calls p cs cm =
   let f_lookup = p.static_lookup_method in
     begin
       match cm with
-	| {Javalib.cm_implementation = Javalib.Java code}
+	| {Javalib.cm_implementation = Javalib.Java code; _}
 	    when
 	      ClassMethodMap.mem cm.Javalib.cm_class_method_signature p.parsed_methods ->
 	    let ms = cm.Javalib.cm_signature in

@@ -21,8 +21,8 @@
 open Javalib_pack
 open JBasics
 open JCode
-open Javalib
-open JProgram
+open! Javalib
+open! JProgram
 
 module Program =
 struct

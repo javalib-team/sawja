@@ -81,6 +81,7 @@ let gen_instrs i = function
   | JBir.Return _  -> []
   | JBir.AffectVar (x,_) 
   | JBir.NewArray (x,_,_)
+  | JBir.Alloc (x,_)
   | JBir.New (x,_,_,_) 
   | JBir.InvokeStatic (Some x,_,_,_) 
   | JBir.InvokeVirtual (Some x,_,_,_,_) 

@@ -2,4 +2,4 @@ PRJ Sawja
 S src/*
 B src/*
 PKG javalib
-FLG -w @Aer
+FLG -w +A-4-42-48

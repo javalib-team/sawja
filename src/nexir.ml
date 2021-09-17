@@ -120,7 +120,7 @@ type t = {
    *)
 }
 
-open Formula
+open! Formula
        
 let ifcond2cond (c,v1,v2) = 
   match c with
@@ -142,7 +142,7 @@ let init_fresh_pc (pc:int) :unit =
 
 let clear_fresh_pc _ = fresh_pc := -1
 
-let get_fresh_pc unit : int = 
+let get_fresh_pc () : int = 
   let cur_fresh_pc = !fresh_pc in
     incr fresh_pc;
     cur_fresh_pc
@@ -166,7 +166,7 @@ let negate_condition = function
      IsArrayElementInstanceOf (v_elt,v_array)
 
 let rec transform_formula = function
-  | A3Bir.Atom(cmp,tv1,tv2) -> Atom(BinCond(cmp,Var tv1,Var tv2))
+  | A3Bir.Atom(cmp,tv1,tv2) -> Formula.Atom(BinCond(cmp,Var tv1,Var tv2))
   | A3Bir.BoolVar tv -> BoolVar tv
   | A3Bir.And(f1,f2) -> And(transform_formula f1,transform_formula f2)
   | A3Bir.Or(f1,f2) -> Or(transform_formula f1,transform_formula f2)
@@ -310,6 +310,8 @@ let rec transform_code (code:A3Bir.t) (normal_ret:A3Bir.var) (normal_end_pc:int)
     | MonitorEnter (tv) -> [(cur_pc, [MonitorEnter (tv), cur_pc+1])] 
     | MonitorExit (tv)  -> [(cur_pc, [MonitorExit (tv), cur_pc+1])] 			     
 
+    | A3Bir.Alloc (x, ct) ->
+       [(cur_pc, [AllocVar (x, ct, [],[]), cur_pc+1])] 
     | A3Bir.New (x, ct, l, args) ->
        [(cur_pc, [AllocVar (x, ct, l, args), cur_pc+1])] 
     | A3Bir.NewArray (x,t,el) -> 
