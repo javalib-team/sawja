@@ -21,7 +21,7 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+open !Javalib_pack
 open JBasics
 open JCode 
 
@@ -109,6 +109,7 @@ type instr =
   | AffectArray of tvar * tvar * tvar
   | AffectField of tvar * class_name * field_signature * tvar
   | AffectStaticField of class_name * field_signature * tvar
+  | Alloc of var * JBasics.class_name 
   | Goto of int
   | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar ) * int
   | Throw of tvar
@@ -223,6 +224,7 @@ let print_instr ?(show_type=true) = function
   | Throw e -> Printf.sprintf "throw %s" (print_tvar ~show_type:show_type  e)
   | Return None -> Printf.sprintf "return"
   | Return (Some e) -> Printf.sprintf "return %s" (print_tvar ~show_type:show_type e)
+  | Alloc (x,c) -> Printf.sprintf "%s := ALLOC %s" (var_name_g x) (JPrint.class_name c) 
   | New (x,c,_,le) -> Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c) (JUtil.print_list_sep "," (print_tvar ~show_type:show_type) le) 
   | NewArray (x,c,le) -> Printf.sprintf "%s := new %s%s" (var_name_g x) (JPrint.value_type c) (JUtil.print_list_sep "" (fun e -> Printf.sprintf "[%s]" (print_tvar ~show_type:show_type  e)) le) 
   | InvokeStatic (None,c,ms,le) -> Printf.sprintf "%s.%s(%s) // static" (JPrint.class_name c) (ms_name ms) (JUtil.print_list_sep "," (print_tvar ~show_type:show_type) le) 
@@ -338,6 +340,7 @@ let bir2a3bir_instr = function
   | Bir.AffectArray(e1,e2,e3) -> AffectArray(expr2tvar e1, expr2tvar e2, expr2tvar e3)
   | Bir.AffectField(e1,cn,fs,e2) -> AffectField(expr2tvar e1,cn,fs,expr2tvar e2) 
   | Bir.AffectStaticField(cn,fs,e) -> AffectStaticField(cn,fs,expr2tvar e)
+  | Bir.Alloc(v,cn) -> Alloc(v,cn)
   | Bir.Goto i -> Goto i
   | Bir.Ifd ((cmp,e1,e2),i) -> Ifd ((cmp, expr2tvar e1,expr2tvar e2),i)
   | Bir.Throw e -> Throw (expr2tvar e)
@@ -399,6 +402,7 @@ let a3_field_resolve_in_code prog (inst:instr) : instr =
   | Ifd _
   | Throw _
   | Return _
+  | Alloc _
   | New _
   | NewArray _
   | InvokeDynamic _ 

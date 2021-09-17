@@ -24,7 +24,6 @@
 open! Javalib_pack
 open! Javalib
 open JBasics
-open JCode
 include Cmn
 
 type expr =
@@ -50,7 +49,7 @@ type check =
   | CheckNegativeArraySize of expr
   | CheckCast of expr * object_type
   | CheckArithmetic of expr
-  | CheckLink of jopcode
+  | CheckLink of JCode.jopcode
 
 type instr =
   | Nop
@@ -58,6 +57,7 @@ type instr =
   | AffectArray of expr * expr * expr
   | AffectField of expr * JBasics.class_name * field_signature * expr
   | AffectStaticField of JBasics.class_name * field_signature * expr
+  | Alloc of var * JBasics.class_name 
   | Goto of int
   | Ifd of ([`Eq | `Ge | `Gt | `Le | `Lt | `Ne] * expr * expr) * int
   | Throw of expr
@@ -291,6 +291,8 @@ let print_instr ?(show_type = true) = function
       Printf.sprintf "return"
   | Return (Some e) ->
       Printf.sprintf "return %s" (print_expr' ~show_type false e)
+  | Alloc (x, c) ->
+      Printf.sprintf "%s := ALLOC %s" (var_name_g x) (JPrint.class_name c)
   | New (x, c, _, le) ->
       Printf.sprintf "%s := new %s(%s)" (var_name_g x) (JPrint.class_name c)
         (JUtil.print_list_sep "," (print_expr' ~show_type true) le)
@@ -562,27 +564,27 @@ and convert_object_type = function TClass _ -> Op32 | TArray _ -> Op32
 (* For an opcode and the previous type inference stack, return the updated
 * stack.*)
 let type_next = function
-  | OpNop -> (
+  | JCode.OpNop -> (
       function s -> s )
-  | OpConst x -> (
+  | JCode.OpConst x -> (
       function s -> convert_const x :: s )
-  | OpLoad (k, _) -> (
+  | JCode.OpLoad (k, _) -> (
       function s -> convert_type k :: s )
-  | OpArrayLoad k -> (
+  | JCode.OpArrayLoad k -> (
       function s -> convert_type k :: pop2 s )
-  | OpStore (_, _) -> (
+  | JCode.OpStore (_, _) -> (
       function s -> pop s )
-  | OpArrayStore _ ->
+  | JCode.OpArrayStore _ ->
       pop3
-  | OpPop ->
+  | JCode.OpPop ->
       pop
-  | OpPop2 -> (
+  | JCode.OpPop2 -> (
       function s -> ( match top s with Op32 -> pop2 s | Op64 -> pop s ) )
-  | OpDup -> (
+  | JCode.OpDup -> (
       function s -> top s :: s )
-  | OpDupX1 -> (
+  | JCode.OpDupX1 -> (
       function s -> top s :: top (pop s) :: top s :: pop2 s )
-  | OpDupX2 -> (
+  | JCode.OpDupX2 -> (
       function
       | s -> (
         match top (pop s) with
@@ -590,7 +592,7 @@ let type_next = function
             top s :: top (pop s) :: top (pop2 s) :: top s :: pop3 s
         | Op64 ->
             top s :: top (pop s) :: top s :: pop2 s ) )
-  | OpDup2 -> (
+  | JCode.OpDup2 -> (
       function
       | s -> (
         match top s with
@@ -598,7 +600,7 @@ let type_next = function
             top s :: top (pop s) :: top s :: top (pop s) :: pop2 s
         | Op64 ->
             top s :: s ) )
-  | OpDup2X1 -> (
+  | JCode.OpDup2X1 -> (
       function
       | s -> (
         match top s with
@@ -611,7 +613,7 @@ let type_next = function
             :: pop3 s
         | Op64 ->
             top s :: top (pop s) :: top s :: pop2 s ) )
-  | OpDup2X2 -> (
+  | JCode.OpDup2X2 -> (
       function
       | s -> (
         match top s with
@@ -638,77 +640,77 @@ let type_next = function
               top s :: top (pop s) :: top (pop2 s) :: top s :: pop3 s
           | Op64 ->
               top s :: top (pop s) :: top s :: pop2 s ) ) )
-  | OpSwap -> (
+  | JCode.OpSwap -> (
       function s -> top (pop s) :: top s :: pop2 s )
-  | OpAdd k | OpSub k | OpMult k | OpDiv k | OpRem k -> (
+  | JCode.OpAdd k | JCode.OpSub k | JCode.OpMult k | JCode.OpDiv k | JCode.OpRem k -> (
       function s -> convert_type k :: pop2 s )
-  | OpNeg k -> (
+  | JCode.OpNeg k -> (
       function s -> convert_type k :: pop s )
-  | OpIShl | OpIShr | OpIAnd | OpIOr | OpIXor | OpIUShr -> (
+  | JCode.OpIShl | JCode.OpIShr | JCode.OpIAnd | JCode.OpIOr | JCode.OpIXor | JCode.OpIUShr -> (
       function s -> Op32 :: pop2 s )
-  | OpLShr | OpLShl -> (
+  | JCode.OpLShr | JCode.OpLShl -> (
       function s -> pop s )
-  | OpLAnd | OpLOr | OpLXor | OpLUShr -> (
+  | JCode.OpLAnd | JCode.OpLOr | JCode.OpLXor | JCode.OpLUShr -> (
       function s -> Op64 :: pop2 s )
-  | OpIInc (_, _) -> (
+  | JCode.OpIInc (_, _) -> (
       function s -> s )
-  | OpI2L -> (
+  | JCode.OpI2L -> (
       function s -> Op64 :: pop s )
-  | OpI2F -> (
+  | JCode.OpI2F -> (
       function s -> Op32 :: pop s )
-  | OpI2D -> (
+  | JCode.OpI2D -> (
       function s -> Op64 :: pop s )
-  | OpL2I -> (
+  | JCode.OpL2I -> (
       function s -> Op32 :: pop s )
-  | OpL2F -> (
+  | JCode.OpL2F -> (
       function s -> Op32 :: pop s )
-  | OpL2D -> (
+  | JCode.OpL2D -> (
       function s -> Op64 :: pop s )
-  | OpF2I -> (
+  | JCode.OpF2I -> (
       function s -> Op32 :: pop s )
-  | OpF2L -> (
+  | JCode.OpF2L -> (
       function s -> Op64 :: pop s )
-  | OpF2D -> (
+  | JCode.OpF2D -> (
       function s -> Op64 :: pop s )
-  | OpD2I -> (
+  | JCode.OpD2I -> (
       function s -> Op32 :: pop s )
-  | OpD2L -> (
+  | JCode.OpD2L -> (
       function s -> Op64 :: pop s )
-  | OpD2F -> (
+  | JCode.OpD2F -> (
       function s -> Op32 :: pop s )
-  | OpI2B -> (
+  | JCode.OpI2B -> (
       function s -> s )
-  | OpI2C -> (
+  | JCode.OpI2C -> (
       function s -> s )
-  | OpI2S -> (
+  | JCode.OpI2S -> (
       function s -> s )
-  | OpCmp _ -> (
+  | JCode.OpCmp _ -> (
       function s -> Op32 :: pop2 s )
-  | OpIf (_, _) ->
+  | JCode.OpIf (_, _) ->
       pop
-  | OpIfCmp (_, _) ->
+  | JCode.OpIfCmp (_, _) ->
       pop2
-  | OpGoto _ -> (
+  | JCode.OpGoto _ -> (
       function s -> s )
-  | OpJsr _ ->
+  | JCode.OpJsr _ ->
       raise Subroutine
-  | OpRet _ ->
+  | JCode.OpRet _ ->
       raise Subroutine
-  | OpTableSwitch _ ->
+  | JCode.OpTableSwitch _ ->
       pop
-  | OpLookupSwitch _ ->
+  | JCode.OpLookupSwitch _ ->
       pop
-  | OpReturn _ -> (
+  | JCode.OpReturn _ -> (
       function _ -> [] )
-  | OpGetField (_, fs) -> (
+  | JCode.OpGetField (_, fs) -> (
       function s -> convert_field_type (fs_type fs) :: pop s )
-  | OpGetStatic (_, fs) -> (
+  | JCode.OpGetStatic (_, fs) -> (
       function s -> convert_field_type (fs_type fs) :: s )
-  | OpPutStatic _ ->
+  | JCode.OpPutStatic _ ->
       pop
-  | OpPutField _ ->
+  | JCode.OpPutField _ ->
       pop2
-  | OpInvoke (x, ms) -> (
+  | JCode.OpInvoke (x, ms) -> (
       function
       | s -> (
           let s =
@@ -723,27 +725,27 @@ let type_next = function
               s
           | Some t ->
               convert_field_type t :: s ) )
-  | OpNew _ -> (
+  | JCode.OpNew _ -> (
       function s -> Op32 :: s )
-  | OpNewArray _ -> (
+  | JCode.OpNewArray _ -> (
       function s -> Op32 :: pop s )
-  | OpArrayLength -> (
+  | JCode.OpArrayLength -> (
       function s -> Op32 :: pop s )
-  | OpThrow -> (
+  | JCode.OpThrow -> (
       function _ -> [] )
-  | OpCheckCast _ -> (
+  | JCode.OpCheckCast _ -> (
       function s -> s )
-  | OpInstanceOf _ -> (
+  | JCode.OpInstanceOf _ -> (
       function s -> Op32 :: pop s )
-  | OpMonitorEnter ->
+  | JCode.OpMonitorEnter ->
       pop
-  | OpMonitorExit ->
+  | JCode.OpMonitorExit ->
       pop
-  | OpAMultiNewArray (_, b) -> (
+  | JCode.OpAMultiNewArray (_, b) -> (
       function s -> Op32 :: popn b s )
-  | OpBreakpoint ->
+  | JCode.OpBreakpoint ->
       failwith "breakpoint"
-  | OpInvalid ->
+  | JCode.OpInvalid ->
       failwith "invalid"
 
 exception End_of_method
@@ -751,7 +753,7 @@ exception End_of_method
 let next c i =
   try
     let k = ref (i + 1) in
-    while c.(!k) = OpInvalid do
+    while c.(!k) = JCode.OpInvalid do
       incr k
     done ;
     !k
@@ -760,30 +762,30 @@ let next c i =
 (*Computes successors of instruction i. They can be several successors in case
 * of conditionnal instruction.*)
 let normal_next code i =
-  match code.c_code.(i) with
-  | OpIf (_, n) | OpIfCmp (_, n) ->
-      [next code.c_code i; i + n]
-  | OpGoto n ->
+  match code.JCode.c_code.(i) with
+  | JCode.OpIf (_, n) | JCode.OpIfCmp (_, n) ->
+      [next code.JCode.c_code i; i + n]
+  | JCode.OpGoto n ->
       [i + n]
-  | OpJsr _ | OpRet _ ->
+  | JCode.OpJsr _ | JCode.OpRet _ ->
       raise Subroutine
-  | OpTableSwitch (default, _, _, table) ->
+  | JCode.OpTableSwitch (default, _, _, table) ->
       List.map (( + ) i) (default :: Array.to_list table)
-  | OpLookupSwitch (default, npairs) ->
+  | JCode.OpLookupSwitch (default, npairs) ->
       List.map (( + ) i) (default :: List.map snd npairs)
-  | OpReturn _ ->
+  | JCode.OpReturn _ ->
       []
-  | OpThrow ->
+  | JCode.OpThrow ->
       []
-  | OpBreakpoint ->
+  | JCode.OpBreakpoint ->
       failwith "breakpoint"
-  | OpInvalid ->
+  | JCode.OpInvalid ->
       failwith "invalid"
   | _ ->
-      [next code.c_code i]
+      [next code.JCode.c_code i]
 
 let compute_handlers code i =
-  let handlers = code.c_exc_tbl in
+  let handlers = code.JCode.c_exc_tbl in
   let handlers =
     List.filter (fun e -> e.JCode.e_start <= i && i < e.JCode.e_end) handlers
   in
@@ -1031,9 +1033,9 @@ module BCV = struct
           Top
 
   let next i = function
-    | OpNop -> (
+    | JCode.OpNop -> (
         function s, l -> (s, l) )
-    | OpConst x ->
+    | JCode.OpConst x ->
         fun (s, l) ->
           let c =
             match x with
@@ -1051,38 +1053,38 @@ module BCV = struct
                 Double
           in
           (c :: s, l)
-    | OpLoad (_, n) ->
+    | JCode.OpLoad (_, n) ->
         fun (s, l) -> (get l n :: s, l)
-    | OpArrayLoad t ->
+    | JCode.OpArrayLoad t ->
         fun (s, l) -> (array_content i t (top (pop s)) :: pop2 s, l)
-    | OpStore (_, n) ->
+    | JCode.OpStore (_, n) ->
         fun (s, l) -> (pop s, upd l n (top s))
-    | OpArrayStore _ ->
+    | JCode.OpArrayStore _ ->
         fun (s, l) -> (pop3 s, l)
-    | OpPop ->
+    | JCode.OpPop ->
         fun (s, l) -> (pop s, l)
-    | OpPop2 ->
+    | JCode.OpPop2 ->
         fun (s, l) ->
           ((match size (top s) with Op32 -> pop2 s | Op64 -> pop s), l)
-    | OpDup ->
+    | JCode.OpDup ->
         fun (s, l) -> (top s :: s, l)
-    | OpDupX1 ->
+    | JCode.OpDupX1 ->
         fun (s, l) -> (top s :: top (pop s) :: top s :: pop2 s, l)
-    | OpDupX2 -> (
+    | JCode.OpDupX2 -> (
         fun (s, l) ->
           match size (top (pop s)) with
           | Op32 ->
               (top s :: top (pop s) :: top (pop2 s) :: top s :: pop3 s, l)
           | Op64 ->
               (top s :: top (pop s) :: top s :: pop2 s, l) )
-    | OpDup2 -> (
+    | JCode.OpDup2 -> (
         fun (s, l) ->
           match size (top s) with
           | Op32 ->
               (top s :: top (pop s) :: top s :: top (pop s) :: pop2 s, l)
           | Op64 ->
               (top s :: s, l) )
-    | OpDup2X1 -> (
+    | JCode.OpDup2X1 -> (
         fun (s, l) ->
           match size (top s) with
           | Op32 ->
@@ -1095,7 +1097,7 @@ module BCV = struct
               , l )
           | Op64 ->
               (top s :: top (pop s) :: top s :: pop2 s, l) )
-    | OpDup2X2 -> (
+    | JCode.OpDup2X2 -> (
         fun (s, l) ->
           match size (top s) with
           | Op32 -> (
@@ -1123,77 +1125,77 @@ module BCV = struct
                 (top s :: top (pop s) :: top (pop2 s) :: top s :: pop3 s, l)
             | Op64 ->
                 (top s :: top (pop s) :: top s :: pop2 s, l) ) )
-    | OpSwap ->
+    | JCode.OpSwap ->
         fun (s, l) -> (top (pop s) :: top s :: pop2 s, l)
-    | OpAdd k | OpSub k | OpMult k | OpDiv k | OpRem k ->
+    | JCode.OpAdd k | JCode.OpSub k | JCode.OpMult k | JCode.OpDiv k | JCode.OpRem k ->
         fun (s, l) -> (basic k :: pop2 s, l)
-    | OpNeg k ->
+    | JCode.OpNeg k ->
         fun (s, l) -> (basic k :: pop s, l)
-    | OpIShl | OpIShr | OpIAnd | OpIOr | OpIXor | OpIUShr ->
+    | JCode.OpIShl | JCode.OpIShr | JCode.OpIAnd | JCode.OpIOr | JCode.OpIXor | JCode.OpIUShr ->
         fun (s, l) -> (Int :: pop2 s, l)
-    | OpLShr | OpLShl ->
+    | JCode.OpLShr | JCode.OpLShl ->
         fun (s, l) -> (pop s, l)
-    | OpLAnd | OpLOr | OpLXor | OpLUShr ->
+    | JCode.OpLAnd | JCode.OpLOr | JCode.OpLXor | JCode.OpLUShr ->
         fun (s, l) -> (Long :: pop2 s, l)
-    | OpIInc (_, _) ->
+    | JCode.OpIInc (_, _) ->
         fun (s, l) -> (s, l)
-    | OpI2L ->
+    | JCode.OpI2L ->
         fun (s, l) -> (Long :: pop s, l)
-    | OpI2F ->
+    | JCode.OpI2F ->
         fun (s, l) -> (Float :: pop s, l)
-    | OpI2D ->
+    | JCode.OpI2D ->
         fun (s, l) -> (Double :: pop s, l)
-    | OpL2I ->
+    | JCode.OpL2I ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpL2F ->
+    | JCode.OpL2F ->
         fun (s, l) -> (Float :: pop s, l)
-    | OpL2D ->
+    | JCode.OpL2D ->
         fun (s, l) -> (Double :: pop s, l)
-    | OpF2I ->
+    | JCode.OpF2I ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpF2L ->
+    | JCode.OpF2L ->
         fun (s, l) -> (Long :: pop s, l)
-    | OpF2D ->
+    | JCode.OpF2D ->
         fun (s, l) -> (Double :: pop s, l)
-    | OpD2I ->
+    | JCode.OpD2I ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpD2L ->
+    | JCode.OpD2L ->
         fun (s, l) -> (Long :: pop s, l)
-    | OpD2F ->
+    | JCode.OpD2F ->
         fun (s, l) -> (Float :: pop s, l)
-    | OpI2B ->
+    | JCode.OpI2B ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpI2C ->
+    | JCode.OpI2C ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpI2S ->
+    | JCode.OpI2S ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpCmp _ ->
+    | JCode.OpCmp _ ->
         fun (s, l) -> (Int :: pop2 s, l)
-    | OpIf (_, _) ->
+    | JCode.OpIf (_, _) ->
         fun (s, l) -> (pop s, l)
-    | OpIfCmp (_, _) ->
+    | JCode.OpIfCmp (_, _) ->
         fun (s, l) -> (pop2 s, l)
-    | OpGoto _ ->
+    | JCode.OpGoto _ ->
         fun (s, l) -> (s, l)
-    | OpJsr _ ->
+    | JCode.OpJsr _ ->
         raise Subroutine
-    | OpRet _ ->
+    | JCode.OpRet _ ->
         raise Subroutine
-    | OpTableSwitch _ ->
+    | JCode.OpTableSwitch _ ->
         fun (s, l) -> (pop s, l)
-    | OpLookupSwitch _ ->
+    | JCode.OpLookupSwitch _ ->
         fun (s, l) -> (pop s, l)
-    | OpReturn _ -> (
+    | JCode.OpReturn _ -> (
         function s, l -> (s, l) )
-    | OpGetField (_, fs) ->
+    | JCode.OpGetField (_, fs) ->
         fun (s, l) -> (conv (fs_type fs) :: pop s, l)
-    | OpGetStatic (_, fs) ->
+    | JCode.OpGetStatic (_, fs) ->
         fun (s, l) -> (conv (fs_type fs) :: s, l)
-    | OpPutStatic _ ->
+    | JCode.OpPutStatic _ ->
         fun (s, l) -> (pop s, l)
-    | OpPutField _ ->
+    | JCode.OpPutField _ ->
         fun (s, l) -> (pop2 s, l)
-    | OpInvoke (x, ms) -> (
+    | JCode.OpInvoke (x, ms) -> (
         fun (s, l) ->
           let s =
             match x with
@@ -1203,27 +1205,27 @@ module BCV = struct
                 popn (List.length (ms_args ms)) (pop s)
           in
           match ms_rtype ms with None -> (s, l) | Some t -> (conv t :: s, l) )
-    | OpNew _ ->
+    | JCode.OpNew _ ->
         fun (s, l) -> (Object :: s, l)
-    | OpNewArray t ->
+    | JCode.OpNewArray t ->
         fun (s, l) -> (Array t :: pop s, l)
-    | OpArrayLength ->
+    | JCode.OpArrayLength ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpThrow ->
+    | JCode.OpThrow ->
         fun (s, l) -> (s, l)
-    | OpCheckCast t ->
+    | JCode.OpCheckCast t ->
         fun (s, l) -> (conv (TObject t) :: pop s, l)
-    | OpInstanceOf _ ->
+    | JCode.OpInstanceOf _ ->
         fun (s, l) -> (Int :: pop s, l)
-    | OpMonitorEnter ->
+    | JCode.OpMonitorEnter ->
         fun (s, l) -> (pop s, l)
-    | OpMonitorExit ->
+    | JCode.OpMonitorExit ->
         fun (s, l) -> (pop s, l)
-    | OpAMultiNewArray (t, b) ->
+    | JCode.OpAMultiNewArray (t, b) ->
         fun (s, l) -> (conv (TObject t) :: popn b s, l)
-    | OpBreakpoint ->
+    | JCode.OpBreakpoint ->
         failwith "breakpoint"
-    | OpInvalid ->
+    | JCode.OpInvalid ->
         failwith "invalid"
 
   let init cm =
@@ -1243,16 +1245,16 @@ module BCV = struct
   let print_instr i ins =
     JPrint.jopcode ~jvm:true
       ( match ins with
-      | OpIf (t, n) ->
-          OpIf (t, n + i)
-      | OpIfCmp (t, n) ->
-          OpIfCmp (t, n + i)
-      | OpGoto n ->
-          OpGoto (i + n)
-      | OpTableSwitch (default, low, high, table) ->
-          OpTableSwitch (default + i, low, high, Array.map (( + ) i) table)
-      | OpLookupSwitch (default, npairs) ->
-          OpLookupSwitch
+      | JCode.OpIf (t, n) ->
+          JCode.OpIf (t, n + i)
+      | JCode.OpIfCmp (_t, _n) ->
+          JCode.OpIfCmp (_t, _n + i)
+      | JCode.OpGoto n ->
+          JCode.OpGoto (i + n)
+      | JCode.OpTableSwitch (default, low, high, table) ->
+          JCode.OpTableSwitch (default + i, low, high, Array.map (( + ) i) table)
+      | JCode.OpLookupSwitch (default, npairs) ->
+          JCode.OpLookupSwitch
             (default + i, List.map (fun (x, y) -> (x, y + i)) npairs)
       | _ ->
           ins )
@@ -1263,14 +1265,14 @@ module BCV = struct
       (JPrint.method_signature cm.cm_signature) ;
     Array.iteri
       (fun i op ->
-        if op <> OpInvalid then
+        if op <> JCode.OpInvalid then
           Printf.printf "    %s\n%3d: %s\n"
             (match types.(i) with None -> "NONE" | Some sl -> print sl)
             i (print_instr i op) )
-      code.c_code ;
+      code.JCode.c_code ;
     List.iter
       (fun e -> Printf.printf "    %s\n" (JPrint.exception_handler e))
-      code.c_exc_tbl
+      code.JCode.c_exc_tbl
 
   let run verbose cm code =
     let rec array_fold f b t i =
@@ -1279,10 +1281,10 @@ module BCV = struct
     let array_fold f b t = array_fold f b t (Array.length t - 1) in
     let ws =
       array_fold
-        (fun i op ws -> if op = OpInvalid then ws else Ptset.add i ws)
-        Ptset.empty code.c_code
+        (fun i op ws -> if op = JCode.OpInvalid then ws else Ptset.add i ws)
+        Ptset.empty code.JCode.c_code
     in
-    let types : t option array = Array.make (Array.length code.c_code) None in
+    let types : t option array = Array.make (Array.length code.JCode.c_code) None in
     let upd sl' ws i =
       match types.(i) with
       | None ->
@@ -1298,7 +1300,7 @@ module BCV = struct
         let ws = Ptset.remove i ws in
         match types.(i) with
         | Some sl ->
-            let sl' = next i code.c_code.(i) sl in
+            let sl' = next i code.JCode.c_code.(i) sl in
             let ws = List.fold_left (upd sl') ws (normal_next code i) in
             let sl' = ([Object], snd sl') in
             let ws = List.fold_left (upd sl') ws (compute_handlers code i) in
@@ -1321,8 +1323,8 @@ module BCV = struct
         (*return true if pp [i] has type info.*)
         match types.(i) with Some _ -> true | None -> false )
     , (fun i ->
-        match code.c_code.(i) with
-        | OpLoad (_, n) -> (
+        match code.JCode.c_code.(i) with
+        | JCode.OpLoad (_, n) -> (
           match types.(i) with
           | Some (_, l) ->
               to_value_type (get l n)
@@ -1331,8 +1333,8 @@ module BCV = struct
         | _ ->
             assert false )
     , fun _ i ->
-        match code.c_code.(i) with
-        | OpArrayLoad t -> (
+        match code.JCode.c_code.(i) with
+        | JCode.OpArrayLoad t -> (
           match types.(i) with
           | Some (_ :: Array t :: _, _) ->
               t
@@ -1358,8 +1360,8 @@ module BCV = struct
   let run_dummy code =
     ( (fun _ -> true)
     , (fun i ->
-        match code.c_code.(i) with
-        | OpLoad (t, _) -> (
+        match code.JCode.c_code.(i) with
+        | JCode.OpLoad (t, _) -> (
           match t with
           | `Long ->
               TBasic `Long
@@ -1736,15 +1738,15 @@ and type_of_array_content t e =
  *)
 let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
     arrayload_type tos s next_store next_is_junc_point_or_a_goto = function
-  | OpNop ->
+  | JCode.OpNop ->
       (s, [])
-  | OpConst c ->
+  | JCode.OpConst c ->
       to_addr3_const dico mode ssa fresh_counter (jconst2const c) s []
         next_store next_is_junc_point_or_a_goto
-  | OpLoad (_, n) ->
+  | JCode.OpLoad (_, n) ->
       ( E (Var (load_type i, make_var dico (OriginalVar (n, pp_var i n)))) :: s
       , [] )
-  | OpArrayLoad t -> (
+  | JCode.OpArrayLoad t -> (
       let a = topE (pop s) in
       let idx = topE s in
       let t = arrayload_type t i in
@@ -1758,7 +1760,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       | _ ->
           ( E (Binop (ArrayLoad t, a, idx)) :: pop2 s
           , [Check (CheckNullPointer a); Check (CheckArrayBound (a, idx))] ) )
-  | OpStore (_, n) -> (
+  | JCode.OpStore (_, n) -> (
       let y = make_var dico (OriginalVar (n, pp_var i n)) in
       match topE s with
       | Var (_, y') when index y = index y' ->
@@ -1771,7 +1773,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
             , [AffectVar (x, Var (t, y)); AffectVar (y, topE s)] )
         | None ->
             (pop s, [AffectVar (y, topE s)]) ) )
-  | OpIInc (a, b) -> (
+  | JCode.OpIInc (a, b) -> (
       let a = make_var dico (OriginalVar (a, pp_var i a)) in
       match is_var_in_stack a s with
       | Some t -> (
@@ -1821,7 +1823,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
                       ( Add `Int2Bool
                       , Var (TBasic `Int, a)
                       , Const (`Int (Int32.of_int b)) ) ) ] ) ) )
-  | OpPutField (c, f) as instr ->
+  | JCode.OpPutField (c, f) as instr ->
       let r = topE (pop s) in
       let instrs =
         if ch_link then
@@ -1831,7 +1833,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
         else [Check (CheckNullPointer r); AffectField (r, c, f, topE s)]
       in
       clean dico ssa fresh_counter (is_field_in_expr c f) (pop2 s) instrs
-  | OpArrayStore jvm_t ->
+  | JCode.OpArrayStore jvm_t ->
       let v = topE s in
       let a = topE (pop2 s) in
       let idx = topE (pop s) in
@@ -1847,34 +1849,34 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
           ; AffectArray (a, idx, v) ]
       in
       clean dico ssa fresh_counter is_array_in_expr (pop3 s) inss
-  | OpPop ->
+  | JCode.OpPop ->
       (pop s, [])
-  | OpPop2 -> (
+  | JCode.OpPop2 -> (
     match top tos with Op32 -> (pop2 s, []) | Op64 -> (pop s, []) )
-  | OpDup ->
+  | JCode.OpDup ->
       (top s :: s, [])
-  | OpDupX1 ->
+  | JCode.OpDupX1 ->
       (top s :: top (pop s) :: top s :: pop2 s, [])
-  | OpDupX2 -> (
+  | JCode.OpDupX2 -> (
     match top (pop tos) with
     | Op32 ->
         (top s :: top (pop s) :: top (pop2 s) :: top s :: pop3 s, [])
     | Op64 ->
         (top s :: top (pop s) :: top s :: pop2 s, []) )
-  | OpDup2 -> (
+  | JCode.OpDup2 -> (
     match top tos with
     | Op32 ->
         (top s :: top (pop s) :: top s :: top (pop s) :: pop2 s, [])
     | Op64 ->
         (top s :: s, []) )
-  | OpDup2X1 -> (
+  | JCode.OpDup2X1 -> (
     match top tos with
     | Op32 ->
         ( top s :: top (pop s) :: top (pop2 s) :: top s :: top (pop s) :: pop3 s
         , [] )
     | Op64 ->
         (top s :: top (pop s) :: top s :: pop2 s, []) )
-  | OpDup2X2 -> (
+  | JCode.OpDup2X2 -> (
     match top tos with
     | Op32 -> (
       match top (pop2 tos) with
@@ -1901,75 +1903,75 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
           (top s :: top (pop s) :: top (pop2 s) :: top s :: pop3 s, [])
       | Op64 ->
           (top s :: top (pop s) :: top s :: pop2 s, []) ) )
-  | OpSwap ->
+  | JCode.OpSwap ->
       (top (pop s) :: top s :: pop2 s, [])
-  | OpAdd k ->
+  | JCode.OpAdd k ->
       to_addr3_binop dico mode (Add k) ssa fresh_counter s
-  | OpSub k ->
+  | JCode.OpSub k ->
       to_addr3_binop dico mode (Sub k) ssa fresh_counter s
-  | OpMult k ->
+  | JCode.OpMult k ->
       to_addr3_binop dico mode (Mult k) ssa fresh_counter s
-  | OpDiv k ->
+  | JCode.OpDiv k ->
       to_addr3_binop dico mode (Div k) ssa fresh_counter s
-  | OpRem k ->
+  | JCode.OpRem k ->
       to_addr3_binop dico mode (Rem k) ssa fresh_counter s
-  | OpNeg k ->
+  | JCode.OpNeg k ->
       to_addr3_unop dico mode (Neg k) ssa fresh_counter s []
-  | OpIShl ->
+  | JCode.OpIShl ->
       to_addr3_binop dico mode IShl ssa fresh_counter s
-  | OpIShr ->
+  | JCode.OpIShr ->
       to_addr3_binop dico mode IShr ssa fresh_counter s
-  | OpLShl ->
+  | JCode.OpLShl ->
       to_addr3_binop dico mode LShl ssa fresh_counter s
-  | OpLShr ->
+  | JCode.OpLShr ->
       to_addr3_binop dico mode LShr ssa fresh_counter s
-  | OpIAnd ->
+  | JCode.OpIAnd ->
       to_addr3_binop dico mode IAnd ssa fresh_counter s
-  | OpIOr ->
+  | JCode.OpIOr ->
       to_addr3_binop dico mode IOr ssa fresh_counter s
-  | OpIXor ->
+  | JCode.OpIXor ->
       to_addr3_binop dico mode IXor ssa fresh_counter s
-  | OpIUShr ->
+  | JCode.OpIUShr ->
       to_addr3_binop dico mode IUshr ssa fresh_counter s
-  | OpLAnd ->
+  | JCode.OpLAnd ->
       to_addr3_binop dico mode LAnd ssa fresh_counter s
-  | OpLOr ->
+  | JCode.OpLOr ->
       to_addr3_binop dico mode LOr ssa fresh_counter s
-  | OpLXor ->
+  | JCode.OpLXor ->
       to_addr3_binop dico mode LXor ssa fresh_counter s
-  | OpLUShr ->
+  | JCode.OpLUShr ->
       to_addr3_binop dico mode LUshr ssa fresh_counter s
-  | OpI2L ->
+  | JCode.OpI2L ->
       to_addr3_unop dico mode (Conv I2L) ssa fresh_counter s []
-  | OpI2F ->
+  | JCode.OpI2F ->
       to_addr3_unop dico mode (Conv I2F) ssa fresh_counter s []
-  | OpI2D ->
+  | JCode.OpI2D ->
       to_addr3_unop dico mode (Conv I2D) ssa fresh_counter s []
-  | OpL2I ->
+  | JCode.OpL2I ->
       to_addr3_unop dico mode (Conv L2I) ssa fresh_counter s []
-  | OpL2F ->
+  | JCode.OpL2F ->
       to_addr3_unop dico mode (Conv L2F) ssa fresh_counter s []
-  | OpL2D ->
+  | JCode.OpL2D ->
       to_addr3_unop dico mode (Conv L2D) ssa fresh_counter s []
-  | OpF2I ->
+  | JCode.OpF2I ->
       to_addr3_unop dico mode (Conv F2I) ssa fresh_counter s []
-  | OpF2L ->
+  | JCode.OpF2L ->
       to_addr3_unop dico mode (Conv F2L) ssa fresh_counter s []
-  | OpF2D ->
+  | JCode.OpF2D ->
       to_addr3_unop dico mode (Conv F2D) ssa fresh_counter s []
-  | OpD2I ->
+  | JCode.OpD2I ->
       to_addr3_unop dico mode (Conv D2I) ssa fresh_counter s []
-  | OpD2L ->
+  | JCode.OpD2L ->
       to_addr3_unop dico mode (Conv D2L) ssa fresh_counter s []
-  | OpD2F ->
+  | JCode.OpD2F ->
       to_addr3_unop dico mode (Conv D2F) ssa fresh_counter s []
-  | OpI2B ->
+  | JCode.OpI2B ->
       to_addr3_unop dico mode (Conv I2B) ssa fresh_counter s []
-  | OpI2C ->
+  | JCode.OpI2C ->
       to_addr3_unop dico mode (Conv I2C) ssa fresh_counter s []
-  | OpI2S ->
+  | JCode.OpI2S ->
       to_addr3_unop dico mode (Conv I2S) ssa fresh_counter s []
-  | OpCmp op -> (
+  | JCode.OpCmp op -> (
     match op with
     | `DG ->
         to_addr3_binop dico mode (CMP DG) ssa fresh_counter s
@@ -1981,7 +1983,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
         to_addr3_binop dico mode (CMP FL) ssa fresh_counter s
     | `L ->
         to_addr3_binop dico mode (CMP L) ssa fresh_counter s )
-  | OpIf (x, n) ->
+  | JCode.OpIf (x, n) ->
       let guard =
         match x with
         | `NonNull ->
@@ -1997,7 +1999,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       in
       let target = i + n in
       (pop s, to_addr3_ifd dico mode ssa fresh_counter s guard target)
-  | OpIfCmp (x, n) ->
+  | JCode.OpIfCmp (x, n) ->
       let x =
         match x with
         | `AEq | `IEq ->
@@ -2016,13 +2018,13 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       let guard = (x, topE (pop s), topE s) in
       let target = i + n in
       (pop2 s, [Ifd (guard, target)])
-  | OpGoto n ->
+  | JCode.OpGoto n ->
       (s, [Goto (n + i)])
-  | OpJsr _ ->
+  | JCode.OpJsr _ ->
       raise Subroutine
-  | OpRet _ ->
+  | JCode.OpRet _ ->
       raise Subroutine
-  | OpTableSwitch (def, min, _, tbl) ->
+  | JCode.OpTableSwitch (def, min, _, tbl) ->
       ( pop s
       , Array.fold_right
           (fun (guard, i) l ->
@@ -2033,7 +2035,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
                , j + i ) )
              tbl)
           [Goto (def + i)] )
-  | OpLookupSwitch (def, pairs) ->
+  | JCode.OpLookupSwitch (def, pairs) ->
       ( pop s
       , List.fold_right
           (fun (c, j) l ->
@@ -2043,10 +2045,10 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
             @ l )
           pairs
           [Goto (def + i)] )
-  | OpReturn k -> (
+  | JCode.OpReturn k -> (
       ( []
       , match k with `Void -> [Return None] | _ -> [Return (Some (topE s))] ) )
-  | OpGetField (c, f) as instr ->
+  | JCode.OpGetField (c, f) as instr ->
       let r = topE s in
       let exp, instrs =
         match mode with
@@ -2059,7 +2061,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       in
       if ch_link then (exp, Check (CheckLink instr) :: instrs)
       else (exp, instrs)
-  | OpGetStatic (c, f) as instr -> (
+  | JCode.OpGetStatic (c, f) as instr -> (
     match mode with
     | Addr3 ->
         let instrs =
@@ -2083,7 +2085,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
             instrs
         in
         (E (StaticField (c, f)) :: s, instrs) )
-  | OpPutStatic (c, f) as instr ->
+  | JCode.OpPutStatic (c, f) as instr ->
       let instrs =
         if ch_link then [Check (CheckLink instr); MayInit c] else [MayInit c]
       in
@@ -2091,7 +2093,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
         clean dico ssa fresh_counter is_heap_sensible_element_in_expr s instrs
       in
       (pop s, instrs @ [AffectStaticField (c, f, topE s)])
-  | OpInvoke (x, ms) as instr -> (
+  | JCode.OpInvoke (x, ms) as instr -> (
     match x with
     | `Static (_, c) -> (
       match ms_rtype ms with
@@ -2212,7 +2214,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
                 clean dico ssa fresh_counter is_heap_sensible_element_in_expr
                   (E (Var (t, y)) :: s_next)
                   (checks @ ins (Some y)) ) ) )
-  | OpNew c as instr ->
+  | JCode.OpNew c as instr ->
       let instrs =
         if ch_link then [Check (CheckLink instr); MayInit c] else [MayInit c]
       in
@@ -2220,7 +2222,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
         clean dico ssa fresh_counter is_heap_sensible_element_in_expr s instrs
       in
       (Uninit (c, i) :: s, instrs)
-  | OpNewArray t as instr ->
+  | JCode.OpNewArray t as instr ->
       let x = make_tempvar dico ssa fresh_counter s next_store in
       let dim = topE s in
       if ch_link then
@@ -2236,7 +2238,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       else
         ( E (Var (TObject (TArray t), x)) :: pop s
         , [Check (CheckNegativeArraySize dim); NewArray (x, t, [dim])] )
-  | OpArrayLength -> (
+  | JCode.OpArrayLength -> (
       let a = topE s in
       match mode with
       | Addr3 ->
@@ -2246,33 +2248,33 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
           )
       | _ ->
           (E (Unop (ArrayLength, a)) :: pop s, [Check (CheckNullPointer a)]) )
-  | OpThrow ->
+  | JCode.OpThrow ->
       let r = topE s in
       ([], [Check (CheckNullPointer r); Throw r])
-  | OpCheckCast t as instr ->
+  | JCode.OpCheckCast t as instr ->
       let instrs =
         if ch_link then [Check (CheckLink instr); Check (CheckCast (topE s, t))]
         else [Check (CheckCast (topE s, t))]
       in
       to_addr3_unop dico mode (Cast t) ssa fresh_counter s instrs
-  | OpInstanceOf c as instr ->
+  | JCode.OpInstanceOf c as instr ->
       let check_instr = if ch_link then [Check (CheckLink instr)] else [] in
       to_addr3_unop dico mode (InstanceOf c) ssa fresh_counter s check_instr
-  | OpMonitorEnter ->
+  | JCode.OpMonitorEnter ->
       let r = topE s in
       (* we take care of reordering between memory accesses and lock *)
       let s, instrs =
         clean dico ssa fresh_counter is_heap_sensible_element_in_expr s []
       in
       (pop s, instrs @ [Check (CheckNullPointer r); MonitorEnter r])
-  | OpMonitorExit ->
+  | JCode.OpMonitorExit ->
       let r = topE s in
       (* we take care of reordering between memory accesses and unlock *)
       let s, instrs =
         clean dico ssa fresh_counter is_heap_sensible_element_in_expr s []
       in
       (pop s, instrs @ [Check (CheckNullPointer r); MonitorExit r])
-  | OpAMultiNewArray (cn, dim) as instr ->
+  | JCode.OpAMultiNewArray (cn, dim) as instr ->
       let x = make_tempvar dico ssa fresh_counter s next_store in
       let params = param dim s in
       let exp, instrs =
@@ -2282,13 +2284,13 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       in
       if ch_link then (exp, Check (CheckLink instr) :: instrs)
       else (exp, instrs)
-  | OpBreakpoint ->
+  | JCode.OpBreakpoint ->
       failwith "breakpoint"
-  | OpInvalid ->
+  | JCode.OpInvalid ->
       failwith "invalid"
 
 let is_jump_instr = function
-  | OpIfCmp _ | OpTableSwitch _ | OpLookupSwitch _ | OpIf _ | OpGoto _ ->
+  | JCode.OpIfCmp _ | JCode.OpTableSwitch _ | JCode.OpLookupSwitch _ | JCode.OpIf _ | JCode.OpGoto _ ->
       true
   | _ ->
       false
@@ -2433,7 +2435,7 @@ module FastCheckInfoDebug = struct
 	   debug info table and when we use the class debug info
 	   table.  *)
         let noname_array =
-          Array.init code.c_max_locals (fun vnum -> (vnum, true))
+          Array.init code.JCode.c_max_locals (fun vnum -> (vnum, true))
         in
         List.iter
           (fun (_start, _len, _name, _, i) -> noname_array.(i) <- (i, false))
@@ -2464,9 +2466,9 @@ module FastCheckInfoDebug = struct
         if Ptset.mem pc as_succ then as_succ
         else ( init_by_default pc ; Ptset.add pc as_succ )
     in
-    let iter_on_lvars = Array.make code.c_max_locals 0 in
+    let iter_on_lvars = Array.make code.JCode.c_max_locals 0 in
     fun as_succ pc ->
-      let op = code.c_code.(pc) in
+      let op = code.JCode.c_code.(pc) in
       let succs = succs pc in
       (* If current [pc] was not the successor of a precedent
 	      program point, then initialize its context with
@@ -2586,9 +2588,9 @@ module FastCheckInfoDebug = struct
         with InconsistentDebugInfo _ -> (as_succ, false)
       in
       match op with
-      | OpStore (_, n) ->
+      | JCode.OpStore (_, n) ->
           apply_instr_context darray (Ptmap.add n (pp_var pc n) darray.(pc))
-      | OpLoad (_, n) | OpIInc (n, _) ->
+      | JCode.OpLoad (_, n) | JCode.OpIInc (n, _) ->
           let ok =
             (* case (4) *)
             try Ptmap.find n darray.(pc) = pp_var pc n
@@ -2680,6 +2682,7 @@ module CheckInfoDebug = struct
         []
     | AffectVar (x, _)
     | NewArray (x, _, _)
+    | Alloc (x, _)
     | New (x, _, _, _)
     | InvokeDynamic (Some x, _, _, _)
     | InvokeStatic (Some x, _, _, _)
@@ -2762,7 +2765,7 @@ module CheckInfoDebug = struct
             VarSet.union (vars_in_formula f1) (vars_in_formula f2)
       in
       function
-      | Nop | MayInit _ | Goto _ ->
+      | Nop | MayInit _ | Goto _ | Alloc _->
           VarSet.empty
       | Throw e
       | AffectVar (_, e)
@@ -2859,18 +2862,18 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
     in
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
-      let next_pc = try next code.c_code pc with End_of_method -> pc in
-      match code.c_code.(next_pc) with
-      | OpStore (_, n) ->
+      let next_pc = try next code.JCode.c_code pc with End_of_method -> pc in
+      match code.JCode.c_code.(next_pc) with
+      | JCode.OpStore (_, n) ->
           if jump_target.(next_pc) then None
           else Some (make_var dico (OriginalVar (n, pp_var next_pc n)))
       | _ ->
           None
     in
     let next_is_junc_point_or_a_goto =
-      let next_pc = try next code.c_code pc with End_of_method -> pc in
-      match code.c_code.(next_pc) with
-      | OpGoto _ ->
+      let next_pc = try next code.JCode.c_code pc with End_of_method -> pc in
+      match code.JCode.c_code.(next_pc) with
+      | JCode.OpGoto _ ->
           true
       | _ ->
           jump_target.(next_pc)
@@ -2880,7 +2883,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
         try MapPc.find pc as_ts_jump
         with Not_found ->
           (* no predecessor of pc have been visited before *)
-          if List.exists (fun e -> pc = e.JCode.e_handler) code.c_exc_tbl then
+          if List.exists (fun e -> pc = e.JCode.e_handler) code.JCode.c_exc_tbl then
             (* this is a handler point *)
             ( [Op32]
             , [ E
@@ -2893,7 +2896,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
     in
     let succs = normal_next code pc in
     let jump_succs = List.filter (fun i -> jump_target.(i)) succs in
-    let op = code.c_code.(pc) in
+    let op = code.JCode.c_code.(pc) in
     let ts_out = type_next op ts_in in
     let as_out, instrs =
       bc2bir_instr dico mode pp_var ch_link ssa fresh_counter pc load_type
@@ -2933,7 +2936,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
     in
     try
       loop (nch_debug, ninfo_ok) as_ts_jump ins ts_out as_out
-        (next code.c_code pc) fresh_counter
+        (next code.JCode.c_code pc) fresh_counter
     with End_of_method -> (ins, ninfo_ok)
   in
   (* Initialize context for checking debug information on
@@ -2941,12 +2944,12 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
   let ch_debug_init =
     if no_debug then None
     else
-      match code.c_local_variable_table with
+      match code.JCode.c_local_variable_table with
       | None ->
           None
       | Some debugi ->
           let pp_var = FastCheckInfoDebug.pp_var2vardeb pp_var in
-          let darray = Array.make (Array.length code.c_code) Ptmap.empty in
+          let darray = Array.make (Array.length code.JCode.c_code) Ptmap.empty in
           (* initialize method's arguments with a valid value
 		 (they are considered as assigned at first pc...) and
 		 other local variables with UnDef value *)
@@ -2968,7 +2971,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
               else
                 darray.(0) <- Ptmap.add i FastCheckInfoDebug.UnDef darray.(0)
               )
-            (Array.make code.c_max_locals ()) ;
+            (Array.make code.JCode.c_max_locals ()) ;
           let ch_fun =
             FastCheckInfoDebug.run debugi jump_target pp_var darray code
           in
@@ -2987,26 +2990,26 @@ let search_name_localvar no_debug static code i x =
         Some s
 
 let compute_jump_target code =
-  let jump_target = Array.make (Array.length code.c_code) false in
-  List.iter (fun e -> jump_target.(e.JCode.e_handler) <- true) code.c_exc_tbl ;
+  let jump_target = Array.make (Array.length code.JCode.c_code) false in
+  List.iter (fun e -> jump_target.(e.JCode.e_handler) <- true) code.JCode.c_exc_tbl ;
   Array.iteri
     (fun i instr ->
       match instr with
-      | OpIf (_, n) | OpIfCmp (_, n) | OpGoto n ->
+      | JCode.OpIf (_, n) | JCode.OpIfCmp (_, n) | JCode.OpGoto n ->
           jump_target.(i + n) <- true
-      | OpJsr _ | OpRet _ ->
+      | JCode.OpJsr _ | JCode.OpRet _ ->
           raise Subroutine
-      | OpTableSwitch (default, _, _, table) ->
+      | JCode.OpTableSwitch (default, _, _, table) ->
           List.iter
             (fun n -> jump_target.(i + n) <- true)
             (default :: Array.to_list table)
-      | OpLookupSwitch (default, npairs) ->
+      | JCode.OpLookupSwitch (default, npairs) ->
           List.iter
             (fun n -> jump_target.(i + n) <- true)
             (default :: List.map snd npairs)
       | _ ->
           () )
-    code.c_code ;
+    code.JCode.c_code ;
   jump_target
 
 let gen_params dico pp_var cm =
@@ -3297,25 +3300,25 @@ let rm_dead_instr_from_bcv code is_typed =
     try
       match is_typed i with
       | true ->
-          rm_dead_instr_from_bcv' (next code.c_code i)
+          rm_dead_instr_from_bcv' (next code.JCode.c_code i)
       | false ->
-          code.c_code.(i) <- OpInvalid ;
-          rm_dead_instr_from_bcv' (next code.c_code i)
+          code.JCode.c_code.(i) <- JCode.OpInvalid ;
+          rm_dead_instr_from_bcv' (next code.JCode.c_code i)
     with End_of_method -> code
   in
   let code = rm_dead_instr_from_bcv' 0 in
   let eh_list =
     List.filter
       (fun eh ->
-        match code.c_code.(eh.JCode.e_handler) with
-        | OpInvalid ->
+        match code.JCode.c_code.(eh.JCode.e_handler) with
+        | JCode.OpInvalid ->
             (*If e_handler is invalid, instructions between e_start and
                 e_end must be invalid too. *)
             let rec check_is_invalid i i_end =
               match i with
               | cur_i when cur_i > i_end - 1 ->
                   ()
-              | cur_i when code.c_code.(cur_i) = OpInvalid ->
+              | cur_i when code.JCode.c_code.(cur_i) = JCode.OpInvalid ->
                   check_is_invalid (cur_i + 1) i_end
               | _ ->
                   assert false
@@ -3324,9 +3327,9 @@ let rm_dead_instr_from_bcv code is_typed =
             false
         | _ ->
             true )
-      code.c_exc_tbl
+      code.JCode.c_exc_tbl
   in
-  {code with c_exc_tbl= eh_list}
+  {code with JCode.c_exc_tbl= eh_list}
 
 let jsr_ir2bc_post_treatment (assoc : (int * int) list) (ir2bc : int array) :
     int array =
@@ -3378,9 +3381,9 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
             arrayload_type cm code
         in
         (*let _ = print_unflattened_code_uncompress (List.rev res) in*)
-        let ir_code = compress_ir code.c_exc_tbl (List.rev res) jump_target in
+        let ir_code = compress_ir code.JCode.c_exc_tbl (List.rev res) jump_target in
         let ir_exc_tbl =
-          List.map (make_exception_handler dico) code.c_exc_tbl
+          List.map (make_exception_handler dico) code.JCode.c_exc_tbl
         in
         (* let _ = print_unflattened_code ir_code in*)
         let ir_code, ir2bc, bc2ir, ir_exc_tbl =
@@ -3395,7 +3398,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
           ; bir_code= nir_code
           ; bir_pc_ir2bc= jsr_ir2bc_post_treatment assoc nir2bc
           ; bir_exc_tbl= nir_exc_tbl
-          ; bir_line_number_table= code.c_line_number_table
+          ; bir_line_number_table= code.JCode.c_line_number_table
           ; (* ssa *)
             bir_preds= [||]
           ; bir_phi_nodes= [||]
@@ -3591,6 +3594,8 @@ module Live = struct
         [([GenVars [e]], last)]
     | AffectVar (x, e) ->
         [([GenVars [e]; Kill x], i + 1)]
+    | Alloc (x, _) ->
+       [([Kill x], i + 1)]
     | NewArray (x, _, le)
     | New (x, _, _, le)
     | InvokeDynamic (Some x, _, _, le)
@@ -3871,7 +3876,8 @@ module SSA = struct
     | MonitorEnter e
     | MonitorExit e
     | AffectStaticField (_, _, e) ->
-        vars (Ptset.add heap_index Ptset.empty) e
+       vars (Ptset.add heap_index Ptset.empty) e
+    | Alloc _ -> Ptset.empty
     | NewArray (_, _, le)
     | New (_, _, _, le)
     | InvokeStatic (_, _, _, le)
@@ -3985,6 +3991,8 @@ module SSA = struct
         AffectStaticField (c, f0, use e)
     | NewArray (x, t, le) ->
         NewArray (def x, t, List.map use le)
+    | Alloc (x, c) ->
+        Alloc (def x, c)
     | New (x, c, lt, le) ->
         New (def x, c, lt, List.map use le)
     | InvokeStatic (None, c, ms, le) ->
@@ -4529,7 +4537,7 @@ module GetFormula = struct
     List.exists (fun cmsEl -> cn_equal (fst (cms_split cmsEl)) cn) f_meths
 
   let is_command_checklink f_meths = function
-    | OpInvoke (`Static (_, cn), ms) ->
+    | JCode.OpInvoke (`Static (_, cn), ms) ->
         is_command f_meths cn ms
     | _ ->
         false
@@ -4864,9 +4872,9 @@ let iter_exc_handler f code = List.iter f code.bir_exc_tbl
 let method_param_names get ioc ms =
   let m = Javalib.get_method ioc ms in
   match m with
-  | AbstractMethod _ | ConcreteMethod {cm_implementation= Native} ->
+  | AbstractMethod _ | ConcreteMethod {Javalib.cm_implementation=Native; _} ->
       None
-  | ConcreteMethod ({cm_implementation= Java code} as cm) -> (
+  | ConcreteMethod ({Javalib.cm_implementation=Java code; _} as cm) -> (
     try
       let code = Lazy.force code in
       let is_static = cm.cm_static in
@@ -4897,7 +4905,7 @@ let get_method_calls p cs cm =
   let l = ref Ptmap.empty in
   let f_lookup = p.static_lookup_method in
   ( match cm with
-  | {cm_implementation= Java code}
+  | {Javalib.cm_implementation=Java code; _}
     when ClassMethodMap.mem cm.cm_class_method_signature p.parsed_methods ->
       let ms = cm.cm_signature in
       Array.iteri
@@ -4914,7 +4922,6 @@ let get_method_calls p cs cm =
   !l
 
 let get_callgraph p =
-  let open JProgram in
   let methodcalls2callsite cs ms calls =
     let l = ref [] in
     Ptmap.iter
@@ -4928,10 +4935,10 @@ let get_callgraph p =
     !l
   in
   let calls = ref [] in
-  iter
+  JProgram.iter
     (fun ioc ->
       match ioc with
-      | Interface {i_info= {i_name= cs; i_methods= meths}} ->
+      | JProgram.Interface {JProgram.i_info= {i_name= cs; i_methods= meths; _}; _} ->
           MethodMap.iter
             (fun _ m ->
               match m with
@@ -4943,24 +4950,24 @@ let get_callgraph p =
               | AbstractMethod _ ->
                   () )
             meths
-      | Class c ->
+      | JProgram.Class c ->
           MethodMap.iter
             (fun _ m ->
               match m with
               | ConcreteMethod cm ->
-                  let cs = c.c_info.c_name in
+                  let cs = c.JProgram.c_info.c_name in
                   calls :=
                     methodcalls2callsite cs cm.cm_signature
                       (get_method_calls p cs cm)
                     @ !calls
               | AbstractMethod _ ->
                   () )
-            c.c_info.c_methods )
+            c.JProgram.c_info.c_methods )
     p ;
   !calls
 
 let get_callgraph_from_entries p entries =
-  let open JProgram in
+  let open! JProgram in
   let methodcalls2callsite cs ms calls =
     let l = ref [] in
     Ptmap.iter
@@ -5094,7 +5101,7 @@ let bir_field_resolve_in_code prog (inst : instr) : instr =
       Check (resolve_check e)
   | Formula (cms, f) ->
       Formula (cms, resolve_formula f)
-  | Nop | Goto _ | Return None | MayInit _ ->
+  | Nop | Goto _ | Return None | MayInit _ | Alloc _ ->
       inst
 
 let resolve_all_fields (prog : bir JProgram.program) : bir JProgram.program =
@@ -5304,7 +5311,8 @@ module MakeBirLikeFunctions (* (S : JBir.Internal.CodeInstrSig) = *) = struct
     | NewArray (_v, vt, _le) ->
         Some
           (AdaptedASTGrammar.Expression (AdaptedASTGrammar.ArrayCreation vt))
-    | New (_v, cn, _vtl, _le) ->
+    | Alloc (_v, cn)
+    | New (_v, cn, _, _) ->
         Some
           (AdaptedASTGrammar.Expression
              (AdaptedASTGrammar.ClassInstanceCreation cn))

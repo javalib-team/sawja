@@ -227,6 +227,10 @@ type instr =
       (** [AffectField(e,c,fs,e')] denotes e.<c:fs> := e'. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
       (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
+  | Alloc of var * JBasics.class_name 
+      (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
+          any constructor call. It is only generated with appropriate options
+          in the [transform] function below. *)
   | Goto of int
       (** [Goto pc] denotes goto pc. (absolute address) *)
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int

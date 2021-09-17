@@ -192,6 +192,10 @@ type instr =
   | AffectArray of tvar * tvar * tvar (** [AffectArray(x,i,e)] denotes   x\[i\] := e. *)
   | AffectField of tvar * JBasics.class_name * JBasics.field_signature * tvar  (** [AffectField(x,c,fs,y)] denotes   x.<c:fs> := y. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * tvar   (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
+  | Alloc of var * JBasics.class_name 
+      (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
+          any constructor call. It is only generated with appropriate options
+          in the [transform] function below. *)
   | Goto of int (** [Goto pc] denotes goto pc. (absolute address)  *)
   | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar ) * int (** [Ifd((op,x,y),pc)] denotes    if (x op y) goto pc. (absolute address)  *)
   | Throw of tvar (** [Throw x] denotes throw x.  
