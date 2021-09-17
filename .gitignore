@@ -6,4 +6,8 @@
 Makefile.config
 *.depend
 src/META
-doc/api
+src/classDomain.ml
+src/heap_parser/lex_heap.ml
+src/heap_parser/parse_heap.ml
+src/heap_parser/parse_heap.mli
+src/safe.ml
