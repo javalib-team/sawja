@@ -1,0 +1,5 @@
+B ../src/
+S ../src/
+PKG javalib
+FLG -w +A-4-42-48
+
