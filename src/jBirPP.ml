@@ -17,9 +17,9 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
+open! Javalib_pack
 open Javalib
-open JProgram
+open! JProgram
 open JControlFlow
 
 type t = JBir.t PP.t

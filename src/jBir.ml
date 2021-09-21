@@ -40,8 +40,16 @@ let print = bir_print
 let jump_target = bir_jump_target
 
 let transform ?(bcv=false) ?(ch_link = false) ?(almost_ssa=false)
+      ?(folding=FoldOrFail)
       ?(formula=false) ?(formula_cmd = default_formula_cmd) cm c = 
-  let res = jcode2bir Normal bcv ch_link almost_ssa cm c in
+  let res =
+    if folding=FoldIfPossible then
+      try jcode2bir Normal bcv ch_link almost_ssa folding cm c with
+      | Uninit_is_not_expr ->
+         jcode2bir Normal bcv ch_link almost_ssa DoNotFold cm c 
+      | e -> raise e
+    else
+      jcode2bir Normal bcv ch_link almost_ssa folding cm c in
   let res = if formula then Bir.GetFormula.run formula_cmd res else res in
     res
     

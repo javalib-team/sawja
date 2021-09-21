@@ -17,8 +17,8 @@
  * <http://www.gnu.org/licenses/>.
  *)
 
-open Javalib_pack
-open Javalib
+open! Javalib_pack
+open! Javalib
 open JBasics
 open JType
 
@@ -26,7 +26,7 @@ open JType
   * stack where the allocation occured and the object type.*)
 type asite = JBirPP.t list * object_type
 
-let asite_compare (lst1,cn1) (lst2,cn2) =
+let asite_compare (_lst1,cn1) (_lst2,cn2) =
   let _cmp_list l1 l2 =
     match l1, l2 with
       | [], [] -> 0
@@ -538,7 +538,7 @@ module AbMethod = struct
     match t with
       | Bot -> pp_print_string fmt "Bot"
       | Reachable t ->
-          let open Format in
+          let open! Format in
             pp_open_hvbox fmt 0;
             pp_print_string fmt "args:";
             AbLocals.pprint fmt t.args;

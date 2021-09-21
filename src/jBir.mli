@@ -387,7 +387,7 @@ val print_instr : ?show_type:bool -> instr -> string
 
 (** [print c] returns a list of string representations for instruction of [c]
     (one string for each program point of the code [c]). *)
-val print : t -> string list
+val print : ?show_type:bool -> t -> string list
 
 (** [print_program ~css ~js ~info program outputdir] generates html
     files representing the program [p] in the output directory
@@ -422,6 +422,15 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
 
 (** {2 Bytecode transformation} *)
 
+type constructor_folding_mode =
+  | FoldOrFail
+  (** The transformation will raise an exception if folding is not possible. 
+      With this mode, the instruction Alloc is never generated.   *)
+  | FoldIfPossible
+  (** When folding is not possible, use the Alloc instruction instead. *)
+  | DoNotFold
+  (** The instruction New is never generated and Alloc is use instead *)  
+     
 (** [transform ~bcv ~ch_link ~formula ~formula_cmd cm jcode] transforms the 
     code [jcode]into its JBir representation. The transformation is performed 
     in the context of a given concrete method [cm].  
@@ -450,7 +459,7 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     
     [transform] can raise several exceptions. See exceptions below for details. *)
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> ?almost_ssa:bool ->
+  ?bcv:bool -> ?ch_link:bool -> ?almost_ssa:bool -> ?folding:constructor_folding_mode ->
   ?formula:bool -> ?formula_cmd:JBasics.class_method_signature list ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 

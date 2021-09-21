@@ -16,9 +16,9 @@
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *)
-open Javalib_pack
+open! Javalib_pack
 open Javalib
-open JProgram
+open! JProgram
 open JControlFlow
 
 

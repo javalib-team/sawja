@@ -434,15 +434,15 @@ let ssa_print ?(phi_simpl = true) m =
   let size = Array.length m.bir_code in
   ssa_print_code phi_simpl m (size - 1) []
 
-let rec print_code code i acc =
+let rec print_code ?(show_type = true) code i acc =
   if i < 0 then acc
   else
-    print_code code (i - 1)
-      (Printf.sprintf "%3d: %s" i (print_instr code.(i)) :: acc)
+    print_code ~show_type code (i - 1)
+      (Printf.sprintf "%3d: %s" i (print_instr ~show_type code.(i)) :: acc)
 
-let bir_print m =
+let bir_print ?(show_type = true) m =
   let size = Array.length m.bir_code in
-  print_code m.bir_code (size - 1) []
+  print_code ~show_type m.bir_code (size - 1) []
 
 let bir_jump_target m =
   let jump_target = Array.make (Array.length m.bir_code) false in
@@ -1705,6 +1705,11 @@ and type_of_array_content t e =
     | `Object ->
         TObject (TClass java_lang_object) )
 
+type constructor_folding_mode =
+  | FoldOrFail
+  | FoldIfPossible
+  | DoNotFold
+       
 (* 
  * Maps each opcode to a (expr list * instr list). An [expr] is a value
  * (constant or variable) or a basic operation that return a value without side
@@ -1736,7 +1741,7 @@ and type_of_array_content t e =
  * 
  * The function takes a Jcode representing a list of opcode as implicit argument.
  *)
-let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
+let bc2bir_instr dico mode pp_var ch_link ssa folding fresh_counter i load_type
     arrayload_type tos s next_store next_is_junc_point_or_a_goto = function
   | JCode.OpNop ->
       (s, [])
@@ -2218,10 +2223,17 @@ let bc2bir_instr dico mode pp_var ch_link ssa fresh_counter i load_type
       let instrs =
         if ch_link then [Check (CheckLink instr); MayInit c] else [MayInit c]
       in
-      let s, instrs =
-        clean dico ssa fresh_counter is_heap_sensible_element_in_expr s instrs
-      in
-      (Uninit (c, i) :: s, instrs)
+      if folding=DoNotFold
+      then
+        let x = make_tempvar dico ssa fresh_counter s next_store in
+        let v = Var (TObject (TClass java_lang_object), x) in
+        clean dico ssa fresh_counter is_heap_sensible_element_in_expr
+          (E v :: s)
+          [MayInit c; Alloc (x, c)]
+      else
+        let s, instrs =
+          clean dico ssa fresh_counter is_heap_sensible_element_in_expr s instrs in
+        (Uninit (c, i) :: s, instrs)        
   | JCode.OpNewArray t as instr ->
       let x = make_tempvar dico ssa fresh_counter s next_store in
       let dim = topE s in
@@ -2846,7 +2858,7 @@ end
    list] is the list of instructions generated at bytecode program
    point [pc], generation could have used precedent program points of
    [pc].*)
-let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
+let bc2ir no_debug dico mode ch_link ssa folding pp_var jump_target load_type
     arrayload_type cm code =
   let rec loop (ch_debug, info_ok) as_ts_jump ins ts_in as_in pc fresh_counter
       =
@@ -2899,7 +2911,7 @@ let bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
     let op = code.JCode.c_code.(pc) in
     let ts_out = type_next op ts_in in
     let as_out, instrs =
-      bc2bir_instr dico mode pp_var ch_link ssa fresh_counter pc load_type
+      bc2bir_instr dico mode pp_var ch_link ssa folding fresh_counter pc load_type
         arrayload_type ts_in as_in next_store next_is_junc_point_or_a_goto op
     in
     (* fail on backward branchings on a non-empty stack *)
@@ -3343,7 +3355,7 @@ let jsr_ir2bc_post_treatment (assoc : (int * int) list) (ir2bc : int array) :
   Array.iteri (fun i pp -> ir2bc.(i) <- update_pp pp assoc) ir2bc ;
   ir2bc
 
-let jcode2bir mode bcv ch_link ssa cm jcode =
+let jcode2bir mode bcv ch_link ssa folding cm jcode =
   let code = jcode in
   match JsrInline.inline code with
   | Some (code, assoc) -> (
@@ -3377,7 +3389,7 @@ let jcode2bir mode bcv ch_link ssa cm jcode =
         let code = rm_dead_instr_from_bcv code is_typed in
         let dico = make_dictionary () in
         let res, debug_ok =
-          bc2ir no_debug dico mode ch_link ssa pp_var jump_target load_type
+          bc2ir no_debug dico mode ch_link ssa folding pp_var jump_target load_type
             arrayload_type cm code
         in
         (*let _ = print_unflattened_code_uncompress (List.rev res) in*)
