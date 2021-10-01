@@ -22,7 +22,7 @@ include BirA3
 
 (** Concrete method transformation. *) 
 let transform ?(bcv=false) ?(ch_link=false) ?(formula=false) ?(formula_cmd = default_formula_cmd) j_m j_code =
-  let res = Bir.jcode2bir Bir.Addr3 bcv ch_link false Bir.FoldOrFail j_m j_code in
+  let res = Bir.jcode2bir ~debug_verification:false Bir.Addr3 bcv ch_link false Bir.FoldOrFail j_m j_code in
   let res = if formula then Bir.GetFormula.run formula_cmd res else res in
-    bir2a3bir res
+  bir2a3bir res
 

@@ -26,17 +26,17 @@ include Bir
 type t = bir
 
 let vars m = JUtil.foldi 
-               (fun idx var map -> 
-                  match ssa_var var with
-                    | true -> Ptmap.add idx var map
-                    | false -> map
-               ) Ptmap.empty m.bir_vars
+    (fun idx var map -> 
+       match ssa_var var with
+       | true -> Ptmap.add idx var map
+       | false -> map
+    ) Ptmap.empty m.bir_vars
 
 let ssa_index m = (JUtil.foldi
                      (fun _ var cpt -> 
                         match ssa_var var with
-                          | true -> cpt
-                          | false -> cpt+1
+                        | true -> cpt
+                        | false -> cpt+1
                      )
                      0
                      m.bir_vars),
@@ -60,8 +60,8 @@ let exception_edges = bir_exception_edges
 let jump_target = bir_jump_target
 
 let transform ?(bcv=false) ?(ch_link = false) cm c = 
-  let res = jcode2bir Normal bcv ch_link false FoldOrFail cm c in
-    SSA.transform_from_ir res
+  let res = jcode2bir ~debug_verification:false Normal bcv ch_link false FoldOrFail cm c in
+  SSA.transform_from_ir res
 
 let print ?(phi_simpl=true) m = 
   ssa_print ~phi_simpl:phi_simpl m
