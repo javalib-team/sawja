@@ -257,7 +257,7 @@ type instr =
   (** [InvokeStatic(x,c,ms,args)] denotes 
       - c.m<ms>(args) if [x] is [None] (void returning method) 
       - x := c.m<ms>(args)
-      otherwise. 
+        otherwise. 
 
       The exception [UnsatisfiedLinkError] could be
       thrown if the method is native and the code cannot be
@@ -280,7 +280,7 @@ type instr =
   (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual
       call 
       - e.C.m<ms>(args) if [x] is [None] (void returning
-      method) 
+        method) 
       - x := e.C.m<ms>(args) otherwise. 
 
       The exception [UnsatisfiedLinkError] could be thrown 
@@ -496,5 +496,7 @@ exception NonemptyStack_backward_jump
 exception Subroutine
 (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
 
+exception InvalidClassFile
+(** [InvalidClassFile] is raised if the layout of a method is unexpected. (please report) *)
 
 

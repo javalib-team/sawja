@@ -23,7 +23,7 @@
 (** SSA form of the {!JBir} intermediate representation.*)
 
 open! Javalib_pack
-     
+
 (** {2 Language} *)
 
 (** {3 Variables} *)
@@ -77,10 +77,10 @@ type const = JBir.const
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
-  | L2I  | L2F  | L2D
-  | F2I  | F2L  | F2D
-  | D2I  | D2L  | D2F
-  | I2B  | I2C  | I2S
+          | L2I  | L2F  | L2D
+          | F2I  | F2L  | F2D
+          | D2I  | D2L  | D2F
+          | I2B  | I2C  | I2S
 
 (** Unary operators *)
 type unop =
@@ -110,14 +110,14 @@ type binop =
 type expr =
     Const of const (** constants *)
   | Var of JBasics.value_type * var
-      (** variables are given a type information *)
+  (** variables are given a type information *)
   | Unop of unop * expr
   | Binop of binop * expr * expr
-      (** [Binop (ArrayLoad vt, e1, e2)] denotes [e1\[e2\]], whose type is  [vt] *)
+  (** [Binop (ArrayLoad vt, e1, e2)] denotes [e1\[e2\]], whose type is  [vt] *)
   | Field of expr * JBasics.class_name * JBasics.field_signature
-      (** Reading fields of arbitrary expressions *)
+  (** Reading fields of arbitrary expressions *)
   | StaticField of JBasics.class_name * JBasics.field_signature
-      (** Reading static fields *)
+  (** Reading static fields *)
 
 (** {3 Formulae } *)
 
@@ -139,7 +139,7 @@ val default_formula_cmd : JBasics.class_method_signature list
 
 
 (** [type_of_expr e] returns the type of the expression [e]. 
- N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
+    N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
 val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
@@ -158,39 +158,39 @@ type virtual_call_kind =
 
 type check =
   | CheckNullPointer of expr
-      (** [CheckNullPointer e] checks that the expression [e] is not a null
-          pointer and raises the Java NullPointerException if this not the case. *)
+  (** [CheckNullPointer e] checks that the expression [e] is not a null
+      pointer and raises the Java NullPointerException if this not the case. *)
   | CheckArrayBound of expr * expr
-      (** [CheckArrayBound(a,idx)] checks the index [idx] is a valid
-          index for the array denoted by the expression [a] and raises
-          the Java IndexOutOfBoundsException if this is not the
-          case. *)
+  (** [CheckArrayBound(a,idx)] checks the index [idx] is a valid
+      index for the array denoted by the expression [a] and raises
+      the Java IndexOutOfBoundsException if this is not the
+      case. *)
   | CheckArrayStore of expr * expr
-      (** [CheckArrayStore(a,e)] checks [e] can be stored as an
-          element of the array [a] and raises the Java
-          ArrayStoreException if this is not the case. *)
+  (** [CheckArrayStore(a,e)] checks [e] can be stored as an
+      element of the array [a] and raises the Java
+      ArrayStoreException if this is not the case. *)
   | CheckNegativeArraySize of expr
-      (** [CheckNegativeArray e] checks that [e], denoting an array
-          size, is positive or zero and raises the Java
-          NegativeArraySizeException if this is not the case.*)
+  (** [CheckNegativeArray e] checks that [e], denoting an array
+      size, is positive or zero and raises the Java
+      NegativeArraySizeException if this is not the case.*)
   | CheckCast of expr * JBasics.object_type
-      (** [CheckCast(e,t)] checks the object denoted by [e] can be
-          casted to the object type [t] and raises the Java
-          ClassCastException if this is not the case. *)
+  (** [CheckCast(e,t)] checks the object denoted by [e] can be
+      casted to the object type [t] and raises the Java
+      ClassCastException if this is not the case. *)
   | CheckArithmetic of expr
-      (** [CheckArithmetic e] checks that the divisor [e] is not zero,
-          and raises ArithmeticException if this is not the case. *)
+  (** [CheckArithmetic e] checks that the divisor [e] is not zero,
+      and raises ArithmeticException if this is not the case. *)
   | CheckLink of JCode.jopcode
-      (** [CheckLink op] checks if linkage mechanism, depending on
-	  [op] instruction, must be started and if so if it
-	  succeeds. These instructions are only generated if the
-	  option is activated during transformation (cf. {!transform}).
-	  
-	  Linkage mechanism and errors that could be thrown
-	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
-	  instruction (only a few bytecode instructions imply linkage
-	  operations: checkcast, instanceof, anewarray,
-	  multianewarray, new, get_, put_, invoke_). *)
+  (** [CheckLink op] checks if linkage mechanism, depending on
+      [op] instruction, must be started and if so if it
+      succeeds. These instructions are only generated if the
+      option is activated during transformation (cf. {!transform}).
+
+      Linkage mechanism and errors that could be thrown
+      are described in chapter 6 of JVM Spec 1.5 for each bytecode
+      instruction (only a few bytecode instructions imply linkage
+      operations: checkcast, instanceof, anewarray,
+      multianewarray, new, get_, put_, invoke_). *)
 
 
 (** JBirSSA instructions are register-based and unstructured. Next to
@@ -207,70 +207,70 @@ type check =
 type instr =
     Nop
   | AffectVar of var * expr
-      (** [AffectVar(x,e)] denotes x := e.  *)
+  (** [AffectVar(x,e)] denotes x := e.  *)
   | AffectArray of expr * expr * expr
-      (** [AffectArray(a,idx,e)] denotes   a\[idx\] := e. *)
+  (** [AffectArray(a,idx,e)] denotes   a\[idx\] := e. *)
   | AffectField of expr * JBasics.class_name * JBasics.field_signature * expr
-      (** [AffectField(e,c,fs,e')] denotes   e.<c:fs> := e'. *)
+  (** [AffectField(e,c,fs,e')] denotes   e.<c:fs> := e'. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
-      (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
+  (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
   | Alloc of var * JBasics.class_name 
-      (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
-          any constructor call. It is only generated with appropriate options
-          in the [transform] function below. *)
+  (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
+      any constructor call. It is only generated with appropriate options
+      in the [transform] function below. *)
   | Goto of int
-      (** [Goto pc] denotes goto pc. (absolute address) *)
+  (** [Goto pc] denotes goto pc. (absolute address) *)
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
-      (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
+  (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
   | Throw of expr (** [Throw e] denotes throw e.  
 
 		      The exception [IllegalMonitorStateException] could
 		      be thrown by the virtual machine.*)
   | Return of expr option
-      (** [Return opte] denotes 
-          - return void when [opte] is [None] 
-          - return opte otherwise  
+  (** [Return opte] denotes 
+      - return void when [opte] is [None] 
+      - return opte otherwise  
 
-	  The exception [IllegalMonitorStateException] could be thrown
-	  by the virtual machine.*)
+      The exception [IllegalMonitorStateException] could be thrown
+      by the virtual machine.*)
   | New of var * JBasics.class_name * JBasics.value_type list * expr list
-      (** [New(x,c,tl,args)] denotes x:= new c<tl>(args), [tl] gives the type of
-          [args]. *)
+  (** [New(x,c,tl,args)] denotes x:= new c<tl>(args), [tl] gives the type of
+      [args]. *)
   | NewArray of var * JBasics.value_type * expr list
-      (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the
-          elements of [el] ; they represent the length of the corresponding
-          dimension. Elements of the array are of type [t].  *)
+  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the
+      elements of [el] ; they represent the length of the corresponding
+      dimension. Elements of the array are of type [t].  *)
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list
-      (** [InvokeStatic(x,c,ms,args)] denotes 
-          - c.m<ms>(args) if [x] is [None] (void returning method)
-          - x :=  c.m<ms>(args) otherwise 
+  (** [InvokeStatic(x,c,ms,args)] denotes 
+      - c.m<ms>(args) if [x] is [None] (void returning method)
+      - x :=  c.m<ms>(args) otherwise 
 
-	  The exception [UnsatisfiedLinkError] could be
-	  thrown if the method is native and the code cannot be
-	  found. *)
+      The exception [UnsatisfiedLinkError] could be
+      thrown if the method is native and the code cannot be
+      found. *)
   | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
-      (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call
-          - e.m<ms>(args) if [x] is [None]  (void returning method)
-          - x := e.m<ms>(args) otherwise 
-	  
-	  If [k] is a [VirtualCall _] then the virtual machine could
-	  throw the following errors in the same order:
-	  [AbstractMethodError, UnsatisfiedLinkError].
-	  
-	  If [k] is a [InterfaceCall _] then the virtual machine could
-	  throw the following errors in the same order:
-	  [IncompatibleClassChangeError, AbstractMethodError,
-	  IllegalAccessError, AbstractMethodError,
-	  UnsatisfiedLinkError]. *)
+  (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call
+      - e.m<ms>(args) if [x] is [None]  (void returning method)
+      - x := e.m<ms>(args) otherwise 
+
+      If [k] is a [VirtualCall _] then the virtual machine could
+      throw the following errors in the same order:
+      [AbstractMethodError, UnsatisfiedLinkError].
+
+      If [k] is a [InterfaceCall _] then the virtual machine could
+      throw the following errors in the same order:
+      [IncompatibleClassChangeError, AbstractMethodError,
+      IllegalAccessError, AbstractMethodError,
+      UnsatisfiedLinkError]. *)
   | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
-      (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual call
-          - e.C.m<ms>(args) if [x] is [None]  (void returning method)
-          - x := e.C.m<ms>(args) otherwise 
-	  
-	  The exception [UnsatisfiedLinkError] could be thrown 
-	  if the method is native and the code cannot be found. *)
+  (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual call
+      - e.C.m<ms>(args) if [x] is [None]  (void returning method)
+      - x := e.C.m<ms>(args) otherwise 
+
+      The exception [UnsatisfiedLinkError] could be thrown 
+      if the method is native and the code cannot be found. *)
   | InvokeDynamic
-      of var option * JBasics.bootstrap_method * JBasics.method_signature * expr list
+    of var option * JBasics.bootstrap_method * JBasics.method_signature * expr list
   | MonitorEnter of expr (** [MonitorEnter e] locks the object [e]. *)
   | MonitorExit of expr (** [MonitorExit e] unlocks the object [e].  
 
@@ -278,19 +278,19 @@ type instr =
 			    [IllegalMonitorStateException] could be
 			    thrown by the virtual machine.*)
   | MayInit of JBasics.class_name
-      (** [MayInit c] initializes the class [c] whenever it is required.  
+  (** [MayInit c] initializes the class [c] whenever it is required.  
 
-	  The exception [ExceptionInInitializerError] could
-	  be thrown by the virtual machine.*)
+      The exception [ExceptionInInitializerError] could
+      be thrown by the virtual machine.*)
   | Check of check
-      (** [Check c] evaluates the assertion [c]. 
+  (** [Check c] evaluates the assertion [c]. 
 
-	  Exceptions that could
-	  be thrown by the virtual machine are described in {!check} type
-	  declaration. *)
+      Exceptions that could
+      be thrown by the virtual machine are described in {!check} type
+      declaration. *)
   | Formula of JBasics.class_method_signature * formula 
-    (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
-          the formula to be verified. *)
+  (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
+        the formula to be verified. *)
 
 (** *)
 type exception_handler = {
@@ -323,9 +323,9 @@ val empty : t
 val vars : t -> var Javalib_pack.Ptmap.t
 
 (** Returns a pair containing the index of the first SSA variable and of the
-  last SSA variable. This is useful as the index does not start at 0, but after
-  the non-ssa variables. As the indexes are contiguous, the number of SSA 
-  variables is 'last index - first index +1'. *)
+    last SSA variable. This is useful as the index does not start at 0, but after
+    the non-ssa variables. As the indexes are contiguous, the number of SSA 
+    variables is 'last index - first index +1'. *)
 val ssa_index : t -> (int * int)
 
 (** [params] contains the method parameters (including the receiver this for
@@ -340,7 +340,7 @@ val code : t -> instr array
     absolute. The list is ordered in the same way as in the bytecode 
     (See JVM Spec 7 $2.10). *)
 val  exc_tbl : t -> exception_handler list
- 
+
 (** [preds.(pc)] is the array of program points that are
     predecessors of instruction at program point [pc]. *)
 val preds : t -> (int array) array
@@ -444,7 +444,7 @@ val print_class :
 (** Printer for the Sawja Eclipse Plugin (see module JPrintPlugin) *)
 module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter 
   with type code = t 
-  and type expr = expr
+   and type expr = expr
 
 (** {2 Bytecode transformation} *)
 
@@ -453,23 +453,25 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     the context of a given concrete method [cm].  
 
     - [?bcv]: The type checking normally performed by the ByteCode
-    Verifier (BCV) is done if and only if [bcv] is [true].
+      Verifier (BCV) is done if and only if [bcv] is [true].
 
     - [?ch_link]: Check instructions are generated when a linkage
-    operation is done if and only if [ch_link] is [true].
-    
+      operation is done if and only if [ch_link] is [true].
+
     [transform] can raise several exceptions. See exceptions below for details. *)
 val transform :
   ?bcv:bool -> ?ch_link:bool ->
-    JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+  JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 
 exception NonemptyStack_backward_jump
-  (** [NonemptyStack_backward_jump] is raised when a backward jump on a
-      non-empty stack is encountered. This should not happen if you compiled your
-      Java source program with the javac compiler *)
+(** [NonemptyStack_backward_jump] is raised when a backward jump on a
+    non-empty stack is encountered. This should not happen if you compiled your
+    Java source program with the javac compiler *)
 
 exception Subroutine
-  (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
+(** [Subroutine] is raised in case the bytecode contains a subroutine. *)
 
+exception InvalidClassFile
+(** [InvalidClassFile] is raised if the layout of a method is unexpected. (please report) *)

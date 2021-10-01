@@ -749,14 +749,20 @@ let type_next = function
     failwith "invalid"
 
 exception End_of_method
+exception InvalidClassFile
 
 let next c i =
   try
     let k = ref (i + 1) in
-    while c.(!k) = JCode.OpInvalid do
-      incr k
-    done ;
-    !k
+    if !k >= Array.length c then raise InvalidClassFile
+    else
+      begin
+        while c.(!k) = JCode.OpInvalid do
+          incr k;
+          if !k >= Array.length c then raise InvalidClassFile
+        done ;
+        !k
+      end
   with _ -> raise End_of_method
 
 (*Computes successors of instruction i. They can be several successors in case

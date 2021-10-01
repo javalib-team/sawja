@@ -81,10 +81,10 @@ type const = JBir.const
 
 (** Conversion operators *)
 type conv = I2L  | I2F  | I2D
-	    | L2I  | L2F  | L2D
-	    | F2I  | F2L  | F2D
-	    | D2I  | D2L  | D2F
-	    | I2B  | I2C  | I2S
+	  | L2I  | L2F  | L2D
+	  | F2I  | F2L  | F2D
+	  | D2I  | D2L  | D2F
+	  | I2B  | I2C  | I2S
 
 (** Unary operators *)
 type unop =
@@ -162,20 +162,20 @@ type check =
   | CheckCast of tvar * JBasics.object_type (** [CheckCast(e,t)] checks the object denoted by [e] can be casted to the object type [t] and raises the Java ClassCastException if this is not the case. *)
   | CheckArithmetic of tvar (** [CheckArithmetic e] checks that the divisor [e] is not zero, and raises ArithmeticException if this is not the case. *)
   | CheckLink of JCode.jopcode
-      (** [CheckLink op] checks if linkage mechanism, depending on
-	  [op] instruction, must be started and if so if it
-	  succeeds. These instructions are only generated if the
-	  option is activated during transformation (cf. {!transform}).
+  (** [CheckLink op] checks if linkage mechanism, depending on
+      [op] instruction, must be started and if so if it
+      succeeds. These instructions are only generated if the
+      option is activated during transformation (cf. {!transform}).
 
-	  Linkage mechanism and errors that could be thrown
-	  are described in chapter 6 of JVM Spec 1.5 for each bytecode
-	  instruction (only a few instructions imply linkage
-	  operations: checkcast, instanceof, anewarray,
-	  multianewarray, new, get_, put_, invoke_). *)
+      Linkage mechanism and errors that could be thrown
+      are described in chapter 6 of JVM Spec 1.5 for each bytecode
+      instruction (only a few instructions imply linkage
+      operations: checkcast, instanceof, anewarray,
+      multianewarray, new, get_, put_, invoke_). *)
 
 (** A3BirSSA instructions are register-based and unstructured. Their operands are [tvar] (typed local vars), except variable assigments.
     Next to them is the informal semantics (using a traditional instruction notations) they should be given. 
-    
+
     Exceptions that could be raised by the virtual
     machine are described beside each instruction, except for the
     virtual machine errors, subclasses of
@@ -190,67 +190,67 @@ type instr =
   | AffectField of tvar * JBasics.class_name * JBasics.field_signature * tvar  (** [AffectField(x,c,fs,y)] denotes   x.<c:fs> := y. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * tvar   (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
   | Alloc of var * JBasics.class_name 
-      (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
-          any constructor call. It is only generated with appropriate options
-          in the [transform] function below. *)
+  (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
+      any constructor call. It is only generated with appropriate options
+      in the [transform] function below. *)
   | Goto of int (** [Goto pc] denotes goto pc. (absolute address)  *)
   | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar ) * int (** [Ifd((op,x,y),pc)] denotes    if (x op y) goto pc. (absolute address)  *)
   | Throw of tvar (** [Throw x] denotes throw x.  
 
-			    The exception [IllegalMonitorStateException] could be thrown by the virtual machine.*)
+		      The exception [IllegalMonitorStateException] could be thrown by the virtual machine.*)
   | Return of tvar option (** [Return x] denotes 
-				    - return void when [x] is [None] 
-				    - return x otherwise 
+			      - return void when [x] is [None] 
+			      - return x otherwise 
 
-				    The exception [IllegalMonitorStateException] could be thrown
-				    by the virtual machine.
-				*)
+			      The exception [IllegalMonitorStateException] could be thrown
+			      by the virtual machine.
+			      *)
   | New of var * JBasics.class_name * JBasics.value_type list * (tvar list)  (** [New(x,c,tl,args)] denotes x:= new c<tl>(args),  [tl] gives the type of [args]. *)
   | NewArray of var * JBasics.value_type * (tvar list)  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the elements of [el] ; they represent the length of the corresponding dimension. Elements of the array are of type [t].  *)
   | InvokeStatic 
-      of var option * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeStatic(x,c,ms,args)] denotes 
-											   - c.m<ms>(args) if [x] is [None] (void returning method)
-											   -  x :=  c.m<ms>(args) otherwise 
+    of var option * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeStatic(x,c,ms,args)] denotes 
+										   - c.m<ms>(args) if [x] is [None] (void returning method)
+										   -  x :=  c.m<ms>(args) otherwise 
 
-											   The exception [UnsatisfiedLinkError] could be
-											   thrown if the method is native and the code cannot be
-											   found.
-										       *)
+										   The exception [UnsatisfiedLinkError] could be
+										   thrown if the method is native and the code cannot be
+										   found.
+										   *)
   | InvokeVirtual
-      of var option * tvar * virtual_call_kind * JBasics.method_signature * tvar list (** [InvokeVirtual(x,y,k,ms,args)] denotes the [k] call
-												      -  y.m<ms>(args) if [x] is [None]  (void returning method)
-												      -  x := y.m<ms>(args) otherwise
+    of var option * tvar * virtual_call_kind * JBasics.method_signature * tvar list (** [InvokeVirtual(x,y,k,ms,args)] denotes the [k] call
+											-  y.m<ms>(args) if [x] is [None]  (void returning method)
+											-  x := y.m<ms>(args) otherwise
 
-												      If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the same order: [AbstractMethodError, UnsatisfiedLinkError].
+											If [k] is a [VirtualCall _] then the virtual machine could throw the following errors in the same order: [AbstractMethodError, UnsatisfiedLinkError].
 
-												      If [k] is a [InterfaceCall _] then the virtual machine could throw the following errors in the same order: [IncompatibleClassChangeError, AbstractMethodError, IllegalAccessError, AbstractMethodError, UnsatisfiedLinkError].
-												  *)
+											If [k] is a [InterfaceCall _] then the virtual machine could throw the following errors in the same order: [IncompatibleClassChangeError, AbstractMethodError, IllegalAccessError, AbstractMethodError, UnsatisfiedLinkError].
+											*)
   | InvokeNonVirtual
-      of var option * tvar * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeNonVirtual(x,y,c,ms,args)] denotes the non virtual call
-													-  y.C.m<ms>(args) if [x] is [None]  (void returning method)
-													-  x := y.C.m<ms>(args) otherwise 
+    of var option * tvar * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeNonVirtual(x,y,c,ms,args)] denotes the non virtual call
+											  -  y.C.m<ms>(args) if [x] is [None]  (void returning method)
+											  -  x := y.C.m<ms>(args) otherwise 
 
-													The exception [UnsatisfiedLinkError] could be thrown 
-													if the method is native and the code cannot be found.
-												    *)
+											  The exception [UnsatisfiedLinkError] could be thrown 
+											  if the method is native and the code cannot be found.
+											  *)
   | InvokeDynamic
-      of var option * JBasics.bootstrap_method * JBasics.method_signature * tvar list
+    of var option * JBasics.bootstrap_method * JBasics.method_signature * tvar list
   | MonitorEnter of tvar (** [MonitorEnter x] locks the object [x]. *)
   | MonitorExit of tvar (** [MonitorExit x] unlocks the object [x]. 
-				  
-				  The exception
-				  [IllegalMonitorStateException] could be
-				  thrown by the virtual machine.  *)
+
+			    The exception
+			    [IllegalMonitorStateException] could be
+			    thrown by the virtual machine.  *)
   | MayInit of JBasics.class_name (** [MayInit c] initializes the class [c] whenever it is required. 
-				      
+
 				      The exception [ExceptionInInitializerError] could be thrown by the virtual machine.*)
   | Check of check (** [Check c] evaluates the assertion [c]. 
-		       
+
 		       Exceptions that could be thrown by the virtual
 		       machine are described in {!check} type declaration.*)
   | Formula of JBasics.class_method_signature * formula 
-      (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
-          the formula to be verified. *)
+  (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
+      the formula to be verified. *)
 
 
 
@@ -291,9 +291,9 @@ val empty : t
 val vars : t -> var Javalib_pack.Ptmap.t
 
 (** Returns a pair containing the index of the first SSA variable and of the
-  last SSA variable. This is useful as the index does not start at 0, but after
-  the non-ssa variables. As the indexes are contiguous, the number of SSA 
-  variables is 'last index - first index +1'. *)
+    last SSA variable. This is useful as the index does not start at 0, but after
+    the non-ssa variables. As the indexes are contiguous, the number of SSA 
+    variables is 'last index - first index +1'. *)
 val ssa_index : t -> (int * int)
 
 (** [params] contains the method parameters (including the receiver this for
@@ -308,7 +308,7 @@ val code : t -> instr array
     absolute. The list is ordered in the same way as in the bytecode 
     (See JVM Spec 7 $2.10). *)
 val  exc_tbl : t -> exception_handler list
- 
+
 (** [preds.(pc)] is the array of program points that are
     predecessors of instruction at program point [pc]. *)
 val preds : t -> (int array) array
@@ -419,7 +419,7 @@ val print_class :
 (** Printer for the Sawja Eclipse Plugin (see module JPrintPlugin) *)
 module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter 
   with type code = t 
-  and type expr = expr
+   and type expr = expr
 
 (** {2 Bytecode transformation} *)
 
@@ -429,23 +429,26 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     the context of a given concrete method [cm].  
 
     - [?bcv]: The type checking normally performed by the ByteCode
-    Verifier (BCV) is done if and only if [bcv] is [true].
+      Verifier (BCV) is done if and only if [bcv] is [true].
 
     - [?ch_link]: Check instructions are generated when a linkage
-    operation is done if and only if [ch_link] is [true].
-    
+      operation is done if and only if [ch_link] is [true].
+
     [transform] can raise several exceptions. See exceptions below for details. *)
 
 val transform :
   ?bcv:bool -> ?ch_link:bool -> 
-    JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
+  JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
 
 exception NonemptyStack_backward_jump
-  (** [NonemptyStack_backward_jump] is raised when a backward jump on a
-      non-empty stack is encountered. This should not happen if you compiled your
-      Java source program with the javac compiler *)
+(** [NonemptyStack_backward_jump] is raised when a backward jump on a
+    non-empty stack is encountered. This should not happen if you compiled your
+    Java source program with the javac compiler *)
 
 exception Subroutine
-  (** [Subroutine] is raised in case the bytecode contains a subroutine. *)
+(** [Subroutine] is raised in case the bytecode contains a subroutine. *)
+
+exception InvalidClassFile
+(** [InvalidClassFile] is raised if the layout of a method is unexpected. (please report) *)

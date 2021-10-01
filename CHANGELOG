@@ -13,6 +13,8 @@ New feature:
 Minor Changes:
     - adding .merlin files
     - removing many warnings
+    - new InvalidClassFile exception 
+
 
 From 1.5.8 to 1.5.9
 -------------------
