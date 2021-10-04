@@ -2864,20 +2864,10 @@ end
    list] is the list of instructions generated at bytecode program
    point [pc], generation could have used precedent program points of
    [pc].*)
-let bc2ir no_debug dico mode ch_link ssa folding pp_var jump_target load_type
-    arrayload_type cm code =
-  let rec loop (ch_debug, info_ok) as_ts_jump ins ts_in as_in pc fresh_counter
+let bc2ir dico mode ch_link ssa folding pp_var jump_target load_type
+    arrayload_type code =
+  let rec loop as_ts_jump ins ts_in as_in pc fresh_counter
     =
-    let nch_debug, ninfo_ok =
-      match ch_debug with
-      | None ->
-        (None, info_ok)
-      (* it should be in case there is no debug info available *)
-      | Some (check_fun, as_succ) ->
-        let new_as_succ, info_ok = check_fun as_succ pc in
-        if info_ok then (Some (check_fun, new_as_succ), true)
-        else (None, false)
-    in
     (* Simplifying redundant assignt on the fly : see one instr ahead *)
     let next_store =
       let next_pc = try next code.JCode.c_code pc with End_of_method -> pc in
@@ -2953,53 +2943,14 @@ let bc2ir no_debug dico mode ch_link ssa folding pp_var jump_target load_type
         as_ts_jump jump_succs
     in
     try
-      loop (nch_debug, ninfo_ok) as_ts_jump ins ts_out as_out
+      loop as_ts_jump ins ts_out as_out
         (next code.JCode.c_code pc) fresh_counter
-    with End_of_method -> (ins, ninfo_ok)
+    with End_of_method -> ins
   in
-  (* Initialize context for checking debug information on
-       variables (see FastCheckInfoDebug.run function)*)
-  let ch_debug_init =
-    if no_debug then None
-    else
-      match code.JCode.c_local_variable_table with
-      | None ->
-        None
-      | Some debugi ->
-        let pp_var = FastCheckInfoDebug.pp_var2vardeb pp_var in
-        let darray = Array.make (Array.length code.JCode.c_code) Ptmap.empty in
-        (* initialize method's arguments with a valid value
-	   (they are considered as assigned at first pc...) and
-	   other local variables with UnDef value *)
-        (* Caution: since a little hack is done, darray is also
-	   initialized with NoName in 'FastCheckInfoDebug.run' function for
-	   variables that never have name in the whole method code*)
-        let args_numb =
-          List.fold_left
-            (fun nb_loc_arg -> function
-               | TBasic jbt when jbt = `Double || jbt = `Long ->
-                 nb_loc_arg + 2 | _ -> nb_loc_arg + 1 )
-            (if cm.cm_static then 0 else 1)
-            (ms_args cm.cm_signature)
-        in
-        Array.iteri
-          (fun i _ ->
-             if i < args_numb then
-               darray.(0) <- Ptmap.add i (pp_var 0 i) darray.(0)
-             else
-               darray.(0) <- Ptmap.add i FastCheckInfoDebug.UnDef darray.(0)
-          )
-          (Array.make code.JCode.c_max_locals ()) ;
-        let ch_fun =
-          FastCheckInfoDebug.run debugi jump_target pp_var darray code
-        in
-        Some (ch_fun, Ptset.singleton 0)
-  in
-  loop (ch_debug_init, true) MapPc.empty [] [] [] 0 (ref 0)
+  loop MapPc.empty [] [] [] 0 (ref 0)
 
-let search_name_localvar no_debug static code i x =
+let search_name_localvar static code i x =
   if x = 0 && not static then Some "this"
-  else if no_debug then None
   else
     match JCode.get_local_variable_info x i code with
     | None ->
@@ -3361,86 +3312,62 @@ let jsr_ir2bc_post_treatment (assoc : (int * int) list) (ir2bc : int array) :
   Array.iteri (fun i pp -> ir2bc.(i) <- update_pp pp assoc) ir2bc ;
   ir2bc
 
-let jcode2bir ~debug_verification mode bcv ch_link ssa folding cm jcode =
+let jcode2bir mode bcv ch_link ssa folding cm jcode =
   let code = jcode in
   match JsrInline.inline code with
-  | Some (code, assoc) -> (
-      (* [make_transformation no_debug] returns the code
-	 transformation and a boolean value indicating if the
-	 debug information on variables could be
-	 trusted. [no_debug] indicates if the debug information
-	 must be used in the transformation (if it exists). A fast
-	 verification is done on debug information when it is use,
-	 if the verification fails the boolean returned is
-	 false.*)
-      let make_transformation no_debug =
-        let pp_var = search_name_localvar no_debug cm.cm_static code in
-        let jump_target = compute_jump_target code in
-        (* [is_typed i] : returns true is the current pp is typed (has been
-               given a BCV.t type). If false, it means that i is unreachable.
-               [load_type i] : Returns the type of the variable referenced by
-               the OpLoad instruction at index i in the code.
-               [arrayload_type jat pp] : Returns the type of the variable
-               referenced by an OpArrayLoad instruction at index pp in the
-               code. jat is a jvm_array_type, it is used only when [bcv] is
-               false, which means that type checking is not done.
-        *)
-        (*TODO: detect dead code before running the BCV (replacing instrs
-                by OpInvalid instrs). It would avoid to use the BCV for finding
-                such information. *)
-        let is_typed, load_type, arrayload_type = BCV.run bcv cm code in
-        (*rm_dead_instr_from_bcv should be run before starting bc2ir, that
-              why we can't wait for remove_dead_instrs which work on bir
-              code.*)
-        let code = rm_dead_instr_from_bcv code is_typed in
-        let dico = make_dictionary () in
-        let res, debug_ok =
-          bc2ir no_debug dico mode ch_link ssa folding pp_var jump_target load_type
-            arrayload_type cm code
-        in
-        (*let _ = print_unflattened_code_uncompress (List.rev res) in*)
-        let ir_code = compress_ir code.JCode.c_exc_tbl (List.rev res) jump_target in
-        let ir_exc_tbl =
-          List.map (make_exception_handler dico) code.JCode.c_exc_tbl
-        in
-        (* let _ = print_unflattened_code ir_code in*)
-        let ir_code, ir2bc, bc2ir, ir_exc_tbl =
-          flatten_code ir_code ir_exc_tbl
-        in
-        let nir_code, nir2bc, _nbc2ir, nir_exc_tbl =
-          remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
-        in
-        ( { bir_params= gen_params dico pp_var cm
-          ; bir_vars= make_array_var dico
-          ; bir_dico= dico
-          ; bir_code= nir_code
-          ; bir_pc_ir2bc= jsr_ir2bc_post_treatment assoc nir2bc
-          ; bir_exc_tbl= nir_exc_tbl
-          ; bir_line_number_table= code.JCode.c_line_number_table
-          ; (* ssa *)
-            bir_preds= [||]
-          ; bir_phi_nodes= [||]
-          ; bir_mem_ssa=
-              { mem_ssa_in= (fun _ -> raise No_memory_ssa_info_here)
-              ; mem_ssa_out= (fun _ -> raise No_memory_ssa_info_here)
-              ; mem_ssa_phi= (fun _ -> raise No_memory_ssa_info_here) } }
-        , debug_ok )
-      in
-      let ir_code, debug_ok = make_transformation false in
-      if debug_verification && debug_ok then ir_code
-      else
-        try CheckInfoDebug.run ir_code ; ir_code
-        with InconsistentDebugInfo (pc, _topc, vari) ->
-          prerr_endline
-            ( "Warning: Debug information of local_variable_table attribute \
-               of method "
-              ^ JPrint.class_method_signature cm.cm_class_method_signature
-              ^ " cannot be used for code transformation because it is \
-                 inconsistent on localvar " ^ string_of_int vari
-              ^ " at program point " ^ string_of_int pc ^ ".\n" ) ;
-          fst (make_transformation true) )
   | None ->
     raise Subroutine
+  | Some (code, assoc) -> 
+    let pp_var = search_name_localvar cm.cm_static code in
+    let jump_target = compute_jump_target code in
+    (* [is_typed i] : returns true is the current pp is typed (has been
+       given a BCV.t type). If false, it means that i is unreachable.
+       [load_type i] : Returns the type of the variable referenced by
+       the OpLoad instruction at index i in the code.
+       [arrayload_type jat pp] : Returns the type of the variable
+       referenced by an OpArrayLoad instruction at index pp in the
+       code. jat is a jvm_array_type, it is used only when [bcv] is
+       false, which means that type checking is not done.
+    *)
+    (*TODO: detect dead code before running the BCV (replacing instrs
+            by OpInvalid instrs). It would avoid to use the BCV for finding
+            such information. *)
+    let is_typed, load_type, arrayload_type = BCV.run bcv cm code in
+    (*rm_dead_instr_from_bcv should be run before starting bc2ir, that
+          why we can't wait for remove_dead_instrs which work on bir
+          code.*)
+    let code = rm_dead_instr_from_bcv code is_typed in
+    let dico = make_dictionary () in
+    let res =
+      bc2ir dico mode ch_link ssa folding pp_var jump_target load_type
+        arrayload_type code
+    in
+    (*let _ = print_unflattened_code_uncompress (List.rev res) in*)
+    let ir_code = compress_ir code.JCode.c_exc_tbl (List.rev res) jump_target in
+    let ir_exc_tbl =
+      List.map (make_exception_handler dico) code.JCode.c_exc_tbl
+    in
+    (* let _ = print_unflattened_code ir_code in*)
+    let ir_code, ir2bc, bc2ir, ir_exc_tbl =
+      flatten_code ir_code ir_exc_tbl
+    in
+    let nir_code, nir2bc, _nbc2ir, nir_exc_tbl =
+      remove_dead_instrs ir_code ir2bc bc2ir ir_exc_tbl
+    in
+    { bir_params= gen_params dico pp_var cm
+    ; bir_vars= make_array_var dico
+    ; bir_dico= dico
+    ; bir_code= nir_code
+    ; bir_pc_ir2bc= jsr_ir2bc_post_treatment assoc nir2bc
+    ; bir_exc_tbl= nir_exc_tbl
+    ; bir_line_number_table= code.JCode.c_line_number_table
+    ; (* ssa *)
+      bir_preds= [||]
+    ; bir_phi_nodes= [||]
+    ; bir_mem_ssa=
+        { mem_ssa_in= (fun _ -> raise No_memory_ssa_info_here)
+        ; mem_ssa_out= (fun _ -> raise No_memory_ssa_info_here)
+        ; mem_ssa_phi= (fun _ -> raise No_memory_ssa_info_here) } }
 
 (* David: not used anywhere currently
    (* Agregation of boolean tests  *)

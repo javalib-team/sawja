@@ -60,7 +60,7 @@ let exception_edges = bir_exception_edges
 let jump_target = bir_jump_target
 
 let transform ?(bcv=false) ?(ch_link = false) cm c = 
-  let res = jcode2bir ~debug_verification:false Normal bcv ch_link false FoldOrFail cm c in
+  let res = jcode2bir Normal bcv ch_link false FoldOrFail cm c in
   SSA.transform_from_ir res
 
 let print ?(phi_simpl=true) m = 

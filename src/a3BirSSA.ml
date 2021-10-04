@@ -44,7 +44,7 @@ let mem_ssa m = m.bir.Bir.bir_mem_ssa
 
 (** Concrete method transformation. *) 
 let transform ?(bcv=false) ?(ch_link=false) j_m j_code =
-  let res = Bir.jcode2bir ~debug_verification:false Bir.Addr3 bcv ch_link false Bir.FoldOrFail j_m j_code in
+  let res = Bir.jcode2bir Bir.Addr3 bcv ch_link false Bir.FoldOrFail j_m j_code in
   let res = Bir.SSA.transform_from_ir res in
   bir2a3bir res 
 

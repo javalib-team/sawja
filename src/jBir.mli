@@ -451,10 +451,6 @@ type constructor_folding_mode =
       together in a same instruction. We provide 3 modes to finely tune this
       behavior. Default is [FoldOrFail].
 
-    - [?debug_verification]: We trust by default (debug_verification=false)
-      that debug information in classes are well-formed. This option allow
-      verify this information.
-
     - [?formula]: Enables or disables formulae. Every static call to a method in
       the list [formula_cmd] generates a [Formula _] statement. Its default value
       is [false].
@@ -468,7 +464,7 @@ type constructor_folding_mode =
     [transform] can raise several exceptions. See exceptions below for details. *)
 val transform :
   ?bcv:bool -> ?ch_link:bool -> ?almost_ssa:bool ->
-  ?folding:constructor_folding_mode -> ?debug_verification:bool ->
+  ?folding:constructor_folding_mode -> 
   ?formula:bool -> ?formula_cmd:JBasics.class_method_signature list ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
