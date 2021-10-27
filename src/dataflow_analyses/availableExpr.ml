@@ -21,18 +21,18 @@ open Javalib_pack
 
 (* we reject exprs that are alias-sensible *)
 let rec is_available_expr = function
-  | JBir.Field _ 
-  | JBir.StaticField _ 
+  | JBir.Field _
+  | JBir.StaticField _
   | JBir.Binop (JBir.ArrayLoad _,_,_) -> false
   | JBir.Binop (_,e1,e2) -> is_available_expr e1 && is_available_expr e2
   | JBir.Unop (_,e) -> is_available_expr e
-  | JBir.Const _ 
+  | JBir.Const _
   | JBir.Var _ -> true
 
 (* vars that appear in an expression (not alias-sensible) *)
 let rec vars = function
-  | JBir.Field _ 
-  | JBir.StaticField _ 
+  | JBir.Field _
+  | JBir.StaticField _
   | JBir.Binop (JBir.ArrayLoad _,_,_) -> assert false
   | JBir.Binop (_,e1,e2) -> Ptset.union (vars e1) (vars e2)
   | JBir.Unop (_,e) -> vars e
@@ -52,24 +52,24 @@ module Lat = struct
   let collect_affect_var bir =
     Array.fold_right
       (fun ins s ->
-	 match ins with 
-	   | JBir.AffectVar (x,e) -> 
+	 match ins with
+	   | JBir.AffectVar (x,e) ->
 	       if is_available_expr e then add (x,e) s else s
 	   | _ -> s)
       (JBir.code bir) empty
-    
-  let print_key (x,e) = 
-    Printf.sprintf "(%s,%s)" (JBir.var_name_g x) (JBir.print_expr e)  
 
-  let to_string ab = 
+  let print_key (x,e) =
+    Printf.sprintf "(%s,%s)" (JBir.var_name_g x) (JBir.print_expr e)
+
+  let to_string ab =
     Printf.sprintf "{%s}" (JUtil.print_list_sep "::" print_key (elements ab))
 
   let bottom = empty
 
-  let kill x ab = 
-    filter (fun (x0,e0) -> not (JBir.var_equal x x0) && not (var_in_expr x e0)) ab 
+  let kill x ab =
+    filter (fun (x0,e0) -> not (JBir.var_equal x x0) && not (var_in_expr x e0)) ab
 
-  let gen x e ab = 
+  let gen x e ab =
     if var_in_expr x e then ab else add (x,e) ab
 
 end
@@ -85,7 +85,7 @@ let transfer_to_string = function
   | Assign (x,e) ->
       Printf.sprintf "%s:=%s" (JBir.var_name_g x) (JBir.print_expr e)
   | Kill x ->
-      Printf.sprintf "%s:= ?" (JBir.var_name_g x) 
+      Printf.sprintf "%s:= ?" (JBir.var_name_g x)
   | Nop -> "Nop"
 
 let eval_transfer = function
@@ -98,14 +98,14 @@ let gen_instrs i = function
   | JBir.Goto j -> [Nop,j]
   | JBir.Throw _
   | JBir.Return _  -> []
-  | JBir.AffectVar (x,e) -> 
+  | JBir.AffectVar (x,e) ->
       let tf = if is_available_expr e then Assign (x,e) else Kill x in
       [tf,i+1]
   | JBir.InvokeDynamic _ -> assert false (* TODO *)
   | JBir.Alloc (x,_)
   | JBir.NewArray (x,_,_)
-  | JBir.New (x,_,_,_) 
-  | JBir.InvokeVirtual (Some x,_,_,_,_) 
+  | JBir.New (x,_,_,_)
+  | JBir.InvokeVirtual (Some x,_,_,_,_)
   | JBir.InvokeNonVirtual (Some x,_,_,_,_)
   | JBir.InvokeStatic (Some x,_,_,_) ->  [Kill x,i+1]
   | JBir.MonitorEnter _
@@ -116,23 +116,22 @@ let gen_instrs i = function
   | JBir.InvokeStatic _
   | JBir.InvokeVirtual _
   | JBir.InvokeNonVirtual _
-  | JBir.MayInit _ 
+  | JBir.MayInit _
   | JBir.Check _
-  | JBir.Formula _
   | JBir.Nop -> [Nop,i+1]
 
 (* generate a list of transfer functions *)
-let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list = 
-    JUtil.foldi 
+let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list =
+    JUtil.foldi
       (fun i ins l ->
 	 List.rev_append
 	   (List.map (fun (c,j) -> (i,c,j)) (gen_instrs i ins))
-	   l) 
+	   l)
       (List.map (fun (i,e) -> (i,Nop,e.JBir.e_handler)) (JBir.exception_edges m))
       (JBir.code m)
 
 let run m =
-  Iter.run 
+  Iter.run
     {
       Iter.bot = Lat.collect_affect_var m;
       Iter.join = Lat.inter;
@@ -148,5 +147,3 @@ let run m =
       Iter.dom_to_string = Lat.to_string;
       Iter.transfer_to_string = transfer_to_string
     }
-
-

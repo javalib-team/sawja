@@ -41,12 +41,12 @@ val var_orig : var -> bool
 (** [var_name v] returns a string representation of the variable [v]. *)
 val var_name : var -> string
 
-(** [var_name_debug v] returns, if possible, the original variable name of [v], 
+(** [var_name_debug v] returns, if possible, the original variable name of [v],
     if the initial class was compiled using debug information. *)
 val var_name_debug : var -> string option
 
-(** [var_name_g v] returns a string representation of the variable [v]. 
-    If the initial class was compiled using debug information, original 
+(** [var_name_g v] returns a string representation of the variable [v].
+    If the initial class was compiled using debug information, original
     variable names are build on this information. It is equivalent to
     [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
 val var_name_g : var -> string
@@ -119,32 +119,13 @@ type expr =
   | StaticField of JBasics.class_name * JBasics.field_signature
   (** Reading static fields *)
 
-(** {3 Formulae } *)
-
-(** Represent a boolean expression. *)
-type formula =
-  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr (** Atomic expression. *)
-  | BoolVar of expr (** Single boolean expr (variable or constant), immediatly 
-                                                              true or false. *)
-  | And of formula * formula
-  | Or of formula * formula
-
-(** Give a default set of methods used to generate formulae. Those
-    methods are all defined in the class 'sawja.Assertions' (provided
-    in runtime/ directory):
-    - public static void assume (boolean) 
-    - public static void check (boolean) 
-    - public static void invariant (boolean) *)
-val default_formula_cmd : JBasics.class_method_signature list
-
-
-(** [type_of_expr e] returns the type of the expression [e]. 
+(** [type_of_expr e] returns the type of the expression [e].
     N.B.: a [(TBasic `Int) value_type] could also represent a boolean value for the expression [e].*)
 val type_of_expr : expr -> JBasics.value_type
 
 (** {3 Instructions} *)
 
-(** In Java, invokevirtual and invokeinterface are very similar virtual calls. 
+(** In Java, invokevirtual and invokeinterface are very similar virtual calls.
     We factorize them. *)
 type virtual_call_kind =
   | VirtualCall of JBasics.object_type
@@ -195,7 +176,7 @@ type check =
 
 (** JBirSSA instructions are register-based and unstructured. Next to
     them is the informal semantics (using a traditional instruction
-    notations) they should be given. 
+    notations) they should be given.
 
     Exceptions that could be raised by the virtual
     machine are described beside each instruction, except for the
@@ -214,7 +195,7 @@ type instr =
   (** [AffectField(e,c,fs,e')] denotes   e.<c:fs> := e'. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * expr
   (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
-  | Alloc of var * JBasics.class_name 
+  | Alloc of var * JBasics.class_name
   (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
       any constructor call. It is only generated with appropriate options
       in the [transform] function below. *)
@@ -222,14 +203,14 @@ type instr =
   (** [Goto pc] denotes goto pc. (absolute address) *)
   | Ifd of ([ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr) * int
   (** [Ifd((op,e1,e2),pc)] denotes    if (e1 op e2) goto pc. (absolute address) *)
-  | Throw of expr (** [Throw e] denotes throw e.  
+  | Throw of expr (** [Throw e] denotes throw e.
 
 		      The exception [IllegalMonitorStateException] could
 		      be thrown by the virtual machine.*)
   | Return of expr option
-  (** [Return opte] denotes 
-      - return void when [opte] is [None] 
-      - return opte otherwise  
+  (** [Return opte] denotes
+      - return void when [opte] is [None]
+      - return opte otherwise
 
       The exception [IllegalMonitorStateException] could be thrown
       by the virtual machine.*)
@@ -241,9 +222,9 @@ type instr =
       elements of [el] ; they represent the length of the corresponding
       dimension. Elements of the array are of type [t].  *)
   | InvokeStatic of var option * JBasics.class_name *  JBasics.method_signature * expr list
-  (** [InvokeStatic(x,c,ms,args)] denotes 
+  (** [InvokeStatic(x,c,ms,args)] denotes
       - c.m<ms>(args) if [x] is [None] (void returning method)
-      - x :=  c.m<ms>(args) otherwise 
+      - x :=  c.m<ms>(args) otherwise
 
       The exception [UnsatisfiedLinkError] could be
       thrown if the method is native and the code cannot be
@@ -251,7 +232,7 @@ type instr =
   | InvokeVirtual of var option * expr * virtual_call_kind * JBasics.method_signature * expr list
   (** [InvokeVirtual(x,e,k,ms,args)] denotes the [k] call
       - e.m<ms>(args) if [x] is [None]  (void returning method)
-      - x := e.m<ms>(args) otherwise 
+      - x := e.m<ms>(args) otherwise
 
       If [k] is a [VirtualCall _] then the virtual machine could
       throw the following errors in the same order:
@@ -265,32 +246,29 @@ type instr =
   | InvokeNonVirtual of var option * expr * JBasics.class_name * JBasics.method_signature * expr list
   (** [InvokeNonVirtual(x,e,c,ms,args)] denotes the non virtual call
       - e.C.m<ms>(args) if [x] is [None]  (void returning method)
-      - x := e.C.m<ms>(args) otherwise 
+      - x := e.C.m<ms>(args) otherwise
 
-      The exception [UnsatisfiedLinkError] could be thrown 
+      The exception [UnsatisfiedLinkError] could be thrown
       if the method is native and the code cannot be found. *)
   | InvokeDynamic
     of var option * JBasics.bootstrap_method * JBasics.method_signature * expr list
   | MonitorEnter of expr (** [MonitorEnter e] locks the object [e]. *)
-  | MonitorExit of expr (** [MonitorExit e] unlocks the object [e].  
+  | MonitorExit of expr (** [MonitorExit e] unlocks the object [e].
 
 			    The exception
 			    [IllegalMonitorStateException] could be
 			    thrown by the virtual machine.*)
   | MayInit of JBasics.class_name
-  (** [MayInit c] initializes the class [c] whenever it is required.  
+  (** [MayInit c] initializes the class [c] whenever it is required.
 
       The exception [ExceptionInInitializerError] could
       be thrown by the virtual machine.*)
   | Check of check
-  (** [Check c] evaluates the assertion [c]. 
+  (** [Check c] evaluates the assertion [c].
 
       Exceptions that could
       be thrown by the virtual machine are described in {!check} type
       declaration. *)
-  | Formula of JBasics.class_method_signature * formula 
-  (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
-        the formula to be verified. *)
 
 (** *)
 type exception_handler = {
@@ -313,7 +291,7 @@ type phi_node = {
 }
 
 (** [t] is the parameter type for JBirSSA methods. *)
-type t 
+type t
 
 (*Create an empty bir representation. Can be used for stubs.*)
 val empty : t
@@ -324,7 +302,7 @@ val vars : t -> var Javalib_pack.Ptmap.t
 
 (** Returns a pair containing the index of the first SSA variable and of the
     last SSA variable. This is useful as the index does not start at 0, but after
-    the non-ssa variables. As the indexes are contiguous, the number of SSA 
+    the non-ssa variables. As the indexes are contiguous, the number of SSA
     variables is 'last index - first index +1'. *)
 val ssa_index : t -> (int * int)
 
@@ -337,7 +315,7 @@ val  params : t -> (JBasics.value_type * var) list
 val code : t -> instr array
 
 (** [exc_tbl] is the exception table of the method code. Jumps are
-    absolute. The list is ordered in the same way as in the bytecode 
+    absolute. The list is ordered in the same way as in the bytecode
     (See JVM Spec 7 $2.10). *)
 val  exc_tbl : t -> exception_handler list
 
@@ -365,7 +343,7 @@ val  line_number_table : t -> (int * int) list option
     instruction corresponding to the given ir instruction is
     returned (i.e. the last bytecode instruction used for the ir
     instruction generation).*)
-val  pc_ir2bc : t -> int array 
+val  pc_ir2bc : t -> int array
 
 (** [jump_target m] indicates whether program points are join points or not in [m]. *)
 val jump_target : t -> bool array
@@ -442,15 +420,15 @@ val print_class :
   ?css:string -> ?js:string -> ?info:JPrintHtml.info -> t Javalib.interface_or_class -> string -> unit
 
 (** Printer for the Sawja Eclipse Plugin (see module JPrintPlugin) *)
-module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter 
-  with type code = t 
+module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
+  with type code = t
    and type expr = expr
 
 (** {2 Bytecode transformation} *)
 
 (** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]
     into its JBirSSA representation. The transformation is performed in
-    the context of a given concrete method [cm].  
+    the context of a given concrete method [cm].
 
     - [?bcv]: The type checking normally performed by the ByteCode
       Verifier (BCV) is done if and only if [bcv] is [true].

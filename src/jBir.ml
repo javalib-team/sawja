@@ -28,36 +28,27 @@ let code m = m.bir_code
 let exc_tbl m = m.bir_exc_tbl
 let line_number_table m = m.bir_line_number_table
 (*let pc_bc2ir m = m.bir_pc_bc2ir*)
-let pc_ir2bc m = m.bir_pc_ir2bc 
+let pc_ir2bc m = m.bir_pc_ir2bc
 
-let get_source_line_number pc_ir m = 
+let get_source_line_number pc_ir m =
   bir_get_source_line_number pc_ir m
 
-let exception_edges = bir_exception_edges 
+let exception_edges = bir_exception_edges
 
-let print = bir_print 
+let print = bir_print
 
 let jump_target = bir_jump_target
 
 let transform ?(bcv=false) ?(ch_link = false) ?(almost_ssa=false)
-    ?(folding=FoldOrFail)
-    ?(formula=false) ?(formula_cmd = default_formula_cmd) cm c = 
-  let res =
-    if folding=FoldIfPossible then
-      try jcode2bir Normal bcv ch_link almost_ssa folding cm c with
-      | Uninit_is_not_expr ->
-        jcode2bir Normal bcv ch_link almost_ssa DoNotFold cm c 
-      | e -> raise e
-    else
-      jcode2bir Normal bcv ch_link almost_ssa folding cm c in
-  let res = if formula then Bir.GetFormula.run formula_cmd res else res in
-  res
+    ?(folding=FoldOrFail) cm c =
+  if folding=FoldIfPossible then
+    try jcode2bir Normal bcv ch_link almost_ssa folding cm c with
+    | Uninit_is_not_expr ->
+      jcode2bir Normal bcv ch_link almost_ssa DoNotFold cm c
+    | e -> raise e
+  else
+    jcode2bir Normal bcv ch_link almost_ssa folding cm c
 
 let print_class = Printer.print_class
 
 let print_program = Printer.print_program
-
-
-
-
-

@@ -29,7 +29,7 @@ module Env = struct
   let rec vars acc = function
     | JBir.Const _ -> acc
     | JBir.Var (_,x) -> add x acc
-    | JBir.Field (e,_,_) 
+    | JBir.Field (e,_,_)
     | JBir.Unop (_,e) -> vars acc e
     | JBir.Binop (_,e1,e2) -> vars (vars acc e1) e2
     | JBir.StaticField _ -> acc
@@ -42,15 +42,15 @@ module Env = struct
       match List.map print_key ab with
 	| [] -> "{}"
 	| [x] -> Printf.sprintf "{%s}" x
-	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 
+	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")
 end
-  
+
 type transfer_fun =
-  | GenVars of JBir.expr list 
+  | GenVars of JBir.expr list
      (* [GenVars l] : generate the set of variables that appear in some expressions in list [l] *)
   | Kill of JBir.var
      (* [Kill x] : remove variable [x] *)
-      
+
 type transfer = transfer_fun list
 type pc = int
 
@@ -64,22 +64,16 @@ let transfer_to_string = function
   | [] -> ""
   | [f] -> fun_to_string f
   | f::q -> (fun_to_string f)^(List.fold_right (fun f s -> ";"^(fun_to_string f)^s) q "")
-      
+
 let eval_transfer = function
   | GenVars l -> fun ab -> List.fold_right (fun e -> Env.union (Env.vars e)) l ab
   | Kill x -> fun ab -> Env.remove x ab
-
-let rec all_expr_in_formula acc = function
-  | JBir.BoolVar e -> e::acc
-  | JBir.Atom (_,e1,e2) -> e1::e2::acc
-  | JBir.And (f1,f2) | JBir.Or (f1,f2) -> all_expr_in_formula (all_expr_in_formula acc f1) f2
-let all_expr_in_formula = all_expr_in_formula []
 
 (* [gen_instrs last i] computes a list of transfert function
    [(f,j);...] with [j] the successor of [i] for the transfert
    function [f]. [last] is the end label of the method; *)
 let gen_instrs last i = function
-  | JBir.Ifd ((_,e1,e2), j) -> 
+  | JBir.Ifd ((_,e1,e2), j) ->
       let gen = GenVars [e1;e2] in [([gen],j);([gen],i+1)]
   | JBir.Goto j -> [[],j]
   | JBir.Throw _
@@ -87,21 +81,21 @@ let gen_instrs last i = function
   | JBir.Return (Some e)  ->  [[GenVars [e]],last]
   | JBir.AffectVar (x,e) -> [[GenVars [e]; Kill x],i+1]
   | JBir.NewArray (x,_,le)
-  | JBir.New (x,_,_,le) 
+  | JBir.New (x,_,_,le)
   | JBir.InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
   | JBir.Alloc (x,_) ->  [[Kill x],i+1]
   | JBir.InvokeDynamic _ -> assert false (* TODO *)
-  | JBir.InvokeVirtual (Some x,e,_,_,le) 
+  | JBir.InvokeVirtual (Some x,e,_,_,le)
   | JBir.InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]
-  | JBir.MonitorEnter e 
+  | JBir.MonitorEnter e
   | JBir.MonitorExit e -> [[GenVars [e]],i+1]
   | JBir.AffectStaticField (_,_,e) -> [[GenVars [e]],i+1]
   | JBir.AffectField (e1,_,_,e2) -> [[GenVars [e1;e2]],i+1]
   | JBir.AffectArray (e1,e2,e3) -> [[GenVars [e1;e2;e3]],i+1]
   | JBir.InvokeStatic (None,_,_,le) -> [[GenVars le],i+1]
-  | JBir.InvokeVirtual (None,e,_,_,le) 
+  | JBir.InvokeVirtual (None,e,_,_,le)
   | JBir.InvokeNonVirtual (None,e,_,_,le) -> [[GenVars (e::le)],i+1]
-  | JBir.MayInit _ 
+  | JBir.MayInit _
   | JBir.Nop -> [[],i+1]
   | JBir.Check c -> begin
       match c with
@@ -113,21 +107,20 @@ let gen_instrs last i = function
 	| JBir.CheckArithmetic e -> [[GenVars [e]],i+1]
 	| JBir.CheckLink _ -> [[],i+1]
     end
-  | JBir.Formula (_,f) -> [[GenVars (all_expr_in_formula f)],i+1]
 
 (* generate a list of transfer functions *)
-let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list = 
+let gen_symbolic (m:JBir.t) : (pc * transfer * pc) list =
   let length = Array.length (JBir.code m) in
-    JUtil.foldi 
+    JUtil.foldi
       (fun i ins l ->
 	 List.rev_append
 	   (List.map (fun (c,j) -> (j,c,i)) (gen_instrs length i ins))
-	   l) 
+	   l)
       (List.map (fun (i,e) -> (e.JBir.e_handler,[],i)) (JBir.exception_edges m))
       (JBir.code m)
 
 let run m =
-  Iter.run 
+  Iter.run
     {
       Iter.bot = Env.bot ;
       Iter.join = Env.union;
