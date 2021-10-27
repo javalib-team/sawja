@@ -29,10 +29,10 @@ module Env = struct
   let bot = empty
 
   let tvars_in_expr = function
-    | A3Bir.Const _ 
+    | A3Bir.Const _
     | A3Bir.StaticField _ -> []
     | A3Bir.Var x
-    | A3Bir.Field (x,_,_) 
+    | A3Bir.Field (x,_,_)
     | A3Bir.Unop (_,x) -> [x]
     | A3Bir.Binop (_,x1,x2) -> [x1;x2]
 
@@ -42,15 +42,15 @@ module Env = struct
       match List.map print_key ab with
 	| [] -> "{}"
 	| [x] -> Printf.sprintf "{%s}" x
-	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")	 
+	| x::q -> Printf.sprintf "{%s%s}" x (List.fold_right (fun x s -> ","^x^s) q "")
 end
-  
+
 type transfer_fun =
-  | GenVars of A3Bir.tvar list 
+  | GenVars of A3Bir.tvar list
      (* [GenVars l] : generate the set of variables that appear in some expressions in list [l] *)
   | Kill of A3Bir.var
      (* [Kill x] : remove variable [x] *)
-      
+
 type transfer = transfer_fun list
 type pc = int
 
@@ -64,23 +64,17 @@ let transfer_to_string = function
   | [] -> ""
   | [f] -> fun_to_string f
   | f::q -> (fun_to_string f)^(List.fold_right (fun f s -> ";"^(fun_to_string f)^s) q "")
-      
+
 let eval_transfer = function
   | GenVars l -> (fun ab -> List.fold_right (fun (_,x) -> Env.add x) l ab)
   | Kill x -> fun ab -> Env.remove x ab
 
-let rec all_expr_in_formula acc = function
-  | A3Bir.BoolVar e -> e::acc
-  | A3Bir.Atom (_,e1,e2) -> e1::e2::acc
-  | A3Bir.And (f1,f2) | A3Bir.Or (f1,f2) -> all_expr_in_formula (all_expr_in_formula acc f1) f2
-let all_expr_in_formula = all_expr_in_formula []
-
 (* [gen_instrs last i] computes a list of transfert function
    [(f,j);...] with [j] the successor of [i] for the transfert
    function [f]. [last] is the end label of the method; *)
-let gen_instrs last i = 
+let gen_instrs last i =
   function
-  | A3Bir.Ifd ((_,e1,e2), j) -> 
+  | A3Bir.Ifd ((_,e1,e2), j) ->
       let gen = GenVars [e1; e2] in [([gen],j);([gen],i+1)]
   | A3Bir.Goto j -> [[],j]
   | A3Bir.Throw _
@@ -92,17 +86,17 @@ let gen_instrs last i =
   | A3Bir.InvokeStatic (Some x,_,_,le) ->  [[GenVars le;Kill x],i+1]
   | A3Bir.Alloc (x,_) ->  [[Kill x],i+1]
   | A3Bir.InvokeDynamic _ -> assert false (* TODO *)
-  | A3Bir.InvokeVirtual (Some x,e,_,_,le) 
+  | A3Bir.InvokeVirtual (Some x,e,_,_,le)
   | A3Bir.InvokeNonVirtual (Some x,e,_,_,le) -> [[GenVars (e::le); Kill x],i+1]
-  | A3Bir.MonitorEnter e 
+  | A3Bir.MonitorEnter e
   | A3Bir.MonitorExit e -> [[GenVars [e]],i+1]
   | A3Bir.AffectStaticField (_,_,e) -> [[GenVars [e]],i+1]
   | A3Bir.AffectField (e1,_,_,e2) -> [[GenVars [e1; e2]],i+1]
   | A3Bir.AffectArray (e1,e2,e3) -> [[GenVars [e1; e2; e3]],i+1]
   | A3Bir.InvokeStatic (None,_,_,le) -> [[GenVars le],i+1]
-  | A3Bir.InvokeVirtual (None,e,_,_,le) 
+  | A3Bir.InvokeVirtual (None,e,_,_,le)
   | A3Bir.InvokeNonVirtual (None,e,_,_,le) -> [[GenVars (e::le)],i+1]
-  | A3Bir.MayInit _ 
+  | A3Bir.MayInit _
   | A3Bir.Nop -> [[],i+1]
   | A3Bir.Check c -> begin
       match c with
@@ -114,21 +108,20 @@ let gen_instrs last i =
 	| A3Bir.CheckArithmetic e -> [[GenVars [e]],i+1]
 	| A3Bir.CheckLink _ -> [[],i+1]
     end
-  | A3Bir.Formula (_,f) -> [[GenVars (all_expr_in_formula f)],i+1]
 
 (* generate a list of transfer functions *)
-let gen_symbolic (m:A3Bir.t) : (pc * transfer * pc) list = 
+let gen_symbolic (m:A3Bir.t) : (pc * transfer * pc) list =
   let length = Array.length (A3Bir.code m) in
-    JUtil.foldi 
+    JUtil.foldi
       (fun i ins l ->
 	 List.rev_append
 	   (List.map (fun (c,j) -> (j,c,i)) (gen_instrs length i ins))
-	   l) 
+	   l)
       (List.map (fun (i,e) -> (e.A3Bir.e_handler,[],i)) (A3Bir.exception_edges m))
       (A3Bir.code m)
 
 let run m =
-  Iter.run 
+  Iter.run
     {
       Iter.bot = Env.bot ;
       Iter.join = Env.union;

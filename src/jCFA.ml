@@ -31,16 +31,16 @@ open JType
 
 module AbField = AbFSet
 module AbVar = AbVSet
-module CFASolver = Solver.Make(CFAConstraints) 
+module CFASolver = Solver.Make(CFAConstraints)
 
 
   (* This is a 'virtual' field that we use to represent abstraction of array
   * elements as a field abstraction. *)
-let array_field_fs = 
+let array_field_fs =
   make_fs "array_elements" (TObject (TClass (java_lang_object)))
 
 
-let pp_var_from_PP pp = 
+let pp_var_from_PP pp =
   let (cn,ms) = cms_split ((JBirPP.get_meth pp).cm_class_method_signature) in
   let pc = JBirPP.get_pc pp in
     `PP ((),cn,ms,pc)
@@ -59,7 +59,7 @@ struct
   let str_literal_map = ref StringMap.empty
   let str_literal_cpt = ref 0
 
-  let pp_from_string prog str = 
+  let pp_from_string prog str =
     let cn = make_cn "java.lang.String" in
     let node = JProgram.get_node prog cn in
     let ms = make_ms "init_string_literal" [] None in
@@ -70,7 +70,7 @@ struct
         cm_static = true;
         cm_final = true;
         cm_synchronized = false;
-        cm_strict = false; 
+        cm_strict = false;
         cm_access= `Private;
         cm_generic_signature = None;
         cm_bridge= false;
@@ -91,7 +91,7 @@ struct
         cm_implementation = Java (Lazy.from_val JBir.empty)
       }
     in
-    let pp = 
+    let pp =
       try StringMap.find str !str_literal_map
       with Not_found ->
         str_literal_cpt:= !str_literal_cpt+1;
@@ -103,7 +103,7 @@ struct
       (*       Printf.printf "search for %s %s\n" str (JBirPP.to_string pp); *)
       pp
 
-  let singleton_from_str prog str cn = 
+  let singleton_from_str prog str cn =
     AbVar.singleton [pp_from_string prog (jstr_pp str);] cn
 
   let add_constraint prog pp str =
@@ -120,9 +120,9 @@ struct
       [(*initialize value field*)
         {CFAConstraints.dependencies = [pp_var];
         CFAConstraints.target = val_var;
-        CFAConstraints.transferFun = 
+        CFAConstraints.transferFun =
           (fun _abSt ->
-             let obj = singleton_from_str prog str (TClass cn_str) in 
+             let obj = singleton_from_str prog str (TClass cn_str) in
              let fs = singleton_from_str prog str (objt_char_ar) in
                `FieldDomain (AbField.var2fSet obj fs)
           )};
@@ -130,7 +130,7 @@ struct
        {
          CFAConstraints.dependencies = [pp_var];
          CFAConstraints.target = val_ar_var;
-         CFAConstraints.transferFun = 
+         CFAConstraints.transferFun =
            (fun _abSt ->
               let obj = singleton_from_str prog str objt_char_ar in
                 `FieldDomain (AbField.var2fSet obj (AbVar.primitive))
@@ -139,18 +139,18 @@ struct
        {
          CFAConstraints.dependencies = [pp_var];
          CFAConstraints.target = hs32_var;
-         CFAConstraints.transferFun = 
+         CFAConstraints.transferFun =
            (fun _abSt ->
-              let obj = singleton_from_str prog str (TClass cn_str) in 
+              let obj = singleton_from_str prog str (TClass cn_str) in
                 `FieldDomain (AbField.var2fSet obj (AbVar.primitive))
            )};
         (*initialize hash field*)
        {
          CFAConstraints.dependencies = [pp_var];
          CFAConstraints.target = hs_var;
-         CFAConstraints.transferFun = 
+         CFAConstraints.transferFun =
            (fun _abSt ->
-              let obj = singleton_from_str prog str (TClass cn_str) in 
+              let obj = singleton_from_str prog str (TClass cn_str) in
                 `FieldDomain (AbField.var2fSet obj (AbVar.primitive))
            )};
         (*initialize len field*)
@@ -158,22 +158,22 @@ struct
        {
          CFAConstraints.dependencies = [pp_var];
          CFAConstraints.target = len_var;
-         CFAConstraints.transferFun = 
+         CFAConstraints.transferFun =
            (fun _abSt ->
               let obj = singleton_from_str prog str objt_char_ar
-              in 
+              in
                 `FieldDomain (AbField.var2fSet obj (AbVar.primitive))
            )};
  *)
       ]
 
-  let handle_string prog pp opcode = 
-    let rec handle_string' e = 
+  let handle_string prog pp opcode =
+    let rec handle_string' e =
       match e with
         | Const `String str -> add_constraint prog pp str
         | Binop (_ , e_obj, e_idx) ->
             (handle_string' e_obj) @ (handle_string' e_idx)
-        | Field (e, _, _) 
+        | Field (e, _, _)
         | Unop (_ , e ) -> (handle_string' e )
         | _ -> []
     in
@@ -184,10 +184,10 @@ struct
         | MonitorEnter e
         | MonitorExit e -> handle_string' e
         | AffectField  (e1, _ , _ , e2)
-        | Ifd  ((_ , e1, e2) , _) -> 
+        | Ifd  ((_ , e1, e2) , _) ->
             (handle_string' e1) @ (handle_string' e2)
         | AffectArray (e1, e2 , e3) ->
-            List.fold_left (fun lst e -> (handle_string' e)@lst) 
+            List.fold_left (fun lst e -> (handle_string' e)@lst)
               [] [e1;e2;e3]
         | Return opt_e ->
             (match opt_e with
@@ -196,17 +196,17 @@ struct
             )
         | New (_ , _ , _ , lst_e)
         | NewArray (_ , _ , lst_e)
-        | InvokeStatic  (_ , _ ,  _ , lst_e) -> 
-            List.fold_left (fun lst e -> (handle_string' e)@lst) 
+        | InvokeStatic  (_ , _ ,  _ , lst_e) ->
+            List.fold_left (fun lst e -> (handle_string' e)@lst)
               [] lst_e
         | InvokeVirtual (_ , e1 , _ , _ , lst_e)
         | InvokeNonVirtual (_ , e1, _ , _ , lst_e) ->
-            List.fold_left (fun lst e -> (handle_string' e)@lst) 
+            List.fold_left (fun lst e -> (handle_string' e)@lst)
               (handle_string' e1) lst_e
         | _ -> []
 end
 
-let rec array_type_2_cn vt = 
+let rec array_type_2_cn vt =
   match vt with
     | TBasic `Int -> make_cn "Sawja_array.Int"
     | TBasic `Short-> make_cn "Sawja_array.Short"
@@ -217,13 +217,13 @@ let rec array_type_2_cn vt =
     | TBasic `Float -> make_cn "Sawja_array.Float"
     | TBasic `Double -> make_cn "Sawja_array.Double"
     | TObject (TClass cn) -> make_cn ("Sawja_array."^(cn_name cn))
-    | TObject (TArray vt) -> 
+    | TObject (TArray vt) ->
         let cn = array_type_2_cn vt in
           make_cn ("Sawja_array."^(cn_name cn))
 
 let objtype_2_cn objt =
   match objt with
-    | TClass cn -> cn 
+    | TClass cn -> cn
     | TArray vt -> array_type_2_cn vt
 
 module ClassInit =
@@ -234,14 +234,14 @@ struct
   let pp_from_class prog cn =
     let obj_node = JProgram.get_node prog java_lang_object in
     let ms = make_ms "init_class" [] None in
-    let init_class_cm = 
+    let init_class_cm =
       {
         cm_signature = ms;
         cm_class_method_signature = make_cms java_lang_object ms;
         cm_static = true;
         cm_final = true;
         cm_synchronized = false;
-        cm_strict = false; 
+        cm_strict = false;
         cm_access= `Private;
         cm_generic_signature = None;
         cm_bridge= false;
@@ -272,25 +272,25 @@ struct
 
 end
 
-let cast_set prog objt set = 
+let cast_set prog objt set =
   AbVar.filter_with_compatible prog set objt
 
 let set_from_expr prog e abSt pp =
   let rec set_from_expr' e =
     let pp_var = pp_var_from_PP pp in
     let localvar = CFAState.get_PP abSt pp_var in
-      match e with 
+      match e with
         | Const `ANull -> AbVar.empty
-        | Const `String str -> 
+        | Const `String str ->
             let java_lang_string = make_cn "java.lang.String" in
-              AbVar.singleton [LiteralStr.pp_from_string prog (jstr_pp str);] 
+              AbVar.singleton [LiteralStr.pp_from_string prog (jstr_pp str);]
                 (TClass java_lang_string)
         | Const `Class objt ->
             let jlclass_cn = make_cn "java.lang.Class" in
             let cn = (objtype_2_cn objt) in
             AbVar.singleton [ClassInit.pp_from_class prog cn] (TClass jlclass_cn)
-        | Var (_vt, v) -> AbLocals.get_var (index v) localvar 
-        | Unop (Cast objtype , e ) -> 
+        | Var (_vt, v) -> AbLocals.get_var (index v) localvar
+        | Unop (Cast objtype , e ) ->
             cast_set prog objtype (set_from_expr' e )
         | Binop (ArrayLoad _vt, e_obj, _e_idx) ->
             let f_var = `Field ((), java_lang_object, array_field_fs) in
@@ -301,7 +301,7 @@ let set_from_expr prog e abSt pp =
             let abf = CFAState.get_field abSt f_var in
               AbField.fSet2var abf AbField.static_field_dom
 
-        | Field (e, cn, fs) -> 
+        | Field (e, cn, fs) ->
             let f_var = `Field ((),cn,fs) in
             let abf = CFAState.get_field abSt f_var in
               AbField.fSet2var abf (set_from_expr' e )
@@ -309,14 +309,14 @@ let set_from_expr prog e abSt pp =
   in set_from_expr' e
 
     (**Compute the possible dependancies of an expression*)
-let expr_dep expr prog = 
-  let field_dep cn fs = 
+let expr_dep expr prog =
+  let field_dep cn fs =
     let fcl = JControlFlow.resolve_field fs (JControlFlow.resolve_class prog cn) in
-      List.map 
-        (fun fc ->`Field ((),JProgram.get_name fc,fs)) 
-        fcl 
+      List.map
+        (fun fc ->`Field ((),JProgram.get_name fc,fs))
+        fcl
   in
-  let rec expr_dep' expr = 
+  let rec expr_dep' expr =
     match expr with
       | Unop (Cast _,expr) -> expr_dep' expr (*TODO: Maybe we can reduce dep, taking cast type into account*)
       | Binop (ArrayLoad _,e1,_e2) -> (expr_dep' e1)
@@ -344,21 +344,21 @@ let abstract_init_method_instr cn_node ms csts =
     }
   in cst_loc::csts
 
-(* Handle native exception: 
+(* Handle native exception:
 *  On every exception handler, we check if it can catch a native exception. For
 *  those exception handler, we add a constraint stating that such an exception
 *  might have been throwed from any pp covered by the handler.*)
 let handle_native_exc prog node cm =
-  let impl = 
+  let impl =
     match cm.cm_implementation with
       | Native -> raise Safe.Domain.DebugDom
       | Java laz -> Lazy.force laz
   in
   let ms = cm.cm_signature in
   let m_var = `Method ((),(JProgram.get_name node), ms) in
-  let every_covered_pc exch = 
-    let rec adding' pc lst = 
-      if pc > exch.e_end 
+  let every_covered_pc exch =
+    let rec adding' pc lst =
+      if pc > exch.e_end
       then lst
       else
         adding' (pc+1) (pc::lst)
@@ -373,33 +373,33 @@ let handle_native_exc prog node cm =
        let pp = JBirPP.get_pp node cm exch.e_handler in
        let pp_var = pp_var_from_PP pp in
        let lst_pc = every_covered_pc exch in
-       let cst = 
+       let cst =
          {CFAConstraints.dependencies = m_var::(List.map pp_var_from_pc lst_pc);
-          CFAConstraints.target = pp_var; 
-          CFAConstraints.transferFun = 
+          CFAConstraints.target = pp_var;
+          CFAConstraints.transferFun =
             (fun _abSt ->
-               `PPDomain 
+               `PPDomain
                  (
                    (*first filter by native which can be handled by the catch*)
-                   let filter_native = 
+                   let filter_native =
                      List.filter
                        (fun nt_exc ->
                           let nt_exc_node = JProgram.get_node prog nt_exc in
                             match exch.e_catch_type with
                               | None -> true
                               | Some ct ->
-                                  let catch_node = 
+                                  let catch_node =
                                     JProgram.get_node prog ct in
                                     JProgram.extends nt_exc_node catch_node
                        )
                        native_exc_list
                    in
-                   let native_as_set = 
+                   let native_as_set =
                      List.fold_left
                        (fun abV exc_cn ->
-                          List.fold_left 
-                            (fun abV pc-> 
-                               AbVar.join abV 
+                          List.fold_left
+                            (fun abV pc->
+                               AbVar.join abV
                                  (AbVar.singleton [pp_from_pc pc] (TClass exc_cn))
                             )
                             abV
@@ -408,7 +408,7 @@ let handle_native_exc prog node cm =
                        AbVar.bot
                        filter_native
                    in
-                     AbLocals.set_var (index exch.e_catch_var) native_as_set AbLocals.init 
+                     AbLocals.set_var (index exch.e_catch_var) native_as_set AbLocals.init
                  ))
          }
        in cst::csts
@@ -421,7 +421,7 @@ let affect_array f_obje f_abse dep =
   let f_var = `Field ((),java_lang_object,array_field_fs) in
     {CFAConstraints.dependencies= dep;
      CFAConstraints.target = f_var;
-     CFAConstraints.transferFun= 
+     CFAConstraints.transferFun=
        (fun abSt -> `FieldDomain (AbField.var2fSet (f_obje abSt) (f_abse abSt)))
     }
 
@@ -429,30 +429,30 @@ let affect_array f_obje f_abse dep =
 let handle_throw ?(other_dep=[]) prog pp excAbSt =
   let open! JBirPP in
   let pp_var = pp_var_from_PP pp in
-  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =  
+  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =
     (fun abSt -> `PPDomain (f abSt)) in
   let possible_catch = handlers pp in
   let pp_var = pp_var_from_PP pp in
   (*constraints for the different catchs*)
-  let (csts, already_catched_cn) = 
+  let (csts, already_catched_cn) =
     List.fold_left
       (fun (csts, already_catched_cn) exch ->
-         let pp_target_var = pp_var_from_PP (get_pp (get_class pp) 
-                                               (get_meth pp) exch.e_handler) 
+         let pp_target_var = pp_var_from_PP (get_pp (get_class pp)
+                                               (get_meth pp) exch.e_handler)
          in
            {
              CFAConstraints.dependencies = pp_var::other_dep;
-             CFAConstraints.target = pp_target_var; 
-             CFAConstraints.transferFun = 
+             CFAConstraints.target = pp_target_var;
+             CFAConstraints.transferFun =
                propagate_locals
-                 ~f:(fun abSt -> 
+                 ~f:(fun abSt ->
                        let local = CFAState.get_PP abSt pp_var in
                          (*search wich exception are compatible we the
                          * catched var.*)
-                       let varAbst = 
+                       let varAbst =
                          match exch.e_catch_type with
                            | None -> (excAbSt abSt)
-                           | Some cn -> 
+                           | Some cn ->
                                (AbVar.filter_with_compatible prog
                                   (excAbSt abSt)
                                   (TClass cn)
@@ -460,7 +460,7 @@ let handle_throw ?(other_dep=[]) prog pp excAbSt =
                        in
                         (*Remove exception which would have already been by
                         * previous catch.*)
-                       let varAbst = 
+                       let varAbst =
                          List.fold_left
                            (fun varAbst cn ->
                               AbVar.filter_with_uncompatible prog varAbst (TClass cn)
@@ -473,27 +473,27 @@ let handle_throw ?(other_dep=[]) prog pp excAbSt =
                          else  AbLocals.set_var (index exch.e_catch_var)
                                  varAbst local
                  ) ();
-           } :: csts, 
+           } :: csts,
            (match exch.e_catch_type with
               | Some cn -> cn::already_catched_cn
               | None -> already_catched_cn)
       )
-      ([], []) 
+      ([], [])
       possible_catch
-  in 
+  in
   (*constraint when it is not catched: can be thrown by the method*)
-  let m_var = `Method ((),(JProgram.get_name (get_class pp)), 
+  let m_var = `Method ((),(JProgram.get_name (get_class pp)),
                        (get_meth pp).cm_signature) in
-  let cst_uncatched = 
+  let cst_uncatched =
     {
       CFAConstraints.dependencies = pp_var::other_dep;
-      CFAConstraints.target = m_var; 
-      CFAConstraints.transferFun = 
+      CFAConstraints.target = m_var;
+      CFAConstraints.transferFun =
         (fun abSt ->
            `MethodDomain
              (let ab_m = CFAState.get_method abSt m_var in
               let uncatchedAbst = (excAbSt abSt) in
-              let uncatchedAbst = 
+              let uncatchedAbst =
                 List.fold_left
                   (fun varAbst cn ->
                      AbVar.filter_with_uncompatible prog varAbst (TClass cn)
@@ -501,10 +501,10 @@ let handle_throw ?(other_dep=[]) prog pp excAbSt =
                   uncatchedAbst
                   already_catched_cn
               in
-              let uncatchedAbst = 
+              let uncatchedAbst =
                 if (AbVar.is_empty uncatchedAbst) || (AbVar.isBot uncatchedAbst)
                 then AbVar.bot
-                else uncatchedAbst 
+                else uncatchedAbst
               in
                 AbMethod.join_exc_return ab_m uncatchedAbst
              )
@@ -513,13 +513,13 @@ let handle_throw ?(other_dep=[]) prog pp excAbSt =
   in cst_uncatched::csts
 
 let rec ar_2_type cur_dim vt =
-  if cur_dim = 1 
-  then (TArray vt) 
+  if cur_dim = 1
+  then (TArray vt)
   else (TArray (TObject (ar_2_type (cur_dim-1) vt)))
 
 
 let rec handle_new_array pp pp_var vt ar_dim over_ar =
-  let abVar_for_new_ar vt dim = 
+  let abVar_for_new_ar vt dim =
       (fun _ -> AbVar.singleton [pp] (ar_2_type dim vt))
   in
 
@@ -529,11 +529,11 @@ let rec handle_new_array pp pp_var vt ar_dim over_ar =
        | TObject _ -> true
     ) in
   let obje = abVar_for_new_ar vt ar_dim in
-  let vare = (fun abSt -> 
+  let vare = (fun abSt ->
                 if (ar_dim > 1 )
                 then abVar_for_new_ar vt (ar_dim -1) abSt
                 else (if (has_obj_content vt)
-                then AbVar.empty 
+                then AbVar.empty
                 else AbVar.primitive)) in
   let content_cst = affect_array obje vare [pp_var;] in
     if ar_dim = 1
@@ -546,20 +546,20 @@ let rec handle_new_array pp pp_var vt ar_dim over_ar =
 
 let abstract_instruction opt prog pp opcode succs csts =
   let pp_var = pp_var_from_PP pp in
-  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =  
+  let propagate_locals ?(f=fun abSt -> CFAState.get_PP abSt pp_var) _ =
     (fun abSt -> `PPDomain (f abSt))
   in
   let is_dead abSt  =
     let l = CFAState.get_PP abSt pp_var in
-    AbLocals.isBot l 
+    AbLocals.isBot l
   in
-  let if_alive_meth abSt f = 
+  let if_alive_meth abSt f =
     match is_dead abSt with
       | true -> AbMethod.bot
       | false -> f
   in
   let make_csts ?(cstsl=csts) ?(other_dep=[]) ?(prop_locals_f=fun abSt -> CFAState.get_PP abSt pp_var) _ =
-    List.fold_right 
+    List.fold_right
       (fun target csts ->
          let pp_targ = pp_var_from_PP target in
            {CFAConstraints.dependencies = pp_var::other_dep;
@@ -567,7 +567,7 @@ let abstract_instruction opt prog pp opcode succs csts =
             CFAConstraints.transferFun = propagate_locals ~f:prop_locals_f ()
            }::csts
       )
-      succs 
+      succs
       cstsl
   in
   (*for every instruction, we first check there is not literal string in
@@ -579,17 +579,17 @@ let abstract_instruction opt prog pp opcode succs csts =
   * *)
   let handle_invoke ?(init=None) ?(static=false) opt_ret cn_lst ms args =
     (*Constraint on the method arguments.*)
-    let csts_arg = 
-      let deps = 
-        List.fold_left 
+    let csts_arg =
+      let deps =
+        List.fold_left
           (fun odep arg -> (expr_dep arg prog)@odep)
           [pp_var;]
           args
       in
         List.fold_left
-          (fun csts cn -> 
+          (fun csts cn ->
              let m_var = `Method ((),cn,ms) in
-             let cst = 
+             let cst =
                {
                  CFAConstraints.dependencies = pp_var::(m_var::deps);
                  CFAConstraints.target = m_var;
@@ -598,39 +598,39 @@ let abstract_instruction opt prog pp opcode succs csts =
                       `MethodDomain
                       (if_alive_meth abSt (
                          let pos = ref (-1) in
-                         let set_args = 
-                           List.fold_left 
+                         let set_args =
+                           List.fold_left
                              (fun nl arg ->
-                                pos := !pos +1;  
+                                pos := !pos +1;
                                 match init, !pos with
                                   | Some this, 0 ->
                                       (*if in an init, we force this to its cn.*)
                                       let v = (AbVar.singleton [pp] this)
                                       in
                                         AbLocals.set_var 0 v nl
-                                  | _ -> 
+                                  | _ ->
                                       let varAb = (set_from_expr prog arg abSt pp) in
                                         AbLocals.set_var !pos varAb nl
                              ) AbLocals.init args
                          in
-                           match static with 
-                            | false when (AbVar.isBot 
-                                            (AbLocals.get_var 0 set_args) 
-                                            || 
-                                          AbVar.is_empty 
+                           match static with
+                            | false when (AbVar.isBot
+                                            (AbLocals.get_var 0 set_args)
+                                            ||
+                                          AbVar.is_empty
                                             (AbLocals.get_var 0 set_args)
                                             )
-                              -> 
+                              ->
                                 AbMethod.bot
 
-                             | false -> 
+                             | false ->
                                  (*We can refine : this is of class cn or a
                                   * subclass of cn*)
-                                 let set_args = 
-                                   AbLocals.set_var 0 
-                                     (AbVar.filter_with_compatible  
-                                        prog (AbLocals.get_var 0 set_args) (TClass cn)) 
-                                   set_args 
+                                 let set_args =
+                                   AbLocals.set_var 0
+                                     (AbVar.filter_with_compatible
+                                        prog (AbLocals.get_var 0 set_args) (TClass cn))
+                                   set_args
                                  in
                                    AbMethod.join_args AbMethod.init set_args
                             | true ->
@@ -642,19 +642,19 @@ let abstract_instruction opt prog pp opcode succs csts =
           []
           cn_lst
     in
-    let csts = 
-      match init, opt_ret with 
+    let csts =
+      match init, opt_ret with
         | Some _, _ -> (csts_arg@csts) (*make_csts done while handling the new*)
         | _,None -> make_csts ~cstsl:(csts_arg@csts) ()
         | _,Some ret_v ->
-            let csts_ret = 
+            let csts_ret =
               (*constraint on the local variables*)
               List.fold_left
-                (fun csts cn -> 
+                (fun csts cn ->
                    let m_var = `Method ((),cn,ms) in
-                     List.fold_left 
+                     List.fold_left
                        (fun csts  target ->
-                          let cst = 
+                          let cst =
                             let pp_targ = pp_var_from_PP target in
                               {
                                 CFAConstraints.dependencies = [pp_var;m_var];
@@ -663,11 +663,11 @@ let abstract_instruction opt prog pp opcode succs csts =
                                   (fun abSt ->
                                      let l = CFAState.get_PP abSt pp_var in
                                      let ab_m = CFAState.get_method abSt m_var in
-                                       `PPDomain (AbLocals.set_var (index ret_v) 
+                                       `PPDomain (AbLocals.set_var (index ret_v)
                                                     (AbMethod.get_return ab_m) l)
                                   )
                               }
-                          in 
+                          in
                             cst::csts
                        )
                        csts
@@ -679,11 +679,11 @@ let abstract_instruction opt prog pp opcode succs csts =
               csts_arg@csts_ret@csts
     in
       (*csts on uncatched exception from called function*)
-    let csts_exc = 
+    let csts_exc =
       List.fold_left
-        (fun csts cn -> 
+        (fun csts cn ->
            let m_called_var = `Method ((),cn,ms) in
-           let excAbst = 
+           let excAbst =
              (fun abSt -> let mAbSt = CFAState.get_method abSt m_called_var in
                 AbMethod.get_exc_return mAbSt)
            in
@@ -698,22 +698,21 @@ let abstract_instruction opt prog pp opcode succs csts =
 
   in
     match opcode with
-      | Goto _ 
+      | Goto _
       | MonitorEnter _
       | Check _
-      | Formula _
       | MonitorExit _
-      | Nop -> make_csts () 
-      | Ifd _ -> make_csts () 
+      | Nop -> make_csts ()
+      | Ifd _ -> make_csts ()
       | AffectVar (v,e) ->
           let dep = expr_dep e prog in
             make_csts ~other_dep:dep ~prop_locals_f:
-              (fun abSt -> 
+              (fun abSt ->
                  let l = CFAState.get_PP abSt pp_var in
 (*
                                 Printf.printf "2\n";
                                 Printf.printf "cn: %s ms: %s %s %d\n"
-                                  (cn_name (JProgram.get_name(JBirPP.get_class pp))) 
+                                  (cn_name (JProgram.get_name(JBirPP.get_class pp)))
                                   (ms_name ((JBirPP.get_meth pp).cm_signature))
                                   (JPrint.value_type_list
                                (ms_args ((JBirPP.get_meth pp).cm_signature)))
@@ -728,17 +727,17 @@ let abstract_instruction opt prog pp opcode succs csts =
           let vare = (fun abSt -> set_from_expr prog e3 abSt pp) in
           let array_cst = affect_array obje vare (pp_var::dep) in
             make_csts ~cstsl:(array_cst::csts) ()
-      | AffectField (e1, cn, fs, e2) (*e1.<cn:fs> = e2*) -> 
+      | AffectField (e1, cn, fs, e2) (*e1.<cn:fs> = e2*) ->
           let dep = expr_dep e2 prog in
           let f_var = `Field ((),cn,fs) in
-          let af_const = 
+          let af_const =
             {CFAConstraints.dependencies= pp_var::dep;
              CFAConstraints.target = f_var;
-             CFAConstraints.transferFun= 
+             CFAConstraints.transferFun=
                (fun abSt -> `FieldDomain (
 (*                                 Printf.printf "4\n"; *)
-                  AbField.var2fSet 
-                                            (set_from_expr prog e1 abSt pp) 
+                  AbField.var2fSet
+                                            (set_from_expr prog e1 abSt pp)
                                             (set_from_expr prog e2 abSt pp)))
             }
           in
@@ -746,30 +745,30 @@ let abstract_instruction opt prog pp opcode succs csts =
       | AffectStaticField (cn, fs, e) -> (*<cn:fs> = e *)
           let dep = expr_dep e prog in
           let f_var = `Field ((),cn,fs) in
-          let af_const = 
+          let af_const =
             {CFAConstraints.dependencies= pp_var::dep;
              CFAConstraints.target = f_var;
-             CFAConstraints.transferFun= 
+             CFAConstraints.transferFun=
                (fun abSt -> `FieldDomain (
-                  
+
 (*                                 Printf.printf "5\n"; *)
                   AbField.var2fSet AbField.static_field_dom
                                             (set_from_expr prog e abSt pp)))
             }
           in
             make_csts ~cstsl:(af_const::csts) ()
-      | Throw e -> 
+      | Throw e ->
 (*                                 Printf.printf "6\n"; *)
           let excAbSt = (fun abSt -> set_from_expr prog e abSt pp) in
           let exc_csts = handle_throw prog pp excAbSt in
             exc_csts@csts
       | Return opt_retexpr ->
           let c = JBirPP.get_class pp in
-          let ms = 
+          let ms =
             let m = JBirPP.get_meth pp in m.cm_signature in
           let m_var = `Method ((),JProgram.get_name c,ms) in
-          let cstreturn = 
-            (match opt_retexpr with 
+          let cstreturn =
+            (match opt_retexpr with
               | None -> csts
               | Some ret_expr ->
                   let deps = (expr_dep ret_expr prog) @ [pp_var; m_var] in
@@ -779,7 +778,7 @@ let abstract_instruction opt prog pp opcode succs csts =
                         (fun abSt ->
                            `MethodDomain(
                              if_alive_meth abSt
-                               (let vexpr = 
+                               (let vexpr =
 (*                                 Printf.printf "7\n"; *)
                                   set_from_expr prog ret_expr abSt pp
                                 in
@@ -795,8 +794,8 @@ let abstract_instruction opt prog pp opcode succs csts =
           let ms = make_ms "<init>" vt_args None in
           let this = Var (TObject (TClass cn),v) in
           let csts = handle_invoke ~init:(Some (TClass cn)) None [cn] ms (this::args) in
-          make_csts ~cstsl:csts ~prop_locals_f: 
-            (fun abSt -> 
+          make_csts ~cstsl:csts ~prop_locals_f:
+            (fun abSt ->
                let l = CFAState.get_PP abSt pp_var in
                  AbLocals.set_var (index v) (AbVSet.singleton [pp] (TClass cn)) l
             ) ()
@@ -806,19 +805,19 @@ let abstract_instruction opt prog pp opcode succs csts =
           let dim = List.length args in
           let content_cst =  handle_new_array pp pp_var vt dim [] in
             make_csts ~cstsl:(content_cst@csts) ~prop_locals_f:
-              (fun abSt -> 
+              (fun abSt ->
                  let l = CFAState.get_PP abSt pp_var in
-                   AbLocals.set_var (index v) 
+                   AbLocals.set_var (index v)
                      (AbVSet.singleton [pp] (ar_2_type dim vt)) l
               ) ()
       | InvokeDynamic _ -> assert false (* TODO *)
       | InvokeStatic (opt_ret, cn, ms, args) ->
           handle_invoke ~static:true opt_ret [cn] ms args
-      | InvokeVirtual (opt_ret, obje, _, ms, args) 
+      | InvokeVirtual (opt_ret, obje, _, ms, args)
       | InvokeNonVirtual (opt_ret, obje, _ , ms, args) ->
-          let cn_lst = 
-            List.map 
-              (fun called_pp -> 
+          let cn_lst =
+            List.map
+              (fun called_pp ->
                  JProgram.get_name (JBirPP.get_class called_pp)
               )
               (JBirPP.static_pp_lookup prog pp)
@@ -828,19 +827,19 @@ let abstract_instruction opt prog pp opcode succs csts =
           if opt.cfa_clinit_as_entry
           then make_csts () (*clinit considered as entry point*)
           else (
-            let csts = handle_invoke ~static:true None [cn] clinit_signature [] 
+            let csts = handle_invoke ~static:true None [cn] clinit_signature []
             in make_csts ~cstsl:csts ()
           )
-      
+
 
 
 let compute_instr_csts prog opt node m =
   let open JBirPP in
-    match m.cm_implementation with 
+    match m.cm_implementation with
       | Native -> []
-      | Java _laz -> 
+      | Java _laz ->
           let native_exc_csts = handle_native_exc prog node m in
-          let iter_on_pp pp csts = 
+          let iter_on_pp pp csts =
             let lst_succ = (normal_successors pp) in
               abstract_instruction opt prog pp (get_opcode pp) lst_succ csts
           in
@@ -848,10 +847,10 @@ let compute_instr_csts prog opt node m =
           let ms = m.cm_signature in
           let first_pp = get_first_pp prog cn ms in
           let reachable_pp = reachable_pp first_pp in
-          let csts_normal = 
+          let csts_normal =
             List.fold_left
-              (fun csts pp -> 
-                 iter_on_pp pp csts 
+              (fun csts pp ->
+                 iter_on_pp pp csts
               )
               []
               reachable_pp
@@ -862,15 +861,15 @@ let compute_instr_csts prog opt node m =
 
 (*TODO: Do not use list but map/set ???*)
 let get_csts program opt main_entry_points entry_points =
-  let init_meth_csts = 
+  let init_meth_csts =
     ClassMap.fold
       (fun _cn node csts ->
          JProgram.cm_fold
            (fun cm csts ->
               let ms = cm.cm_signature in
-              match cm.cm_implementation with 
+              match cm.cm_implementation with
                 | Native -> csts
-                | Java _ -> abstract_init_method_instr node ms csts 
+                | Java _ -> abstract_init_method_instr node ms csts
            )
            node
            csts
@@ -879,7 +878,7 @@ let get_csts program opt main_entry_points entry_points =
       []
   in
   (*initialising string array argument of the main method*)
-  let main_argument_csts = 
+  let main_argument_csts =
     (*add the string array itself*)
     let (main_cn, main_ms) = cms_split main_entry_points in
     let m_var = `Method ((),main_cn,main_ms) in
@@ -894,10 +893,10 @@ let get_csts program opt main_entry_points entry_points =
 (*     let len_fs = make_fs "length" (TBasic `Int)  in *)
 (*     let len_var = `Field ((), char_ar_cn, len_fs) in *)
       (*put the string array*)
-    let pre_init_singleton cn =  
+    let pre_init_singleton cn =
       AbVar.singleton [JBirPP.get_pp main_node main_cm (-1)] cn in
 
-    let str_ar = 
+    let str_ar =
       let obj_f = (fun _abSt -> pre_init_singleton str_ar_obj) in
       let abse_f = (fun _abst -> pre_init_singleton (TClass string_cn)) in
         affect_array obj_f abse_f []
@@ -906,9 +905,9 @@ let get_csts program opt main_entry_points entry_points =
     let str_val_ar =
       {CFAConstraints.dependencies = [];
        CFAConstraints.target = val_var;
-       CFAConstraints.transferFun = 
+       CFAConstraints.transferFun =
          (fun _abSt ->
-            let obj = pre_init_singleton (TClass string_cn) in 
+            let obj = pre_init_singleton (TClass string_cn) in
             let fs = pre_init_singleton char_ar_obj in
               `FieldDomain (AbField.var2fSet obj fs))
       }
@@ -919,10 +918,10 @@ let get_csts program opt main_entry_points entry_points =
         affect_array obj_f (fun _ -> AbVar.primitive) []
     in
         (*Set the local map variable*)
-    let args = 
+    let args =
       {CFAConstraints.dependencies = [];
        CFAConstraints.target = m_var;
-       CFAConstraints.transferFun = 
+       CFAConstraints.transferFun =
          (fun _abSt ->
              let new_args =
                AbLocals.set_var 0 (pre_init_singleton str_ar_obj) AbLocals.init
@@ -931,11 +930,11 @@ let get_csts program opt main_entry_points entry_points =
       }
 (*
     in
-    let len_str = 
+    let len_str =
       {
         CFAConstraints.dependencies = [];
         CFAConstraints.target = len_var;
-        CFAConstraints.transferFun = 
+        CFAConstraints.transferFun =
           (fun _abSt ->
              let obj = pre_init_singleton str_ar_obj in
                `FieldDomain (AbField.var2fSet obj (AbVar.primitive)))
@@ -944,16 +943,16 @@ let get_csts program opt main_entry_points entry_points =
     in str_ar::str_val_ar::str_ar_content::[args]
   in
   let init_csts =
-    List.fold_left 
+    List.fold_left
       (fun lst cms ->
          let (cn, ms) = cms_split cms in
-           try 
-             let pp = 
+           try
+             let pp =
                JBirPP.get_first_pp program cn ms in
              let pp_var = pp_var_from_PP pp in
                {CFAConstraints.dependencies = [];
                 CFAConstraints.target = pp_var ;
-                CFAConstraints.transferFun = 
+                CFAConstraints.transferFun =
                   (fun _abst -> `PPDomain AbLocals.init )
                }::lst
            with JControlFlow.PP.NoCode (cn, ms )->
@@ -964,19 +963,19 @@ let get_csts program opt main_entry_points entry_points =
       (main_entry_points::entry_points)
   in
   (*Add initial constraints on static Fields. They are initially set as Null.*)
-  let init_csts = 
+  let init_csts =
     JProgram.fold
     (fun csts nd ->
        JProgram.f_fold
-         (fun f csts -> 
+         (fun f csts ->
             if is_static_field f
-            then 
+            then
               (let (cn,fs) = cfs_split (get_class_field_signature f) in
-              let f_var = `Field ((),cn ,fs) in 
+              let f_var = `Field ((),cn ,fs) in
               {
                 CFAConstraints.dependencies = [];
                 CFAConstraints.target = f_var ;
-                CFAConstraints.transferFun = 
+                CFAConstraints.transferFun =
                   (fun _abSt -> `FieldDomain AbField.empty)
               }::csts)
             else csts
@@ -985,9 +984,9 @@ let get_csts program opt main_entry_points entry_points =
          csts
     )
     init_csts
-    program  
+    program
   in
-  let instr_csts = 
+  let instr_csts =
     ClassMethodMap.fold
       (fun _cms (node,m) csts ->
          (compute_instr_csts program opt node m)@csts)
@@ -999,19 +998,19 @@ let get_csts program opt main_entry_points entry_points =
 
 
 module HeapInit =
-struct 
+struct
 
-  let pp_from_heap_ref prog ref = 
+  let pp_from_heap_ref prog ref =
     let obj_node = JProgram.get_node prog java_lang_object in
     let ms = make_ms "init_heap" [] None in
-    let init_heap_cm = 
+    let init_heap_cm =
       {
         cm_signature = ms;
         cm_class_method_signature = make_cms java_lang_object ms;
         cm_static = true;
         cm_final = true;
         cm_synchronized = false;
-        cm_strict = false; 
+        cm_strict = false;
         cm_access= `Private;
         cm_generic_signature = None;
         cm_bridge= false;
@@ -1037,7 +1036,7 @@ struct
 
   let init_state_from_heap prog hp state =
     let open! ParserType in
-    let get_abstract_val v = 
+    let get_abstract_val v =
       match v with
         | VInt _ | VChar _ | VShort _ | VBool _ | VByte _ | VLong _
         | VFloat _ | VDouble _ -> AbVar.primitive
@@ -1048,7 +1047,7 @@ struct
                                     (get_dyn_type ref)
     in
 
-    let get_abstract_ar_val ar_v = 
+    let get_abstract_ar_val ar_v =
       Array.fold_left
         (fun abVal v ->
            AbVar.join abVal (get_abstract_val v)
@@ -1061,10 +1060,10 @@ struct
         (fun cn cl_el ->
            (*init static field*)
            FieldMap.iter
-             (fun fs parser_v -> 
+             (fun fs parser_v ->
                 let fs_var = `Field ((), cn, fs) in
                 let abVal = get_abstract_val parser_v in
-                  CFAState.join 
+                  CFAState.join
                     state
                     fs_var
                     (`FieldDomain (AbField.var2fSet AbField.static_field_dom abVal))
@@ -1078,7 +1077,7 @@ struct
                      let fs_var = `Field ((), cn, fs) in
                      let abVal = get_abstract_val parser_v in
                      let abObj = AbVar.singleton [pp_from_heap_ref prog id_inst] (TClass cn) in
-                       CFAState.join 
+                       CFAState.join
                          state
                          fs_var
                          (`FieldDomain (AbField.var2fSet abObj abVal))
@@ -1095,7 +1094,7 @@ struct
              (fun id_inst ar_val ->
                 let fs_var = `Field ((),java_lang_object , array_field_fs) in
                 let abVal = get_abstract_ar_val ar_val in
-                let abObj = AbVar.singleton [pp_from_heap_ref prog id_inst] obj in 
+                let abObj = AbVar.singleton [pp_from_heap_ref prog id_inst] obj in
                   CFAState.join
                     state
                     fs_var
@@ -1105,7 +1104,7 @@ struct
         )
         hp.hp_array;
       ()
-end 
+end
 
 let initial_state program init_heap entry_points =
   (* TODO: calculate init size on number of fields or methods of program ? *)
@@ -1127,7 +1126,7 @@ let initial_state program init_heap entry_points =
     state
 
 (*TODO: always fail if we are in unreachable code*)
-let cfa_static_lookup state prog classes = 
+let cfa_static_lookup state prog classes =
   let open! JProgram in
   fun cn ms pc ->
     let abm = CFAState.get_method state (`Method ((),cn,ms))
@@ -1138,34 +1137,34 @@ let cfa_static_lookup state prog classes =
         (let caller_c = ClassMap.find cn classes in
          let m = get_method caller_c ms in
            match m with
-             | AbstractMethod _ -> 
+             | AbstractMethod _ ->
                  failwith "Can't call static_lookup on Abstract Methods"
              | ConcreteMethod cm ->
-                 let pp = JBirPP.get_pp caller_c cm pc in 
-                 let get_expr_state e = 
+                 let pp = JBirPP.get_pp caller_c cm pc in
+                 let get_expr_state e =
                    (*                                 Printf.printf "8\n"; *)
                    (AbVSet.concretize (set_from_expr prog e state pp))
                  in
-                   (match cm.cm_implementation with 
-                      | Native -> 
+                   (match cm.cm_implementation with
+                      | Native ->
                           failwith "Can't call static_lookup on Native methods"
                       | Java bir_code ->
                           (match (JBir.code (Lazy.force bir_code)).(pc) with
                              | InvokeStatic (_ret ,called_cn, called_ms,_args) ->
-                                 let callee = 
+                                 let callee =
                                    match ClassMap.find called_cn classes with
                                    | Class c -> c
-                                   | Interface _ -> 
+                                   | Interface _ ->
                                        raise IncompatibleClassChangeError
-                                 in 
-                                 let (_c,cm) = JControlFlow.invoke_static_lookup 
+                                 in
+                                 let (_c,cm) = JControlFlow.invoke_static_lookup
                                                  callee called_ms
                                  in
                                    ClassMethodSet.singleton cm.cm_class_method_signature
                              | InvokeVirtual (_ret, obje, _, called_ms, _args) ->
                                  let possible_obj = get_expr_state obje in
                                    JType.ObjectSet.fold
-                                     (fun obj cmsset -> 
+                                     (fun obj cmsset ->
                                         match obj with
                                           | TClass cn ->
                                               let cms = make_cms cn called_ms in
@@ -1173,14 +1172,14 @@ let cfa_static_lookup state prog classes =
                                           | TArray _ -> raise Safe.Domain.DebugDom
                                      )
                                      possible_obj
-                                     ClassMethodSet.empty 
+                                     ClassMethodSet.empty
                              | InvokeNonVirtual  (_ret, _e, cn, ms , _args) ->
                                  let callee = match ClassMap.find cn classes with
                                    | Class c -> c
-                                   | Interface _ -> 
+                                   | Interface _ ->
                                        raise IncompatibleClassChangeError
-                                 in 
-                                 let (_c,cm) = JControlFlow.invoke_special_lookup 
+                                 in
+                                 let (_c,cm) = JControlFlow.invoke_special_lookup
                                                  caller_c callee ms
                                  in
                                    ClassMethodSet.singleton
@@ -1190,16 +1189,16 @@ let cfa_static_lookup state prog classes =
                    )
         )
 
-let upd_reachable_methods program state = 
+let upd_reachable_methods program state =
   ClassMap.fold
-    (fun cn nd rmmap -> 
+    (fun cn nd rmmap ->
        JProgram.cm_fold
-         (fun cm rmmap -> 
-            let abm = CFAState.get_method state 
+         (fun cm rmmap ->
+            let abm = CFAState.get_method state
                         (`Method ((),cn,cm.cm_signature)) in
               if AbMethod.isBot abm
               then rmmap
-              else 
+              else
                 (let cms = make_cms cn cm.cm_signature in
                    ClassMethodMap.add cms (nd, cm) rmmap)
          )
@@ -1210,7 +1209,7 @@ let upd_reachable_methods program state =
     ClassMethodMap.empty
 
 
-let cfa_program_from_state st prog = 
+let cfa_program_from_state st prog =
   let open JProgram in
   {
     prog with
@@ -1222,8 +1221,8 @@ let cfa_program_from_state st prog =
         parsed_methods = upd_reachable_methods prog st
   }
 
-let print_cfa_prog prog state dir = 
-  (try 
+let print_cfa_prog prog state dir =
+  (try
      (if (not (Sys.is_directory dir))
       then (Printf.printf "Impossible to dump cfa program: %s is not a valid directory." dir;
             exit 1))
@@ -1231,7 +1230,7 @@ let print_cfa_prog prog state dir =
   JCFAPrinter.print prog state dir
 
 
-let get_CFA_program 
+let get_CFA_program
       ?(opt=default_opt)
       ?(init_heap=None)
       (program: JBir.t JProgram.program)
@@ -1251,12 +1250,12 @@ let get_CFA_program
   and state = initial_state program init_heap entry_st in
 
   let state =
-    try 
+    try
     CFASolver.solve_constraints program csts state entry_st
     with CFAState.DebugSt st -> st
   in
-  let prog = 
-    cfa_program_from_state state program 
+  let prog =
+    cfa_program_from_state state program
   in
     match opt.cfa_html_dump with
       | None -> prog

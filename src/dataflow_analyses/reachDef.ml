@@ -29,7 +29,7 @@ module Lat = struct
 
   let join = Ptmap.merge Ptset.union
 
-  let get m x = 
+  let get m x =
     try Ptmap.find x m
     with Not_found -> Ptset.empty
 
@@ -52,25 +52,25 @@ module Lat = struct
 		    (JBir.var_name_g ((JBir.vars code).(i)))
 		    (set_to_string set)) ab ""
 end
-  
+
 type pc = int
-type transfer = 
+type transfer =
   | Nop
   | KillGen of JBir.var * int
   | Init
 
-let transfer_to_string = function 
+let transfer_to_string = function
   | Nop -> "Nop"
   | KillGen (x,i) -> Printf.sprintf "KillGen(%s,%d)" (JBir.var_name_g x) i
   | Init -> "INIT"
 
               (*
-let transfer_to_stringdot = function 
+let transfer_to_stringdot = function
   | Nop -> "Nop"
   | KillGen (x,i) -> Printf.sprintf "KillGen(%s,%d)" (JBir.var_name_g x) i
   | Init -> "INIT"
                *)
-      
+
 (* [gen_instrs last i] computes a list of transfert function [(f,j);...] with
    [j] the successor of [i] for the transfert function [f]. *)
 let gen_instrs i = function
@@ -79,12 +79,12 @@ let gen_instrs i = function
   | JBir.InvokeDynamic _ -> assert false (* TODO *)
   | JBir.Throw _
   | JBir.Return _  -> []
-  | JBir.AffectVar (x,_) 
+  | JBir.AffectVar (x,_)
   | JBir.NewArray (x,_,_)
   | JBir.Alloc (x,_)
-  | JBir.New (x,_,_,_) 
-  | JBir.InvokeStatic (Some x,_,_,_) 
-  | JBir.InvokeVirtual (Some x,_,_,_,_) 
+  | JBir.New (x,_,_,_)
+  | JBir.InvokeStatic (Some x,_,_,_)
+  | JBir.InvokeVirtual (Some x,_,_,_,_)
   | JBir.InvokeNonVirtual (Some x,_,_,_,_) -> [KillGen (x,i),i+1]
   | JBir.MonitorEnter _
   | JBir.MonitorExit _ -> [Nop,i+1]
@@ -92,14 +92,13 @@ let gen_instrs i = function
   | JBir.AffectField _
   | JBir.AffectArray _
   | JBir.InvokeStatic _
-  | JBir.InvokeVirtual _ 
-  | JBir.InvokeNonVirtual _ 
-  | JBir.MayInit _ 
+  | JBir.InvokeVirtual _
+  | JBir.InvokeNonVirtual _
+  | JBir.MayInit _
   | JBir.Check _
-  | JBir.Formula _
   | JBir.Nop -> [Nop,i+1]
 
-let unknown = -1 
+let unknown = -1
 
 let build_init params =
   List.fold_right
@@ -112,23 +111,23 @@ let build_init params =
 
 let eval_transfer_arity1 = function
   | Nop -> (fun ab -> ab)
-  | KillGen (x,i) -> Ptmap.add (JBir.index x) (Ptset.singleton i) 
+  | KillGen (x,i) -> Ptmap.add (JBir.index x) (Ptset.singleton i)
   | Init -> assert false (* not used by Iter 1 *)
 
 (* generate a list of transfer functions *)
-let build_constraint1 (m:JBir.t) : (pc * transfer * pc) list = 
-    JUtil.foldi 
+let build_constraint1 (m:JBir.t) : (pc * transfer * pc) list =
+    JUtil.foldi
       (fun i ins l ->
 	 List.rev_append
 	   (List.map (fun (c,j) -> (i,c,j)) (gen_instrs i ins))
-	   l) 
+	   l)
       (List.map (fun (i,e) -> (i,Nop,e.JBir.e_handler)) (JBir.exception_edges m))
       (JBir.code m)
 
 
 let run m =
   let init = build_init (JBir.params m) in
-    Iter.run 
+    Iter.run
       {
 	Iter.bot = Lat.bot ;
 	Iter.join = Lat.join;
@@ -165,22 +164,22 @@ let is_strict (_,c,_) =
   | Init -> false
   | Nop -> true
   | KillGen _ -> false
-		   
+
 type var = pc
 
-let build_constraint2 (m:JBir.t) : (var list * transfer * var) list = 
+let build_constraint2 (m:JBir.t) : (var list * transfer * var) list =
   ([],Init,0):: (* Initial constraint on program entry point *)
-    (JUtil.foldi 
+    (JUtil.foldi
        (fun i ins l ->
 	 List.rev_append
 	   (List.map (fun (c,j) -> ([i],c,j)) (gen_instrs i ins))
-	   l) 
+	   l)
        (List.map (fun (i,e) -> ([i],Nop,e.JBir.e_handler)) (JBir.exception_edges m))
        (JBir.code m))
 
 let run2 m =
   let init = build_init (JBir.params m) in
-    Iter2.run 
+    Iter2.run
       {
 	Iter2.string_of_var = (fun i -> Printf.sprintf "RD[%d]" i);
 	Iter2.bot = Lat.bot ;
@@ -201,8 +200,5 @@ let run2 m =
 	  (fun (_,c,_) -> transfer_to_string c);
 	Iter2.update_transfer =
 	  (fun tf _ _ -> tf)
-	
+
       }
-
-
-

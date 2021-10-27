@@ -57,7 +57,7 @@ type instr =
   | AffectArray of expr * expr * expr
   | AffectField of expr * JBasics.class_name * field_signature * expr
   | AffectStaticField of JBasics.class_name * field_signature * expr
-  | Alloc of var * JBasics.class_name 
+  | Alloc of var * JBasics.class_name
   | Goto of int
   | Ifd of ([`Eq | `Ge | `Gt | `Le | `Lt | `Ne] * expr * expr) * int
   | Throw of expr
@@ -79,7 +79,6 @@ type instr =
   | MonitorExit of expr
   | MayInit of JBasics.class_name
   | Check of check
-  | Formula of class_method_signature * formula
 
 let type_of_const i =
   match i with
@@ -235,20 +234,6 @@ let print_cmp ?(show_type = true) (c, e1, e2) =
       (print_expr' ~show_type false e1)
       (print_expr' ~show_type false e2)
 
-let rec print_formula ?(show_type = true) = function
-  | Atom (cmp, e1, e2) ->
-    print_cmp ~show_type (cmp, e1, e2)
-  | BoolVar v ->
-    print_expr' ~show_type false v
-  | And (f1, f2) ->
-    Printf.sprintf "(%s) && (%s)"
-      (print_formula ~show_type f1)
-      (print_formula ~show_type f2)
-  | Or (f1, f2) ->
-    Printf.sprintf "(%s) || (%s)"
-      (print_formula ~show_type f1)
-      (print_formula ~show_type f2)
-
 let print_oexpr ?(show_type = true) = function
   | Uninit (c, i) ->
     Printf.sprintf "Unit(%d,%s)" i (JPrint.class_name c)
@@ -383,10 +368,6 @@ let print_instr ?(show_type = true) = function
         Printf.sprintf "notzero %s" (print_expr' ~show_type true e)
       | CheckLink op ->
         Printf.sprintf "checklink (%s)" (JPrint.jopcode op) )
-  | Formula (cmd, f) ->
-    let cn, ms = cms_split cmd in
-    Printf.sprintf "FORMULA: %s.%s(%s)" (cn_name cn) (ms_name ms)
-      (print_formula ~show_type f)
 
 let print_expr ?(show_type = true) = print_expr' ~show_type true
 
@@ -752,18 +733,28 @@ exception End_of_method
 exception InvalidClassFile
 
 let next c i =
-  try
-    let k = ref (i + 1) in
-    if !k >= Array.length c then raise InvalidClassFile
-    else
-      begin
-        while c.(!k) = JCode.OpInvalid do
-          incr k;
-          if !k >= Array.length c then raise InvalidClassFile
-        done ;
-        !k
-      end
-  with _ -> raise End_of_method
+  let k = ref (i + 1) in
+  if !k >= Array.length c then raise End_of_method
+  else
+    begin
+      while c.(!k) = JCode.OpInvalid do
+        incr k;
+        if !k >= Array.length c then raise End_of_method
+      done ;
+      !k
+    end
+
+exception ErrorNext of string
+
+let next_debug c i =
+  try next c i
+  with End_of_method ->
+    let str_code = ref "" in
+    for k = 0 to Array.length c -1 do
+      str_code := Printf.sprintf "%s%2d: %s\n" !str_code k
+          (Javalib.JPrint.jopcode c.(k))
+    done;
+    raise (ErrorNext (Printf.sprintf "i = %d c=%s" i !str_code))
 
 (*Computes successors of instruction i. They can be several successors in case
  * of conditionnal instruction.*)
@@ -1716,13 +1707,13 @@ type constructor_folding_mode =
   | FoldIfPossible
   | DoNotFold
 
-(* 
+(*
  * Maps each opcode to a (expr list * instr list). An [expr] is a value
  * (constant or variable) or a basic operation that return a value without side
  * effect (an addition for exemple). [instr] is an operation which can take
  * [expr] and which change the state of the system (a variable affectation for
  * exemple).
- * 
+ *
  * [dico] : A dictionary to each variable of the program. we can directly add
  * new variables in it (mutable structure).
  * [mode] : precises if we are in 3 address or normal mod.
@@ -1744,7 +1735,7 @@ type constructor_folding_mode =
  * [next_store] : If next variable is an OpStore, represents the var at this
  * instruction index. Else equals None.
  * [next_is_junc_point_or_a_goto] : True if next instruction is a goto or a jump.
- * 
+ *
  * The function takes a Jcode representing a list of opcode as implicit argument.
  *)
 let bc2bir_instr dico mode pp_var ch_link ssa folding fresh_counter i load_type
@@ -2239,7 +2230,7 @@ let bc2bir_instr dico mode pp_var ch_link ssa folding fresh_counter i load_type
     else
       let s, instrs =
         clean dico ssa fresh_counter is_heap_sensible_element_in_expr s instrs in
-      (Uninit (c, i) :: s, instrs)        
+      (Uninit (c, i) :: s, instrs)
   | JCode.OpNewArray t as instr ->
     let x = make_tempvar dico ssa fresh_counter s next_store in
     let dim = topE s in
@@ -2421,7 +2412,7 @@ module FastCheckInfoDebug = struct
      (3) Check that our propagated debug info at a pc (for each variable
      on which we have a debug info) is consistent with debug info of pc
      successors that are jump_target pcs and propagate information
-     regarding the special case. 
+     regarding the special case.
 
      (4) Check at each use of a variable (OpLoad, OpIInc) that our
      propagated info on this variable is the same that the one in the
@@ -2508,7 +2499,7 @@ module FastCheckInfoDebug = struct
                ()
              (* There is a name information on variable on each pc :
 
-		- Check if it is the same info: 
+		- Check if it is the same info:
 
 		** if it is ok info is consistent, no change
 
@@ -2564,7 +2555,7 @@ module FastCheckInfoDebug = struct
 		- Check if we already propagate info from the [jump_pc]
 		point (case: jump_pc < pc):
 
-		** If it is the case: 
+		** If it is the case:
 
 		IF variable at [jump_pc] has value UnDef THEN the
 		variable could not have been accessed without a
@@ -2718,7 +2709,6 @@ module CheckInfoDebug = struct
     | InvokeNonVirtual _
     | MayInit _
     | Check _
-    | Formula _
     | Nop ->
       [(NoP, i + 1)]
 
@@ -2774,14 +2764,6 @@ module CheckInfoDebug = struct
         | CheckLink _ ->
           VarSet.empty
       in
-      let rec vars_in_formula = function
-        | BoolVar x ->
-          vars x
-        | Atom (_, e1, e2) ->
-          VarSet.union (vars e1) (vars e2)
-        | And (f1, f2) | Or (f1, f2) ->
-          VarSet.union (vars_in_formula f1) (vars_in_formula f2)
-      in
       function
       | Nop | MayInit _ | Goto _ | Alloc _->
         VarSet.empty
@@ -2808,8 +2790,6 @@ module CheckInfoDebug = struct
           match e_opt with None -> VarSet.empty | Some e -> vars e )
       | Check check ->
         vars_in_check check
-      | Formula (_, f) ->
-        vars_in_formula f
     in
     Array.iteri
       (fun i ins ->
@@ -2858,12 +2838,10 @@ end
 
 (*End of CheckInfoDebug module*)
 
-(* [bc2ir] returns (ir_code,info_ok). [info_ok:bool] indicates that debug
-   information on local variables were checked with success with FastCheckDebugInfo.
-   [ir_code:(pc * instr list) list]: is the code transformed, [instr
-   list] is the list of instructions generated at bytecode program
-   point [pc], generation could have used precedent program points of
-   [pc].*)
+(* [bc2ir] returns [ir_code:(pc * instr list) list] which is the code
+   transformed, [instr list] is the list of instructions generated at
+   bytecode program point [pc], generation could have used precedent
+   program points of [pc].*)
 let bc2ir dico mode ch_link ssa folding pp_var jump_target load_type
     arrayload_type code =
   let rec loop as_ts_jump ins ts_in as_in pc fresh_counter
@@ -2947,7 +2925,8 @@ let bc2ir dico mode ch_link ssa folding pp_var jump_target load_type
         (next code.JCode.c_code pc) fresh_counter
     with End_of_method -> ins
   in
-  loop MapPc.empty [] [] [] 0 (ref 0)
+  if Int.equal (Array.length code.JCode.c_code) 0 then []
+  else loop MapPc.empty [] [] [] 0 (ref 0)
 
 let search_name_localvar static code i x =
   if x = 0 && not static then Some "this"
@@ -3001,13 +2980,13 @@ let gen_params dico pp_var cm =
    point value for new instructions by modifying the pp of
    instructions when precedent pp has no instructions. Instructions
    that are jump_targets or handlers bounds keep the same program
-   point. 
+   point.
 
    [ir:(pc * instr list) list]: [instr list] is the list of
    instructions generated at bytecode program point [pc] (see [bc2ir]
    function).
 
-   Returns: (bytecode_pc (for ir2bc corresp), (bytecode_pc list (for bc2ir corresp),instr) list)) list 
+   Returns: (bytecode_pc (for ir2bc corresp), (bytecode_pc list (for bc2ir corresp),instr) list)) list
 
    *bytecode_pc (for ir2bc corresp): corresponds to the last bytecode
    instruction used for generate the ir instruction
@@ -3160,105 +3139,107 @@ let find_preds_instrs code handlers =
 (* remove instructions of code without predecessors and modify jump,
    handlers and correspondance tables in consequence. *)
 let rec remove_dead_instrs code ir2bc bc2ir handlers =
-  let predsi = find_preds_instrs code handlers in
-  let succ_of_dead = ref Ptset.empty in
-  let nb_dead = ref 0 in
-  (* returns true if pc has no predecessors (excepting itself) *)
-  let has_no_preds pc =
-    (* provide a way to manage a strange code in which a handler is
-       covering its own code and that is its own predecessor (=> dead
-       code) *)
-    let is_its_own_pred _ =
-      let pred, rest = Ptset.choose_and_remove predsi.(pc) in
-      pred == pc && Ptset.is_empty rest
-    in
-    (* first instruction has (-1) as predecessor and is not a dead
-         instr *)
-    pc >= 0 && (Ptset.is_empty predsi.(pc) || is_its_own_pred ())
-  in
-  (* calculate program point correspondance between old code and
-       code without dead instructions *)
-  let new_code_corresp =
-    Array.mapi
-      (fun i _preds ->
-         (* new code pc after removing precedent dead instrs *)
-         let ni = i - !nb_dead in
-         if has_no_preds i then (
-           (* this program point will not exist anymore but we keep
-	      a correspondance to modify handlers easily (case of
-	      removed instruction on one of the handlers range limits) *)
-           nb_dead := succ !nb_dead ;
-           ni )
-         else ni )
-      predsi
-  in
-  if !nb_dead > 0 then
-    let new_length = Array.length code - !nb_dead in
-    let new_code = Array.make new_length Nop in
-    let new_ir2bc = Array.make new_length (-1) in
-    let nb_dead_current = ref 0 in
-    (* create new array code and new ir to bc correspondance
-       table *)
-    let _ =
-      Array.iteri
-        (fun i ins ->
-           if has_no_preds i then nb_dead_current := succ !nb_dead_current
-           else (
-             (* If current pc has only one predecessor and this
-                      one has no predecessors => it is the successor of
-                      a dead instruction. *)
-             if
-               Ptset.cardinal predsi.(i) = 1
-               && has_no_preds (Ptset.choose predsi.(i))
-             then succ_of_dead := Ptset.add i !succ_of_dead ;
-             (* generate ir to bytecode correspondance *)
-             new_ir2bc.(i - !nb_dead_current) <- ir2bc.(i) ;
-             (* generate instruction in new code modifying jump
-                       pc if it is a jump instruction *)
-             new_code.(i - !nb_dead_current)
-             <- ( match ins with
-                 | Goto pc ->
-                   Goto new_code_corresp.(pc)
-                 | Ifd (g, pc) ->
-                   Ifd (g, new_code_corresp.(pc))
-                 | ins ->
-                   ins ) ) )
-        code
-    in
-    (* generate bytecode to ir correspondance *)
-    let new_bc2ir =
-      let to_remove = ref [] in
-      let bc2ir =
-        Ptmap.mapi
-          (fun bc ir ->
-             if has_no_preds ir then (
-               to_remove := bc :: !to_remove ;
-               -1 )
-             else new_code_corresp.(ir) )
-          bc2ir
+  if Array.length code > 0 then
+    let predsi = find_preds_instrs code handlers in
+    let succ_of_dead = ref Ptset.empty in
+    let nb_dead = ref 0 in
+    (* returns true if pc has no predecessors (excepting itself) *)
+    let has_no_preds pc =
+      (* provide a way to manage a strange code in which a handler is
+         covering its own code and that is its own predecessor (=> dead
+         code) *)
+      let is_its_own_pred _ =
+        let pred, rest = Ptset.choose_and_remove predsi.(pc) in
+        pred == pc && Ptset.is_empty rest
       in
-      List.fold_left (fun map bc -> Ptmap.remove bc map) bc2ir !to_remove
+      (* first instruction has (-1) as predecessor and is not a dead
+         instr *)
+      pc >= 0 && (Ptset.is_empty predsi.(pc) || is_its_own_pred ())
     in
-    let new_exc_tbl =
-      List.fold_right
-        (fun e new_h ->
-           let h =
-             { e_start= new_code_corresp.(e.e_start)
-             ; e_end= new_code_corresp.(e.e_end)
-             ; e_handler= new_code_corresp.(e.e_handler)
-             ; e_catch_type= e.e_catch_type
-             ; e_catch_var= e.e_catch_var }
-           in
-           (* A handler could cover only a dead instruction ...*)
-           (* and it is not (h.e_end-1) - h.e_start > 0 because
-                     of correspondance calculated in
-                     new_code_corresp! *)
-           if h.e_end - h.e_start > 0 then h :: new_h else new_h )
-        handlers []
+    (* calculate program point correspondance between old code and
+       code without dead instructions *)
+    let new_code_corresp =
+      Array.mapi
+        (fun i _preds ->
+           (* new code pc after removing precedent dead instrs *)
+           let ni = i - !nb_dead in
+           if has_no_preds i then (
+             (* this program point will not exist anymore but we keep
+	        a correspondance to modify handlers easily (case of
+	        removed instruction on one of the handlers range limits) *)
+             nb_dead := succ !nb_dead ;
+             ni )
+           else ni )
+        predsi
     in
-    if Ptset.is_empty !succ_of_dead then
-      (new_code, new_ir2bc, new_bc2ir, new_exc_tbl)
-    else remove_dead_instrs new_code new_ir2bc new_bc2ir new_exc_tbl
+    if !nb_dead > 0 then
+      let new_length = Array.length code - !nb_dead in
+      let new_code = Array.make new_length Nop in
+      let new_ir2bc = Array.make new_length (-1) in
+      let nb_dead_current = ref 0 in
+      (* create new array code and new ir to bc correspondance
+         table *)
+      let _ =
+        Array.iteri
+          (fun i ins ->
+             if has_no_preds i then nb_dead_current := succ !nb_dead_current
+             else (
+               (* If current pc has only one predecessor and this
+                        one has no predecessors => it is the successor of
+                        a dead instruction. *)
+               if
+                 Ptset.cardinal predsi.(i) = 1
+                 && has_no_preds (Ptset.choose predsi.(i))
+               then succ_of_dead := Ptset.add i !succ_of_dead ;
+               (* generate ir to bytecode correspondance *)
+               new_ir2bc.(i - !nb_dead_current) <- ir2bc.(i) ;
+               (* generate instruction in new code modifying jump
+                         pc if it is a jump instruction *)
+               new_code.(i - !nb_dead_current)
+               <- ( match ins with
+                   | Goto pc ->
+                     Goto new_code_corresp.(pc)
+                   | Ifd (g, pc) ->
+                     Ifd (g, new_code_corresp.(pc))
+                   | ins ->
+                     ins ) ) )
+          code
+      in
+      (* generate bytecode to ir correspondance *)
+      let new_bc2ir =
+        let to_remove = ref [] in
+        let bc2ir =
+          Ptmap.mapi
+            (fun bc ir ->
+               if has_no_preds ir then (
+                 to_remove := bc :: !to_remove ;
+                 -1 )
+               else new_code_corresp.(ir) )
+            bc2ir
+        in
+        List.fold_left (fun map bc -> Ptmap.remove bc map) bc2ir !to_remove
+      in
+      let new_exc_tbl =
+        List.fold_right
+          (fun e new_h ->
+             let h =
+               { e_start= new_code_corresp.(e.e_start)
+               ; e_end= new_code_corresp.(e.e_end)
+               ; e_handler= new_code_corresp.(e.e_handler)
+               ; e_catch_type= e.e_catch_type
+               ; e_catch_var= e.e_catch_var }
+             in
+             (* A handler could cover only a dead instruction ...*)
+             (* and it is not (h.e_end-1) - h.e_start > 0 because
+                       of correspondance calculated in
+                       new_code_corresp! *)
+             if h.e_end - h.e_start > 0 then h :: new_h else new_h )
+          handlers []
+      in
+      if Ptset.is_empty !succ_of_dead then
+        (new_code, new_ir2bc, new_bc2ir, new_exc_tbl)
+      else remove_dead_instrs new_code new_ir2bc new_bc2ir new_exc_tbl
+    else (code, ir2bc, bc2ir, handlers)
   else (code, ir2bc, bc2ir, handlers)
 
 (*For every pp, transform unreachable code to OpInvalid instrs, using the
@@ -3317,7 +3298,7 @@ let jcode2bir mode bcv ch_link ssa folding cm jcode =
   match JsrInline.inline code with
   | None ->
     raise Subroutine
-  | Some (code, assoc) -> 
+  | Some (code, assoc) ->
     let pp_var = search_name_localvar cm.cm_static code in
     let jump_target = compute_jump_target code in
     (* [is_typed i] : returns true is the current pp is typed (has been
@@ -3372,12 +3353,12 @@ let jcode2bir mode bcv ch_link ssa folding cm jcode =
 (* David: not used anywhere currently
    (* Agregation of boolean tests  *)
    module AgregatBool = struct
-   type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr 
+   type cond = [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * expr * expr
 
    type decision_tree =
     | LeafTrue
     | LeafFalse
-    | Node of 
+    | Node of
    cond (* b *)
    * decision_tree (* b true *)
    * decision_tree (* b false *)
@@ -3388,7 +3369,7 @@ let jcode2bir mode bcv ch_link ssa folding cm jcode =
     let rec aux b = function
       | LeafTrue -> Printf.sprintf "%strue\n" b
       | LeafFalse -> Printf.sprintf "%sfalse\n" b
-      | Node (x,t1,t2) -> 
+      | Node (x,t1,t2) ->
    Printf.sprintf "%sNode %s\n%s%s" b
    (print_cmp x)
    (aux (b^dec) t1)
@@ -3418,7 +3399,7 @@ let jcode2bir mode bcv ch_link ssa folding cm jcode =
     | (i,(Ifd (c,j))::block)::rest ->
    let (target_left,left) = compute_decision_tree_aux ((i,block)::rest) in
    let (target_right,right) = compute_decision_tree_aux (find_block j rest) in
-   if target_left=target_right 
+   if target_left=target_right
    then (target_right,Node (neg_cond c,left,right))
    else raise Not_a_decision_tree
     | (_,[Goto j])::rest -> compute_decision_tree_aux (find_block j rest)
@@ -3575,8 +3556,6 @@ module Live = struct
           [([GenVars [e]], i + 1)]
         | CheckLink _ ->
           [([], i + 1)] )
-    | Formula (_, f) ->
-      [([GenVars (all_expr_in_formula f)], i + 1)]
 
   (* generate a list of transfer functions *)
   let gen_symbolic m : (pc * transfer * pc) list =
@@ -3673,9 +3652,9 @@ module SSA = struct
           Ptset.choose s )
     , make_idom_tree aux )
 
-  (* dominance frontier set 
-     See: 
-     Cooper, Keith D.; Harvey, Timothy J.; and Kennedy, Ken (2001). 
+  (* dominance frontier set
+     See:
+     Cooper, Keith D.; Harvey, Timothy J.; and Kennedy, Ken (2001).
      A Simple, Fast Dominance Algorithm *)
   let domf n preds idom =
     let domf = Array.make (n + 1) Ptset.empty in
@@ -3705,11 +3684,11 @@ module SSA = struct
     Printf.fprintf f "}\n" ;
     close_out f
 
-  (* see:  
-     Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.; 
-     and Zadeck, F. Kenneth (1991). 
-     "Efficiently computing static single assignment form and the 
-     control dependence graph". 
+  (* see:
+     Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.;
+     and Zadeck, F. Kenneth (1991).
+     "Efficiently computing static single assignment form and the
+     control dependence graph".
      ACM Transactions on Programming Languages and Systems 13 (4): 451–490.*)
   let place_phi_nodes m n var_defs domf live =
     let place = ref Ptmap.empty in
@@ -3800,14 +3779,6 @@ module SSA = struct
       | StaticField _ ->
         Ptset.add heap_index acc
     in
-    let rec vars_f acc = function
-      | BoolVar x ->
-        vars acc x
-      | Atom (_, e1, e2) ->
-        vars (vars acc e1) e2
-      | And (f1, f2) | Or (f1, f2) ->
-        vars_f (vars_f acc f1) f2
-    in
     function
     | AffectField (e1, _, _, e2) ->
       vars (vars (Ptset.add heap_index Ptset.empty) e1) e2
@@ -3844,8 +3815,6 @@ module SSA = struct
             vars Ptset.empty e
           | CheckLink _ ->
             Ptset.empty )
-    | Formula (_, f) ->
-      vars_f Ptset.empty f
 
   let def_bcvar = function
     | NewArray (v, _, _)
@@ -3891,20 +3860,6 @@ module SSA = struct
           Unop (s, aux e)
         | Binop (s, e1, e2) ->
           Binop (s, aux e1, aux e2)
-      in
-      aux
-    in
-    let map_formula =
-      let f = use in
-      let rec aux = function
-        | BoolVar x ->
-          BoolVar (map_expr f x)
-        | Atom (cmp, e1, e2) ->
-          Atom (cmp, map_expr f e1, map_expr f e2)
-        | And (f1, f2) ->
-          And (aux f1, aux f2)
-        | Or (f1, f2) ->
-          Or (aux f1, aux f2)
       in
       aux
     in
@@ -3958,8 +3913,6 @@ module SSA = struct
       InvokeNonVirtual (Some (def x), use e, c, ms, List.map use le)
     | AffectArray (e1, e2, e3) ->
       AffectArray (use e1, use e2, use e3)
-    | Formula (cmd, f) ->
-      Formula (cmd, map_formula f)
     | Check c ->
       Check
         ( match c with
@@ -4033,11 +3986,11 @@ module SSA = struct
     succs
 
   (* Compute the rights indexes for each variable use and def.
-     See:  
-     Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.; 
-     and Zadeck, F. Kenneth (1991). 
-     "Efficiently computing static single assignment form and the 
-     control dependence graph". 
+     See:
+     Cytron, Ron; Ferrante, Jeanne; Rosen, Barry K.; Wegman, Mark N.;
+     and Zadeck, F. Kenneth (1991).
+     "Efficiently computing static single assignment form and the
+     control dependence graph".
      ACM Transactions on Programming Languages and Systems 13 (4): 451–490.*)
   let rename m var_defs children preds succs phi_nodes =
     let c = ref (Ptmap.map (fun _ -> 0) var_defs) in
@@ -4146,7 +4099,7 @@ module SSA = struct
     , (fun i -> rename_use.(i))
     , phi_nodes )
 
-  let immediate_dominators (ir_code : bir) : int -> int =
+  let _deprecated_immediate_dominators (ir_code : bir) : int -> int =
     let preds = preds ir_code in
     let dom = dominator ir_code.bir_code preds in
     let idom, _children = idom dom in
@@ -4450,237 +4403,6 @@ module SSA = struct
     ; (*bir_pc_bc2ir = ir_code.bir_pc_bc2ir;*)
       bir_pc_ir2bc= ir_code.bir_pc_ir2bc }
 end
-
-module GetFormula = struct
-  type fh = class_method_signature list
-
-  type use_formula = F_Default | F_Perso of fh
-
-  let empty_formula = []
-
-  let default_formula =
-    [ make_cms
-        (make_cn "sawja.Assertions")
-        (make_ms "assume" [TBasic `Bool] None)
-    ; make_cms
-        (make_cn "sawja.Assertions")
-        (make_ms "check" [TBasic `Bool] None)
-    ; make_cms
-        (make_cn "sawja.Assertions")
-        (make_ms "invariant" [TBasic `Bool] None) ]
-
-  (*
-  let is_assertion_cn fh = 
-    cn_equal (JBasics.make_cn (fst fh))
- *)
-
-  let is_command f_meths c ms =
-    let cms2find = make_cms c ms in
-    List.exists (fun cmsEl -> cms_equal cmsEl cms2find) f_meths
-
-  let is_command_cn f_meths cn =
-    List.exists (fun cmsEl -> cn_equal (fst (cms_split cmsEl)) cn) f_meths
-
-  let is_command_checklink f_meths = function
-    | JCode.OpInvoke (`Static (_, cn), ms) ->
-      is_command f_meths cn ms
-    | _ ->
-      false
-
-  let neg_cond (c, e1, e2) =
-    match c with
-    | `Eq ->
-      (`Ne, e1, e2)
-    | `Ne ->
-      (`Eq, e1, e2)
-    | `Lt ->
-      (`Ge, e1, e2)
-    | `Ge ->
-      (`Lt, e1, e2)
-    | `Gt ->
-      (`Le, e1, e2)
-    | `Le ->
-      (`Gt, e1, e2)
-
-  exception Not_a_decision_tree
-
-  exception Not_a_boolean_affectation
-
-  type cond = [`Eq | `Ge | `Gt | `Le | `Lt | `Ne] * expr * expr
-
-  type decision_tree =
-    | LeafTrue
-    | LeafFalse
-    | Node of cond (* b *) * decision_tree (* b true *) * decision_tree
-
-  (* b false *)
-
-  let compute_decision_tree code target_var target_pc i =
-    let rec tree i =
-      (* Printf.printf "  tree(%d)...\n" i;*)
-      match code.(i) with
-      | Ifd (c, j) ->
-        if j < i then raise Not_a_decision_tree
-        else Node (neg_cond c, tree (i + 1), tree j)
-      | Goto j ->
-        if j < i then raise Not_a_decision_tree else tree j
-      | AffectVar (x, Const (`Int i1))
-        when var_equal x target_var
-          && (i + 1 = target_pc || code.(i + 1) = Goto target_pc) ->
-        if i1 = Int32.one then LeafTrue
-        else if i1 = Int32.zero then LeafFalse
-        else raise Not_a_decision_tree
-      | _ ->
-        raise Not_a_decision_tree
-    in
-    tree i
-
-  let remove_code code i target_pc =
-    let rec aux i =
-      match code.(i) with
-      | Ifd (_, j) ->
-        assert (j >= i) ;
-        code.(i) <- Nop ;
-        aux (i + 1) ;
-        aux j
-      | Goto j ->
-        assert (j >= i) ;
-        code.(i) <- Nop ;
-        aux j
-      | AffectVar (_, Const (`Int _)) ->
-        code.(i) <- Nop ;
-        if code.(i + 1) = Goto target_pc then code.(i + 1) <- Nop ;
-        aux (i + 1)
-      | Nop ->
-        ()
-      | _ ->
-        assert false
-    in
-    aux i
-
-  (* Add condition [c0] to each list of the list. *)
-  let rec cons_and c0 = function
-    | [] ->
-      []
-    | d :: g ->
-      (c0 :: d) :: cons_and c0 g
-
-  let guard_of_decision_tree t =
-    let rec aux = function
-      | LeafFalse ->
-        []
-      | LeafTrue ->
-        [[]]
-      | Node (c, left, right) ->
-        let l = aux left in
-        let r = aux right in
-        if l = [] then cons_and (neg_cond c) r
-        else if r = [] then cons_and c l
-        else cons_and c l @ cons_and (neg_cond c) r
-    in
-    let filter_nil l = List.filter (fun d -> d <> []) l in
-    let rec to_cnj = function
-      | [] ->
-        assert false
-      | [(c, e1, e2)] ->
-        Atom (c, e1, e2)
-      | (c, e1, e2) :: q ->
-        And (Atom (c, e1, e2), to_cnj q)
-    in
-    let rec to_dij = function
-      | [] ->
-        raise Not_a_decision_tree
-      | [c] ->
-        to_cnj c
-      | c :: q ->
-        Or (to_cnj c, to_dij q)
-    in
-    to_dij (filter_nil (aux t))
-
-  let build_boolean_expr code x pc from =
-    try
-      let tree = compute_decision_tree code x pc from in
-      let guard = guard_of_decision_tree tree in
-      remove_code code from pc ; Some guard
-    with Not_a_decision_tree -> None
-
-  (* [first_nop code pc] returns the smallest [pc'] such that
-     for all index [i] in [pc' ... pc], [code.(i)=Nop].
-     We assume that [code.(pc)=Nop]. *)
-  let first_nop code pc =
-    let i = ref pc in
-    while code.(!i) = Nop && !i > 0 do
-      decr i
-    done ;
-    let pc' = !i + 1 in
-    assert (code.(pc') = Nop) ;
-    pc'
-
-  let extract_fomula_aux f_meths idom code i =
-    match code.(i) with
-    | InvokeStatic (None, c, ms, [e]) when is_command f_meths c ms -> (
-        let cms_cmd = make_cms c ms in
-        match e with
-        | Var (_, x) -> (
-            let idom = Lazy.force idom in
-            let pc = first_nop code (i - 1) in
-            match build_boolean_expr code x pc (idom pc) with
-            | Some f ->
-              Some (cms_cmd, f)
-            | None ->
-              Some (cms_cmd, BoolVar e) )
-        | _ ->
-          Some (cms_cmd, BoolVar e) )
-    | MayInit cn when is_command_cn f_meths cn ->
-      code.(i) <- Nop ; None
-    | Check (CheckLink jcode_op) when is_command_checklink f_meths jcode_op ->
-      code.(i) <- Nop ; None
-    | _ ->
-      None
-
-  let run f_meths m =
-    (*Before really running the transformation, we check that each methods
-      given is valid.*)
-    let _chk =
-      List.iter
-        (fun cms ->
-           let _cn, ms = JBasics.cms_split cms in
-           match (ms_rtype ms, ms_args ms) with
-           | None, [JBasics.TBasic `Bool] ->
-             ()
-           | _ ->
-             Printf.eprintf
-               "warning: Trying to use an invalid method to build formula: \
-                \"%s\" has an invalid signature and will not be used as \
-                command for formulae.\n"
-               (ms_name ms) )
-        f_meths
-    in
-    let idom = lazy (SSA.immediate_dominators m) in
-    let code_new = Array.copy m.bir_code in
-    for i = 0 to Array.length m.bir_code - 1 do
-      match extract_fomula_aux f_meths idom code_new i with
-      | Some (cmd, f) ->
-        code_new.(i) <- Formula (cmd, f)
-      | None ->
-        ()
-    done ;
-    { bir_vars= m.bir_vars
-    ; bir_dico= m.bir_dico
-    ; bir_params= m.bir_params
-    ; bir_code= code_new
-    ; bir_exc_tbl= m.bir_exc_tbl
-    ; bir_line_number_table= m.bir_line_number_table
-    ; (*        bir_pc_bc2ir = m.bir_pc_bc2ir;*)
-      bir_pc_ir2bc= m.bir_pc_ir2bc
-    ; bir_preds= m.bir_preds
-    ; (* not computed yet *)
-      bir_phi_nodes= m.bir_phi_nodes
-    ; (* not computed yet *)
-      bir_mem_ssa= m.bir_mem_ssa (* not computed yet *) }
-end
-
-let default_formula_cmd = GetFormula.default_formula
 
 open JPrintHtml
 
@@ -5001,16 +4723,6 @@ let bir_field_resolve_in_code prog (inst : instr) : instr =
     | CheckLink op ->
       CheckLink op
   in
-  let rec resolve_formula = function
-    | Atom (op, e1, e2) ->
-      Atom (op, resolve e1, resolve e2)
-    | BoolVar e ->
-      BoolVar (resolve e)
-    | And (f, g) ->
-      And (resolve_formula f, resolve_formula g)
-    | Or (f, g) ->
-      Or (resolve_formula f, resolve_formula g)
-  in
   match inst with
   | AffectVar (x, e) ->
     AffectVar (x, resolve e)
@@ -5044,8 +4756,6 @@ let bir_field_resolve_in_code prog (inst : instr) : instr =
     MonitorExit (resolve e)
   | Check e ->
     Check (resolve_check e)
-  | Formula (cms, f) ->
-    Formula (cms, resolve_formula f)
   | Nop | Goto _ | Return None | MayInit _ | Alloc _ ->
     inst
 
@@ -5282,8 +4992,6 @@ module MakeBirLikeFunctions (* (S : JBir.Internal.CodeInstrSig) = *) = struct
     | InvokeDynamic _ ->
       None (* not supported *)
     | Check _ ->
-      None
-    | Formula _ ->
       None
 
   let inst_disp = inst_disp' print_instr

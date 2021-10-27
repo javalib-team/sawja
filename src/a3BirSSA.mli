@@ -44,12 +44,12 @@ val var_name : var -> string
 
 val temp_var : var -> bool
 
-(** [var_name_debug v] returns, if possible, the original variable name of [v], 
+(** [var_name_debug v] returns, if possible, the original variable name of [v],
     if the initial class was compiled using debug information. *)
 val var_name_debug : var -> string option
 
-(** [var_name_g v] returns a string representation of the variable [v]. 
-    If the initial class was compiled using debug information, original 
+(** [var_name_g v] returns a string representation of the variable [v].
+    If the initial class was compiled using debug information, original
     variable names are build on this information. It is equivalent to
     [var_name_g x = match var_name_debug with Some s -> s | _ -> var_name x] *)
 val var_name_g : var -> string
@@ -116,32 +116,14 @@ type tvar = JBasics.value_type * var
 (** Side-effect free expressions. Only variables can be assigned such expressions. *)
 type expr =
   | Const of const (** constants *)
-  | Var of tvar 
+  | Var of tvar
   | Unop of unop * tvar
   | Binop of binop * tvar * tvar
   | Field of tvar * JBasics.class_name * JBasics.field_signature  (** Reading fields of arbitrary expressions *)
   | StaticField of JBasics.class_name * JBasics.field_signature  (** Reading static fields *)
 
-(** [type_of_expr e] returns the type of the expression [e]. *)      
+(** [type_of_expr e] returns the type of the expression [e]. *)
 val type_of_expr : expr -> JBasics.value_type
-
-(** {3 Formulae} *)
-
-(** Represent a boolean expression. *)
-type formula =
-  | Atom of [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar (** Atomic expression. *)
-  | BoolVar of tvar 
-  | And of formula * formula
-  | Or of formula * formula
-
-(** Give a default set of methods used to generate formulae. Those
-    methods are all defined in the class 'sawja.Assertions' (provided
-    in runtime/ directory):
-    - public static void assume (boolean) 
-    - public static void check (boolean) 
-    - public static void invariant (boolean) *)
-val default_formula_cmd : JBasics.class_method_signature list
-
 
 (** {3 Instructions} *)
 
@@ -174,7 +156,7 @@ type check =
       multianewarray, new, get_, put_, invoke_). *)
 
 (** A3BirSSA instructions are register-based and unstructured. Their operands are [tvar] (typed local vars), except variable assigments.
-    Next to them is the informal semantics (using a traditional instruction notations) they should be given. 
+    Next to them is the informal semantics (using a traditional instruction notations) they should be given.
 
     Exceptions that could be raised by the virtual
     machine are described beside each instruction, except for the
@@ -189,28 +171,28 @@ type instr =
   | AffectArray of tvar * tvar * tvar (** [AffectArray(x,i,e)] denotes   x\[i\] := e. *)
   | AffectField of tvar * JBasics.class_name * JBasics.field_signature * tvar  (** [AffectField(x,c,fs,y)] denotes   x.<c:fs> := y. *)
   | AffectStaticField of JBasics.class_name * JBasics.field_signature * tvar   (** [AffectStaticField(c,fs,e)] denotes   <c:fs> := e .*)
-  | Alloc of var * JBasics.class_name 
+  | Alloc of var * JBasics.class_name
   (** [Alloc(x,c)] performs the allocation part of a x:= new c(), without
       any constructor call. It is only generated with appropriate options
       in the [transform] function below. *)
   | Goto of int (** [Goto pc] denotes goto pc. (absolute address)  *)
   | Ifd of ( [ `Eq | `Ge | `Gt | `Le | `Lt | `Ne ] * tvar * tvar ) * int (** [Ifd((op,x,y),pc)] denotes    if (x op y) goto pc. (absolute address)  *)
-  | Throw of tvar (** [Throw x] denotes throw x.  
+  | Throw of tvar (** [Throw x] denotes throw x.
 
 		      The exception [IllegalMonitorStateException] could be thrown by the virtual machine.*)
-  | Return of tvar option (** [Return x] denotes 
-			      - return void when [x] is [None] 
-			      - return x otherwise 
+  | Return of tvar option (** [Return x] denotes
+			      - return void when [x] is [None]
+			      - return x otherwise
 
 			      The exception [IllegalMonitorStateException] could be thrown
 			      by the virtual machine.
 			      *)
   | New of var * JBasics.class_name * JBasics.value_type list * (tvar list)  (** [New(x,c,tl,args)] denotes x:= new c<tl>(args),  [tl] gives the type of [args]. *)
   | NewArray of var * JBasics.value_type * (tvar list)  (** [NewArray(x,t,el)] denotes x := new c\[e1\]...\[en\] where ei are the elements of [el] ; they represent the length of the corresponding dimension. Elements of the array are of type [t].  *)
-  | InvokeStatic 
-    of var option * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeStatic(x,c,ms,args)] denotes 
+  | InvokeStatic
+    of var option * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeStatic(x,c,ms,args)] denotes
 										   - c.m<ms>(args) if [x] is [None] (void returning method)
-										   -  x :=  c.m<ms>(args) otherwise 
+										   -  x :=  c.m<ms>(args) otherwise
 
 										   The exception [UnsatisfiedLinkError] could be
 										   thrown if the method is native and the code cannot be
@@ -228,31 +210,26 @@ type instr =
   | InvokeNonVirtual
     of var option * tvar * JBasics.class_name * JBasics.method_signature * tvar list  (** [InvokeNonVirtual(x,y,c,ms,args)] denotes the non virtual call
 											  -  y.C.m<ms>(args) if [x] is [None]  (void returning method)
-											  -  x := y.C.m<ms>(args) otherwise 
+											  -  x := y.C.m<ms>(args) otherwise
 
-											  The exception [UnsatisfiedLinkError] could be thrown 
+											  The exception [UnsatisfiedLinkError] could be thrown
 											  if the method is native and the code cannot be found.
 											  *)
   | InvokeDynamic
     of var option * JBasics.bootstrap_method * JBasics.method_signature * tvar list
   | MonitorEnter of tvar (** [MonitorEnter x] locks the object [x]. *)
-  | MonitorExit of tvar (** [MonitorExit x] unlocks the object [x]. 
+  | MonitorExit of tvar (** [MonitorExit x] unlocks the object [x].
 
 			    The exception
 			    [IllegalMonitorStateException] could be
 			    thrown by the virtual machine.  *)
-  | MayInit of JBasics.class_name (** [MayInit c] initializes the class [c] whenever it is required. 
+  | MayInit of JBasics.class_name (** [MayInit c] initializes the class [c] whenever it is required.
 
 				      The exception [ExceptionInInitializerError] could be thrown by the virtual machine.*)
-  | Check of check (** [Check c] evaluates the assertion [c]. 
+  | Check of check (** [Check c] evaluates the assertion [c].
 
 		       Exceptions that could be thrown by the virtual
 		       machine are described in {!check} type declaration.*)
-  | Formula of JBasics.class_method_signature * formula 
-  (** [Formula cms f]: [cms] is the method declaring the formula. [f] is
-      the formula to be verified. *)
-
-
 
 type exception_handler = {
   e_start : int;
@@ -281,10 +258,10 @@ type memory_ssa_info = {
 
 
 (** [t] is the parameter type for A3BirSSA methods. *)
-type t 
+type t
 
 (*Create an empty bir representation. Can be used for stubs.*)
-val empty : t 
+val empty : t
 
 (** All variables that appear in the method. [vars.(i)] is the variable of
     index [i]. *)
@@ -292,7 +269,7 @@ val vars : t -> var Javalib_pack.Ptmap.t
 
 (** Returns a pair containing the index of the first SSA variable and of the
     last SSA variable. This is useful as the index does not start at 0, but after
-    the non-ssa variables. As the indexes are contiguous, the number of SSA 
+    the non-ssa variables. As the indexes are contiguous, the number of SSA
     variables is 'last index - first index +1'. *)
 val ssa_index : t -> (int * int)
 
@@ -305,7 +282,7 @@ val  params : t -> (JBasics.value_type * var) list
 val code : t -> instr array
 
 (** [exc_tbl] is the exception table of the method code. Jumps are
-    absolute. The list is ordered in the same way as in the bytecode 
+    absolute. The list is ordered in the same way as in the bytecode
     (See JVM Spec 7 $2.10). *)
 val  exc_tbl : t -> exception_handler list
 
@@ -335,7 +312,7 @@ val  line_number_table : t -> (int * int) list option
     instruction corresponding to the given ir instruction is
     returned (i.e. the last bytecode instruction used for the ir
     instruction generation).*)
-val  pc_ir2bc : t -> int array 
+val  pc_ir2bc : t -> int array
 
 
 (** [jump_target m] indicates whether program points are join points or not in [m]. *)
@@ -417,8 +394,8 @@ val print_class :
   ?css:string -> ?js:string -> ?info:JPrintHtml.info -> t Javalib.interface_or_class -> string -> unit
 
 (** Printer for the Sawja Eclipse Plugin (see module JPrintPlugin) *)
-module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter 
-  with type code = t 
+module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
+  with type code = t
    and type expr = expr
 
 (** {2 Bytecode transformation} *)
@@ -426,7 +403,7 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
 
 (** [transform ~bcv ~ch_link cm jcode] transforms the code [jcode]
     into its A3BirSSA representation. The transformation is performed in
-    the context of a given concrete method [cm].  
+    the context of a given concrete method [cm].
 
     - [?bcv]: The type checking normally performed by the ByteCode
       Verifier (BCV) is done if and only if [bcv] is [true].
@@ -437,7 +414,7 @@ module PluginPrinter : JPrintPlugin.NewCodePrinter.PluginPrinter
     [transform] can raise several exceptions. See exceptions below for details. *)
 
 val transform :
-  ?bcv:bool -> ?ch_link:bool -> 
+  ?bcv:bool -> ?ch_link:bool ->
   JCode.jcode Javalib.concrete_method -> JCode.jcode -> t
 
 (** {2 Exceptions} *)
