@@ -3821,7 +3821,8 @@ module SSA = struct
     | New (v, _, _, _)
     | InvokeStatic (Some v, _, _, _)
     | InvokeVirtual (Some v, _, _, _, _)
-    | InvokeNonVirtual (Some v, _, _, _, _) ->
+    | InvokeNonVirtual (Some v, _, _, _, _)
+    | InvokeDynamic (Some v, _, _, _) ->
       Ptset.add heap_index
         (if catch_var v then Ptset.empty else Ptset.singleton (index v))
     | AffectVar (v, _) ->
