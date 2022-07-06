@@ -79,6 +79,9 @@ META: META.source ../Makefile.config
 	else \
 		$(SED) 's/requires = "javalib"/requires = "javalib"/' $< > $@ ; \
 	fi
+	if [ -n "$(SHARED)" ]; then \
+		echo "plugin(native) = \"$(SHARED)\"" >> $@; \
+	fi
 
 install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
 	$(INSTALL) sawja $^ bir.cmi sawja.a
