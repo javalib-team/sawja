@@ -141,8 +141,8 @@ sawja.cma: sawja_pack.cmo
 sawja.cmxa: sawja_pack.cmx
 	$(OCAMLOPT) -a -o $@ $^
 
-# sawja.cmxs: sawja.cmxa
-# 	$(OCAMLOPT) -shared -o $@ $^
+sawja.cmxs: sawja.cmxa
+	$(OCAMLOPT) -shared -o $@ $^
 
 sawja_pack.cmo: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
 	$(OCAMLC) -pack $(MODULES:=.cmo) -o $@
