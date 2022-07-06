@@ -83,7 +83,7 @@ META: META.source ../Makefile.config
 		echo "plugin(native) = \"$(SHARED)\"" >> $@; \
 	fi
 
-install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
+install: META sawja.cma sawja.cmxa $(SHARED) $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
 	$(INSTALL) sawja $^ bir.cmi sawja.a
 
 remove:
