@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "sawja"
-version: "1.5.11"
+version: "1.5.12"
 maintainer: "sawja@inria.fr"
 authors: "Sawja development team"
 homepage: "http://sawja.inria.fr"
@@ -20,7 +20,7 @@ install: [
 depends: [
   "ocaml" {>= "4.08"}
   "ocamlfind" {build}
-  "javalib" {>= "3.2.1" & < "3.3"}
+  "javalib" {>= "3.2.2" & < "3.3"}
 ]
 
 synopsis: "Sawja provides a high level representation of Java bytecode programs and static analysis tools"
