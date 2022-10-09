@@ -48,7 +48,7 @@ module BddBuddy = struct
   let bdd_implies v1 v2 = Buddy.apply v1 v2 Buddy.IMP
 
   let equal = (=)
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 
   let ithvar _man i = Buddy.ithvar i
   let nithvar _man i = Buddy.nithvar i
@@ -78,7 +78,7 @@ end
 (*   let bdd_implies = Bdd.is_leq *)
 
 (*   let equal = (=) *)
-(*   let compare = Pervasives.compare *)
+(*   let compare = Stdlib.compare *)
 
 
 (*   let ithvar man v = Bdd.ithvar man v *)
@@ -159,7 +159,7 @@ open S
       if s1 <> s2 then assert false;
       s1
 
-  (* let compare = Pervasives.compare in *)
+  (* let compare = Stdlib.compare in *)
   let equal = (=)
 
   let elements : t -> int list =
