@@ -1,3 +1,10 @@
+From 1.5.11 to 1.5.12
+-------------------
+Minor changes:
+	- use Stdlib instead of Pervasives (needed for Ocaml 5)
+	- locate bash using /usr/bin/env
+	- bugfix about InvokeDynamic in def_bcvar
+
 From 1.5.10 to 1.5.11
 -------------------
 Removed feature:
@@ -17,7 +24,7 @@ New feature:
       We provide 3 modes in JBir.transform to set up this new feature.
     - Removing debug information verification
     - New sawjap executable (see test/ directory)
-	
+
 Minor Changes:
     - adding .merlin files
     - removing many warnings
