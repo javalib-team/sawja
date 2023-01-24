@@ -53,7 +53,7 @@ BUDDY=no
 # The ocamlopt flags (depends on DEBUG)
 OPT_FLAGS=
 # The ocamlc flags (depends on DEBUG)
-FLAGS="-w Aer"
+FLAGS="-w +A+e+r"
 # Do version check for packages 
 VCHECK="true"
 

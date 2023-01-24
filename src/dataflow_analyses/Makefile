@@ -18,8 +18,8 @@
 # <http://www.gnu.org/licenses/>.
 
 INCLUDE=-package sawja
-OCAMLOPT=ocamlfind ocamlopt $(INCLUDE) -w Aer
-OCAMLC=ocamlfind ocamlc $(INCLUDE) -w Aer
+OCAMLOPT=ocamlfind ocamlopt $(INCLUDE) -w +A-e-r
+OCAMLC=ocamlfind ocamlc $(INCLUDE) -w +A-e-r
 OCAMLDEP=ocamlfind ocamldep
 SRC_FOR_LIB=
 SRC_FOR_MAIN= main
