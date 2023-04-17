@@ -8,7 +8,7 @@ bug-reports: "https://github.com/javalib-team/sawja/issues"
 license: "GPL-3.0-or-later"
 dev-repo: "git+https://github.com/javalib-team/sawja.git"
 build: [
-  ["./configure.sh"]
+  ["./configure.sh" "-s" { ocaml:native-dynlink } ]
   [make]
 ]
 install: [

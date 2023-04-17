@@ -79,8 +79,11 @@ META: META.source ../Makefile.config
 	else \
 		$(SED) 's/requires = "javalib"/requires = "javalib"/' $< > $@ ; \
 	fi
+	if [ -n "$(SHARED)" ]; then \
+		echo "plugin(native) = \"$(SHARED)\"" >> $@; \
+	fi
 
-install: META sawja.cma sawja.cmxa $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
+install: META sawja.cma sawja.cmxa $(SHARED) $(MODULE_INTERFACES:=.mli) sawja_pack.cmi sawja_pack.cmo sawja_pack.cmx sawja_pack.o 
 	$(INSTALL) sawja $^ bir.cmi sawja.a
 
 remove:
@@ -138,8 +141,8 @@ sawja.cma: sawja_pack.cmo
 sawja.cmxa: sawja_pack.cmx
 	$(OCAMLOPT) -a -o $@ $^
 
-# sawja.cmxs: sawja.cmxa
-# 	$(OCAMLOPT) -shared -o $@ $^
+sawja.cmxs: sawja_pack.cmx
+	$(OCAMLOPT) -shared -o $@ $^
 
 sawja_pack.cmo: $(MODULE_INTERFACES:=.cmi) $(MODULES:=.cmo)
 	$(OCAMLC) -pack $(MODULES:=.cmo) -o $@
